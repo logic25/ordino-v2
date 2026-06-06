@@ -27,6 +27,7 @@ import { BillingNotificationSettings } from "@/components/settings/BillingNotifi
 import { ReportSettings } from "@/components/settings/ReportSettings";
 import { EmailTemplateGallery } from "@/components/settings/EmailTemplateGallery";
 import { ExpensesSettings } from "@/components/settings/ExpensesSettings";
+import { BdPlaceholderSettings } from "@/components/settings/BdPlaceholderSettings";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { Mail, Brain, ExternalLink, BarChart3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -196,7 +197,7 @@ function DeleteAccountDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   );
 }
 
-type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists" | "roles" | "partner_templates" | "signal" | "instruction_templates" | "notifications" | "beacon" | "billing_notifications" | "reports" | "email_gallery" | "expenses";
+type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists" | "roles" | "partner_templates" | "signal" | "instruction_templates" | "notifications" | "beacon" | "billing_notifications" | "reports" | "email_gallery" | "expenses" | "bd_memberships" | "bd_event_sources" | "bd_sequence_templates";
 
 interface SettingsSectionDef {
   id: SettingsSection;
@@ -255,6 +256,14 @@ const settingsGroups: SettingsGroup[] = [
       { id: "beacon", title: "Beacon AI", description: "Connection status, bot identity, and Beacon dashboard", icon: Brain, adminOnly: true },
     ],
   },
+  {
+    label: "BD",
+    sections: [
+      { id: "bd_memberships", title: "Memberships", description: "Annual association memberships and renewal tracking", icon: ShieldCheck },
+      { id: "bd_event_sources", title: "Event Sources", description: "URLs monitored weekly for new industry events", icon: ListChecks },
+      { id: "bd_sequence_templates", title: "Sequence Templates", description: "Reusable email cadences for Lead follow-up", icon: Mail },
+    ],
+  },
 ];
 
 const allSections = settingsGroups.flatMap((g) => g.sections);
@@ -292,7 +301,9 @@ export default function Settings() {
       case "billing_notifications": return <BillingNotificationSettings />;
       case "reports": return <ReportSettings />;
       case "expenses": return <ExpensesSettings />;
-      default:
+      case "bd_memberships": return <BdPlaceholderSettings title="Memberships" sprint={7} description="Track GLE's annual association memberships, renewal dates, and member portals." icon={ShieldCheck} />;
+      case "bd_event_sources": return <BdPlaceholderSettings title="Event Sources" sprint={7} description="The list of URLs Sai monitors weekly for new industry events." icon={ListChecks} />;
+      case "bd_sequence_templates": return <BdPlaceholderSettings title="Sequence Templates" sprint={8} description="Define multi-step email cadences that Leads get enrolled into." icon={Mail} />;
         return (
           <>
             <div className="space-y-8" data-tour="settings-sections">
