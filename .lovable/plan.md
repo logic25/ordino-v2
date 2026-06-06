@@ -1,79 +1,34 @@
-# Generate Fix Prompt — Bug Reports
+# Fix Sentry errors triage
 
-Replace the existing minimal "Copy for Lovable" button in the bug detail sheet with a richer **Generate Fix Prompt** action. One click assembles every piece of context a coding agent needs and copies it to the clipboard. The user pastes into Claude Code or Lovable; nothing autonomous runs.
+Three Sentry errors were reported. Investigation results:
 
-## User flow
+## 1. `ROLES is not defined` — `InviteMemberDialog.tsx` ✅ Already fixed
+The component now loads roles dynamically via `useCustomRoles()` and the `ROLES` constant no longer exists anywhere in `src/`. The Sentry event is from an older release captured mid-refactor. **No code change needed** — will mark resolved in Sentry.
 
-1. Open a triaged bug in the detail sheet
-2. Pick destination tool from a small dropdown next to the button: **Claude Code** or **Lovable** (defaults to last choice in localStorage)
-3. Click **Generate Fix Prompt** — spinner shows while the edge function assembles file contents
-4. Toast confirms copy; prompt is on the clipboard, ready to paste
+## 2. `Cannot read properties of undefined (reading 'replace')` — `AppSidebar.tsx` ✅ Already fixed
+The current code separates `NavItem` from `NavGroup` via a `"kind" in entry` check (line 224) and only calls `item.href.replace(...)` after that narrowing. All entries in `mainNav` and `secondaryNav` have hard-coded `href` values, and `filteredMainNav` preserves the group/item shape. The Sentry event fired during an HMR cycle on the same release; current source is sound. **No code change needed** — will mark resolved in Sentry.
 
-The button is enabled even without triage, but shows a tooltip recommending "Run AI Triage first" when `ai_diagnosis` is empty.
+## 3. `Rendered more hooks than during the previous render` — `PropertyDetail.tsx` ⚠️ Real bug, needs fix
+Root cause: hook order violates the Rules of Hooks.
 
-## What goes into the prompt
+- Line ~452: early return `if (!property) return <NotFound/>;`
+- Line 510: `const coJobCount = useMemo(...)` runs **after** that early return
 
-A single markdown block, structured for fast scanning by a coding agent:
+On the first render `property` is undefined → component returns early → `useMemo` never runs. When the query resolves and `property` becomes defined, React sees an extra `useMemo` call vs the previous render and throws.
 
-1. **Header** — bug id, title, page, priority, status, destination tool
-2. **Reproduction** — description, expected vs actual, repro steps, Loom URL, screenshot URLs
-3. **AI triage** — severity, root cause, suggested fix, complexity, suggested files (verbatim from triage)
-4. **Similar past bugs** — top 3 `bug_patterns` rows ranked by file overlap + keyword match against this bug (same scoring already used in `triage-bug-report`); each shows pattern name, occurrences, root cause, prior fix
-5. **Current file contents** — for each path in `ai_suggested_files`, a fenced code block with the live file contents (see "File contents source" below)
-6. **Acceptance criteria** — auto-generated checklist:
-   - Original repro no longer reproduces
-   - No regressions in adjacent components listed
-   - Tests pass (`bun run test` if test file is touched)
-   - Changelog entry added per project rule
-7. **Tool note** — different closing line depending on dropdown choice:
-   - Claude Code → "You have filesystem access — re-read files before editing in case they changed."
-   - Lovable → "Apply the smallest change that fixes the bug. Reference the file paths above."
+### Fix
+Move `coJobCount = useMemo(...)` (and any other hooks living below the `if (!property) return` / `if (isLoading) return` guards) above those early returns. The `useMemo` body already handles `coApps` being an empty array, so no other change is required.
 
-## File contents source
+Quick audit of the file will be done while editing to catch any other hook below the guards (e.g. additional `useMemo`/`useCallback` defined later in the body). Any found will be hoisted in the same edit.
 
-A new edge function **`assemble-fix-prompt`** does the assembly server-side because the browser can't read repo files. It accepts `{ bug_id, target_tool }`, verifies the caller's company matches the bug (same pattern as `triage-bug-report`), and fetches file contents from the connected GitHub repo via the raw API.
+## Out of scope
+- No changes to AppSidebar or InviteMemberDialog (verified clean).
+- No refactor of PropertyDetail beyond hoisting hooks above early returns.
+- No new tests (single localized fix).
 
-Required to make this work:
-- `GITHUB_TOKEN` secret (PAT with `repo` read scope on the Ordino repo)
-- `GITHUB_REPO` secret (e.g. `your-org/ordino`)
-- `GITHUB_BRANCH` secret (defaults to `main`)
-
-If `GITHUB_TOKEN` is not set, the function gracefully falls back: it still returns the full prompt minus file contents, with a line `> Note: GitHub token not configured — agent should read files itself.` This means we can ship the UI immediately and you add the token whenever you want the time-saver to kick in.
-
-Per-file behavior:
-- Skip files >1500 lines (include a "file too large, agent should read directly" placeholder)
-- Skip directories (paths ending in `/`)
-- Cap total prompt size at ~80KB; if over, drop largest files first and note the omission
-
-## Where the code lives
-
-```text
-supabase/functions/assemble-fix-prompt/index.ts   NEW — assembles prompt, fetches files
-src/components/helpdesk/BugReports.tsx            EDIT — replace copyForLovable with new flow
-src/components/helpdesk/fixPromptDestination.ts   NEW — small localStorage helper for last-used tool
-```
-
-## UI placement
-
-In the detail sheet, the existing "Copy for Lovable" button currently sits near the comments section. Move it into the AI Triage card footer (or just below it when triage is missing) as a `ButtonGroup`-style cluster:
-
-```text
-[ Generate Fix Prompt ▼ Claude Code ]   [ Re-run Triage ]
-```
-
-The split-button uses shadcn `Button` + `DropdownMenu`. Selecting from the dropdown both triggers the action and remembers the choice.
-
-## Out of scope (confirmed)
-
-- No webhook triggers
-- No GitHub PR creation or write API calls
-- No CI integration, no auto-merge
-- No changes to `bug_fix_log` flow — `fixed_by` stays user-selected at resolve time
+## Verification
+- After edit, visit `/properties/:id` in the preview for a property that loads cleanly — no console error.
+- Mark all three Sentry findings resolved.
 
 ## Changelog
-
-Per the auto-logging rule, the same task inserts a `changelog_entries` row: "Added Generate Fix Prompt to Bug Reports — bundles triage, similar patterns, and current file code into a copy-ready prompt."
-
-## Open decision before build
-
-The plan assumes the **hybrid** approach for file contents (GitHub fetch when token is present, paths-only fallback otherwise) since it's the lowest-friction way to ship without blocking on a PAT. If you'd rather start with paths-only and never add the GitHub fetch, say the word and I'll drop the edge function entirely and do the assembly client-side. The UI surface stays identical either way.
+Add a `changelog_entries` row: *"Fixed a rare crash on the Property detail page caused by an internal hook ordering issue."*
