@@ -200,9 +200,14 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
 
         {/* Project Readiness */}
         {show("project-readiness") && (
-        <Card>
+        <Card id="section-readiness" className="scroll-mt-24">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
+              <ClipboardCheck className="h-4 w-4" />
+              Project Readiness
+            </CardTitle>
+            <CardDescription>Checklist completion and missing items</CardDescription>
+          </CardHeader>
               <ClipboardCheck className="h-4 w-4" />
               Project Readiness
             </CardTitle>
