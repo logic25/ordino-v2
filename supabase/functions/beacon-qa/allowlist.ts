@@ -3,10 +3,10 @@
 
 export const COLUMN_ALLOWLIST: Record<string, string[]> = {
   projects: [
-    "id", "project_number", "name", "status", "phase", "address_id", "client_id",
-    "assigned_pm_id", "assigned_senior_pm_id", "waiting_on", "waiting_since",
+    "id", "project_number", "name", "status", "phase", "client_id",
+    "assigned_pm_id", "waiting_on", "waiting_since",
     "waiting_note", "expected_construction_start", "estimated_construction_completion",
-    "ready_to_file_at", "last_activity_at", "created_at", "updated_at", "property_id",
+    "last_activity_at", "created_at", "updated_at", "property_id",
   ],
   properties: [
     "id", "address", "borough", "block", "lot", "bin", "zip",

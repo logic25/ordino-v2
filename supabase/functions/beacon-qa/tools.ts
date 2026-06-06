@@ -96,8 +96,7 @@ export async function getProject(ctx: Ctx, args: { project_id: string }) {
       id, project_number, name, status, phase,
       waiting_on, waiting_since, waiting_note,
       expected_construction_start, estimated_construction_completion,
-      ready_to_file_at, last_activity_at,
-      assigned_pm_id, assigned_senior_pm_id,
+      last_activity_at, assigned_pm_id,
       properties(address, borough, block, lot, bin),
       clients!projects_client_id_fkey(name, client_type)
     `)
