@@ -19,6 +19,19 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown, Wand2 } from "lucide-react";
+import {
+  type FixPromptDestination,
+  getDestination,
+  setDestination,
+  DESTINATION_LABEL,
+} from "./fixPromptDestination";
 
 const PAGES = [
   "Dashboard", "Projects", "Properties", "Proposals", "Invoices / Billing",
