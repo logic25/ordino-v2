@@ -1347,27 +1347,26 @@ export function TeamSettings() {
         </CardContent>
       </Card>
 
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="relative max-w-md flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search team members..."
-            className="pl-9"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        {isAdmin && <InviteMemberDialog />}
-      </div>
-
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
             Team Members
             <span className="text-muted-foreground font-normal text-sm">({filteredProfiles.length})</span>
           </CardTitle>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="relative flex-1 sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search team members..."
+                className="pl-9 h-9"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            {isAdmin && <InviteMemberDialog />}
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
