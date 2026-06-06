@@ -583,22 +583,36 @@ export function BugReports() {
     });
   };
 
-  const copyForLovable = () => {
-    if (!selectedBug) return;
-    const attachments = getAttachments(selectedBug);
-    const parts = [
-      `**Bug Report: ${selectedBug.title}**`,
-      `Priority: ${selectedBug.priority}`,
-      "",
-      selectedBug.description,
-    ];
-    if (selectedBug.loom_url) parts.push("", `Loom: ${selectedBug.loom_url}`);
-    if (attachments.length > 0) parts.push("", `Screenshots:\n${attachments.map(a => `- ${a.url}`).join("\n")}`);
-    parts.push("", "Please analyze this bug and suggest a fix.");
-
-    navigator.clipboard.writeText(parts.join("\n"));
-    toast({ title: "Copied to clipboard", description: "Paste into Lovable chat to get a fix." });
+  const generateFixPrompt = async (tool: FixPromptDestination) => {
+    if (!selectedBug || generatingPrompt) return;
+    setFixPromptDest(tool);
+    setDestination(tool);
+    setGeneratingPrompt(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("assemble-fix-prompt", {
+        body: { bug_id: selectedBug.id, target_tool: tool },
+      });
+      if (error || !data?.prompt) throw error ?? new Error("No prompt returned");
+      await navigator.clipboard.writeText(data.prompt);
+      const fileNote = data.github_configured
+        ? `${data.files_included} file${data.files_included === 1 ? "" : "s"} of code included`
+        : "Paths only (no GitHub token configured)";
+      toast({
+        title: `Fix prompt copied for ${DESTINATION_LABEL[tool]}`,
+        description: `${fileNote}. Paste into ${DESTINATION_LABEL[tool]}.`,
+      });
+    } catch (e) {
+      console.error("generateFixPrompt failed", e);
+      toast({
+        title: "Couldn't generate fix prompt",
+        description: (e as Error)?.message ?? "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingPrompt(false);
+    }
   };
+
 
   const getAssigneeName = (id: string | null) => {
     if (!id) return "—";
