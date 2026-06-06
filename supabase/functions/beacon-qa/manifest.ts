@@ -22,18 +22,18 @@ DO NOT USE FOR: cost/margin questions (no margin columns are exposed).
 TABLE: properties
 PURPOSE: NYC physical property — address, borough, block, lot, BIN.
 COLUMNS: address, borough, block, lot, bin, zip
-COMMON QUERIES: lookup by address — usually reached via projects.property_id.
+COMMON QUERIES: lookup by address — usually reached via projects.property_id. Cannot be queried by project_id directly; fetch via get_project.
 
 TABLE: clients
 PURPOSE: Client organizations (GCs, owners, architects, etc.).
-COLUMNS: name, type, status, primary_contact_id
-COMMON QUERIES: reached via projects.client_id.
+COLUMNS: name, client_type, email, phone, is_sia, is_rfp_partner
+COMMON QUERIES: reached via projects.client_id; cannot be queried by project_id directly.
 DO NOT USE FOR: pricing/margin/payment-risk questions — those columns are deliberately not exposed.
 
 TABLE: client_contacts
-PURPOSE: People at a client org — phone, email, role.
-COLUMNS: client_id, name, role, email, phone, is_primary
-COMMON QUERIES: "what's the contractor's phone?" → find project → client_contacts where client_id matches.
+PURPOSE: People at a client org — phone, email, title.
+COLUMNS: client_id, name, first_name, last_name, title, email, phone, mobile, is_primary
+COMMON QUERIES: "what's the contractor's phone?" → get_project to find client_id → query_table client_contacts is NOT scoped by project_id; use filters {column:'client_id', op:'eq', value:<id>} via a separate path (not exposed). For now, contact info appears in get_project's joined client.
 
 TABLE: change_orders
 PURPOSE: Change orders on a project — amount, status, signed dates.
@@ -42,33 +42,34 @@ COLUMNS:
   - amount (numeric): dollar amount of the change
   - status (text): draft, internal_signed, sent, approved, voided, rejected
   - sent_at (timestamptz): when sent to client for signature
+  - internal_signed_at (timestamptz): when we signed internally
   - client_signed_at (timestamptz): when client signed; NULL means client has NOT signed
-  - signed_at (timestamptz): fully executed timestamp
+  - approved_at (timestamptz): fully executed/approved timestamp
 COMMON QUERIES:
-  - Outstanding (sent but unsigned): status='sent' AND client_signed_at IS NULL
+  - Outstanding (sent but client hasn't signed): {column:'sent_at',op:'not_null'} + {column:'client_signed_at',op:'is_null'}
   - Count outstanding: use count_rows with that filter.
 DO NOT USE FOR: invoice/billing questions (use invoices).
 
 TABLE: services
 PURPOSE: Individual scope-of-work line items on a project (filings, inspections, etc.).
-COLUMNS: name, status, total_amount, billed_amount, billed_at,
-         estimated_filing_date, job_number, filed_date
+COLUMNS: name, description, status, total_amount, billed_amount, billed_at,
+         estimated_bill_date, due_date, completed_date, billing_type, disciplines
 STATUSES: not_started, in_progress, billed, paid
 
 TABLE: project_checklist_items
 PURPOSE: Required documents/info to file the project — used to compute readiness.
-COLUMNS: label, category, from_whom, status, requested_date, completed_date
+COLUMNS: label, category, from_whom, status, requested_date, completed_at
 OPEN ITEMS: status != 'done'
 
 TABLE: pis_tracking
 PURPOSE: Tracks which Project Information Sheet fields are still unfulfilled by the client.
-COLUMNS: field_label, first_requested_at, reminder_count, fulfilled_at
+COLUMNS: field_label, first_requested_at, last_reminded_at, reminder_count, fulfilled_at
 MISSING FIELDS: fulfilled_at IS NULL
 
 TABLE: invoices
 PURPOSE: Invoices issued on a project.
-COLUMNS: invoice_number, status, total_amount, amount_paid, balance_due, due_date, issued_at, paid_at
-OUTSTANDING: balance_due > 0
+COLUMNS: invoice_number, status, total_due, subtotal, payment_amount, due_date, sent_at, paid_at
+OUTSTANDING: status != 'paid'  (no balance_due column; compute from total_due - payment_amount if needed)
 DO NOT USE FOR: internal margin/cost — not exposed.
 
 TABLE: project_notes
@@ -78,28 +79,23 @@ LATEST AI SUMMARY: order by created_at desc where source like 'ai_%' limit 1
 
 TABLE: rfi_requests
 PURPOSE: RFIs sent to client/agency on a project.
-COLUMNS: subject, status, sent_at, responded_at, stakeholder_name
+COLUMNS: title, status, sent_at, submitted_at, viewed_at, recipient_name, recipient_email
 
 TABLE: universal_documents
 PURPOSE: Files uploaded to a project (plans, contracts, etc.).
-COLUMNS: name, folder, file_type, created_at
+COLUMNS: title, filename, category, folder_id, mime_type, created_at
 
 TABLE: project_timeline_events
 PURPOSE: Auto-generated timeline events on a project (CO signed, item completed, etc.).
-COLUMNS: event_type, description, occurred_at
+COLUMNS: event_type, description, actor_id, created_at
 
 TABLE: project_action_items
 PURPOSE: Action items assigned to people on a project.
-COLUMNS: title, status, assigned_to, due_date, completed_at
-
-TABLE: activities
-PURPOSE: Generic activity log (time/work entries, status changes).
-COLUMNS: type, description, created_at, user_id
+COLUMNS: title, status, priority, assigned_to, assigned_by, due_date, completed_at
 
 TABLE: profiles
-PURPOSE: User profiles inside the company — names, roles, emails.
-COLUMNS: id, user_id, first_name, last_name, display_name, role, email
-COMMON QUERIES: resolve assigned_pm_id / assigned_senior_pm_id from projects.
+PURPOSE: User profiles inside the company — names, roles. Cannot be queried by project_id; use get_project to resolve PM names.
+COLUMNS: id, user_id, first_name, last_name, display_name, role
 `.trim();
 
 // AI SDK / OpenAI-compatible function/tool definitions sent to the model.
