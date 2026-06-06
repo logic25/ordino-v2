@@ -229,14 +229,35 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                   </div>
                 );
               }
+              const groupActive = entry.items.some((i) =>
+                location.pathname === i.href || location.pathname.startsWith(i.href)
+              );
+              const isOpen = openGroups[entry.label] ?? groupActive ?? true;
               return (
-                <div key={`group-${entry.label}-${idx}`} className="pt-3 pb-1">
-                  <div className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">
-                    {entry.label}
-                  </div>
-                  <div className="space-y-1 border-l border-sidebar-border/60 ml-3 pl-1">
-                    {entry.items.map((i) => renderItem(i, { indented: true }))}
-                  </div>
+                <div key={`group-${entry.label}-${idx}`} className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenGroups((s) => ({ ...s, [entry.label]: !isOpen }))
+                    }
+                    className={cn(
+                      "w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg transition-all duration-150",
+                      "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                    )}
+                  >
+                    <span>{entry.label}</span>
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 transition-transform duration-200",
+                        !isOpen && "-rotate-90"
+                      )}
+                    />
+                  </button>
+                  {isOpen && (
+                    <div className="space-y-1 border-l border-sidebar-border/60 ml-3 pl-1 mt-1">
+                      {entry.items.map((i) => renderItem(i, { indented: true }))}
+                    </div>
+                  )}
                 </div>
               );
             }
