@@ -254,72 +254,84 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
               ))
             ) : readiness.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">No project checklists found</p>
-            ) : (
-              readiness.map((p: any) => {
-                const isComplete = p.readyPercent === 100;
-                const isInProgress = p.readyPercent > 0 && p.readyPercent < 100;
-                const cardClass = isComplete
-                  ? "border-l-4 border-l-green-500 bg-green-500/5"
-                  : isInProgress
-                  ? "border-l-4 border-l-amber-500 bg-amber-500/5"
-                  : "";
+            ) : (() => {
+              const incomplete = (readiness as any[]).filter((p) => p.readyPercent < 100);
+              if (incomplete.length === 0) {
                 return (
-                <div
-                  key={p.id}
-                  className={`p-3 rounded-lg border border-border hover:border-accent/50 hover:bg-accent/5 transition-all cursor-pointer ${cardClass}`}
-                  onClick={() => navigate(`/projects/${p.id}`)}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-1.5">
-                      {isComplete ? (
-                        <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
-                      ) : isInProgress ? (
-                        <Clock className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                      ) : (
-                        <Circle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      )}
-                      <span className="font-medium text-sm truncate">
-                        {p.name || p.properties?.address || "Untitled"}
-                      </span>
-                    </div>
-                    <Badge
-                      variant={isComplete ? "default" : p.readyPercent >= 50 ? "secondary" : "destructive"}
-                      className="text-xs shrink-0"
-                    >
-                      {p.checklistDone}/{p.checklistTotal} ({p.readyPercent}%)
-                    </Badge>
+                  <div className="flex flex-col items-center py-4 text-center">
+                    <CheckCircle2 className="h-7 w-7 text-green-600 mb-2" />
+                    <p className="text-sm text-muted-foreground">All your projects are checklist-complete.</p>
                   </div>
-                  {/* Progress bar */}
-                  <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-2">
-                    <div
-                      className={`h-full rounded-full transition-all ${
-                        isComplete
-                          ? "bg-green-500"
-                          : p.readyPercent >= 50
-                          ? "bg-amber-500"
-                          : "bg-destructive"
-                      }`}
-                      style={{ width: `${p.readyPercent}%` }}
-                    />
-                  </div>
-                  {p.missingItems.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {p.missingItems.map((item: string, i: number) => (
-                        <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive">
-                          Missing: {item}
-                        </span>
-                      ))}
-                      {p.checklistTotal - p.checklistDone > 3 && (
-                        <span className="text-[10px] text-muted-foreground">
-                          +{p.checklistTotal - p.checklistDone - 3} more
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
                 );
-              })
-            )}
+              }
+              const visible = readinessExpanded ? incomplete : incomplete.slice(0, 3);
+              const hidden = incomplete.length - visible.length;
+              return (
+                <>
+                  {visible.map((p: any) => {
+                    const isInProgress = p.readyPercent > 0;
+                    const cardClass = isInProgress
+                      ? "border-l-4 border-l-amber-500 bg-amber-500/5"
+                      : "border-l-4 border-l-destructive bg-destructive/5";
+                    return (
+                      <div
+                        key={p.id}
+                        className={`p-3 rounded-lg border border-border hover:border-accent/50 hover:bg-accent/5 transition-all cursor-pointer ${cardClass}`}
+                        onClick={() => navigate(`/projects/${p.id}`)}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {isInProgress ? (
+                              <Clock className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                            ) : (
+                              <Circle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            )}
+                            <span className="font-medium text-sm truncate">
+                              {p.name || p.properties?.address || "Untitled"}
+                            </span>
+                          </div>
+                          <Badge
+                            variant={p.readyPercent >= 50 ? "secondary" : "destructive"}
+                            className="text-xs shrink-0"
+                          >
+                            {p.checklistDone}/{p.checklistTotal} ({p.readyPercent}%)
+                          </Badge>
+                        </div>
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-2">
+                          <div
+                            className={`h-full rounded-full transition-all ${p.readyPercent >= 50 ? "bg-amber-500" : "bg-destructive"}`}
+                            style={{ width: `${p.readyPercent}%` }}
+                          />
+                        </div>
+                        {p.missingItems.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {p.missingItems.map((item: string, i: number) => (
+                              <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive">
+                                Missing: {item}
+                              </span>
+                            ))}
+                            {p.checklistTotal - p.checklistDone > 3 && (
+                              <span className="text-[10px] text-muted-foreground">
+                                +{p.checklistTotal - p.checklistDone - 3} more
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {incomplete.length > 3 && (
+                    <button
+                      type="button"
+                      onClick={() => setReadinessExpanded((v) => !v)}
+                      className="text-xs text-muted-foreground hover:text-foreground transition-colors pl-1"
+                    >
+                      {readinessExpanded ? "Show less" : `Show ${hidden} more`}
+                    </button>
+                  )}
+                </>
+              );
+            })()}
           </CardContent>
         </Card>
         )}
