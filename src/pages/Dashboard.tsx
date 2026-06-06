@@ -6,7 +6,7 @@ import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { PMDailyView } from "@/components/dashboard/PMDailyView";
 import { AdminCompanyView } from "@/components/dashboard/AdminCompanyView";
 import { AccountingView } from "@/components/dashboard/AccountingView";
-import { ManagerView } from "@/components/dashboard/ManagerView";
+
 import { RolePreviewSelector, type DashboardRole } from "@/components/dashboard/RolePreviewSelector";
 import { DashboardLayoutConfig } from "@/components/dashboard/DashboardLayoutConfig";
 import { useDashboardLayout } from "@/hooks/useDashboardLayout";
