@@ -5254,6 +5254,56 @@ export type Database = {
           },
         ]
       }
+      lead_views: {
+        Row: {
+          columns_json: Json
+          company_id: string
+          created_at: string
+          created_by: string | null
+          filters_json: Json
+          id: string
+          is_default: boolean
+          name: string
+          sort_json: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          columns_json?: Json
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          filters_json?: Json
+          id?: string
+          is_default?: boolean
+          name: string
+          sort_json?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          columns_json?: Json
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          filters_json?: Json
+          id?: string
+          is_default?: boolean
+          name?: string
+          sort_json?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_views_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           architect_company: string | null
@@ -9402,6 +9452,7 @@ export type Database = {
         | "MONTHS_3_6"
         | "MONTHS_6_PLUS"
         | "UNKNOWN"
+        | "PLANNING"
       bd_membership_status: "ACTIVE" | "EXPIRED" | "NOT_MEMBER" | "EVALUATING"
       bd_price_verified: "VERIFIED" | "UNVERIFIED" | "PARTIALLY"
       bd_sequence_status: "ACTIVE" | "PAUSED" | "COMPLETED" | "EXITED"
@@ -9633,6 +9684,7 @@ export const Constants = {
         "MONTHS_3_6",
         "MONTHS_6_PLUS",
         "UNKNOWN",
+        "PLANNING",
       ],
       bd_membership_status: ["ACTIVE", "EXPIRED", "NOT_MEMBER", "EVALUATING"],
       bd_price_verified: ["VERIFIED", "UNVERIFIED", "PARTIALLY"],
