@@ -534,7 +534,6 @@ function FilterPopover({
 
 // ====== Bulk enroll selected leads in a sequence ======
 import { useSequences, useEnrollLead } from "@/hooks/useBdSequences";
-import { Send } from "lucide-react";
 
 function BulkEnrollSequence({ ids }: { ids: string[] }) {
   const sequences = useSequences();
