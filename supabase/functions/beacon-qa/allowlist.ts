@@ -35,10 +35,8 @@ export const COLUMN_ALLOWLIST: Record<string, string[]> = {
     "id", "project_id", "label", "category", "from_whom", "status",
     "requested_date", "completed_at", "sort_order",
   ],
-  pis_tracking: [
-    "id", "project_id", "field_label", "first_requested_at",
-    "last_reminded_at", "reminder_count", "fulfilled_at",
-  ],
+  // pis_tracking removed — table is dead. PIS gap data lives in rfi_requests.responses,
+  // surfaced via get_project's pis_* fields.
   invoices: [
     "id", "project_id", "invoice_number", "status", "total_due",
     "subtotal", "payment_amount", "due_date", "sent_at", "paid_at", "created_at",

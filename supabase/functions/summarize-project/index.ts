@@ -2,6 +2,7 @@
 // (optionally) persists it to project_notes as source='ai_on_demand' or 'ai_weekly'.
 // Can be invoked by the frontend (user JWT) OR by the weekly cron (x-cron-secret + body.companyId + body.projectId + body.actorUserId).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { computePisStatusFromRfi } from "../_shared/pisStatus.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -228,19 +229,14 @@ Deno.serve(async (req) => {
       })
     );
 
-    // ---- PIS gaps: which PIS fields are still unfulfilled ----
-    const { data: pisRows } = await admin
-      .from("pis_tracking")
-      .select("field_label, first_requested_at, reminder_count, fulfilled_at")
-      .eq("project_id", project.id)
-      .is("fulfilled_at", null)
-      .order("first_requested_at", { ascending: true });
-
-    const pis_gaps = (pisRows || []).map((r: any) => ({
-      field: r.field_label,
-      first_requested_at: r.first_requested_at,
-      reminders_sent: r.reminder_count,
-    }));
+    // ---- PIS gaps: derived from latest RFI (pis_tracking is dead) ----
+    const pisStatus = await computePisStatusFromRfi(admin, project.id);
+    const pis_gaps = pisStatus.missingFields.map((label: string) => ({ field: label }));
+    readiness.ready_to_file =
+      (checklist || []).length > 0 &&
+      openChecklist.length === 0 &&
+      pisStatus.totalFields > 0 &&
+      pisStatus.completedFields === pisStatus.totalFields;
 
     // ---- Build prompt ----
     const ctx = {
