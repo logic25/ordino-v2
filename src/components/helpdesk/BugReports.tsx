@@ -1174,14 +1174,52 @@ export function BugReports() {
                   </div>
                 </div>
 
-                {/* Copy for Lovable — visible to everyone */}
+                {/* Generate Fix Prompt — visible to everyone */}
                 <div className="border-t pt-4">
-                  <Button size="sm" variant="outline" className="w-full" onClick={copyForLovable}>
-                    <Copy className="h-3.5 w-3.5 mr-2" />
-                    Copy for Lovable
-                  </Button>
-                  <p className="text-xs text-muted-foreground mt-1 text-center">Copy formatted bug report to paste into Lovable chat</p>
+                  <div className="flex gap-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 rounded-r-none border-r-0"
+                      disabled={generatingPrompt}
+                      onClick={() => generateFixPrompt(fixPromptDest)}
+                    >
+                      {generatingPrompt ? (
+                        <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                      ) : (
+                        <Wand2 className="h-3.5 w-3.5 mr-2" />
+                      )}
+                      Generate Fix Prompt for {DESTINATION_LABEL[fixPromptDest]}
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-l-none px-2"
+                          disabled={generatingPrompt}
+                          aria-label="Choose destination tool"
+                        >
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => generateFixPrompt("claude_code")}>
+                          Generate for Claude Code
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => generateFixPrompt("lovable")}>
+                          Generate for Lovable
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 text-center">
+                    {selectedBug.ai_diagnosis
+                      ? "Bundles triage, similar patterns, and current file code."
+                      : "Tip: run AI Triage first for richer context."}
+                  </p>
                 </div>
+
 
                 {isAdmin && (
                   <div className="border-t pt-4 space-y-4">
