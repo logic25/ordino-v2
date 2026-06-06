@@ -1,4 +1,4 @@
-import { Bell, Check, CheckCheck, FolderKanban, X, FileText, AlertTriangle, Receipt } from "lucide-react";
+import { Bell, Check, CheckCheck, FolderKanban, X, FileText, AlertTriangle, Receipt, Mail, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -22,11 +22,14 @@ const typeIcons: Record<string, typeof FolderKanban> = {
   pis_overdue: AlertTriangle,
   readiness_complete: Check,
   billing_submitted: Receipt,
+  payment_received: CreditCard,
+  invoice_overdue: AlertTriangle,
   action_item_assigned: FolderKanban,
   completion_approaching: AlertTriangle,
   completion_due: AlertTriangle,
   completion_overdue: AlertTriangle,
   bug_reported: AlertTriangle,
+  email_received: Mail,
 };
 
 export function NotificationDropdown() {
