@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { StickyNote, Sparkles, Loader2, Trash2, Tag, MessageSquareWarning, Check, X } from "lucide-react";
+import { StickyNote, Sparkles, Loader2, Trash2, Tag, ThumbsUp, ThumbsDown, Pencil, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
