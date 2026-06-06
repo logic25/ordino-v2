@@ -61,10 +61,11 @@ PURPOSE: Required documents/info to file the project — used to compute readine
 COLUMNS: label, category, from_whom, status, requested_date, completed_at
 OPEN ITEMS: status != 'done'
 
-TABLE: pis_tracking
-PURPOSE: Tracks which Project Information Sheet fields are still unfulfilled by the client.
-COLUMNS: field_label, first_requested_at, last_reminded_at, reminder_count, fulfilled_at
-MISSING FIELDS: fulfilled_at IS NULL
+NOTE on PIS gaps: do NOT try to query pis_tracking — it's not exposed and not populated.
+PIS gap data comes back on get_project: pis_total_fields, pis_completed_fields,
+open_pis_fields, pis_missing_field_labels (up to 30), pis_sent_date.
+
+
 
 TABLE: invoices
 PURPOSE: Invoices issued on a project.
