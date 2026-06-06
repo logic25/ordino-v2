@@ -12,30 +12,36 @@ export const COLUMN_ALLOWLIST: Record<string, string[]> = {
     "id", "address", "borough", "block", "lot", "bin", "zip",
   ],
   clients: [
-    "id", "name", "client_type", "is_sia", "is_rfp_partner", "created_at",
+    "id", "name", "client_type", "is_sia", "is_rfp_partner",
+    "email", "phone", "created_at",
   ],
   client_contacts: [
-    "id", "client_id", "name", "role", "email", "phone", "is_primary",
+    "id", "client_id", "name", "first_name", "last_name", "title",
+    "email", "phone", "mobile", "is_primary",
   ],
   change_orders: [
     "id", "project_id", "co_number", "title", "description", "amount", "status",
-    "sent_at", "signed_at", "client_signed_at", "internal_signed_at", "created_at",
+    "sent_at", "client_signed_at", "internal_signed_at", "approved_at",
+    "client_signer_name", "deposit_percentage", "deposit_paid_at",
+    "is_non_billable", "created_at",
   ],
   services: [
-    "id", "project_id", "name", "status", "total_amount", "billed_amount",
-    "billed_at", "estimated_filing_date", "job_number", "filed_date", "created_at",
+    "id", "project_id", "name", "description", "status",
+    "total_amount", "billed_amount", "billed_at",
+    "estimated_bill_date", "due_date", "completed_date",
+    "billing_type", "disciplines", "created_at",
   ],
   project_checklist_items: [
     "id", "project_id", "label", "category", "from_whom", "status",
-    "requested_date", "completed_date", "sort_order",
+    "requested_date", "completed_at", "sort_order",
   ],
   pis_tracking: [
     "id", "project_id", "field_label", "first_requested_at",
-    "reminder_count", "fulfilled_at",
+    "last_reminded_at", "reminder_count", "fulfilled_at",
   ],
   invoices: [
-    "id", "project_id", "invoice_number", "status", "total_amount",
-    "amount_paid", "balance_due", "due_date", "issued_at", "paid_at",
+    "id", "project_id", "invoice_number", "status", "total_due",
+    "subtotal", "payment_amount", "due_date", "sent_at", "paid_at", "created_at",
   ],
   project_notes: [
     "id", "project_id", "body", "source", "created_at", "user_id",
@@ -46,26 +52,25 @@ export const COLUMN_ALLOWLIST: Record<string, string[]> = {
     "snippet", "body_text",
   ],
   email_project_tags: [
-    "email_id", "project_id", "category", "tagged_at",
+    "id", "email_id", "project_id", "category", "tagged_at",
   ],
   rfi_requests: [
-    "id", "project_id", "subject", "status", "sent_at", "responded_at",
-    "stakeholder_name",
+    "id", "project_id", "title", "status", "sent_at", "submitted_at",
+    "viewed_at", "recipient_name", "recipient_email",
   ],
   universal_documents: [
-    "id", "project_id", "name", "folder", "file_type", "created_at", "uploaded_by",
+    "id", "project_id", "title", "filename", "category", "folder_id",
+    "mime_type", "size_bytes", "created_at", "uploaded_by",
   ],
   project_timeline_events: [
-    "id", "project_id", "event_type", "description", "occurred_at",
+    "id", "project_id", "event_type", "description", "actor_id", "created_at",
   ],
   project_action_items: [
-    "id", "project_id", "title", "status", "assigned_to", "due_date", "completed_at",
-  ],
-  activities: [
-    "id", "project_id", "type", "description", "created_at", "user_id",
+    "id", "project_id", "title", "status", "priority",
+    "assigned_to", "assigned_by", "due_date", "completed_at", "created_at",
   ],
   profiles: [
-    "id", "user_id", "first_name", "last_name", "display_name", "role", "email",
+    "id", "user_id", "first_name", "last_name", "display_name", "role",
   ],
 };
 
@@ -81,9 +86,11 @@ export const HARD_BLOCK_TABLES = new Set<string>([
   "beacon_tool_log",
 ]);
 
-// Tables without a direct project_id column that the proxy joins through projects.
-// (currently emails — handled by search_emails)
-export const TABLES_WITHOUT_PROJECT_ID = new Set<string>(["emails", "clients", "client_contacts", "properties", "profiles"]);
+// Tables without a direct project_id column — the proxy refuses generic queries
+// against these via query_table/count_rows. Use dedicated tools or join via projects.
+export const TABLES_WITHOUT_PROJECT_ID = new Set<string>([
+  "emails", "clients", "client_contacts", "properties", "profiles",
+]);
 
 export function assertTableAllowed(table: string): void {
   if (HARD_BLOCK_TABLES.has(table)) {
