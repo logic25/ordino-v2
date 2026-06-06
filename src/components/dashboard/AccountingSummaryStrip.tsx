@@ -63,7 +63,7 @@ export function AccountingSummaryStrip() {
         ))}
       </div>
       <div className="lg:col-span-1">
-        <AgingSummaryChart aging={billing?.agingBuckets as any} loading={billingLoading} />
+        <AgingSummaryChart aging={billing?.aging as any} loading={billingLoading} />
       </div>
     </div>
   );
