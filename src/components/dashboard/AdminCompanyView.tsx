@@ -127,20 +127,95 @@ export function AdminCompanyView({ isVisible }: { isVisible?: (id: string) => bo
         <YearOverYearChart />
         <ProposalActivityCard />
       </div>
-
-      {/* Row 3b: Follow-Ups full width */}
-      <ProposalFollowUps />
       </>
       )}
 
-      {/* Row 4: Billing Goal Tracker */}
+      {/* Proposals Pipeline by Stage */}
+      {show("proposals-pipeline") && <ProposalsPipelineCard />}
+
+      {/* Team utilization + projects by PM */}
+      {show("team-utilization") && <TeamUtilizationStrip />}
+
+      {/* Accounting summary strip */}
+      {show("accounting-summary") && <AccountingSummaryStrip />}
+
+      {/* Follow-Ups full width */}
+      {show("yoy-proposals-followups") && <ProposalFollowUps />}
+
+      {/* Billing Goal Tracker */}
       {show("billing-goal-tracker") && <BillingGoalTracker />}
 
       {/* Expense Approvals */}
       <ExpenseApprovalsCard />
 
-      {/* Row 5: Team Overview */}
+      {/* Team Overview */}
       {show("team-overview") && <TeamOverview />}
+    </div>
+  );
+}
+
+function TeamUtilizationStrip() {
+  const { data: utilization = [], isLoading: utilLoading } = useTeamUtilization();
+  const { data: projectsByPM = [], isLoading: pmLoading } = useProjectsByPM();
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Team Utilization (This Week)</CardTitle>
+          <CardDescription>Billable vs total hours by team member</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {utilLoading ? (
+            <Skeleton className="h-[280px] w-full" />
+          ) : utilization.length > 0 ? (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={utilization.slice(0, 10)} layout="vertical" barGap={2}>
+                <XAxis type="number" tick={{ fontSize: 11 }} unit="h" />
+                <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={110} />
+                <Tooltip
+                  formatter={(v: number, name: string) => [`${v}h`, name]}
+                  contentStyle={{ fontSize: 12 }}
+                />
+                <Bar dataKey="billableHours" fill="hsl(var(--primary))" name="Billable" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="totalHours" fill="hsl(var(--muted-foreground))" name="Total" radius={[0, 4, 4, 0]} opacity={0.3} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-muted-foreground text-center py-8 text-sm">No team data</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Projects by PM</CardTitle>
+          <CardDescription>Active project distribution across team</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {pmLoading ? (
+            <Skeleton className="h-[280px] w-full" />
+          ) : projectsByPM.length > 0 ? (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={projectsByPM.slice(0, 10)} layout="vertical">
+                <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={110} />
+                <Tooltip contentStyle={{ fontSize: 12 }} />
+                <Bar dataKey="projects" name="Projects" radius={[0, 4, 4, 0]}>
+                  {projectsByPM.slice(0, 10).map((_: any, i: number) => {
+                    const colors = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--muted-foreground))", "hsl(var(--secondary))"];
+                    return <Cell key={i} fill={colors[i % colors.length]} />;
+                  })}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-muted-foreground text-center py-8 text-sm">No project assignments found</p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
     </div>
   );
 }
