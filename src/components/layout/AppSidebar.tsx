@@ -126,8 +126,16 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
     "/invoices": billingPendingCount,
   };
 
-  const filteredMainNav = useMemo(() =>
-    mainNav.filter((item) => canAccess(item.resource)),
+  const filteredMainNav = useMemo<NavEntry[]>(() =>
+    mainNav.reduce<NavEntry[]>((acc, entry) => {
+      if ("kind" in entry && entry.kind === "group") {
+        const items = entry.items.filter((i) => canAccess(i.resource));
+        if (items.length > 0) acc.push({ ...entry, items });
+      } else if (canAccess((entry as NavItem).resource)) {
+        acc.push(entry);
+      }
+      return acc;
+    }, []),
     [canAccess]
   );
 
