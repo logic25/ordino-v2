@@ -7,7 +7,7 @@ import { PMDailyView } from "@/components/dashboard/PMDailyView";
 import { AdminCompanyView } from "@/components/dashboard/AdminCompanyView";
 import { AccountingView } from "@/components/dashboard/AccountingView";
 import { ManagerView } from "@/components/dashboard/ManagerView";
-import { RolePreviewSelector } from "@/components/dashboard/RolePreviewSelector";
+import { RolePreviewSelector, type DashboardRole } from "@/components/dashboard/RolePreviewSelector";
 import { DashboardLayoutConfig } from "@/components/dashboard/DashboardLayoutConfig";
 import { useDashboardLayout } from "@/hooks/useDashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWalkthrough } from "@/components/walkthrough/WalkthroughProvider";
 import { WALKTHROUGHS } from "@/components/walkthrough/walkthroughs";
 
-type DashboardRole = "admin" | "pm" | "accounting" | "manager";
+function mapRoleToDashboard(role: string): DashboardRole {
+  if (role === "admin") return "admin";
+  if (role === "accounting") return "accounting";
+  return "pm"; // production and any other staff role
+}
 
 function NewHireWelcomeBanner({ name, onDismiss }: { name: string; onDismiss: () => void }) {
   const { startWalkthrough } = useWalkthrough();
