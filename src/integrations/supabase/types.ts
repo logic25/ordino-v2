@@ -9284,7 +9284,7 @@ export type Database = {
       }
       widget_messages: {
         Row: {
-          company_id: string | null
+          company_id: string
           content: string
           created_at: string | null
           deleted_at: string | null
@@ -9295,7 +9295,7 @@ export type Database = {
           user_email: string
         }
         Insert: {
-          company_id?: string | null
+          company_id: string
           content: string
           created_at?: string | null
           deleted_at?: string | null
@@ -9306,7 +9306,7 @@ export type Database = {
           user_email: string
         }
         Update: {
-          company_id?: string | null
+          company_id?: string
           content?: string
           created_at?: string | null
           deleted_at?: string | null

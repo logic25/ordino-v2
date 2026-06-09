@@ -106,11 +106,11 @@ Deno.serve(async (req) => {
     if (userEmail) {
       const { data: knownProfile } = await supabase
         .from("profiles")
-        .select("id")
+        .select("id, company_id")
         .eq("email", userEmail)
         .maybeSingle();
 
-      if (knownProfile) {
+      if (knownProfile && knownProfile.company_id) {
         let proactiveMessage = `🔔 I noticed a JavaScript error on the page you were just on:\n\n**${errorTitle}**`;
         if (errorMessage) proactiveMessage += `\n${errorMessage}`;
         if (matchedPattern) {
@@ -123,6 +123,7 @@ Deno.serve(async (req) => {
 
         await supabase.from("widget_messages").insert({
           user_email: userEmail,
+          company_id: knownProfile.company_id,
           role: "assistant",
           content: proactiveMessage,
           metadata: {
@@ -132,6 +133,7 @@ Deno.serve(async (req) => {
             is_bug_report: true,
           },
         });
+
       } else {
         console.log(`Sentry alert for unknown email ${userEmail} — not inserting widget message`);
       }
