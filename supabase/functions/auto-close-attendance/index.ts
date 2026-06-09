@@ -82,9 +82,9 @@ Deno.serve(async (req) => {
   // Best-effort log to automation_logs
   try {
     await supabase.from("automation_logs").insert({
-      rule_type: "attendance_auto_close",
-      status: errors.length ? "partial" : "success",
-      details: {
+      action_taken: "attendance_auto_close",
+      result: errors.length ? "partial" : "success",
+      metadata: {
         scanned: rows.length,
         closed,
         errors: errors.slice(0, 20),
