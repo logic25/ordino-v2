@@ -12,11 +12,16 @@ serve(async (req) => {
   }
 
   try {
-    // Service-role auth check for scheduled/internal calls
-    const authHeader = req.headers.get("Authorization");
-    if (authHeader !== `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // x-cron-secret auth for scheduled invocations (matches project automation pattern)
+    const cronHeader = req.headers.get("x-cron-secret");
+    const expectedSecret = Deno.env.get("CRON_SECRET");
+    if (!expectedSecret || cronHeader !== expectedSecret) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
+
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
