@@ -401,7 +401,7 @@ export type Database = {
         Row: {
           category: string | null
           challenges: string[] | null
-          company_id: string | null
+          company_id: string
           created_at: string | null
           description: string | null
           duplicate_warning: string | null
@@ -418,7 +418,7 @@ export type Database = {
         Insert: {
           category?: string | null
           challenges?: string[] | null
-          company_id?: string | null
+          company_id: string
           created_at?: string | null
           description?: string | null
           duplicate_warning?: string | null
@@ -435,7 +435,7 @@ export type Database = {
         Update: {
           category?: string | null
           challenges?: string[] | null
-          company_id?: string | null
+          company_id?: string
           created_at?: string | null
           description?: string | null
           duplicate_warning?: string | null
@@ -9365,6 +9365,7 @@ export type Database = {
         }
         Returns: string
       }
+      current_user_company_id: { Args: never; Returns: string }
       enqueue_project_summary: {
         Args: { _company_id: string; _project_id: string }
         Returns: undefined
@@ -9372,6 +9373,21 @@ export type Database = {
       extend_public_token: {
         Args: { _days?: number; _entity: string; _id: string }
         Returns: Json
+      }
+      get_client_tax_id: { Args: { _client_id: string }; Returns: string }
+      get_my_compensation: {
+        Args: never
+        Returns: {
+          hourly_rate: number
+          monthly_goal: number
+        }[]
+      }
+      get_profile_compensation: {
+        Args: { _profile_id: string }
+        Returns: {
+          hourly_rate: number
+          monthly_goal: number
+        }[]
       }
       get_public_company_info: { Args: { _company_id: string }; Returns: Json }
       get_public_profile_info: { Args: { _profile_id: string }; Returns: Json }
@@ -9386,6 +9402,13 @@ export type Database = {
         Returns: {
           last_sign_in_at: string
           user_id: string
+        }[]
+      }
+      get_team_monthly_goals: {
+        Args: never
+        Returns: {
+          monthly_goal: number
+          profile_id: string
         }[]
       }
       get_user_app_roles: { Args: { _user_id: string }; Returns: string[] }
