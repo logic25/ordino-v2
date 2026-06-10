@@ -624,9 +624,13 @@ export function useSendProposal() {
         .single();
       if (pErr || !proposal) throw pErr || new Error("Proposal not found");
 
-      // Guard: prevent duplicate sends
+      // If this is a resend, refresh the public link expiry so the client can open it.
       if ((proposal as any).sent_at) {
-        throw new Error("This proposal has already been sent. Refresh the page if you need to resend.");
+        await supabase.rpc("extend_public_token", {
+          _entity: "proposal",
+          _id: id,
+          _days: 90,
+        });
       }
 
       // 2. Determine recipient — use override if provided, else fall back to bill_to contact
