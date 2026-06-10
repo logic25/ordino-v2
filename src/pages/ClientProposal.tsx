@@ -93,29 +93,35 @@ export default function ClientProposalPage() {
     mutationFn: async () => {
       if (!canvasRef.current || !token) throw new Error("Missing data");
       const sigData = canvasRef.current.toDataURL("image/png");
-      const { data, error } = await supabase.rpc("sign_proposal" as any, {
+
+      // Compute document fingerprint (audit trail; non-repudiation)
+      let docHash: string | null = null;
+      try {
+        const canonical = JSON.stringify({
+          title: proposal?.title || null,
+          proposal_number: proposal?.proposal_number || null,
+          total: Number(proposal?.total_amount || proposal?.subtotal || 0),
+          items: (proposal?.items || []).map((i: any) => ({
+            n: i.name, q: i.quantity, p: i.unit_price, t: i.total_price, o: !!i.is_optional,
+          })),
+        });
+        const bytes = new TextEncoder().encode(canonical);
+        const buf = await crypto.subtle.digest("SHA-256", bytes);
+        docHash = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+      } catch { /* hash is best-effort */ }
+
+      const { data, error } = await supabase.rpc("sign_proposal", {
         _token: token,
         _signer_name: clientName,
         _signer_title: clientTitle,
         _signature_data: sigData,
+        _signer_user_agent: navigator.userAgent.slice(0, 500),
+        _document_hash: docHash,
       });
       if (error) throw error;
-      if (!(data as any)?.success) throw new Error("Failed to sign");
-
-      // Notify PM that client has signed — best-effort, don't block signing
       const result = data as any;
-      if (result.assigned_pm_id && result.company_id) {
-        const propertyAddress = proposal?.properties?.address || "the property";
-        supabase.from("notifications").insert({
-          company_id: result.company_id,
-          user_id: result.assigned_pm_id,
-          type: "pis_submitted",
-          title: `Client signed: ${result.title || result.proposal_number}`,
-          body: `${clientName || "The client"} has counter-signed the proposal for ${propertyAddress}. The proposal is now fully executed.`,
-          link: result.converted_project_id ? `/projects/${result.converted_project_id}` : `/proposals`,
-          project_id: result.converted_project_id || null,
-        } as any).then(() => {});
-      }
+      if (!result?.success) throw new Error(result?.error || "Failed to sign");
+      // PM notification is now created server-side inside sign_proposal.
     },
     onSuccess: () => {
       setSigned(true);
@@ -136,6 +142,7 @@ export default function ClientProposalPage() {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     },
   });
+
 
   // Track proposal view (read receipt)
   const [viewTracked, setViewTracked] = useState(false);
