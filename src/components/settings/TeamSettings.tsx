@@ -1288,7 +1288,7 @@ export function TeamSettings() {
     queryKey: ["team-last-signins", currentProfile?.company_id],
     enabled: !!currentProfile?.company_id && isAdmin,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_team_last_signins" as any, {
+      const { data, error } = await supabase.rpc("get_team_last_signins", {
         target_company_id: currentProfile!.company_id,
       });
       if (error) throw error;

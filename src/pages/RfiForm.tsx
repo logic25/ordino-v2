@@ -658,7 +658,7 @@ export default function RfiForm() {
     setCurrentStep(0);
     // Mark as viewed (skip in demo mode)
     if (rfi && token && !isDemo) {
-      supabase.rpc("track_rfi_view" as any, { _token: token }).then(() => {});
+      supabase.rpc("track_rfi_view", { _token: token }).then(() => {});
     }
   };
 
@@ -685,7 +685,7 @@ export default function RfiForm() {
         finalResponses["building_and_scope_estimated_job_cost"] = String(costSum);
       }
 
-      const { data: result, error: rpcError } = await supabase.rpc("submit_rfi_response" as any, {
+      const { data: result, error: rpcError } = await supabase.rpc("submit_rfi_response", {
         _token: token,
         _responses: finalResponses,
         _status: "submitted",

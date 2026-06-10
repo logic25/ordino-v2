@@ -295,7 +295,7 @@ export function useRfiByToken(token: string | null) {
     queryKey: ["rfi-public", token],
     queryFn: async () => {
       if (!token) return null;
-      const { data, error } = await supabase.rpc("get_public_rfi" as any, { _token: token });
+      const { data, error } = await supabase.rpc("get_public_rfi", { _token: token });
       if (error) throw error;
       if (!data) return null;
       const d = data as any;
