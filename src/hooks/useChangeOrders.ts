@@ -261,6 +261,13 @@ export function useSendCOToClient() {
 
   return useMutation({
     mutationFn: async ({ id, project_id, sent_to_email, public_token }: { id: string; project_id: string; sent_to_email?: string; public_token?: string }) => {
+      // Refresh the public signing link expiry whenever we (re)send.
+      await supabase.rpc("extend_public_token", {
+        _entity: "change_order",
+        _id: id,
+        _days: 90,
+      });
+
       const { data, error } = await supabase
         .from("change_orders" as any)
         .update({
