@@ -43,11 +43,16 @@ export default function ClientProposalPage() {
     queryKey: ["public-proposal", token],
     queryFn: async () => {
       if (!token) throw new Error("No token");
-      const { data, error } = await supabase.rpc("get_public_proposal" as any, { _token: token });
+      const { data, error } = await supabase.rpc("get_public_proposal", { _token: token });
       if (error) throw error;
       if (!data) throw new Error("Proposal not found");
       const d = data as any;
-      // Reshape to match expected structure
+      if (d.expired === true) {
+        const err = new Error("Link expired") as any;
+        err.expired = true;
+        err.proposal_number = d.proposal_number;
+        throw err;
+      }
       return {
         ...d,
         properties: d.properties || null,
@@ -57,7 +62,9 @@ export default function ClientProposalPage() {
       } as any;
     },
     enabled: !!token,
+    retry: false,
   });
+
 
   // Company comes bundled in the RPC response
   const company = proposal?.company ? (() => {
