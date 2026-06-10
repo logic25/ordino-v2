@@ -29,14 +29,22 @@ function usePMBillingGoals() {
     queryKey: ["pm-billing-goals", companyData?.companyId, catalog.length],
     enabled: !!companyData?.companyId,
     queryFn: async () => {
-      // Get all PMs
+      // Get all PMs (monthly_goal is fetched via SECURITY DEFINER RPC since
+      // the column is hidden from the default data API to protect compensation data).
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, user_id, first_name, last_name, display_name, role, monthly_goal")
+        .select("id, user_id, first_name, last_name, display_name, role")
         .eq("is_active", true)
         .in("role", ["pm", "admin", "manager"]);
 
-      const pms = (profiles || []).filter((p: any) => p.role === "pm" || p.role === "admin" || p.role === "manager");
+      const { data: goalsRaw } = await supabase.rpc("get_team_monthly_goals");
+      const goalsMap = new Map<string, number | null>(
+        (goalsRaw || []).map((g: any) => [g.profile_id, g.monthly_goal])
+      );
+
+      const pms = (profiles || [])
+        .filter((p: any) => p.role === "pm" || p.role === "admin" || p.role === "manager")
+        .map((p: any) => ({ ...p, monthly_goal: goalsMap.get(p.id) ?? null }));
 
       // Get active projects with services
       const { data: projects } = await supabase
