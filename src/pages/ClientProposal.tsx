@@ -154,37 +154,11 @@ export default function ClientProposalPage() {
       return;
     }
     setViewTracked(true);
-    const trackView = async () => {
-      try {
-        await supabase.rpc("track_proposal_view" as any, { _token: token });
+    // Track view server-side. PM notification + follow_ups row are handled by
+    // the track_proposal_view RPC / trigger pipeline — no anon writes from here.
+    supabase.rpc("track_proposal_view", { _token: token }).then(() => {});
+  }, [proposal, viewTracked, token]);
 
-        // Log to proposal_follow_ups
-        await supabase.from("proposal_follow_ups").insert({
-          proposal_id: proposal.id,
-          company_id: proposal.company_id,
-          action: "viewed",
-          notes: "Client opened the proposal link",
-        } as any);
-
-        // Send in-app notification to assigned PM
-        const pmId = (proposal as any).assigned_pm_id;
-        if (pmId) {
-          const propertyAddress = proposal.properties?.address || "the property";
-          await supabase.from("notifications").insert({
-            company_id: proposal.company_id,
-            user_id: pmId,
-            type: "readiness_update",
-            title: `Client viewed proposal #${proposal.proposal_number}`,
-            body: `${proposal.client_name || "The client"} opened proposal #${proposal.proposal_number} for ${propertyAddress}.`,
-            link: "/proposals",
-          } as any);
-        }
-      } catch (err) {
-        console.error("Failed to track proposal view:", err);
-      }
-    };
-    trackView();
-  }, [proposal, viewTracked]);
 
   // Canvas setup
   useEffect(() => {
