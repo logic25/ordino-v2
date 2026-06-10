@@ -286,15 +286,24 @@ export default function ClientProposalPage() {
   }
 
   if (error || !proposal) {
+    const isExpired = (error as any)?.expired === true;
+    const proposalNum = (error as any)?.proposal_number;
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8f9fa]">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-2">Proposal Not Found</h1>
-          <p className="text-muted-foreground">This link may have expired or the proposal no longer exists.</p>
+      <div className="min-h-screen flex items-center justify-center bg-[#f8f9fa] px-4">
+        <div className="text-center max-w-md">
+          <h1 className="text-2xl font-bold mb-2">
+            {isExpired ? "This link has expired" : "Proposal Not Found"}
+          </h1>
+          <p className="text-muted-foreground">
+            {isExpired
+              ? `Proposal ${proposalNum ? `#${proposalNum} ` : ""}is no longer accessible from this link. Please contact your project manager to request a new one.`
+              : "This link may have expired or the proposal no longer exists."}
+          </p>
         </div>
       </div>
     );
   }
+
 
   const items = proposal.items || [];
   const nonOptionalItems = items.filter((i: any) => !i.is_optional);
