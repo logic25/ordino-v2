@@ -185,13 +185,17 @@ export default function RfiForm() {
     setUploading((prev) => ({ ...prev, [key]: true }));
     try {
       const uploaded = [...existing];
+      const allowedExt = /\.(pdf|png|jpg|jpeg|webp|gif|heic|heif|doc|docx|xls|xlsx|csv|txt)$/i;
+      const MAX_BYTES = 25 * 1024 * 1024; // 25MB
       for (const file of Array.from(files)) {
-        // Validate file size (20MB max)
-        if (file.size > 20 * 1024 * 1024) {
-          alert(`${file.name} is too large. Maximum 20MB per file.`);
+        if (file.size > MAX_BYTES) {
+          alert(`${file.name} is too large. Maximum 25MB per file.`);
           continue;
         }
-        // Sanitize filename
+        if (!allowedExt.test(file.name)) {
+          alert(`${file.name} is not an allowed file type. Allowed: PDF, images, Word, Excel, CSV, TXT.`);
+          continue;
+        }
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
         const filePath = `${rfi.id}/${Date.now()}_${safeName}`;
         const { error } = await supabase.storage
@@ -209,6 +213,7 @@ export default function RfiForm() {
       setUploading((prev) => ({ ...prev, [key]: false }));
     }
   };
+
 
   const removeFile = async (key: string, index: number) => {
     const files: { name: string; path: string }[] = responses[key] || [];
@@ -653,7 +658,7 @@ export default function RfiForm() {
     setCurrentStep(0);
     // Mark as viewed (skip in demo mode)
     if (rfi && token && !isDemo) {
-      supabase.rpc("track_rfi_view" as any, { _token: token }).then(() => {});
+      supabase.rpc("track_rfi_view", { _token: token }).then(() => {});
     }
   };
 
@@ -680,7 +685,7 @@ export default function RfiForm() {
         finalResponses["building_and_scope_estimated_job_cost"] = String(costSum);
       }
 
-      const { data: result, error: rpcError } = await supabase.rpc("submit_rfi_response" as any, {
+      const { data: result, error: rpcError } = await supabase.rpc("submit_rfi_response", {
         _token: token,
         _responses: finalResponses,
         _status: "submitted",

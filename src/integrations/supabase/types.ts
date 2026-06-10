@@ -2427,10 +2427,14 @@ export type Database = {
           notes: string | null
           project_id: string
           public_token: string | null
+          public_token_expires_at: string | null
           reason: string | null
           requested_by: string | null
           sent_at: string | null
           sent_to_email: string | null
+          signed_document_hash: string | null
+          signed_ip: string | null
+          signed_user_agent: string | null
           status: Database["public"]["Enums"]["co_status"]
           title: string
           updated_at: string
@@ -2459,10 +2463,14 @@ export type Database = {
           notes?: string | null
           project_id: string
           public_token?: string | null
+          public_token_expires_at?: string | null
           reason?: string | null
           requested_by?: string | null
           sent_at?: string | null
           sent_to_email?: string | null
+          signed_document_hash?: string | null
+          signed_ip?: string | null
+          signed_user_agent?: string | null
           status?: Database["public"]["Enums"]["co_status"]
           title: string
           updated_at?: string
@@ -2491,10 +2499,14 @@ export type Database = {
           notes?: string | null
           project_id?: string
           public_token?: string | null
+          public_token_expires_at?: string | null
           reason?: string | null
           requested_by?: string | null
           sent_at?: string | null
           sent_to_email?: string | null
+          signed_document_hash?: string | null
+          signed_ip?: string | null
+          signed_user_agent?: string | null
           status?: Database["public"]["Enums"]["co_status"]
           title?: string
           updated_at?: string
@@ -7389,6 +7401,7 @@ export type Database = {
           property_id: string | null
           proposal_number: string | null
           public_token: string | null
+          public_token_expires_at: string | null
           referred_by: string | null
           referred_by_person: string | null
           reminder_date: string | null
@@ -7400,7 +7413,9 @@ export type Database = {
           sia_email: string | null
           sia_name: string | null
           sia_phone: string | null
+          signed_document_hash: string | null
           signed_document_url: string | null
+          signed_user_agent: string | null
           status: Database["public"]["Enums"]["proposal_status"] | null
           subtotal: number | null
           tax_amount: number | null
@@ -7469,6 +7484,7 @@ export type Database = {
           property_id?: string | null
           proposal_number?: string | null
           public_token?: string | null
+          public_token_expires_at?: string | null
           referred_by?: string | null
           referred_by_person?: string | null
           reminder_date?: string | null
@@ -7480,7 +7496,9 @@ export type Database = {
           sia_email?: string | null
           sia_name?: string | null
           sia_phone?: string | null
+          signed_document_hash?: string | null
           signed_document_url?: string | null
+          signed_user_agent?: string | null
           status?: Database["public"]["Enums"]["proposal_status"] | null
           subtotal?: number | null
           tax_amount?: number | null
@@ -7549,6 +7567,7 @@ export type Database = {
           property_id?: string | null
           proposal_number?: string | null
           public_token?: string | null
+          public_token_expires_at?: string | null
           referred_by?: string | null
           referred_by_person?: string | null
           reminder_date?: string | null
@@ -7560,7 +7579,9 @@ export type Database = {
           sia_email?: string | null
           sia_name?: string | null
           sia_phone?: string | null
+          signed_document_hash?: string | null
           signed_document_url?: string | null
+          signed_user_agent?: string | null
           status?: Database["public"]["Enums"]["proposal_status"] | null
           subtotal?: number | null
           tax_amount?: number | null
@@ -9348,6 +9369,10 @@ export type Database = {
         Args: { _company_id: string; _project_id: string }
         Returns: undefined
       }
+      extend_public_token: {
+        Args: { _days?: number; _entity: string; _id: string }
+        Returns: Json
+      }
       get_public_company_info: { Args: { _company_id: string }; Returns: Json }
       get_public_profile_info: { Args: { _profile_id: string }; Returns: Json }
       get_public_proposal: { Args: { _token: string }; Returns: Json }
@@ -9396,6 +9421,10 @@ export type Database = {
         Args: { duplicate_ids: string[]; primary_id: string }
         Returns: undefined
       }
+      pay_co_deposit: {
+        Args: { _payment_method?: string; _token: string }
+        Returns: Json
+      }
       seed_document_folders: {
         Args: { target_company_id: string }
         Returns: undefined
@@ -9412,16 +9441,40 @@ export type Database = {
         Args: { target_company_id: string }
         Returns: undefined
       }
-      sign_proposal: {
+      sign_change_order: {
         Args: {
+          _document_hash?: string
           _signature_data: string
           _signer_ip?: string
           _signer_name: string
-          _signer_title: string
+          _signer_user_agent?: string
           _token: string
         }
         Returns: Json
       }
+      sign_proposal:
+        | {
+            Args: {
+              _signature_data: string
+              _signer_ip?: string
+              _signer_name: string
+              _signer_title: string
+              _token: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _document_hash?: string
+              _signature_data: string
+              _signer_ip?: string
+              _signer_name: string
+              _signer_title: string
+              _signer_user_agent?: string
+              _token: string
+            }
+            Returns: Json
+          }
       submit_rfi_response: {
         Args: { _responses: Json; _status?: string; _token: string }
         Returns: Json

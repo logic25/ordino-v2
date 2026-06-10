@@ -21,10 +21,9 @@ function isRateLimited(ip: string): boolean {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response("ok", { status: 200, headers: corsHeaders });
   }
 
-  // Rate limit by IP
   const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     req.headers.get("cf-connecting-ip") || "unknown";
   if (isRateLimited(clientIp)) {
@@ -62,6 +61,19 @@ Deno.serve(async (req) => {
       if (!co) {
         return new Response(JSON.stringify({ error: "Change order not found" }), {
           status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Token expiry guard — only blocks if not yet signed
+      const exp = (co as any).public_token_expires_at;
+      if (!co.client_signed_at && exp && new Date(exp).getTime() < Date.now()) {
+        return new Response(JSON.stringify({
+          error: "Link expired",
+          expired: true,
+          co_number: co.co_number,
+        }), {
+          status: 410,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -125,34 +137,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // POST: Sign or update deposit
+    // POST: Sign or pay deposit — all writes happen inside SECURITY DEFINER RPCs.
     if (req.method === "POST") {
       const body = await req.json();
       const { action } = body;
-
-      // Verify token matches a real CO first
-      const { data: existing } = await supabase
-        .from("change_orders")
-        .select("id, status, client_signed_at, deposit_paid_at, deposit_percentage, amount, company_id, project_id, co_number, title")
-        .eq("public_token", token)
-        .maybeSingle();
-
-      if (!existing) {
-        return new Response(JSON.stringify({ error: "Change order not found" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      const userAgent = req.headers.get("user-agent")?.slice(0, 500) || null;
 
       if (action === "sign") {
-        if (existing.client_signed_at) {
-          return new Response(JSON.stringify({ error: "Already signed" }), {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        const { client_signature_data, client_signer_name } = body;
+        const { client_signature_data, client_signer_name, document_hash } = body;
         if (!client_signature_data || !client_signer_name) {
           return new Response(JSON.stringify({ error: "Missing signature data or name" }), {
             status: 400,
@@ -160,32 +152,24 @@ Deno.serve(async (req) => {
           });
         }
 
-        const { error } = await supabase
-          .from("change_orders")
-          .update({
-            client_signature_data,
-            client_signer_name,
-            client_signed_at: new Date().toISOString(),
-            status: "approved",
-            approved_at: new Date().toISOString(),
-          })
-          .eq("id", existing.id);
-
+        const { data, error } = await supabase.rpc("sign_change_order", {
+          _token: token,
+          _signer_name: client_signer_name,
+          _signature_data: client_signature_data,
+          _signer_ip: clientIp,
+          _signer_user_agent: userAgent,
+          _document_hash: document_hash || null,
+        });
         if (error) throw error;
-
-        // Create billing request for approved CO
-        if (existing.amount > 0) {
-          try {
-            await supabase.from("billing_requests").insert({
-              company_id: existing.company_id,
-              project_id: existing.project_id,
-              services: [{ name: existing.title, quantity: 1, rate: existing.amount, amount: existing.amount }],
-              total_amount: existing.amount,
-              status: "pending",
-            });
-          } catch (brErr) {
-            console.error("Error creating billing request for CO:", brErr);
-          }
+        const result = data as any;
+        if (!result?.success) {
+          const status = result?.error === "Link expired" ? 410
+            : result?.error === "Not found" ? 404
+            : 400;
+          return new Response(JSON.stringify({ error: result?.error || "Sign failed" }), {
+            status,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
         }
 
         return new Response(JSON.stringify({ success: true }), {
@@ -194,88 +178,20 @@ Deno.serve(async (req) => {
       }
 
       if (action === "deposit") {
-        if (existing.deposit_paid_at) {
-          return new Response(JSON.stringify({ error: "Deposit already paid" }), {
+        const { payment_method } = body;
+        const { data, error } = await supabase.rpc("pay_co_deposit", {
+          _token: token,
+          _payment_method: payment_method || "check",
+        });
+        if (error) throw error;
+        const result = data as any;
+        if (!result?.success) {
+          return new Response(JSON.stringify({ error: result?.error || "Deposit failed" }), {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-
-        const depositPct = existing.deposit_percentage || 0;
-        const depositAmount = Math.round(existing.amount * depositPct) / 100;
-        const { payment_method } = body;
-
-        // Update CO timestamp
-        const { error } = await supabase
-          .from("change_orders")
-          .update({ deposit_paid_at: new Date().toISOString() })
-          .eq("id", existing.id);
-
-        if (error) throw error;
-
-        // Get project's client_id
-        let clientId: string | null = null;
-        if (existing.project_id) {
-          const { data: proj } = await supabase
-            .from("projects")
-            .select("client_id")
-            .eq("id", existing.project_id)
-            .maybeSingle();
-          clientId = proj?.client_id || null;
-        }
-
-        // Create client_retainers record
-        if (depositAmount > 0 && clientId) {
-          try {
-            const { data: retainer } = await supabase
-              .from("client_retainers")
-              .insert({
-                company_id: existing.company_id,
-                client_id: clientId,
-                project_id: existing.project_id,
-                initial_amount: depositAmount,
-                current_balance: depositAmount,
-                source: `CO ${existing.co_number} deposit`,
-              } as any)
-              .select("id")
-              .single();
-
-            if (retainer) {
-              await supabase.from("retainer_transactions").insert({
-                company_id: existing.company_id,
-                retainer_id: retainer.id,
-                type: "deposit",
-                amount: depositAmount,
-                description: `Deposit for Change Order ${existing.co_number}`,
-              } as any);
-            }
-          } catch (retErr) {
-            console.error("Error creating retainer for CO deposit:", retErr);
-          }
-        }
-
-        // Create paid invoice for the deposit
-        if (depositAmount > 0) {
-          try {
-            await supabase.from("invoices").insert({
-              company_id: existing.company_id,
-              project_id: existing.project_id,
-              client_id: clientId,
-              line_items: [{ description: `Deposit — ${existing.co_number}: ${existing.title}`, quantity: 1, rate: depositAmount, amount: depositAmount }],
-              subtotal: depositAmount,
-              total_due: depositAmount,
-              status: "paid",
-              payment_amount: depositAmount,
-              payment_method: payment_method || "check",
-              payment_date: new Date().toISOString().split("T")[0],
-              paid_at: new Date().toISOString(),
-            } as any);
-          } catch (invErr) {
-            console.error("Error creating deposit invoice for CO:", invErr);
-          }
-        }
-
-        return new Response(JSON.stringify({ success: true }), {
+        return new Response(JSON.stringify({ success: true, deposit_amount: result.deposit_amount }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -291,6 +207,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
+    console.error("public-co error:", err);
     return new Response(JSON.stringify({ error: "Internal error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
