@@ -165,9 +165,13 @@ export function useRecentProposalActivity(year: number) {
       const end = `${year + 1}-01-01`;
       const { data } = await supabase
         .from("proposals")
-        .select("id, title, status, total_amount, sent_at, signed_at, executed_at, clients(name)")
+        .select("id, title, status, total_amount, sent_at, client_signed_at, converted_at, clients(name)")
         .eq("company_id", profile!.company_id!)
-        .or(`and(sent_at.gte.${start},sent_at.lt.${end}),and(signed_at.gte.${start},signed_at.lt.${end}),and(executed_at.gte.${start},executed_at.lt.${end})`);
+        .or(
+          `and(sent_at.gte.${start},sent_at.lt.${end}),` +
+          `and(client_signed_at.gte.${start},client_signed_at.lt.${end}),` +
+          `and(converted_at.gte.${start},converted_at.lt.${end})`
+        );
 
       const events: RecentProposalEvent[] = [];
       (data || []).forEach((p: any) => {
@@ -178,10 +182,10 @@ export function useRecentProposalActivity(year: number) {
           amount: Number(p.total_amount) || 0,
           status: p.status,
         };
-        if (p.executed_at && p.executed_at >= start && p.executed_at < end) {
-          events.push({ ...base, eventDate: p.executed_at, eventType: "executed" });
-        } else if (p.signed_at && p.signed_at >= start && p.signed_at < end) {
-          events.push({ ...base, eventDate: p.signed_at, eventType: "signed" });
+        if (p.converted_at && p.converted_at >= start && p.converted_at < end) {
+          events.push({ ...base, eventDate: p.converted_at, eventType: "executed" });
+        } else if (p.client_signed_at && p.client_signed_at >= start && p.client_signed_at < end) {
+          events.push({ ...base, eventDate: p.client_signed_at, eventType: "signed" });
         } else if (p.sent_at && p.sent_at >= start && p.sent_at < end) {
           events.push({ ...base, eventDate: p.sent_at, eventType: "sent" });
         }
@@ -193,6 +197,7 @@ export function useRecentProposalActivity(year: number) {
     },
   });
 }
+
 
 
 export function useTeamUtilization() {
