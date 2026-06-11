@@ -26,7 +26,8 @@ export default function Projects() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<ProjectWithRelations | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showAllProjects, setShowAllProjects] = useState(false);
+  const [showAllProjects, setShowAllProjects] = useState(true);
+  const [groupBy, setGroupBy] = useState<"none" | "client" | "address">("none");
   const [statusFilter, setStatusFilter] = useState("all");
   const { toast } = useToast();
   const { profile } = useAuth();
