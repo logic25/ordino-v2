@@ -44,11 +44,15 @@ const formatName = (profile: { first_name: string | null; last_name: string | nu
   return [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "—";
 };
 
-export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, isDeleting, isSendingRfi }: ProjectTableProps) {
+export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, isDeleting, isSendingRfi, selectedIds, onToggleSelect, onToggleAll }: ProjectTableProps) {
   const navigate = useNavigate();
   const { data: assignableProfiles = [] } = useAssignableProfiles();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const selectable = !!onToggleSelect;
+  const ids = projects.map((p) => p.id);
+  const allSelected = selectable && ids.length > 0 && ids.every((id) => selectedIds?.has(id));
+  const someSelected = selectable && ids.some((id) => selectedIds?.has(id)) && !allSelected;
 
   const handlePmChange = async (projectId: string, profileId: string) => {
     const pmId = profileId === "__unassigned__" ? null : profileId;
@@ -57,6 +61,16 @@ export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, is
       toast({ title: "Error", description: "Failed to update PM.", variant: "destructive" });
     } else {
       toast({ title: "PM Updated" });
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+    }
+  };
+
+  const handleStatusChange = async (projectId: string, status: string) => {
+    const { error } = await supabase.from("projects").update({ status } as any).eq("id", projectId);
+    if (error) {
+      toast({ title: "Error", description: "Failed to update status.", variant: "destructive" });
+    } else {
+      toast({ title: "Status Updated" });
       queryClient.invalidateQueries({ queryKey: ["projects"] });
     }
   };
