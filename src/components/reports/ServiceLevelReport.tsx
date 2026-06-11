@@ -12,6 +12,7 @@ type SortKey = "name" | "avgDays" | "avgTimelogHrs" | "totalDays" | "qty" | "amo
 export default function ServiceLevelReport() {
   const { data = [], isLoading } = useServiceLevelReport();
   const [search, setSearch] = useState("");
+  const [pageSize, setPageSize] = useState(10);
   const [sortKey, setSortKey] = useState<SortKey>("avgDays");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -24,6 +25,8 @@ export default function ServiceLevelReport() {
       return ((a[sortKey] as number) - (b[sortKey] as number)) * dir;
     });
   }, [data, search, sortKey, sortDir]);
+
+  const visibleRows = rows.slice(0, pageSize);
 
   const toggleSort = (k: SortKey) => {
     if (sortKey === k) setSortDir(sortDir === "asc" ? "desc" : "asc");
