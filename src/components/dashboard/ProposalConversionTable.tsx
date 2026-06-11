@@ -41,10 +41,12 @@ export function ProposalConversionTable() {
       <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
         <div>
           <CardTitle className="text-base flex items-center gap-1.5">
-            Proposals & Billing
+            Proposal Conversion
             <InfoTooltip>
-              <strong>Conversion</strong> — monthly Sent vs Converted proposals (Sent = sent_at in month; Converted = status reached signed/executed/won).<br />
-              <strong>Billing</strong> — amounts sent to billing (billing requests) grouped by who sent them, fee work only. Reimbursables (filing fees, pass-throughs) are shown separately and never count toward goals. Goal-holders are always shown; anyone who sent something to billing also appears. Click a goal cell to set a per-month override (admin only).
+              <strong>Sent</strong> — proposals created in the month (matches the Reports → Proposals Monthly Conversion view).<br />
+              <strong>Won</strong> — proposals whose status reached <em>executed</em>.<br />
+              <strong>COs / CO $</strong> — change orders client-signed in the month.<br />
+              Switch to <strong>Billing by User</strong> for send-to-billing totals by user; click a goal cell to set a per-month override (admin only).
             </InfoTooltip>
           </CardTitle>
           <CardDescription>
