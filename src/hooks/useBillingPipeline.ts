@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { predictBillDates, applyBillDatePredictions } from "@/hooks/useBillDatePrediction";
 
 export type BillDateSource =
   | "service" // services.estimated_bill_date
