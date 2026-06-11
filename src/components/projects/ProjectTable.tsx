@@ -18,6 +18,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "./projectMockData";
+import { THWT } from "@/components/ui/table-head-with-tip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 interface ProjectTableProps {
   projects: ProjectWithRelations[];
