@@ -8,6 +8,8 @@ import { useDashboardStats } from "@/hooks/useDashboard";
 import { useAccountingDashboard } from "@/hooks/useDashboardData";
 import { AgingSummaryChart } from "./AgingSummaryChart";
 import { useBillingReports } from "@/hooks/useReports";
+import { BillingPulse } from "./BillingPulse";
+import { BillingPipelineTable } from "@/components/billing/BillingPipelineTable";
 
 export function AccountingView({ isVisible }: { isVisible?: (id: string) => boolean }) {
   const navigate = useNavigate();
