@@ -11,7 +11,8 @@ interface InvoiceFilterTabsProps {
 }
 
 const tabs: { value: string; label: string; showCount?: boolean; countKey?: string }[] = [
-  { value: "to_invoice", label: "To Invoice", showCount: true, countKey: "pending_billing" },
+  { value: "to_invoice", label: "Ready to Invoice", showCount: true, countKey: "ready_to_invoice" },
+  { value: "needs_review", label: "Needs Review", showCount: true },
   { value: "sent", label: "Sent", showCount: true },
   { value: "overdue", label: "Overdue", showCount: true },
   { value: "paid", label: "Paid", showCount: true },
@@ -27,8 +28,8 @@ export function InvoiceFilterTabs({ activeTab, onTabChange, counts, pendingBilli
       <TabsList className="h-auto bg-transparent p-0 gap-0 inline-flex w-auto">
         {tabs.map((tab) => {
           let count = 0;
-          if (tab.countKey === "pending_billing") {
-            count = pendingBillingCount;
+          if (tab.countKey === "ready_to_invoice") {
+            count = pendingBillingCount + (counts.draft || 0) + (counts.ready_to_send || 0);
           } else if (tab.showCount) {
             count = counts[tab.value] || 0;
           }
