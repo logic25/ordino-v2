@@ -92,7 +92,7 @@ export default function ServiceLevelReport() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
+                {visibleRows.map((r) => (
                   <tr key={r.name} className="border-b last:border-b-0 hover:bg-muted/40">
                     <td className="py-2 pr-3">{r.name}</td>
                     <td className="py-2 pr-3 text-right tabular-nums">{r.avgDays.toFixed(2)}</td>
@@ -102,6 +102,11 @@ export default function ServiceLevelReport() {
                     <td className="py-2 pr-3 text-right tabular-nums">{formatCompactCurrency(r.amount)}</td>
                   </tr>
                 ))}
+                {rows.length > visibleRows.length && (
+                  <tr><td colSpan={6} className="py-2 text-center text-xs text-muted-foreground">
+                    Showing {visibleRows.length} of {rows.length}. Increase rows shown or select "Show all".
+                  </td></tr>
+                )}
               </tbody>
             </table>
           </div>
