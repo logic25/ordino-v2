@@ -55,6 +55,7 @@ export default function Dashboard() {
   const actualRole = profile?.role || "pm";
   const [previewRole, setPreviewRole] = useState<DashboardRole>(mapRoleToDashboard(actualRole));
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
+  const [editLayout, setEditLayout] = useState(false);
 
   const role = previewRole;
   const layout = useDashboardLayout(role);
