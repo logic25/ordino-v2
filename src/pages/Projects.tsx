@@ -96,6 +96,7 @@ export default function Projects() {
     if (statusFilter === "stale") {
       if (!isStale(p)) return false;
     } else if (statusFilter !== "all" && p.status !== statusFilter) return false;
+    if (!matchesBucket(p)) return false;
     // Search filter
     const query = searchQuery.toLowerCase();
     if (!query) return true;
