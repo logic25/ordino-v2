@@ -996,7 +996,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                   {isViewerAdmin && monthlyGoal && (
                     <div className="flex items-center gap-2">
                       <Target className="h-4 w-4 text-muted-foreground" />
-                      <span>Goal: ${monthlyGoal.toLocaleString()}/mo</span>
+                      <span>{metricKind === "accounting" ? `Goal: ${monthlyGoal} invoices/mo` : `Goal: $${monthlyGoal.toLocaleString()}/mo`}</span>
                     </div>
                   )}
                   <div className="flex items-center gap-2 text-muted-foreground">
