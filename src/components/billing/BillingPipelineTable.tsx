@@ -180,7 +180,12 @@ export function BillingPipelineTable({ scope = "company", title = "Billing Pipel
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">No upcoming services. Items appear here as soon as a service on an open project has a remaining balance.</td></tr>
               ) : (
-                filtered.slice(0, 200).map((r) => {
+                (() => {
+                  const totalPages = pageSize >= 100000 ? 1 : Math.max(1, Math.ceil(filtered.length / pageSize));
+                  const safePage = Math.min(page, totalPages);
+                  const start = (safePage - 1) * pageSize;
+                  const visible = pageSize >= 100000 ? filtered : filtered.slice(start, start + pageSize);
+                  return visible.map((r) => {
                   const undated = !r.estimated_bill_date || r.bill_date_source === "none";
                   const overdue = !undated && r.estimated_bill_date && new Date(r.estimated_bill_date) < now;
                   const sourceLabel: Record<string, string> = {
@@ -215,13 +220,22 @@ export function BillingPipelineTable({ scope = "company", title = "Billing Pipel
                           <span className={overdue ? "text-red-600 font-medium" : ""}>
                             {new Date(r.estimated_bill_date!).toLocaleDateString()}
                             {r.bill_date_source === "ai" ? (
-                              <Badge
-                                variant="outline"
-                                className="ml-1.5 text-[10px] bg-primary/10 border-primary/30 text-primary"
-                                title="Estimated by AI based on historical service cycle times for similar services on this project."
-                              >
-                                AI
-                              </Badge>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className="ml-1.5 inline-flex items-center gap-0.5 rounded border border-primary/30 bg-primary/10 px-1 py-[1px] text-[10px] text-primary hover:bg-primary/20"
+                                  >
+                                    AI <Info className="h-2.5 w-2.5" />
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent side="top" className="w-80 text-xs">
+                                  <div className="font-medium mb-1">Why this date?</div>
+                                  <div className="text-muted-foreground leading-relaxed">
+                                    {r.bill_date_reasoning || "Predicted from historical service cycle times. Click refresh to recompute."}
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
                             ) : srcLabel ? (
                               <span className="ml-1 text-[10px] text-muted-foreground" title={`Date inferred from ${srcLabel}`}>
                                 {srcLabel}
@@ -238,7 +252,8 @@ export function BillingPipelineTable({ scope = "company", title = "Billing Pipel
                       </td>
                     </tr>
                   );
-                })
+                  });
+                })()
               )}
             </tbody>
             {filtered.length > 0 && (
@@ -254,6 +269,44 @@ export function BillingPipelineTable({ scope = "company", title = "Billing Pipel
             )}
           </table>
         </div>
+
+        {/* Pagination footer */}
+        {filtered.length > 0 && (() => {
+          const totalPages = pageSize >= 100000 ? 1 : Math.max(1, Math.ceil(filtered.length / pageSize));
+          const safePage = Math.min(page, totalPages);
+          const start = (safePage - 1) * pageSize;
+          const end = pageSize >= 100000 ? filtered.length : Math.min(start + pageSize, filtered.length);
+          return (
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+              <div>
+                Showing {start + 1}–{end} of {filtered.length}
+              </div>
+              <div className="flex items-center gap-2">
+                <span>Rows:</span>
+                <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+                  <SelectTrigger className="h-8 w-[110px] text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[10, 25, 50, 100].map((n) => (
+                      <SelectItem key={n} value={String(n)}>{n} per page</SelectItem>
+                    ))}
+                    <SelectItem value="100000">Show all</SelectItem>
+                  </SelectContent>
+                </Select>
+                {pageSize < 100000 && (
+                  <>
+                    <Button size="sm" variant="outline" className="h-8 px-2" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
+                      <ChevronLeft className="h-3 w-3" />
+                    </Button>
+                    <span className="tabular-nums">Page {safePage} / {totalPages}</span>
+                    <Button size="sm" variant="outline" className="h-8 px-2" disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>
+                      <ChevronRight className="h-3 w-3" />
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </CardContent>
     </Card>
   );
