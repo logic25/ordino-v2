@@ -164,10 +164,20 @@ export default function Projects() {
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Projects</h1>
             <p className="text-muted-foreground mt-1">
-              {isAdmin && showAllProjects ? "All company projects" : "Your assigned projects"}
+              {showAllProjects ? "All company projects" : "Your assigned projects"}
             </p>
           </div>
-          {isAdmin && (
+          <div className="flex items-center gap-2">
+            <select
+              value={groupBy}
+              onChange={(e) => setGroupBy(e.target.value as "none" | "client" | "address")}
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              aria-label="Group projects by"
+            >
+              <option value="none">No grouping</option>
+              <option value="client">Group by Client</option>
+              <option value="address">Group by Address</option>
+            </select>
             <Button
               variant={showAllProjects ? "default" : "outline"}
               size="sm"
@@ -177,7 +187,7 @@ export default function Projects() {
               <Users className="h-4 w-4" />
               {showAllProjects ? "All Projects" : "My Projects"}
             </Button>
-          )}
+          </div>
         </div>
 
         <div className="grid gap-3 grid-cols-2 lg:grid-cols-4" data-tour="projects-stats">
