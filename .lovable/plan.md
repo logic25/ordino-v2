@@ -1,57 +1,61 @@
-## Admin Dashboard — Round 3 Cleanup
+## 1. Upcoming Billing Pipeline
 
-### 1. Upcoming Billing Pipeline (fix empty state)
-Change `useBillingPipeline.ts` from "status = billed" to **services on active projects with `estimated_bill_date` set, not fully billed**:
-- `services.status IN ('in_progress','billed')`
-- `billed_amount < total_amount` (or `fixed_price` if no total)
-- `estimated_bill_date IS NOT NULL`
-- `projects.status = 'active'` and not closed
-- Exclude services already inside a pending/approved `billing_requests`
-- Sort by `estimated_bill_date` ASC, default show next 60 days; "Show all" toggle
-- Add `InfoTooltip` on the card title explaining the rule
+**Filter change** in `useBillingPipeline.ts`:
+- Include services with status `not_started` or `in_progress` on `open` projects.
+- Remove `billed` (a fully billed service isn't upcoming).
+- Keep guards: not tied to an open/pending billing request, remaining balance > 0 (or `total > 0` for `not_started`).
 
-### 2. Sales Health absorbs Cycle Times
-- Add to `SalesHealthCard`: "Avg proposal sign time (Xd)" and "Avg invoice payment time (Yd)" as a small footer row under the win-rate panel
-- Delete `CycleTimesCard.tsx` and remove `"cycle-times"` from layout defaults + `ROLE_WIDGETS.admin`
+**Undated services — use project fallback:**
+- If `services.estimated_bill_date` is null, fall back to `projects.expected_close_date`, then `projects.due_date` (whichever exists).
+- New row field `effective_bill_date` + `bill_date_source` flag (`"service"`, `"project_close"`, `"project_due"`, `"none"`).
+- Sort by `effective_bill_date` ASC; items with no date at all sort last under an "Undated" group.
+- In `BillingPipelineTable.tsx`: show the date with a small badge when it came from the project, and an "Undated" pill when nothing is available. Add a Status column (Not Started / In Progress).
 
-### 3. Remove Collected vs Billed card
-- Drop `CollectedVsBilledCard` from admin dashboard widget map + role defaults (kept inside `BillingReports`/`AccountingView` where collection rate already lives)
-- Delete `CollectedVsBilledCard.tsx`
+## 2. Stale Projects pills clickable even at 0
 
-### 4. Merge Stale Projects (total + by-PM)
-- New unified `StaleProjectsCard`: header shows total count pill; body lists PM rows with their stale count as a click-pill
-- Clicking the total pill OR any PM pill opens `StaleProjectsModal` with the project list (project #, name, PM, days since activity, link) — styled like the legacy Change Orders modal screenshot
-- Remove `StaleProjectsByPM` widget id from layout
+- In `StaleProjectsCard.tsx`, make per-PM rows always open the modal (showing that PM's full open-project list with fresh/warming/stale labels).
+- Make Fresh, Warming, and Stale pills standalone buttons; each opens the modal pre-filtered to that bucket.
+- Total count button and "View all" stay enabled even when stale = 0 → opens the full list.
+- `useDrilldownList` gains a `bucket: "fresh" | "warming" | "stale" | "all"` arg for the `stale-projects` source.
 
-### 5. Active Proposals KPI — momentum
-In `KpiStrip` (`AdminCompanyView`):
-- Primary: count of proposals **created** this calendar month
-- Delta vs prior month (▲/▼ N, color-coded), value shown as secondary subtitle
-- Tooltip: "Proposals created this month vs last month"
+## 3. $25K company goal explained
 
-### 6. Click-through modals for count pills (legacy-style)
-Create reusable `<DrillInModal title count>` (Dialog wrapper matching the Change Orders modal layout: summary header strip + scrollable list). Wire into:
-- Stale Projects total + per-PM pills → project list
-- Proposal Follow-Ups card count → follow-up rows
-- KPI strip pills (Active Projects, Active Proposals, AR Outstanding) → underlying list (projects / proposals / invoices)
+Formula in `RevenueTrendChart.useCompanyMonthlyGoal`:
+1. `companies.monthly_billing_goal_override` if set, else
+2. Sum of `profiles.monthly_goal` for **active** users with role `pm`, `admin`, or `manager`.
+Currently only Manny Russell ($25K active admin) contributes; Mike Johnson's $33K is on an inactive profile.
 
-### 7. Billing Pulse tooltip
-Add `InfoTooltip` next to "Billing Pulse" title explaining: MTD billed vs collected, current AR aging buckets, % of monthly goal. (Card already exists; just add tooltip wiring.)
+- Wrap the goal `ReferenceLine` label in a Popover that shows the formula + contributor breakdown + a deep link to `Settings → Company` to set/edit the override.
+- Add an `InfoTooltip` next to the chart title summarising it.
+- If a company-override editor doesn't already exist, add a simple numeric input in Company Settings (verify during implementation; only build if missing).
 
-### 8. My View button polish
-In `AdminCompanyView`:
-- Render as segmented control "Company | My View" using `Tabs` styling, current view filled (`variant="default"`), other `variant="outline"`. Same toggle behavior, just visually obvious which is active.
+## 4. Resizable widgets
 
-### 9. Answer-only items (no code changes)
-- **AI summary cron frequency:** project summaries are **event-driven** (regenerated immediately when an action item, note, checklist item, or status change is inserted via `enqueue_project_summary` → `auto-summarize-projects`). The `weekly-project-digest` edge function additionally sweeps every open project **once a week** as a safety net. Will surface this in a small "Last refreshed: Xh ago" line on the project detail summary card (out of scope here — flagging for next round).
+In `useDashboardLayout.ts`, remove `lockedFull` from:
+- `proposal-followups`
+- `stale-projects-total`
 
-### Files
-**Edit:** `useBillingPipeline.ts`, `AdminCompanyView.tsx`, `SalesHealthCard.tsx`, `useDashboardData.ts` (add cycle-time aggregates to sales-health query, proposals-this-month vs last-month, stale projects with PM breakdown), `useDashboardLayout.ts` (remove cycle-times, collected-vs-billed, stale-projects-by-pm ids from defaults), `StaleProjectsCard.tsx`, `BillingPulse.tsx`, `ProposalFollowUps.tsx`, `KpiStrip` block in `AdminCompanyView.tsx`.
-**New:** `DrillInModal.tsx` (shared), `StaleProjectsModal.tsx`.
-**Delete:** `CycleTimesCard.tsx`, `CollectedVsBilledCard.tsx`, `StaleProjectsByPM.tsx`.
-**Changelog:** insert `changelog_entries` row summarising dashboard v3.
+Keep `lockedFull` on tables/multi-panel widgets that genuinely need full width (`kpis`, `sales-health`, `billing-pipeline`, `proposal-conversion-rates`, `revenue-trend`, `team-utilization`, `team-overview`, `my-projects`).
 
-### Out of scope
-- Project-detail "last AI refresh" timestamp UI
-- Per-project AI summary frequency knob
-- Pixel-resize widgets (react-grid-layout)
+Verify each newly-resizable widget reads cleanly at `half`.
+
+## 5. Tooltips on every dashboard widget
+
+Audit the admin (and PM) dashboards and ensure **every** card has an `InfoTooltip` next to its title explaining what's measured and the data source. Currently missing on at least: Billing Pulse, Revenue Trend, Team Utilization, Projects by PM, Expense Approvals, Proposal Follow-Ups, Proposals & Billing (both tabs), KPI strip pills. Each tooltip should be 1–2 short sentences.
+
+## Changelog
+Insert one `changelog_entries` row covering the four user-visible fixes.
+
+## Out of scope
+- Pixel-perfect drag-resize (keep `full | half` snap).
+- Editing per-user `monthly_goal` UX (only adding/exposing the company override).
+- Reclassifying services as in-progress vs not-started elsewhere in the app.
+
+## Technical notes
+- `useBillingPipeline.ts`: extend join to pull `projects.expected_close_date, due_date`; compute `effective_bill_date` and `bill_date_source` in the mapper; update sort + filter.
+- `BillingPipelineTable.tsx`: add Status column, date-source badge, "Undated" pill.
+- `StaleProjectsCard.tsx`: convert fresh/warming/stale spans → buttons; remove `disabled` on zero; add `bucket` to `setOpenPm` state (tuple `{pmId, bucket}`).
+- `useDrilldownList.ts`: extend `stale-projects` branch with optional `bucket` filter that maps to days-since-touch ranges.
+- `RevenueTrendChart.tsx`: replace plain `Label` on `ReferenceLine` with a `Popover` trigger; query active contributors to render breakdown.
+- `useDashboardLayout.ts`: drop `lockedFull` from the two widgets above.
+- Add `InfoTooltip` imports to each card flagged in §5.

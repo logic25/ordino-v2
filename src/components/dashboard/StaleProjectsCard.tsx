@@ -5,7 +5,9 @@ import { useStaleProjectsTotal, useStaleProjectsByPM, useCompanyDashboardSetting
 import { InfoTooltip } from "./InfoTooltip";
 import { AlertTriangle } from "lucide-react";
 import { DrillInModal } from "./DrillInModal";
-import { useDrilldownList } from "@/hooks/useDrilldownList";
+import { useDrilldownList, type StaleBucket } from "@/hooks/useDrilldownList";
+
+type DrillState = { pmId: string | "all"; bucket: StaleBucket } | null;
 
 export function StaleProjectsCard() {
   const { data: settings } = useCompanyDashboardSettings();
@@ -13,17 +15,34 @@ export function StaleProjectsCard() {
   const { data: total, isLoading: totalLoading } = useStaleProjectsTotal(threshold);
   const { data: byPm = [], isLoading: pmLoading } = useStaleProjectsByPM(threshold);
 
-  const [openPm, setOpenPm] = useState<string | "all" | null>(null);
-  const drill = useDrilldownList("stale-projects", {
-    enabled: openPm !== null,
+  const [drill, setDrill] = useState<DrillState>(null);
+
+  const drillQuery = useDrilldownList("stale-projects", {
+    enabled: drill !== null,
     thresholdDays: threshold,
-    pmId: openPm && openPm !== "all" ? openPm : undefined,
+    pmId: drill?.pmId && drill.pmId !== "all" ? drill.pmId : undefined,
+    bucket: drill?.bucket,
   });
 
-  const modalTitle =
-    openPm === "all" || openPm === null
-      ? "Stale Projects"
-      : `Stale Projects — ${byPm.find((p) => p.id === openPm)?.name || "PM"}`;
+  const pmName = drill?.pmId && drill.pmId !== "all"
+    ? byPm.find((p) => p.id === drill.pmId)?.name || "PM"
+    : null;
+  const bucketLabel: Record<StaleBucket, string> = {
+    fresh: "Fresh (last 7 days)",
+    warming: `Warming (8–${threshold - 1} days idle)`,
+    stale: `Stale (${threshold}d+ idle)`,
+    all: "All open projects",
+  };
+  const modalTitle = drill
+    ? `${pmName ? pmName + " — " : ""}${bucketLabel[drill.bucket]}`
+    : "Stale Projects";
+  const modalDescription = drill?.bucket === "stale"
+    ? `Open projects with no activity in the last ${threshold} days.`
+    : drill?.bucket === "warming"
+      ? `Open projects with no activity in the last 8 to ${threshold - 1} days.`
+      : drill?.bucket === "fresh"
+        ? "Open projects touched in the last 7 days."
+        : "All open projects assigned to this PM.";
 
   return (
     <>
@@ -35,11 +54,12 @@ export function StaleProjectsCard() {
             <InfoTooltip>
               Open projects with no activity in the last {threshold} days.
               A "touch" is any time log, note, status change, email, or comment.
+              Click any pill — Fresh, Warming, Stale, or a PM row — to see that list.
               Threshold is configured in Settings → Company.
             </InfoTooltip>
           </CardTitle>
           <CardDescription>
-            Click a count to see the underlying projects
+            Click a pill to see the underlying projects
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -49,9 +69,8 @@ export function StaleProjectsCard() {
             <div className="flex items-end justify-between">
               <div>
                 <button
-                  onClick={() => total.stale > 0 && setOpenPm("all")}
-                  className="text-3xl font-bold tabular-nums hover:text-primary disabled:hover:text-foreground transition-colors"
-                  disabled={total.stale === 0}
+                  onClick={() => setDrill({ pmId: "all", bucket: "stale" })}
+                  className="text-3xl font-bold tabular-nums hover:text-primary transition-colors"
                 >
                   {total.stale}
                 </button>
@@ -62,14 +81,12 @@ export function StaleProjectsCard() {
                   )}
                 </p>
               </div>
-              {total.stale > 0 && (
-                <button
-                  onClick={() => setOpenPm("all")}
-                  className="text-xs px-3 py-1.5 rounded-md bg-destructive/10 text-destructive hover:bg-destructive/20 font-medium"
-                >
-                  View all
-                </button>
-              )}
+              <button
+                onClick={() => setDrill({ pmId: "all", bucket: "all" })}
+                className="text-xs px-3 py-1.5 rounded-md bg-muted hover:bg-muted/80 font-medium"
+              >
+                View all open
+              </button>
             </div>
           )}
 
@@ -89,21 +106,35 @@ export function StaleProjectsCard() {
                     key={r.id}
                     className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/40 transition-colors text-sm"
                   >
-                    <div className="font-medium truncate">{r.name}</div>
-                    <span className="text-[11px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 min-w-[48px] text-center">
-                      {r.fresh}
-                    </span>
-                    <span className="text-[11px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-700 dark:text-amber-300 min-w-[48px] text-center">
-                      {r.warming}
-                    </span>
                     <button
-                      onClick={() => r.stale > 0 && setOpenPm(r.id)}
-                      disabled={r.stale === 0}
+                      onClick={() => setDrill({ pmId: r.id, bucket: "all" })}
+                      className="font-medium truncate text-left hover:text-primary transition-colors"
+                      title="See all of this PM's open projects"
+                    >
+                      {r.name}
+                    </button>
+                    <button
+                      onClick={() => setDrill({ pmId: r.id, bucket: "fresh" })}
+                      className="text-[11px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 min-w-[48px] text-center hover:bg-emerald-500/20"
+                      title="Fresh: touched in the last 7 days"
+                    >
+                      {r.fresh}
+                    </button>
+                    <button
+                      onClick={() => setDrill({ pmId: r.id, bucket: "warming" })}
+                      className="text-[11px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-700 dark:text-amber-300 min-w-[48px] text-center hover:bg-amber-500/20"
+                      title={`Warming: 8 to ${threshold - 1} days idle`}
+                    >
+                      {r.warming}
+                    </button>
+                    <button
+                      onClick={() => setDrill({ pmId: r.id, bucket: "stale" })}
                       className={`text-[11px] px-2 py-0.5 rounded min-w-[56px] text-center font-semibold ${
                         r.stale > 0
                           ? "bg-destructive/15 text-destructive hover:bg-destructive/25"
-                          : "bg-muted text-muted-foreground"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
                       }`}
+                      title={`Stale: ${threshold}+ days idle`}
                     >
                       {r.stale} stale
                     </button>
@@ -112,19 +143,19 @@ export function StaleProjectsCard() {
               </div>
             )}
             <p className="text-[10px] text-muted-foreground mt-2">
-              Fresh (0–7d) · Warming (8–{threshold - 1}d) · Stale ({threshold}d+)
+              Fresh (0–7d) · Warming (8–{threshold - 1}d) · Stale ({threshold}d+) · all pills clickable
             </p>
           </div>
         </CardContent>
       </Card>
 
       <DrillInModal
-        open={openPm !== null}
-        onOpenChange={(o) => !o && setOpenPm(null)}
+        open={drill !== null}
+        onOpenChange={(o) => !o && setDrill(null)}
         title={modalTitle}
-        description={`Open projects with no activity in the last ${threshold} days.`}
-        loading={drill.isLoading}
-        rows={drill.data || []}
+        description={modalDescription}
+        loading={drillQuery.isLoading}
+        rows={drillQuery.data || []}
       />
     </>
   );

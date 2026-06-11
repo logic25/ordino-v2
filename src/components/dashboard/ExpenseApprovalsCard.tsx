@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { usePendingExpenseApprovals, useApproveExpense, useDenyExpense, getReceiptSignedUrl } from "@/hooks/useProjectExpenses";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
+import { InfoTooltip } from "./InfoTooltip";
 
 export function ExpenseApprovalsCard() {
   const { data: expenses = [], isLoading } = usePendingExpenseApprovals();
@@ -55,6 +56,11 @@ export function ExpenseApprovalsCard() {
           <CardTitle className="text-base flex items-center gap-2">
             <DollarSign className="h-4 w-4 text-amber-600" />
             Expense Approvals
+            <InfoTooltip>
+              Project expenses submitted by PMs that are waiting on admin
+              approval. Approving marks the expense reimbursable and queues it
+              for the next billing request; denying returns it with your reason.
+            </InfoTooltip>
             {expenses.length > 0 && (
               <Badge variant="destructive" className="ml-auto">{expenses.length}</Badge>
             )}

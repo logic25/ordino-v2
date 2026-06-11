@@ -135,6 +135,9 @@ export function BillingPipelineTable({ scope = "company", title = "Billing Pipel
               <SelectItem value="all">Any source</SelectItem>
               <SelectItem value="ai">AI predicted</SelectItem>
               <SelectItem value="manual">Manual</SelectItem>
+              <SelectItem value="project_target">Project target</SelectItem>
+              <SelectItem value="project_completion">Project completion</SelectItem>
+              <SelectItem value="none">Undated</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -165,10 +168,20 @@ export function BillingPipelineTable({ scope = "company", title = "Billing Pipel
               {isLoading ? (
                 <tr><td colSpan={7} className="p-6"><Skeleton className="h-32 w-full" /></td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">No billed deliverables waiting for a billing request. New items appear here when a service is marked <span className="font-medium">billed</span>.</td></tr>
+                <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">No upcoming services. Items appear here as soon as a service on an open project has a remaining balance.</td></tr>
               ) : (
                 filtered.slice(0, 200).map((r) => {
-                  const overdue = r.estimated_bill_date && new Date(r.estimated_bill_date) < now;
+                  const undated = !r.estimated_bill_date || r.bill_date_source === "none";
+                  const overdue = !undated && r.estimated_bill_date && new Date(r.estimated_bill_date) < now;
+                  const sourceLabel: Record<string, string> = {
+                    ai: "AI",
+                    manual: "",
+                    project_target: "Project target",
+                    project_completion: "Project completion",
+                    service: "",
+                    none: "",
+                  };
+                  const srcLabel = sourceLabel[r.bill_date_source] ?? "";
                   return (
                     <tr key={r.id} className="border-t hover:bg-muted/30">
                       {scope === "company" && <td className="px-3 py-2">{r.pm_name}</td>}
@@ -186,13 +199,17 @@ export function BillingPipelineTable({ scope = "company", title = "Billing Pipel
                         <Badge variant="outline" className="text-xs">{r.service_status.replace(/_/g, " ")}</Badge>
                       </td>
                       <td className="px-3 py-2">
-                        {r.estimated_bill_date ? (
-                          <span className={overdue ? "text-red-600 font-medium" : ""}>
-                            {new Date(r.estimated_bill_date).toLocaleDateString()}
-                            {r.bill_date_source === "ai" && <span className="ml-1 text-[10px] text-muted-foreground">AI</span>}
-                          </span>
+                        {undated ? (
+                          <Badge variant="outline" className="text-[10px] text-muted-foreground">Undated</Badge>
                         ) : (
-                          <span className="text-muted-foreground">—</span>
+                          <span className={overdue ? "text-red-600 font-medium" : ""}>
+                            {new Date(r.estimated_bill_date!).toLocaleDateString()}
+                            {srcLabel && (
+                              <span className="ml-1 text-[10px] text-muted-foreground" title={`Date inferred from ${srcLabel}`}>
+                                {srcLabel}
+                              </span>
+                            )}
+                          </span>
                         )}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">${r.amount.toLocaleString()}</td>

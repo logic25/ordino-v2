@@ -2,12 +2,20 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
+export type BillDateSource =
+  | "service" // services.estimated_bill_date
+  | "ai" // AI-predicted service date
+  | "manual" // manually entered service date
+  | "project_target" // projects.estimated_construction_completion
+  | "project_completion" // projects.completion_date
+  | "none";
+
 export interface BillingPipelineRow {
   id: string;
   service_name: string;
   service_status: string;
   estimated_bill_date: string | null;
-  bill_date_source: string | null;
+  bill_date_source: BillDateSource;
   amount: number;
   project_id: string;
   project_number: string | null;
@@ -21,13 +29,16 @@ export type PipelineScope = "company" | "self-pm";
 
 /**
  * Upcoming Billing Pipeline:
- * Services on OPEN projects that still have a remaining balance and an
- * estimated bill date, excluding services already attached to an open
- * (pending/approved) billing request.
+ * Services on OPEN projects in the "upcoming" lifecycle (not_started or in_progress)
+ * with a remaining balance, not yet attached to a pending/approved billing request.
  *
- * Statuses considered "billable upcoming": in_progress, billed.
- * (We include 'billed' because in some workflows it means "marked ready to bill"
- * with a partial balance still open.)
+ * Date precedence (effective bill date):
+ *   1. services.estimated_bill_date  (source kept as 'ai' | 'manual')
+ *   2. projects.estimated_construction_completion  ('project_target')
+ *   3. projects.completion_date                   ('project_completion')
+ *   4. none → sorted last, rendered as "Undated"
+ *
+ * 'billed' status is excluded — once a service is fully billed it's no longer upcoming.
  */
 export function useBillingPipeline(scope: PipelineScope = "company") {
   const { profile } = useAuth() as any;
@@ -45,14 +56,14 @@ export function useBillingPipeline(scope: PipelineScope = "company") {
           total_amount, billed_amount, fixed_price, is_reimbursable,
           project_id,
           projects!inner(id, project_number, name, assigned_pm_id, company_id, status,
+            estimated_construction_completion, completion_date,
             clients(name),
             assigned_pm:profiles!projects_assigned_pm_id_fkey(id, first_name, last_name, display_name)
           )
         `)
         .eq("projects.company_id", companyId)
         .eq("projects.status", "open")
-        .in("status", ["in_progress", "billed"])
-        .not("estimated_bill_date", "is", null);
+        .in("status", ["not_started", "in_progress"]);
 
       const [{ data, error }, openBR] = await Promise.all([
         q,
@@ -86,12 +97,29 @@ export function useBillingPipeline(scope: PipelineScope = "company") {
                 pmRel.display_name ||
                 "Unassigned"
               : "Unassigned";
+
+          // Date precedence
+          let date: string | null = s.estimated_bill_date || null;
+          let source: BillDateSource;
+          if (date) {
+            source = (s.bill_date_source as BillDateSource) || "manual";
+            if (source !== "ai" && source !== "manual") source = "manual";
+          } else if (s.projects?.estimated_construction_completion) {
+            date = s.projects.estimated_construction_completion;
+            source = "project_target";
+          } else if (s.projects?.completion_date) {
+            date = s.projects.completion_date;
+            source = "project_completion";
+          } else {
+            source = "none";
+          }
+
           return {
             id: s.id,
             service_name: s.name,
             service_status: s.status,
-            estimated_bill_date: s.estimated_bill_date,
-            bill_date_source: s.bill_date_source,
+            estimated_bill_date: date,
+            bill_date_source: source,
             amount: remaining || total,
             project_id: s.project_id,
             project_number: s.projects?.project_number ?? null,
@@ -103,8 +131,8 @@ export function useBillingPipeline(scope: PipelineScope = "company") {
         })
         .filter((r) => r.amount > 0 && !tiedUp.has(r.id))
         .sort((a, b) => {
-          const da = a.estimated_bill_date || "9999";
-          const db = b.estimated_bill_date || "9999";
+          const da = a.estimated_bill_date || "9999-12-31";
+          const db = b.estimated_bill_date || "9999-12-31";
           return da.localeCompare(db);
         });
 
