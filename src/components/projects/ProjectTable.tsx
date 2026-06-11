@@ -215,7 +215,7 @@ export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, is
           })}
           {projects.length === 0 && (
             <TableRow>
-              <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={selectable ? 10 : 9} className="text-center py-8 text-muted-foreground">
                 No projects match your search.
               </TableCell>
             </TableRow>
