@@ -1,70 +1,63 @@
-## 1. Fix blank Upcoming Billing Pipeline (root cause found)
+## 1. Resize everything — all four dashboards
 
-Network shows the `services` query returning HTTP 300 with `PGRST201`:
-> Could not embed because more than one relationship was found for 'projects' and 'clients'
+Only the Admin dashboard uses the resizable widget grid (`useDashboardLayout`). `AccountingView`, `ManagerView`, and `PMDailyView` are hardcoded grids.
 
-There are two FKs from `projects` → `clients` (`client_id` and `building_owner_id`), so the nested `clients(name)` is ambiguous and **every row is dropped** — that's why the pipeline is empty even though 97 services qualify in the DB.
+- Remove `lockedFull` from every Admin widget so users can resize all of them (kpis, sales-health, conversion, revenue-trend, team-utilization, billing-pipeline, open-services, etc.).
+- Wrap `AccountingView`, `ManagerView`, `PMDailyView` in the same `DndContext` + `useDashboardLayout` shell already used by `AdminCompanyView`. Each existing card becomes a widget id; most ids are already declared in `ROLE_WIDGETS`.
+- Add the missing widget renderers per role so the layout config actually maps to components.
 
-Fix in `src/hooks/useBillingPipeline.ts`: change `clients(name)` → `clients!projects_client_id_fkey(name)` (matches the rule in our memory about explicit FK joins). No other logic changes.
+## 2. Billing Pulse — Accounting vs PM read
 
-## 2. Billing / BD menu access
+Confirming the difference (already in code, but not surfaced to the user):
 
-Leave merge decision to you — recommend **leave separate**: BD = pipeline + RFPs (BD/accounting), Billing = invoices/payments (accounting/admin). Merging would force RFP discovery into the billing screen.
+- **Accounting / Admin** sees two Pulses: **My Billing Pulse** (`scope=self-biller` — invoices *I* issued) and **Company Billing Pulse** (`scope=company` — all invoices). Goal = sum of biller goals or company override.
+- **PM** sees **My Billing Pulse** with `scope=self-pm` — services on projects *I* manage that are ready to bill. Goal = my `monthly_goal`.
 
-What I will do now: audit `AppSidebar` so Billing is visible to **admin + accounting** only (current state uses generic `invoices` resource — confirm it's gated, tighten if not). No nav restructure.
+Fix:
+- Add an `InfoTooltip` on every Pulse header that spells out: what's counted, whose goal is used, and the date window. Already-existing `info` icons get real text.
+- Add a small "(my issued invoices)" / "(my projects)" / "(company)" subtitle under each Pulse title so the scope is unmistakable at a glance.
 
-## 3. Port "Total Open Services" widget (from legacy screenshot)
+## 3. "Sent → Signed 0.7 d n=32" — clarify the label
 
-New card on Admin Dashboard + a tab in `Reports → Billing`:
+That cell on **Sales Health** = average **0.7 days** from proposal sent to signed, sample size **32**. The cramped `d n=32` is unreadable.
 
-| Column | Source |
-|---|---|
-| Open service (name) | `services.name` grouped |
-| Amount | sum of remaining (`total_amount - billed_amount`) for services where `status ≠ 'billed'` |
-| Qty | count |
-| Avg Days | avg days since `services.created_at` (open age) |
+- Re-format to `0.7 days · 32 proposals` (drop `n=`).
+- Same for `Invoice → Paid` and `Proposal → Signed (90d)`.
+- Add an `InfoTooltip` per metric describing the formula + time window + scope.
 
-- Hook: `useOpenServicesSummary(companyId)` aggregating in-memory from existing `services` fetch (or a Postgres view if perf needs it).
-- Sortable, paginated (10/25/50), search box, total row at bottom — matches legacy layout.
-- Row click → `DrillInModal` listing the underlying open services with project link.
+## 4. "Submissions to Bill" wording
 
-## 4. Port "Service Level" report
+Rename the Accounting KPI **"Submissions to Bill" → "Submissions to Invoice"** (value `12`, $9.7k) in `AccountingView.tsx` so it matches everyday accounting language.
 
-New tab in `Reports` (`/reports?tab=service-level`):
+## 5. Intelligence behind Open Services & Upcoming Bill dates
 
-| Column | Source |
-|---|---|
-| Service | `services.name` (grouped across all time, completed services only) |
-| Avg Days | avg(`completed_date - created_at`) where `status='billed'` or `completed_date` set |
-| Avg Timelog | avg sum of `time_entries.hours` per service (if `time_entries.service_id` exists) — fall back to "—" with tooltip if not wired |
-| Total Days | sum of days |
-| Qty | count |
-| Amount | sum(`total_amount`) |
+There's already an edge function (`predict-service-dates`) and a hook (`useBillDatePrediction`) sitting unused. **No new model training** — that line in the prior plan just meant "we won't train a model from scratch, we'll call the existing AI function." Wiring:
 
-- Hook: `useServiceLevelReport({ from, to, pmId, clientId, borough })` with same filter bar as legacy screenshot.
-- Default sort: Avg Days desc.
-- I will check whether `time_entries` / `project_activities` already link to `service_id`; if not, Avg Timelog renders "—" and we log a follow-up rather than adding a migration in this pass.
+- For any pipeline row with no estimated bill date, call `predict-service-dates`; stamp the row with the predicted date + an **"AI" badge** and `bill_date_source='ai'`. Cache the prediction back to `services.estimated_bill_date` so it doesn't re-run.
+- Add an `aiPriorityScore` to `useOpenServicesSummary` (combines age + remaining $) so high-impact stale rows bubble up; show as a colored dot with tooltip.
 
-## 5. Tooltips
+## 6. Open Services + Service Level tables: page-size cap + "Show all"
 
-Add `InfoTooltip` to the two new cards explaining the formulas.
+- Default 10 rows. Add a **"Show all"** toggle that expands to the full list with a sticky footer for totals.
+- Persist the choice per user in `profiles.notification_preferences.report_prefs`.
+
+## 7. Tooltips on every widget
+
+Audit Admin / Accounting / Manager / PM dashboards; every card gets an `InfoTooltip` explaining what it measures and the scope.
 
 ## Out of scope
 
-- Merging BD + Billing nav.
-- New schema for service-level time logging (only if existing data isn't sufficient — will report back).
-- Reworking existing dashboard layout beyond inserting the Total Open Services card.
+- Pixel-perfect drag-handle resizing (we keep the existing full/half toggle).
+- Building a new ML model — we only use the existing `predict-service-dates` function.
+- Mobile reflow tweaks.
 
 ## Files
 
-- `src/hooks/useBillingPipeline.ts` (FK fix)
-- `src/components/layout/AppSidebar.tsx` (gate audit only)
-- `src/hooks/useOpenServicesSummary.ts` (new)
-- `src/hooks/useServiceLevelReport.ts` (new)
-- `src/components/dashboard/OpenServicesCard.tsx` (new)
-- `src/components/reports/OpenServicesReport.tsx` (new tab)
-- `src/components/reports/ServiceLevelReport.tsx` (new tab)
-- `src/pages/Reports.tsx` (register tabs)
-- `src/components/dashboard/AdminCompanyView.tsx` (insert card)
-- `src/hooks/useDashboardLayout.ts` (register widget id)
+- `src/hooks/useDashboardLayout.ts` — drop `lockedFull`, register widget ids for accounting/manager/pm.
+- `src/components/dashboard/AccountingView.tsx`, `ManagerView.tsx`, `PMDailyView.tsx` — convert to widgets-map + DndContext shell.
+- `src/components/dashboard/BillingPulse.tsx` — scope subtitle + `InfoTooltip`.
+- `src/components/dashboard/SalesHealthCard.tsx` — relabel cycle-time cells + tooltips.
+- `src/hooks/useBillingPipeline.ts` + `src/components/billing/BillingPipelineTable.tsx` — wire `useBillDatePrediction`, "AI" badge.
+- `src/hooks/useOpenServicesSummary.ts` + `src/components/reports/OpenServicesReport.tsx` — `aiPriorityScore`, "Show all" toggle, persisted prefs.
+- `src/components/reports/ServiceLevelReport.tsx` — "Show all" toggle.
 - Changelog entry.

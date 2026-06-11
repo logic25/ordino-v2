@@ -73,8 +73,10 @@ export default function OpenServicesReport() {
             className="h-9 rounded-md border bg-background px-2 text-sm"
             value={pageSize}
             onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+            title="Rows per page (select All to remove the limit)"
           >
             {[10, 25, 50, 100].map((n) => <option key={n} value={n}>{n} per page</option>)}
+            <option value={100000}>Show all ({filtered.length})</option>
           </select>
         </div>
 

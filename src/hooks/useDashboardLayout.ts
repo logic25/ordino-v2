@@ -11,44 +11,49 @@ export interface WidgetDef {
   lockedFull?: boolean;
 }
 
-// Widget definitions per role
+// Widget definitions per role.
+// `lockedFull` is reserved for widgets whose internal layout assumes a full row
+// (e.g. KPI strips with their own 4-col grid). Everything else is resizable.
 export const ROLE_WIDGETS: Record<string, WidgetDef[]> = {
   pm: [
-    { id: "my-projects", label: "My Projects", lockedFull: true },
+    { id: "my-projects", label: "My Projects" },
     { id: "project-readiness", label: "Project Readiness" },
-    { id: "proposal-followups", label: "Proposal Follow-Ups", lockedFull: true },
+    { id: "proposal-followups", label: "Proposal Follow-Ups" },
     { id: "quick-time-log", label: "Quick Time Log" },
+    { id: "my-action-items", label: "My Action Items" },
+    { id: "billing-pulse", label: "My Billing Pulse" },
   ],
   admin: [
     { id: "kpis", label: "KPIs", lockedFull: true },
     { id: "billing-pulse", label: "Billing Pulse" },
-    { id: "sales-health", label: "Sales Health", lockedFull: true },
+    { id: "sales-health", label: "Sales Health" },
     { id: "stale-projects-total", label: "Stale Projects" },
-    { id: "billing-pipeline", label: "Upcoming Billing Pipeline", lockedFull: true },
-    { id: "open-services", label: "Total Open Services", lockedFull: true },
-    { id: "proposal-conversion-rates", label: "Proposals & Billing", lockedFull: true },
-    { id: "revenue-trend", label: "Revenue Trend", lockedFull: true },
-    { id: "team-utilization", label: "Team Utilization & Projects by PM", lockedFull: true },
+    { id: "billing-pipeline", label: "Upcoming Billing Pipeline" },
+    { id: "open-services", label: "Total Open Services" },
+    { id: "proposal-conversion-rates", label: "Proposals & Billing" },
+    { id: "revenue-trend", label: "Revenue Trend" },
+    { id: "team-utilization", label: "Team Utilization & Projects by PM" },
     { id: "proposal-followups", label: "Proposal Follow-Ups" },
     { id: "expense-approvals", label: "Expense Approvals" },
-    { id: "team-overview", label: "Team Overview", lockedFull: true },
+    { id: "team-overview", label: "Team Overview" },
   ],
   accounting: [
     { id: "kpis", label: "KPIs", lockedFull: true },
-    { id: "pending-billing", label: "Pending Billing Requests", lockedFull: true },
-    { id: "overdue-invoices", label: "Overdue Invoices", lockedFull: true },
-    { id: "promises", label: "Payment Promises", lockedFull: true },
-    { id: "billing-summary", label: "Billing Summary", lockedFull: true },
+    { id: "billing-pulse-self", label: "My Billing Pulse" },
+    { id: "billing-pulse-company", label: "Company Billing Pulse" },
+    { id: "followups-by-type", label: "Follow-ups by Type" },
+    { id: "aging-summary", label: "Aging Summary" },
+    { id: "pending-billing", label: "PM Billing Submissions" },
   ],
   manager: [
     { id: "kpis", label: "KPIs", lockedFull: true },
     { id: "team-utilization", label: "Team Utilization" },
     { id: "projects-by-pm", label: "Projects by PM" },
-    { id: "billing-goal-tracker", label: "Billing Goal Tracker" },
-    { id: "proposal-followups", label: "Proposal Follow-Ups", lockedFull: true },
-    { id: "team-overview", label: "Team Overview", lockedFull: true },
+    { id: "billing-goal-tracker", label: "Billing Pulse" },
+    { id: "proposal-followups", label: "Proposal Follow-Ups" },
+    { id: "team-overview", label: "Team Overview" },
     { id: "my-action-items", label: "My Action Items (personal)" },
-    { id: "my-projects", label: "My Projects (personal)", lockedFull: true },
+    { id: "my-projects", label: "My Projects (personal)" },
     { id: "quick-time-log", label: "Quick Time Log (personal)" },
   ],
 };

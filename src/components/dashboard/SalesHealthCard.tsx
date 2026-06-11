@@ -119,34 +119,49 @@ export function SalesHealthCard() {
             {/* Cycle times footer */}
             <div className="pt-4 border-t grid gap-4 grid-cols-2 md:grid-cols-3">
               <div>
-                <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Sent → Signed</p>
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                  Sent → Signed
+                  <InfoTooltip>
+                    Average days from <em>proposal sent</em> to <em>client signed</em>, within the selected window. Sample size shows how many proposals contributed.
+                  </InfoTooltip>
+                </p>
                 <p className="text-lg font-semibold tabular-nums">
-                  {data.avgSignDays} <span className="text-xs font-normal text-muted-foreground">d</span>
+                  {data.avgSignDays} <span className="text-xs font-normal text-muted-foreground">days</span>
                   {data.signSample > 0 && (
                     <span className="text-[10px] text-muted-foreground font-normal ml-1">
-                      n={data.signSample}
+                      · {data.signSample} proposals
                     </span>
                   )}
                 </p>
               </div>
               <div>
-                <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Invoice → Paid</p>
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                  Invoice → Paid
+                  <InfoTooltip>
+                    Average days from <em>invoice issued</em> to <em>fully paid</em> (last 90 days, paid invoices only).
+                  </InfoTooltip>
+                </p>
                 <p className="text-lg font-semibold tabular-nums">
-                  {cycle?.invoicePaidDays ?? 0} <span className="text-xs font-normal text-muted-foreground">d</span>
+                  {cycle?.invoicePaidDays ?? 0} <span className="text-xs font-normal text-muted-foreground">days</span>
                   {(cycle?.invoiceSample ?? 0) > 0 && (
                     <span className="text-[10px] text-muted-foreground font-normal ml-1">
-                      n={cycle?.invoiceSample}
+                      · {cycle?.invoiceSample} invoices
                     </span>
                   )}
                 </p>
               </div>
               <div>
-                <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Proposal → Signed (90d)</p>
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                  Proposal → Signed (90d)
+                  <InfoTooltip>
+                    Same metric as Sent → Signed but locked to a rolling <strong>90-day</strong> window for trend comparison.
+                  </InfoTooltip>
+                </p>
                 <p className="text-lg font-semibold tabular-nums">
-                  {cycle?.proposalSignDays ?? 0} <span className="text-xs font-normal text-muted-foreground">d</span>
+                  {cycle?.proposalSignDays ?? 0} <span className="text-xs font-normal text-muted-foreground">days</span>
                   {(cycle?.proposalSample ?? 0) > 0 && (
                     <span className="text-[10px] text-muted-foreground font-normal ml-1">
-                      n={cycle?.proposalSample}
+                      · {cycle?.proposalSample} proposals
                     </span>
                   )}
                 </p>

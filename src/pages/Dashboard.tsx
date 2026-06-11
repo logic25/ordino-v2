@@ -113,7 +113,7 @@ export default function Dashboard() {
           />
         );
       case "accounting":
-        return <AccountingView isVisible={layout.isVisible} />;
+        return <AccountingView isVisible={layout.isVisible} editMode={editLayout} order={layout.order} onReorder={layout.setOrder} />;
       default:
         return <PMDailyView isVisible={layout.isVisible} />;
     }

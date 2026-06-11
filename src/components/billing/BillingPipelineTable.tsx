@@ -204,11 +204,19 @@ export function BillingPipelineTable({ scope = "company", title = "Billing Pipel
                         ) : (
                           <span className={overdue ? "text-red-600 font-medium" : ""}>
                             {new Date(r.estimated_bill_date!).toLocaleDateString()}
-                            {srcLabel && (
+                            {r.bill_date_source === "ai" ? (
+                              <Badge
+                                variant="outline"
+                                className="ml-1.5 text-[10px] bg-primary/10 border-primary/30 text-primary"
+                                title="Estimated by AI based on historical service cycle times for similar services on this project."
+                              >
+                                AI
+                              </Badge>
+                            ) : srcLabel ? (
                               <span className="ml-1 text-[10px] text-muted-foreground" title={`Date inferred from ${srcLabel}`}>
                                 {srcLabel}
                               </span>
-                            )}
+                            ) : null}
                           </span>
                         )}
                       </td>
