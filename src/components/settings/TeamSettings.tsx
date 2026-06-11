@@ -407,11 +407,22 @@ function useUserBillingStats(userId: string, period: Period, monthlyGoal: number
 
       // 8. Efficiency: weighted composite
       // Billing 40%, Timelog 30%, Accuracy 23%, Non-billable CO 7%
+      // If the user has no real activity in the period, leave it null instead of
+      // showing an inflated score from the default 100% CO factor.
       const accuracyForCalc = accuracyPct !== null ? accuracyPct : 0;
       const hasAccuracy = accuracyPct !== null;
-      const efficiency = hasAccuracy
+      const hasAnyActivity =
+        billingPct > 0 ||
+        timelogCompletion > 0 ||
+        accuracyPct !== null ||
+        nonBillableCOTotal > 0 ||
+        projectIds.length > 0;
+      const efficiency = !hasAnyActivity
+        ? null
+        : hasAccuracy
         ? Math.round(billingPct * 0.40 + timelogCompletion * 0.30 + accuracyForCalc * 0.23 + coFactor * 0.07)
         : Math.round(billingPct * 0.53 + timelogCompletion * 0.40 + coFactor * 0.07);
+
 
       // 9. Potential Bonus (configurable tier-based on Billing %)
       const tiers = bonusTiers && bonusTiers.length > 0 ? bonusTiers : DEFAULT_BONUS_TIERS;
