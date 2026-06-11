@@ -1125,62 +1125,126 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
               </div>
             </CardHeader>
             <CardContent>
-              {statsLoading ? (
+              {(metricKind === "accounting" ? acctStatsLoading : statsLoading) ? (
                 <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-              ) : (() => {
-                // Use mock data when no real stats or no goal
-                const hasRealData = stats && (stats.totalBilled > 0 || stats.totalHours > 0);
-                const mockStats = { billingPct: 69, timelogCompletion: 87, efficiency: 72, potentialBonus: 0, hasGoal: true, nonBillableCOTotal: 0, accuracyPct: null };
-                const displayStats = hasRealData ? stats : { ...stats, ...mockStats };
-                const isMock = !hasRealData;
-                return (
-                  <>
-                    {isMock && <p className="text-xs text-muted-foreground italic mb-2">Showing sample data for preview.</p>}
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      <StatCard
-                        icon={Target}
-                        label="Billing %"
-                        value={displayStats?.hasGoal ? displayStats.billingPct : "—"}
-                        suffix={displayStats?.hasGoal ? "%" : ""}
-                        tooltip="Total invoiced on your projects ÷ Monthly Goal (× number of months in period). Example: $50k billed ÷ $40k goal = 125%."
-                      />
-                      <StatCard
-                        icon={AlertCircle}
-                        label="Non-Billable COs"
-                        value={`$${(displayStats?.nonBillableCOTotal || 0).toLocaleString()}`}
-                        tooltip="Sum of change orders marked as non-billable (internal mistakes) on your projects during the selected period."
-                      />
-                      <StatCard
-                        icon={CheckCircle}
-                        label="Timelog Completion"
-                        value={displayStats?.timelogCompletion || 0}
-                        suffix="%"
-                        tooltip="Days with time entries ÷ Days clocked in. If you clocked in 20 days and logged time on 15, completion = 75%."
-                      />
-                      <StatCard
-                        icon={BarChart3}
-                        label="Accuracy"
-                        value={displayStats?.accuracyPct !== null && displayStats?.accuracyPct !== undefined ? displayStats.accuracyPct : "—"}
-                        suffix={displayStats?.accuracyPct !== null && displayStats?.accuracyPct !== undefined ? "%" : ""}
-                        tooltip="% of assigned services completed on or before their estimated completion date. Requires services with both a due date and completion date."
-                      />
-                      <StatCard
-                        icon={Zap}
-                        label="Efficiency Rating"
-                        value={displayStats?.efficiency || 0}
-                        suffix="%"
-                        tooltip="Weighted composite: Billing % × 40% + Timelog Completion × 30% + Accuracy × 23% + Non-Billable CO factor × 7%. When Accuracy has no data, weights redistribute to Billing 53% + Timelog 40% + CO 7%."
-                      />
-                      <StatCard
-                        icon={Award}
-                        label="Potential Bonus"
-                        value={`$${displayStats?.potentialBonus || 0}`}
-                        tooltip="Based on Billing % tiers: 100–110% → $250, 111–125% → $500, 126%+ → $1,000. Tiers are configurable in Settings → Invoices & Billing."
-                      />
-                    </div>
-                  </>
-                );
-              })()}
+              ) : metricKind === "accounting" ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <StatCard
+                    icon={FileText}
+                    label="Invoices Issued"
+                    value={acctStats?.invoicesIssued ?? 0}
+                    suffix={acctStats?.hasGoal && acctStats?.volumePct !== null ? ` / ${acctStats.volumePct}%` : ""}
+                    tooltip="Count of invoices this user created in the selected period. Goal % is vs. Monthly Invoices Goal × number of months."
+                  />
+                  <StatCard
+                    icon={DollarSign}
+                    label="$ Invoiced"
+                    value={`$${(acctStats?.totalInvoiced || 0).toLocaleString()}`}
+                    tooltip="Total amount on invoices this user created in the selected period."
+                  />
+                  <StatCard
+                    icon={Clock}
+                    label="Avg Time to Invoice"
+                    value={acctStats?.avgHoursToInvoice === null || acctStats?.avgHoursToInvoice === undefined ? "—" : acctStats.avgHoursToInvoice}
+                    suffix={acctStats?.avgHoursToInvoice !== null && acctStats?.avgHoursToInvoice !== undefined ? "h" : ""}
+                    tooltip="Average hours between a PM submitting a billing request and this user issuing the invoice. Target: ≤48h."
+                  />
+                  <StatCard
+                    icon={AlertCircle}
+                    label="Backlog"
+                    value={acctStats?.backlogCount ?? 0}
+                    tooltip="Live count of pending billing requests older than 2 days across the company. Not period-bound."
+                  />
+                  <StatCard
+                    icon={Target}
+                    label="Collection Rate"
+                    value={acctStats?.collectionPct === null || acctStats?.collectionPct === undefined ? "—" : acctStats.collectionPct}
+                    suffix={acctStats?.collectionPct !== null && acctStats?.collectionPct !== undefined ? "%" : ""}
+                    tooltip="$ paid ÷ $ invoiced for invoices this user issued that are 30+ days old."
+                  />
+                  <StatCard
+                    icon={CheckCircle}
+                    label="Timelog Completion"
+                    value={acctStats?.timelogCompletion ?? 0}
+                    suffix="%"
+                    tooltip="Days with time entries ÷ Days clocked in."
+                  />
+                  <StatCard
+                    icon={BarChart3}
+                    label="Invoice Accuracy"
+                    value={acctStats?.accuracyPct === null || acctStats?.accuracyPct === undefined ? "—" : acctStats.accuracyPct}
+                    suffix={acctStats?.accuracyPct !== null && acctStats?.accuracyPct !== undefined ? "%" : ""}
+                    tooltip="% of invoices this user issued that did NOT receive a dispute."
+                  />
+                  <StatCard
+                    icon={Zap}
+                    label="Efficiency Rating"
+                    value={acctStats?.efficiency ?? 0}
+                    suffix="%"
+                    tooltip="Weighted composite: Time-to-Invoice 30% + Collection 25% + Accuracy 20% + Backlog cleared 15% + Timelog 10%. Components with no data are skipped and remaining weights re-normalize."
+                  />
+                </div>
+              ) : metricKind === "generic" ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <StatCard
+                    icon={CheckCircle}
+                    label="Timelog Completion"
+                    value={stats?.timelogCompletion ?? 0}
+                    suffix="%"
+                    tooltip="Days with time entries ÷ Days clocked in."
+                  />
+                  <StatCard
+                    icon={BarChart3}
+                    label="Accuracy"
+                    value={stats?.accuracyPct === null || stats?.accuracyPct === undefined ? "—" : stats.accuracyPct}
+                    suffix={stats?.accuracyPct !== null && stats?.accuracyPct !== undefined ? "%" : ""}
+                    tooltip="% of assigned services completed on or before their estimated completion date."
+                  />
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <StatCard
+                    icon={Target}
+                    label="Billing %"
+                    value={stats?.hasGoal ? stats.billingPct : "—"}
+                    suffix={stats?.hasGoal ? "%" : ""}
+                    tooltip="Total invoiced on projects where this user is PM or Senior PM ÷ Monthly Goal (× number of months). Counts invoices regardless of who created them."
+                  />
+                  <StatCard
+                    icon={AlertCircle}
+                    label="Non-Billable COs"
+                    value={`$${(stats?.nonBillableCOTotal || 0).toLocaleString()}`}
+                    tooltip="Sum of change orders marked as non-billable (internal mistakes) on this user's projects during the selected period. Counts COs on projects regardless of who logged them."
+                  />
+                  <StatCard
+                    icon={CheckCircle}
+                    label="Timelog Completion"
+                    value={stats?.timelogCompletion ?? 0}
+                    suffix="%"
+                    tooltip="Days with time entries ÷ Days clocked in."
+                  />
+                  <StatCard
+                    icon={BarChart3}
+                    label="Accuracy"
+                    value={stats?.accuracyPct === null || stats?.accuracyPct === undefined ? "—" : stats.accuracyPct}
+                    suffix={stats?.accuracyPct !== null && stats?.accuracyPct !== undefined ? "%" : ""}
+                    tooltip="% of assigned services completed on or before their estimated completion date."
+                  />
+                  <StatCard
+                    icon={Zap}
+                    label="Efficiency Rating"
+                    value={stats?.efficiency ?? 0}
+                    suffix="%"
+                    tooltip="Weighted composite: Billing % × 40% + Timelog × 30% + Accuracy × 23% + Non-Billable CO factor × 7%. When Accuracy has no data, weights redistribute to Billing 53% + Timelog 40% + CO 7%."
+                  />
+                  <StatCard
+                    icon={Award}
+                    label="Potential Bonus"
+                    value={`$${stats?.potentialBonus || 0}`}
+                    tooltip="Based on Billing % tiers: 100–110% → $250, 111–125% → $500, 126%+ → $1,000."
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
 
