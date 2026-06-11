@@ -278,8 +278,17 @@ export default function Projects() {
                 <TabsTrigger value="open">Open ({openCount})</TabsTrigger>
                 <TabsTrigger value="on_hold">On Hold ({onHoldCount})</TabsTrigger>
                 <TabsTrigger value="closed">Closed ({visibleProjects.filter(p => p.status === "closed").length})</TabsTrigger>
-                <TabsTrigger value="paid">Paid ({visibleProjects.filter(p => p.status === "paid").length})</TabsTrigger>
-                <TabsTrigger value="stale" className="data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground">
+                <TabsTrigger
+                  value="paid"
+                  title="Projects whose final invoice has been paid. Lifecycle: Open → Closed → Paid."
+                >
+                  Paid ({visibleProjects.filter(p => p.status === "paid").length})
+                </TabsTrigger>
+                <TabsTrigger
+                  value="stale"
+                  title="Open projects with no activity in 14+ days (time, notes, status, email). Still open — just a nudge."
+                  className="data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground"
+                >
                   Stale ({staleCount})
                 </TabsTrigger>
               </TabsList>
