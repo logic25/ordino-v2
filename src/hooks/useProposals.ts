@@ -872,21 +872,9 @@ export function useSignProposalInternal() {
 
       // Create services from proposal items, linked to the project
       const items = (proposal as any).items || [];
-      if (items.length > 0) {
-        const servicesToInsert = items.filter((item: any) => !item.is_optional).map((item: any) => ({
-          company_id: profile.company_id,
-          application_id: (project as any).id, // Still requires application_id due to NOT NULL — we'll create a placeholder
-          project_id: (project as any).id,
-          name: item.name,
-          description: item.description,
-          estimated_hours: item.estimated_hours || null,
-          fixed_price: item.total_price,
-          total_amount: item.total_price,
-          billing_type: "fixed",
-          status: "not_started",
-          needs_dob_filing: item.needs_dob_filing ?? false,
-        }));
-
+      let baseCoId: string | null = null;
+      const billableItems = items.filter((item: any) => !item.is_optional);
+      if (billableItems.length > 0) {
         // We need a DOB application to satisfy the FK constraint on services
         const { data: application, error: appError } = await supabase
           .from("dob_applications")
@@ -906,10 +894,57 @@ export function useSignProposalInternal() {
         if (appError) {
           console.error("Error creating application:", appError);
         } else {
-          // Now insert services linked to application
-          const servicesWithApp = servicesToInsert.map((s: any) => ({
-            ...s,
+          // Create a base "Original Scope" change order so every billable
+          // service has a CO parent (mirrors job-costing model).
+          try {
+            const totalAmount = billableItems.reduce(
+              (s: number, it: any) => s + (Number(it.total_price) || 0),
+              0
+            );
+            const { data: baseCo, error: coErr } = await supabase
+              .from("change_orders" as any)
+              .insert({
+                company_id: profile.company_id,
+                project_id: (project as any).id,
+                co_number: "BASE",
+                title: "Original Scope",
+                description: `Base scope from proposal ${proposal.proposal_number}`,
+                amount: totalAmount,
+                status: "approved",
+                linked_service_names: billableItems.map((it: any) => it.name),
+                line_items: billableItems.map((it: any) => ({
+                  name: it.name,
+                  amount: Number(it.total_price) || 0,
+                  description: it.description || undefined,
+                })),
+                internal_signed_at: new Date().toISOString(),
+                internal_signed_by: profile.id,
+                internal_signature_data: signatureData,
+                approved_at: new Date().toISOString(),
+                created_by: profile.id,
+              })
+              .select("id")
+              .single();
+            if (coErr) console.error("Error creating base CO:", coErr);
+            else baseCoId = (baseCo as any)?.id ?? null;
+          } catch (coErr) {
+            console.error("Error creating base CO:", coErr);
+          }
+
+          // Now insert services linked to application (+ base CO when available)
+          const servicesWithApp = billableItems.map((item: any) => ({
+            company_id: profile.company_id,
             application_id: application.id,
+            project_id: (project as any).id,
+            change_order_id: baseCoId,
+            name: item.name,
+            description: item.description,
+            estimated_hours: item.estimated_hours || null,
+            fixed_price: item.total_price,
+            total_amount: item.total_price,
+            billing_type: "fixed",
+            status: "not_started",
+            needs_dob_filing: item.needs_dob_filing ?? false,
           }));
 
           const { error: servicesError } = await supabase
