@@ -53,10 +53,15 @@ export function InviteMemberDialog() {
     queryKey: ["pending-invites", profile?.company_id],
     enabled: !!profile?.company_id,
     queryFn: async () => {
+      // Only show invites that haven't been accepted yet, and hide invites
+      // that expired more than 7 days ago so stale rows don't pile up.
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase
         .from("pending_invites" as any)
         .select("*")
         .eq("company_id", profile!.company_id)
+        .is("accepted_at", null)
+        .gte("expires_at", sevenDaysAgo)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data || []) as unknown as Invite[];
