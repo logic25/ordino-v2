@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { effectiveStatus } from "@/lib/invoiceStatus";
 
 export type InvoiceStatus = "draft" | "ready_to_send" | "needs_review" | "sent" | "overdue" | "paid" | "legal_hold";
 
@@ -106,7 +107,7 @@ export function useInvoiceCounts() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("invoices")
-        .select("status");
+        .select("status, due_date");
 
       if (error) throw error;
 
@@ -121,9 +122,10 @@ export function useInvoiceCounts() {
       };
 
       (data || []).forEach((inv: any) => {
-        const s = inv.status as InvoiceStatus;
+        // Derive overdue on read — DB stores `sent` even after due_date passes.
+        const s = effectiveStatus(inv);
         if (s in counts) {
-          counts[s]++;
+          (counts as any)[s]++;
         }
         counts.total++;
       });
@@ -140,13 +142,13 @@ export function useInvoiceTotals() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("invoices")
-        .select("status, total_due");
+        .select("status, total_due, due_date");
       if (error) throw error;
       const totals: Record<InvoiceStatus, number> = {
         draft: 0, ready_to_send: 0, needs_review: 0, sent: 0, overdue: 0, paid: 0, legal_hold: 0,
       };
       (data || []).forEach((inv: any) => {
-        const s = inv.status as InvoiceStatus;
+        const s = effectiveStatus(inv);
         if (s in totals) totals[s] += Number(inv.total_due) || 0;
       });
       return totals;
