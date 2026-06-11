@@ -394,18 +394,16 @@ export function useProposalsPipeline() {
 }
 
 export interface ProposalConversionRow {
-  month: string;        // YYYY-MM
-  label: string;        // e.g. "Jun 2026"
-  sent: number;
-  converted: number;
-  rate: number;         // 0..1
-  proposedValue: number;
-  convertedValue: number;
-  convertedCOValue: number;
+  month: string;            // YYYY-MM
+  label: string;            // e.g. "Jun 2026"
+  sent: number;             // total proposals created in month (matches Reports "Sent")
+  converted: number;        // won (status = executed) — matches Reports "Won"
+  rate: number;             // 0..1
+  proposedValue: number;    // Total $ — all proposals' total_amount
+  convertedValue: number;   // Won $
+  coCount: number;          // change orders signed in month
+  convertedCOValue: number; // CO $
 }
-
-const WON_STATUSES = new Set(["signed_client", "executed", "won"]);
-const SENT_STATUSES = new Set(["sent", "signed_client", "executed", "won", "lost"]);
 
 export function useProposalConversionRates(year: number) {
   const { profile } = useAuth();
@@ -418,10 +416,10 @@ export function useProposalConversionRates(year: number) {
       const [proposalsRes, cosRes] = await Promise.all([
         supabase
           .from("proposals")
-          .select("status, total_amount, sent_at, created_at")
+          .select("status, total_amount, created_at")
           .eq("company_id", profile!.company_id!)
-          .gte("sent_at", start)
-          .lt("sent_at", end),
+          .gte("created_at", start)
+          .lt("created_at", end),
         (supabase as any)
           .from("change_orders")
           .select("amount, client_signed_at")
@@ -435,20 +433,19 @@ export function useProposalConversionRates(year: number) {
       for (let m = 0; m < 12; m++) {
         const key = `${year}-${String(m + 1).padStart(2, "0")}`;
         const label = new Date(year, m, 1).toLocaleString("en-US", { month: "short", year: "numeric" });
-        buckets.set(key, { month: key, label, sent: 0, converted: 0, rate: 0, proposedValue: 0, convertedValue: 0, convertedCOValue: 0 });
+        buckets.set(key, { month: key, label, sent: 0, converted: 0, rate: 0, proposedValue: 0, convertedValue: 0, coCount: 0, convertedCOValue: 0 });
       }
 
       (proposalsRes.data || []).forEach((p: any) => {
-        if (!p.sent_at) return;
-        if (!SENT_STATUSES.has(p.status)) return;
-        const d = new Date(p.sent_at);
+        if (!p.created_at) return;
+        const d = new Date(p.created_at);
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
         const row = buckets.get(key);
         if (!row) return;
         const amount = Number(p.total_amount) || 0;
         row.sent += 1;
         row.proposedValue += amount;
-        if (WON_STATUSES.has(p.status)) {
+        if (p.status === "executed") {
           row.converted += 1;
           row.convertedValue += amount;
         }
@@ -460,6 +457,7 @@ export function useProposalConversionRates(year: number) {
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
         const row = buckets.get(key);
         if (!row) return;
+        row.coCount += 1;
         row.convertedCOValue += Number(co.amount) || 0;
       });
 
