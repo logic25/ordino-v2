@@ -9365,6 +9365,10 @@ export type Database = {
         }
         Returns: string
       }
+      can_modify_operations: {
+        Args: { target_company_id: string }
+        Returns: boolean
+      }
       current_user_company_id: { Args: never; Returns: string }
       enqueue_project_summary: {
         Args: { _company_id: string; _project_id: string }
