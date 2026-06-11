@@ -43,7 +43,7 @@ export default function Projects() {
   const myProjects = profile?.id
     ? projects.filter((p) => p.assigned_pm_id === profile.id || p.senior_pm_id === profile.id)
     : projects;
-  const visibleProjects = (isAdmin && showAllProjects) ? projects : myProjects;
+  const visibleProjects = showAllProjects ? projects : myProjects;
 
   const isStale = (p: any) => {
     if (p.status !== "open" || !p.last_activity_at) return false;
