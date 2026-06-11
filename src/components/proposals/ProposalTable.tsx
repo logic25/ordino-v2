@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Edit, Trash2, Send, PenLine, Eye, Loader2, CheckCircle2, Clock, X, Phone, Bell, FileText, Settings2, XCircle, FolderOpen, ExternalLink, AlertTriangle, Mail } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, Send, PenLine, Eye, Loader2, CheckCircle2, Clock, X, Phone, Bell, FileText, Settings2, XCircle, FolderOpen, ExternalLink, AlertTriangle, Mail, Receipt } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState } from "react";
 import type { ProposalWithRelations } from "@/hooks/useProposals";
@@ -47,6 +47,7 @@ interface ProposalTableProps {
   onPreview?: (proposal: ProposalWithRelations) => void;
   onMarkApproved?: (proposal: ProposalWithRelations) => void;
   onMarkLost?: (id: string) => void;
+  onCreateDepositInvoice?: (proposal: ProposalWithRelations) => void;
   onDismissFollowUp?: (id: string) => void;
   onLogFollowUp?: (id: string) => void;
   onSnoozeFollowUp?: (id: string, days: number) => void;
