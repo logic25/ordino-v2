@@ -131,6 +131,28 @@ export default function Dashboard() {
             <p className="text-muted-foreground mt-1">{getRoleDescription()}</p>
           </div>
           <div className="flex items-center gap-2">
+            {role === "admin" && (
+              <>
+                {editLayout && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-xs text-muted-foreground"
+                    onClick={async () => { await layout.resetLayout(); }}
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" /> Reset
+                  </Button>
+                )}
+                <Button
+                  variant={editLayout ? "default" : "outline"}
+                  size="sm"
+                  className="gap-1.5 text-xs"
+                  onClick={() => setEditLayout((v) => !v)}
+                >
+                  {editLayout ? <><Check className="h-3.5 w-3.5" /> Done</> : <><LayoutGrid className="h-3.5 w-3.5" /> Edit layout</>}
+                </Button>
+              </>
+            )}
             <DashboardLayoutConfig
               widgets={layout.widgets}
               visibility={layout.visibility}
