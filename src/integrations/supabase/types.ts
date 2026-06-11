@@ -9488,6 +9488,7 @@ export type Database = {
         Args: { target_company_id: string }
         Returns: boolean
       }
+      has_qbo_connection: { Args: { _company_id: string }; Returns: boolean }
       has_role: {
         Args: {
           required_role: Database["public"]["Enums"]["user_role"]
