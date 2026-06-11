@@ -11,7 +11,8 @@ interface InvoiceFilterTabsProps {
 }
 
 const tabs: { value: string; label: string; showCount?: boolean; countKey?: string }[] = [
-  { value: "to_invoice", label: "To Invoice", showCount: true, countKey: "pending_billing" },
+  { value: "to_invoice", label: "Ready to Invoice", showCount: true, countKey: "ready_to_invoice" },
+  { value: "needs_review", label: "Needs Review", showCount: true },
   { value: "sent", label: "Sent", showCount: true },
   { value: "overdue", label: "Overdue", showCount: true },
   { value: "paid", label: "Paid", showCount: true },
