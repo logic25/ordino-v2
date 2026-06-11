@@ -1,33 +1,53 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building2, TrendingUp, Users, DollarSign, GripVertical } from "lucide-react";
-import { useDashboardStats } from "@/hooks/useDashboard";
+import {
+  Building2,
+  FileText,
+  DollarSign,
+  Target,
+  GripVertical,
+  Maximize2,
+  Minimize2,
+  ChevronDown,
+  ArrowUp,
+  ArrowDown,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useTeamUtilization, useProjectsByPM } from "@/hooks/useDashboardData";
+import {
+  useTeamUtilization,
+  useProjectsByPM,
+  useActiveProjectsKpi,
+  useActiveProposalsKpi,
+  useArOutstandingKpi,
+  useMonthGoalKpi,
+} from "@/hooks/useDashboardData";
 import { PMDailyView } from "./PMDailyView";
 import { TeamOverview } from "./TeamOverview";
 import { ProposalFollowUps } from "./ProposalFollowUps";
-import { ProposalsPipelineCard } from "./ProposalsPipelineCard";
 import { ProposalConversionTable } from "./ProposalConversionTable";
 import { StaleProjectsByPM } from "./StaleProjectsByPM";
 import { ExpenseApprovalsCard } from "./ExpenseApprovalsCard";
 import { BillingPulse } from "./BillingPulse";
 import { RevenueTrendChart } from "./RevenueTrendChart";
+import { SalesHealthCard } from "./SalesHealthCard";
+import { CycleTimesCard } from "./CycleTimesCard";
+import { CollectedVsBilledCard } from "./CollectedVsBilledCard";
+import { StaleProjectsCard } from "./StaleProjectsCard";
 import { BillingPipelineTable } from "@/components/billing/BillingPipelineTable";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { InfoTooltip } from "./InfoTooltip";
+import { formatCurrency } from "@/lib/utils";
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent,
 } from "@dnd-kit/core";
 import {
-  SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable, arrayMove,
+  SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable, arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useDashboardLayout } from "@/hooks/useDashboardLayout";
+import { useDashboardLayout, type WidgetWidth, ROLE_WIDGETS } from "@/hooks/useDashboardLayout";
 
 interface AdminCompanyViewProps {
   isVisible?: (id: string) => boolean;
@@ -40,11 +60,10 @@ export function AdminCompanyView({ isVisible, editMode = false, order, onReorder
   const show = isVisible || (() => true);
   const [view, setView] = useState<"company" | "my">("company");
   const navigate = useNavigate();
-  const { data: stats, isLoading } = useDashboardStats();
-  // Fallback for callers that don't pass layout context
   const fallbackLayout = useDashboardLayout("admin");
   const effectiveOrder = order ?? fallbackLayout.order;
   const handleReorder = onReorder ?? fallbackLayout.setOrder;
+  const { widthOf, setWidth } = fallbackLayout;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -64,16 +83,13 @@ export function AdminCompanyView({ isVisible, editMode = false, order, onReorder
     );
   }
 
-  const kpis = [
-    { label: "Active Projects", value: stats?.activeProjects ?? 0, icon: Building2, href: "/projects" },
-    { label: "Team Members", value: stats?.teamMembers ?? 0, icon: Users, href: "/settings?section=team" },
-    { label: "Outstanding", value: `$${((stats?.totalOutstanding ?? 0) / 1000).toFixed(0)}k`, icon: DollarSign, href: "/billing" },
-    { label: "Overdue Invoices", value: stats?.overdueInvoices ?? 0, icon: TrendingUp, href: "/billing" },
-  ];
-
   const widgets: Record<string, React.ReactNode> = {
+    "kpis": <KpiStrip />,
     "billing-pulse": <BillingPulse scope="company" />,
-    "proposals-pipeline": <ProposalsPipelineCard />,
+    "sales-health": <SalesHealthCard />,
+    "cycle-times": <CycleTimesCard />,
+    "collected-vs-billed": <CollectedVsBilledCard />,
+    "stale-projects-total": <StaleProjectsCard />,
     "proposal-conversion-rates": <ProposalConversionTable />,
     "revenue-trend": <RevenueTrendChart defaultMode="6" />,
     "billing-pipeline": (
@@ -84,9 +100,9 @@ export function AdminCompanyView({ isVisible, editMode = false, order, onReorder
               <div>
                 <CardTitle className="text-base flex items-center gap-1.5">
                   Upcoming Billing Pipeline
-                  <InfoTooltip>Services with deliverables completed but not yet invoiced, across the team. Sorted by estimated bill date.</InfoTooltip>
+                  <InfoTooltip>Services marked <strong>billed</strong> (ready to invoice) with remaining balance and no open billing request.</InfoTooltip>
                 </CardTitle>
-                <CardDescription>Services not yet invoiced across the team</CardDescription>
+                <CardDescription>Billed deliverables awaiting a billing request</CardDescription>
               </div>
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -99,24 +115,6 @@ export function AdminCompanyView({ isVisible, editMode = false, order, onReorder
         </Card>
       </Collapsible>
     ),
-    "kpis": (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {kpis.map((kpi) => (
-          <Card key={kpi.label} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate(kpi.href)}>
-            <CardContent className="pt-6">
-              {isLoading ? (
-                <Skeleton className="h-8 w-20" />
-              ) : (
-                <>
-                  <p className="text-2xl font-bold">{kpi.value}</p>
-                  <p className="text-sm text-muted-foreground">{kpi.label}</p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    ),
     "team-utilization": <TeamUtilizationStrip />,
     "stale-projects-by-pm": <StaleProjectsByPM />,
     "proposal-followups": <ProposalFollowUps />,
@@ -125,9 +123,7 @@ export function AdminCompanyView({ isVisible, editMode = false, order, onReorder
   };
 
   const visibleOrdered = effectiveOrder.filter((id) => widgets[id] && show(id));
-
-
-
+  const widgetDefs = ROLE_WIDGETS.admin;
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -147,13 +143,25 @@ export function AdminCompanyView({ isVisible, editMode = false, order, onReorder
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={visibleOrdered} strategy={verticalListSortingStrategy}>
-          <div className="space-y-6">
-            {visibleOrdered.map((id) => (
-              <SortableWidget key={id} id={id} editMode={editMode}>
-                {widgets[id]}
-              </SortableWidget>
-            ))}
+        <SortableContext items={visibleOrdered} strategy={rectSortingStrategy}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {visibleOrdered.map((id) => {
+              const def = widgetDefs.find((w) => w.id === id);
+              const width = widthOf(id);
+              const locked = !!def?.lockedFull;
+              return (
+                <SortableWidget
+                  key={id}
+                  id={id}
+                  editMode={editMode}
+                  width={width}
+                  locked={locked}
+                  onToggleWidth={() => setWidth(id, width === "full" ? "half" : "full")}
+                >
+                  {widgets[id]}
+                </SortableWidget>
+              );
+            })}
           </div>
         </SortableContext>
       </DndContext>
@@ -161,7 +169,16 @@ export function AdminCompanyView({ isVisible, editMode = false, order, onReorder
   );
 }
 
-function SortableWidget({ id, editMode, children }: { id: string; editMode: boolean; children: React.ReactNode }) {
+function SortableWidget({
+  id, editMode, width, locked, onToggleWidth, children,
+}: {
+  id: string;
+  editMode: boolean;
+  width: WidgetWidth;
+  locked: boolean;
+  onToggleWidth: () => void;
+  children: React.ReactNode;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !editMode });
 
   const style: React.CSSProperties = {
@@ -170,21 +187,137 @@ function SortableWidget({ id, editMode, children }: { id: string; editMode: bool
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const spanClass = width === "full" ? "md:col-span-2" : "md:col-span-1";
+
   return (
-    <div ref={setNodeRef} style={style} className="relative">
+    <div ref={setNodeRef} style={style} className={`relative ${spanClass}`}>
       {editMode && (
-        <button
-          {...attributes}
-          {...listeners}
-          className="absolute -left-3 top-3 z-10 h-7 w-7 rounded-md bg-background border shadow-sm flex items-center justify-center text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
-          aria-label="Drag to reorder"
-        >
-          <GripVertical className="h-4 w-4" />
-        </button>
+        <>
+          <button
+            {...attributes}
+            {...listeners}
+            className="absolute -left-3 top-3 z-10 h-7 w-7 rounded-md bg-background border shadow-sm flex items-center justify-center text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
+            aria-label="Drag to reorder"
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+          {!locked && (
+            <button
+              onClick={onToggleWidth}
+              className="absolute -right-3 top-3 z-10 h-7 w-7 rounded-md bg-background border shadow-sm flex items-center justify-center text-muted-foreground hover:text-foreground"
+              aria-label={width === "full" ? "Make half width" : "Make full width"}
+              title={width === "full" ? "Make half width" : "Make full width"}
+            >
+              {width === "full" ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+            </button>
+          )}
+        </>
       )}
       <div className={editMode ? "ring-2 ring-primary/20 rounded-lg" : ""}>
         {children}
       </div>
+    </div>
+  );
+}
+
+function KpiStrip() {
+  const navigate = useNavigate();
+  const { data: active, isLoading: l1 } = useActiveProjectsKpi();
+  const { data: prop, isLoading: l2 } = useActiveProposalsKpi();
+  const { data: ar, isLoading: l3 } = useArOutstandingKpi();
+  const { data: goal, isLoading: l4 } = useMonthGoalKpi();
+
+  const cards = [
+    {
+      label: "Active Projects",
+      icon: Building2,
+      loading: l1,
+      onClick: () => navigate("/projects?status=open"),
+      body: active ? (
+        <>
+          <p className="text-2xl font-bold tabular-nums">{active.value}</p>
+          <p className="text-xs text-muted-foreground flex items-center gap-1">
+            {active.delta > 0 ? (
+              <><ArrowUp className="h-3 w-3 text-emerald-500" /> +{active.delta} vs last month</>
+            ) : active.delta < 0 ? (
+              <><ArrowDown className="h-3 w-3 text-red-500" /> {active.delta} vs last month</>
+            ) : (
+              <>No change vs last month</>
+            )}
+          </p>
+        </>
+      ) : null,
+    },
+    {
+      label: "Active Proposals",
+      icon: FileText,
+      loading: l2,
+      onClick: () => navigate("/proposals"),
+      body: prop ? (
+        <>
+          <p className="text-2xl font-bold tabular-nums">{prop.value}</p>
+          <p className="text-xs text-muted-foreground tabular-nums">
+            {formatCurrency(prop.inFlight)} in flight
+          </p>
+        </>
+      ) : null,
+    },
+    {
+      label: "AR Outstanding",
+      icon: DollarSign,
+      loading: l3,
+      onClick: () => navigate("/billing"),
+      body: ar ? (
+        <>
+          <p className="text-2xl font-bold tabular-nums">{formatCurrency(ar.total)}</p>
+          <p className="text-xs text-muted-foreground tabular-nums">
+            <span className="text-foreground">{formatCurrency(ar.sent)}</span> sent ·{" "}
+            <span className={ar.overdue > 0 ? "text-red-500 font-medium" : ""}>
+              {formatCurrency(ar.overdue)} overdue
+            </span>
+          </p>
+        </>
+      ) : null,
+    },
+    {
+      label: "Month-to-Goal",
+      icon: Target,
+      loading: l4,
+      onClick: () => navigate("/billing?tab=by-user"),
+      body: goal ? (
+        <>
+          <p className={`text-2xl font-bold tabular-nums ${
+            goal.pct >= 0.9 ? "text-emerald-600" :
+            goal.pct >= 0.6 ? "text-foreground" :
+            "text-amber-600"
+          }`}>
+            {Math.round(goal.pct * 100)}%
+          </p>
+          <p className="text-xs text-muted-foreground tabular-nums">
+            {formatCurrency(goal.billed)} / {formatCurrency(goal.monthGoal)}
+          </p>
+        </>
+      ) : null,
+    },
+  ];
+
+  return (
+    <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      {cards.map((k) => (
+        <Card
+          key={k.label}
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={k.onClick}
+        >
+          <CardContent className="pt-6">
+            <div className="flex items-start justify-between mb-1">
+              <p className="text-xs text-muted-foreground font-medium">{k.label}</p>
+              <k.icon className="h-4 w-4 text-muted-foreground" />
+            </div>
+            {k.loading ? <Skeleton className="h-10 w-24" /> : k.body}
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }
