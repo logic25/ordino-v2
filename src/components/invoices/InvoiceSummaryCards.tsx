@@ -7,13 +7,15 @@ import type { BillingTab } from "@/components/invoices/InvoiceFilterTabs";
 interface InvoiceSummaryCardsProps {
   counts: InvoiceCounts;
   totals: Record<InvoiceStatus, number>;
+  pendingBillingTotal?: number;
+  pendingBillingCount?: number;
   activeFilter: BillingTab;
   onFilterChange: (filter: BillingTab) => void;
   depositSummary?: { totalBalance: number; activeCount: number };
 }
 
 const cardTooltips: Record<string, string> = {
-  draft: "Invoices being prepared or awaiting review before sending",
+  to_invoice: "Submissions from PMs plus drafts/ready-to-send invoices waiting on you to bill",
   sent: "Invoices that have been delivered to clients and are awaiting payment",
   overdue: "Invoices past their due date that haven't been paid yet",
   paid: "Invoices that have been fully paid this month",
@@ -21,7 +23,14 @@ const cardTooltips: Record<string, string> = {
   deposits: "Client deposit balances available to apply toward future invoices",
 };
 
-export function InvoiceSummaryCards({ counts, totals, activeFilter, onFilterChange, depositSummary }: InvoiceSummaryCardsProps) {
+export function InvoiceSummaryCards({ counts, totals, pendingBillingTotal = 0, pendingBillingCount = 0, activeFilter, onFilterChange, depositSummary }: InvoiceSummaryCardsProps) {
+  const readyToInvoiceAmount = (totals.draft || 0) + (totals.ready_to_send || 0) + pendingBillingTotal;
+  const readyToInvoiceParts: string[] = [];
+  if (pendingBillingCount > 0) readyToInvoiceParts.push(`${pendingBillingCount} submission${pendingBillingCount === 1 ? "" : "s"}`);
+  if (counts.ready_to_send > 0) readyToInvoiceParts.push(`${counts.ready_to_send} ready`);
+  if (counts.draft > 0) readyToInvoiceParts.push(`${counts.draft} draft${counts.draft === 1 ? "" : "s"}`);
+  const readyToInvoiceSubtitle = readyToInvoiceParts.length ? readyToInvoiceParts.join(" · ") : "All clear";
+
   const cards: {
     key: BillingTab;
     label: string;
@@ -31,11 +40,11 @@ export function InvoiceSummaryCards({ counts, totals, activeFilter, onFilterChan
     colorClass: string;
   }[] = [
     {
-      key: "draft",
+      key: "to_invoice",
       label: "Ready to Invoice",
       icon: FileText,
-      amount: totals.draft + totals.ready_to_send,
-      subtitle: counts.ready_to_send > 0 ? `${counts.ready_to_send} ready, ${counts.draft} drafts` : `${counts.draft} invoices`,
+      amount: readyToInvoiceAmount,
+      subtitle: readyToInvoiceSubtitle,
       colorClass: "text-muted-foreground",
     },
     {
