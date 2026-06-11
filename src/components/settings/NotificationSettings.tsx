@@ -23,6 +23,7 @@ const CATEGORIES: NotificationCategory[] = [
   { key: "proposal_activity", label: "Proposal Activity", description: "New proposals, status changes, follow-ups", icon: FileText },
   { key: "email_alerts", label: "Email Alerts", description: "New emails, follow-up reminders", icon: Mail },
   { key: "monday_meeting_report", label: "Monday Meeting Report", description: "Sunday 11pm email with top-of-mind projects, filings, wins, and where help is needed", icon: CalendarDays },
+  { key: "weekly_project_digest", label: "Weekly Project Digest", description: "Monday morning email + in-app digest grouping your open projects into Active / Quiet / Stale", icon: CalendarDays },
   { key: "system_alerts", label: "System Alerts", description: "Feature updates, product news", icon: Megaphone },
 ];
 
