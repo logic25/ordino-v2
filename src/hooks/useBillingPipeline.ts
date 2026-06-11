@@ -28,7 +28,9 @@ export function useBillingPipeline(scope: PipelineScope = "company") {
     queryFn: async (): Promise<BillingPipelineRow[]> => {
       const companyId = profile.company_id as string;
 
-      let q = supabase
+      // "Upcoming billing" = deliverables marked `billed` (ready-to-invoice)
+      // with remaining balance and no open billing request yet.
+      const q = supabase
         .from("services")
         .select(`
           id, name, status, estimated_bill_date, bill_date_source,
@@ -40,10 +42,27 @@ export function useBillingPipeline(scope: PipelineScope = "company") {
           )
         `)
         .eq("projects.company_id", companyId)
-        .not("status", "in", "(billed,paid,dropped)");
+        .eq("status", "billed");
 
-      const { data, error } = await q;
+      const [{ data, error }, openBR] = await Promise.all([
+        q,
+        supabase
+          .from("billing_requests")
+          .select("services")
+          .eq("company_id", companyId)
+          .in("status", ["pending", "approved"]),
+      ]);
       if (error) throw error;
+
+      // Build set of service ids already attached to an open billing request
+      const tiedUp = new Set<string>();
+      (openBR.data || []).forEach((br: any) => {
+        const list = Array.isArray(br.services) ? br.services : [];
+        list.forEach((entry: any) => {
+          const id = typeof entry === "string" ? entry : entry?.id || entry?.service_id;
+          if (id) tiedUp.add(id);
+        });
+      });
 
       const rows: BillingPipelineRow[] = (data || [])
         .map((s: any): BillingPipelineRow => {
@@ -72,7 +91,7 @@ export function useBillingPipeline(scope: PipelineScope = "company") {
             client_name: s.projects?.clients?.name ?? null,
           };
         })
-        .filter((r) => r.amount > 0);
+        .filter((r) => r.amount > 0 && !tiedUp.has(r.id));
 
       if (scope === "self-pm") {
         return rows.filter((r) => r.pm_id === profile.id);

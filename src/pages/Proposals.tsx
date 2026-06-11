@@ -17,6 +17,7 @@ import { LeadsTable } from "@/components/proposals/LeadsTable";
 import { SignatureDialog, type SignatureRecipient } from "@/components/proposals/SignatureDialog";
 import { ProposalApprovalDialog } from "@/components/proposals/ProposalApprovalDialog";
 import { ProposalPreviewModal } from "@/components/proposals/ProposalPreviewModal";
+import { PostConversionClockInModal } from "@/components/proposals/PostConversionClockInModal";
 import { CaptureLeadModal } from "@/components/bd/CaptureLeadModal";
 import { SendProposalDialog } from "@/components/proposals/SendProposalDialog";
 import {
@@ -58,6 +59,7 @@ export default function Proposals() {
   const [signingProposal, setSigningProposal] = useState<ProposalWithRelations | null>(null);
   const [approvingProposal, setApprovingProposal] = useState<ProposalWithRelations | null>(null);
   const [sendingProposal, setSendingProposal] = useState<ProposalWithRelations | null>(null);
+  const [clockInProject, setClockInProject] = useState<{ id: string; name: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("proposals");
@@ -439,6 +441,12 @@ export default function Proposals() {
           console.error("Auto-send after sign failed:", sendErr);
           toast({ title: "Proposal signed", description: "Signed successfully but email send failed. You can resend from the proposal menu.", variant: "destructive" });
         }
+
+        // Offer to clock in on the new project's services
+        const newProjectId = (result as any)?.project?.id;
+        if (newProjectId) {
+          setClockInProject({ id: newProjectId, name: fullProposal.title || "New project" });
+        }
       } else {
         toast({ title: "Proposal signed!", description: "Open the proposal to send to client." });
       }
@@ -463,6 +471,9 @@ export default function Proposals() {
       });
       setApprovalDialogOpen(false);
       setApprovingProposal(null);
+      if (projectId) {
+        setClockInProject({ id: projectId, name: approvingProposal.title || "New project" });
+      }
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
@@ -925,6 +936,13 @@ export default function Proposals() {
         defaultTo={composeTo}
         defaultSubject={composeSubject}
         defaultBody={composeBody}
+      />
+
+      <PostConversionClockInModal
+        open={!!clockInProject}
+        onOpenChange={(open) => { if (!open) setClockInProject(null); }}
+        projectId={clockInProject?.id ?? null}
+        projectName={clockInProject?.name ?? ""}
       />
     </AppLayout>
   );

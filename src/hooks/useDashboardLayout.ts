@@ -2,43 +2,55 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
+export type WidgetWidth = "full" | "half";
+
+export interface WidgetDef {
+  id: string;
+  label: string;
+  /** widgets that should always be full width (tables, multi-panel) */
+  lockedFull?: boolean;
+}
+
 // Widget definitions per role
-export const ROLE_WIDGETS: Record<string, { id: string; label: string }[]> = {
+export const ROLE_WIDGETS: Record<string, WidgetDef[]> = {
   pm: [
-    { id: "my-projects", label: "My Projects" },
+    { id: "my-projects", label: "My Projects", lockedFull: true },
     { id: "project-readiness", label: "Project Readiness" },
-    { id: "proposal-followups", label: "Proposal Follow-Ups" },
+    { id: "proposal-followups", label: "Proposal Follow-Ups", lockedFull: true },
     { id: "quick-time-log", label: "Quick Time Log" },
   ],
   admin: [
+    { id: "kpis", label: "KPIs", lockedFull: true },
     { id: "billing-pulse", label: "Billing Pulse" },
-    { id: "proposals-pipeline", label: "Proposals Pipeline" },
-    { id: "proposal-conversion-rates", label: "Proposals & Billing" },
-    { id: "revenue-trend", label: "Revenue Trend" },
-    { id: "billing-pipeline", label: "Upcoming Billing Pipeline" },
-    { id: "kpis", label: "KPIs" },
-    { id: "team-utilization", label: "Team Utilization & Projects by PM" },
-    { id: "stale-projects-by-pm", label: "Stale Projects by PM" },
-    { id: "proposal-followups", label: "Proposal Follow-Ups" },
+    { id: "sales-health", label: "Sales Health", lockedFull: true },
+    { id: "cycle-times", label: "Cycle Times" },
+    { id: "collected-vs-billed", label: "Collected vs Billed (MTD)" },
+    { id: "stale-projects-total", label: "Stale Projects" },
+    { id: "proposal-conversion-rates", label: "Proposals & Billing", lockedFull: true },
+    { id: "revenue-trend", label: "Revenue Trend", lockedFull: true },
+    { id: "billing-pipeline", label: "Upcoming Billing Pipeline", lockedFull: true },
+    { id: "team-utilization", label: "Team Utilization & Projects by PM", lockedFull: true },
+    { id: "stale-projects-by-pm", label: "Stale Projects by PM", lockedFull: true },
+    { id: "proposal-followups", label: "Proposal Follow-Ups", lockedFull: true },
     { id: "expense-approvals", label: "Expense Approvals" },
-    { id: "team-overview", label: "Team Overview" },
+    { id: "team-overview", label: "Team Overview", lockedFull: true },
   ],
   accounting: [
-    { id: "kpis", label: "KPIs" },
-    { id: "pending-billing", label: "Pending Billing Requests" },
-    { id: "overdue-invoices", label: "Overdue Invoices" },
-    { id: "promises", label: "Payment Promises" },
-    { id: "billing-summary", label: "Billing Summary" },
+    { id: "kpis", label: "KPIs", lockedFull: true },
+    { id: "pending-billing", label: "Pending Billing Requests", lockedFull: true },
+    { id: "overdue-invoices", label: "Overdue Invoices", lockedFull: true },
+    { id: "promises", label: "Payment Promises", lockedFull: true },
+    { id: "billing-summary", label: "Billing Summary", lockedFull: true },
   ],
   manager: [
-    { id: "kpis", label: "KPIs" },
+    { id: "kpis", label: "KPIs", lockedFull: true },
     { id: "team-utilization", label: "Team Utilization" },
     { id: "projects-by-pm", label: "Projects by PM" },
     { id: "billing-goal-tracker", label: "Billing Goal Tracker" },
-    { id: "proposal-followups", label: "Proposal Follow-Ups" },
-    { id: "team-overview", label: "Team Overview" },
+    { id: "proposal-followups", label: "Proposal Follow-Ups", lockedFull: true },
+    { id: "team-overview", label: "Team Overview", lockedFull: true },
     { id: "my-action-items", label: "My Action Items (personal)" },
-    { id: "my-projects", label: "My Projects (personal)" },
+    { id: "my-projects", label: "My Projects (personal)", lockedFull: true },
     { id: "quick-time-log", label: "Quick Time Log (personal)" },
   ],
 };
@@ -52,10 +64,16 @@ function getDefaultOrder(role: string): string[] {
   return (ROLE_WIDGETS[role] || []).map((w) => w.id);
 }
 
+function getDefaultWidths(role: string): Record<string, WidgetWidth> {
+  const widgets = ROLE_WIDGETS[role] || [];
+  return Object.fromEntries(widgets.map((w) => [w.id, "full" as WidgetWidth]));
+}
+
 export function useDashboardLayout(role: string) {
   const { profile } = useAuth();
   const [visibility, setVisibility] = useState<Record<string, boolean>>(() => getDefaultVisibility(role));
   const [order, setOrderState] = useState<string[]>(() => getDefaultOrder(role));
+  const [widths, setWidthsState] = useState<Record<string, WidgetWidth>>(() => getDefaultWidths(role));
   const [loaded, setLoaded] = useState(false);
 
   // Load saved layout from profile preferences
@@ -71,6 +89,7 @@ export function useDashboardLayout(role: string) {
       const prefs = (data?.notification_preferences as any) || {};
       const savedLayout = prefs?.dashboard_layout?.[role];
       const savedOrder = prefs?.dashboard_order?.[role];
+      const savedWidths = prefs?.dashboard_widths?.[role];
 
       if (savedLayout && typeof savedLayout === "object") {
         setVisibility({ ...getDefaultVisibility(role), ...savedLayout });
@@ -80,7 +99,6 @@ export function useDashboardLayout(role: string) {
 
       const defaultOrder = getDefaultOrder(role);
       if (Array.isArray(savedOrder)) {
-        // Merge: keep saved order, append any new widgets at the end
         const merged = [
           ...savedOrder.filter((id) => defaultOrder.includes(id)),
           ...defaultOrder.filter((id) => !savedOrder.includes(id)),
@@ -89,13 +107,20 @@ export function useDashboardLayout(role: string) {
       } else {
         setOrderState(defaultOrder);
       }
+
+      if (savedWidths && typeof savedWidths === "object") {
+        setWidthsState({ ...getDefaultWidths(role), ...savedWidths });
+      } else {
+        setWidthsState(getDefaultWidths(role));
+      }
+
       setLoaded(true);
     };
     loadPrefs();
   }, [profile?.id, role]);
 
   const savePrefs = useCallback(
-    async (next: { visibility?: Record<string, boolean>; order?: string[] }) => {
+    async (next: { visibility?: Record<string, boolean>; order?: string[]; widths?: Record<string, WidgetWidth> }) => {
       if (!profile?.id) return;
       const { data } = await supabase
         .from("profiles")
@@ -105,16 +130,13 @@ export function useDashboardLayout(role: string) {
       const prefs = (data?.notification_preferences as any) || {};
       const updated = { ...prefs };
       if (next.visibility) {
-        updated.dashboard_layout = {
-          ...(prefs.dashboard_layout || {}),
-          [role]: next.visibility,
-        };
+        updated.dashboard_layout = { ...(prefs.dashboard_layout || {}), [role]: next.visibility };
       }
       if (next.order) {
-        updated.dashboard_order = {
-          ...(prefs.dashboard_order || {}),
-          [role]: next.order,
-        };
+        updated.dashboard_order = { ...(prefs.dashboard_order || {}), [role]: next.order };
+      }
+      if (next.widths) {
+        updated.dashboard_widths = { ...(prefs.dashboard_widths || {}), [role]: next.widths };
       }
       await supabase
         .from("profiles")
@@ -141,12 +163,23 @@ export function useDashboardLayout(role: string) {
     [savePrefs]
   );
 
+  const setWidth = useCallback(
+    async (widgetId: string, width: WidgetWidth) => {
+      const newWidths = { ...widths, [widgetId]: width };
+      setWidthsState(newWidths);
+      await savePrefs({ widths: newWidths });
+    },
+    [widths, savePrefs]
+  );
+
   const resetLayout = useCallback(async () => {
     const defaultVis = getDefaultVisibility(role);
     const defaultOrd = getDefaultOrder(role);
+    const defaultW = getDefaultWidths(role);
     setVisibility(defaultVis);
     setOrderState(defaultOrd);
-    await savePrefs({ visibility: defaultVis, order: defaultOrd });
+    setWidthsState(defaultW);
+    await savePrefs({ visibility: defaultVis, order: defaultOrd, widths: defaultW });
   }, [role, savePrefs]);
 
   const isVisible = useCallback(
@@ -154,14 +187,27 @@ export function useDashboardLayout(role: string) {
     [visibility]
   );
 
+  const widgetsList = ROLE_WIDGETS[role] || [];
+  const widthOf = useCallback(
+    (widgetId: string): WidgetWidth => {
+      const def = widgetsList.find((w) => w.id === widgetId);
+      if (def?.lockedFull) return "full";
+      return widths[widgetId] ?? "full";
+    },
+    [widths, widgetsList]
+  );
+
   return {
     visibility,
     order,
+    widths,
+    widthOf,
     toggleWidget,
     setOrder,
+    setWidth,
     resetLayout,
     isVisible,
     loaded,
-    widgets: ROLE_WIDGETS[role] || [],
+    widgets: widgetsList,
   };
 }
