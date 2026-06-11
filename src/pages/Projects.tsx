@@ -32,9 +32,12 @@ export default function Projects() {
   const [showAllProjects, setShowAllProjects] = useState(true);
   const [groupBy, setGroupBy] = useState<"none" | "client" | "address">("none");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
   const { toast } = useToast();
   const { profile } = useAuth();
   const isAdmin = useIsAdmin();
+  const queryClient = useQueryClient();
 
   const { data: projects = [], isLoading } = useProjects();
   const createProject = useCreateProject();
