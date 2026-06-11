@@ -9,6 +9,8 @@ import { useMyAssignedProjects } from "@/hooks/useDashboard";
 import { ProposalFollowUps } from "./ProposalFollowUps";
 import { MyActionItemsCard } from "./MyActionItemsCard";
 import { QuickTimeLog } from "@/components/time/QuickTimeLog";
+import { BillingPulse } from "./BillingPulse";
+import { BillingPipelineTable } from "@/components/billing/BillingPipelineTable";
 import { differenceInDays } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -160,6 +162,11 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
 
 
   return (
+    <div className="space-y-6">
+      {show("billing-pulse") && <BillingPulse scope="self-pm" />}
+      {show("billing-pipeline") && (
+        <BillingPipelineTable scope="self-pm" title="My Billable Pipeline" description="Your services ready to bill" />
+      )}
     <div className="grid gap-6 lg:grid-cols-3">
       {show("my-projects") && (
         <div className="lg:col-span-2 space-y-6">
@@ -345,6 +352,7 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
         {show("proposal-followups") && <ProposalFollowUps />}
         {show("quick-time-log") && <QuickTimeLog />}
       </div>
+    </div>
     </div>
   );
 }

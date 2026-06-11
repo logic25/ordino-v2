@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from "recharts";
 import { DollarSign } from "lucide-react";
+import { BillingPipelineTable } from "@/components/billing/BillingPipelineTable";
+import { RevenueTrendChart } from "@/components/dashboard/RevenueTrendChart";
 
 const DONUT_COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--destructive))", "hsl(var(--muted-foreground))", "hsl(142, 76%, 36%)", "hsl(45, 93%, 47%)"];
 
@@ -84,48 +86,28 @@ export default function BillingReports() {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {/* Revenue Trend */}
-        <Card className="md:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Revenue (Last 6 Months)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={data.months}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
-                <Tooltip formatter={(v: number) => `$${v.toLocaleString()}`} />
-                <Legend />
-                <Bar dataKey="collected" name="Collected" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="outstanding" name="Outstanding" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Collections KPIs */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Collections</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Collection Rate</p>
-              <p className="text-3xl font-bold text-foreground">{data.collectionRate}%</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Avg Days to Pay</p>
-              <p className="text-3xl font-bold text-foreground">{data.avgDaysToPay}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total Collected</p>
-              <p className="text-xl font-semibold text-foreground" data-clarity-mask="true">${data.totalCollected.toLocaleString()}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <BillingPipelineTable scope="company" title="Billing Pipeline" description="Services not yet invoiced across the team" />
+      <RevenueTrendChart defaultMode="6" />
+      {/* Collections KPIs */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Collections</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-3">
+          <div>
+            <p className="text-sm text-muted-foreground">Collection Rate</p>
+            <p className="text-3xl font-bold text-foreground">{data.collectionRate}%</p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Avg Days to Pay</p>
+            <p className="text-3xl font-bold text-foreground">{data.avgDaysToPay}</p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Total Collected</p>
+            <p className="text-xl font-semibold text-foreground" data-clarity-mask="true">${data.totalCollected.toLocaleString()}</p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Revenue by Service Type */}
       <Card>

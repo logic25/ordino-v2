@@ -668,6 +668,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
     job_title: profileAny.job_title || "",
     about: profileAny.about || "",
     monthly_goal: profileAny.monthly_goal ? String(profileAny.monthly_goal) : "",
+    weekly_goal: profileAny.weekly_goal ? String(profileAny.weekly_goal) : "",
     accuracy_goal: profileAny.accuracy_goal ? String(profileAny.accuracy_goal) : "",
     is_active: user.is_active,
   });
@@ -713,6 +714,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
           job_title: editForm.job_title.trim() || null,
           about: editForm.about.trim() || null,
           monthly_goal: editForm.monthly_goal ? parseFloat(editForm.monthly_goal) : null,
+          weekly_goal: editForm.weekly_goal ? parseFloat(editForm.weekly_goal) : null,
           accuracy_goal: editForm.accuracy_goal ? parseFloat(editForm.accuracy_goal) : null,
           is_active: editForm.is_active,
         } as any)
@@ -877,11 +879,17 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                     <Input className="h-8 text-xs" placeholder="Ext" value={editForm.phone_extension} onChange={(e) => setEditForm({ ...editForm, phone_extension: e.target.value })} />
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
                     <Label className="text-xs">Monthly Goal ($)</Label>
                     <Input className="h-8 text-xs" type="number" placeholder="33000" value={editForm.monthly_goal} onChange={(e) => setEditForm({ ...editForm, monthly_goal: e.target.value })} />
                   </div>
+                  <div>
+                    <Label className="text-xs">Weekly Goal ($)</Label>
+                    <Input className="h-8 text-xs" type="number" placeholder={editForm.monthly_goal ? String(Math.round(Number(editForm.monthly_goal) / 4.33)) : "7500"} value={editForm.weekly_goal} onChange={(e) => setEditForm({ ...editForm, weekly_goal: e.target.value })} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
                   <div>
                     <Label className="text-xs">Accuracy Goal (%)</Label>
                     <Input className="h-8 text-xs" type="number" placeholder="90" min="0" max="100" value={editForm.accuracy_goal} onChange={(e) => setEditForm({ ...editForm, accuracy_goal: e.target.value })} />
