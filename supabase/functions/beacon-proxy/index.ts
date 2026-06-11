@@ -94,7 +94,68 @@ Deno.serve(async (req) => {
 
       // ── Bug Triage Sub-Agent routing ──
       const lastMessage = body.message || body.messages?.[body.messages?.length - 1]?.content || "";
-      const isBugQuestion = /\b(bug|broken|error|crash|fail|not working|issue|fix|wrong|stuck|breaking|doesn't work|can't|cannot|won't)\b/i.test(lastMessage);
+
+      // Explicit prefix / slash command = guaranteed bug log (bypasses AI classifier).
+      const explicitBugPrefix = /^\s*(\/bug\b|bug\s*[:\-]|issue\s*[:\-]|report\s+(a\s+)?bug\b)/i.test(lastMessage);
+      // Cheap keyword fallback if classifier call fails.
+      const keywordBugHit = /\b(bug|broken|error|crash|fail|not working|issue|wrong|stuck|breaking|doesn't work)\b/i.test(lastMessage);
+
+      // ── AI bug classifier (Lovable AI Gateway, Gemini Flash Lite) ──
+      let aiBugClassification: { is_bug: boolean; confidence: number; reason?: string } | null = null;
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") || "";
+      if (LOVABLE_API_KEY && lastMessage && !explicitBugPrefix) {
+        try {
+          const classifierRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Lovable-API-Key": LOVABLE_API_KEY,
+            },
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash-lite",
+              response_format: { type: "json_object" },
+              messages: [
+                {
+                  role: "system",
+                  content:
+                    "You classify a single user message sent to an in-app assistant (Beacon) inside Ordino, a CRM. " +
+                    "Decide if the user is reporting a software bug, defect, or broken behavior (something in the app is not working as expected, showing wrong data, missing, crashing, stuck, slow, looks wrong, etc.). " +
+                    "Pure how-to questions ('how do I X', 'where do I find X'), feature requests ('can we add X'), data lookups ('how many projects'), and general chitchat are NOT bugs. " +
+                    "Respond with strict JSON: {\"is_bug\": boolean, \"confidence\": number 0-1, \"reason\": short string}.",
+                },
+                {
+                  role: "user",
+                  content: `Page: ${currentPage || "Unknown"}\nRecent client errors: ${(recentErrors || []).slice(0, 3).map((e: any) => e?.message || String(e)).join(" | ") || "none"}\n\nMessage:\n${lastMessage}`,
+                },
+              ],
+            }),
+          });
+          if (classifierRes.ok) {
+            const cj = await classifierRes.json();
+            const txt = cj?.choices?.[0]?.message?.content || "";
+            try {
+              const parsed = JSON.parse(txt);
+              if (typeof parsed?.is_bug === "boolean") {
+                aiBugClassification = {
+                  is_bug: !!parsed.is_bug,
+                  confidence: Number(parsed.confidence ?? 0),
+                  reason: parsed.reason,
+                };
+              }
+            } catch (e) {
+              console.error("Bug classifier JSON parse failed:", e, txt?.slice(0, 200));
+            }
+          } else {
+            console.error("Bug classifier non-OK:", classifierRes.status, (await classifierRes.text()).slice(0, 200));
+          }
+        } catch (e) {
+          console.error("Bug classifier call failed (non-blocking):", e);
+        }
+      }
+
+      const isBugQuestion =
+        explicitBugPrefix ||
+        (aiBugClassification ? aiBugClassification.is_bug && aiBugClassification.confidence >= 0.6 : keywordBugHit);
 
       // ── Data Query Pre-Fetch ──
       // Detect data questions and pre-fetch answers from beacon-data-proxy
