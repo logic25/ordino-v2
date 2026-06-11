@@ -19,6 +19,8 @@ function nameOf(p: any) {
   );
 }
 
+const PM_ROLES = new Set(["admin", "pm", "senior_pm"]);
+
 export function useProjectsByPM() {
   const { profile } = useAuth();
   return useQuery({
@@ -40,11 +42,158 @@ export function useProjectsByPM() {
       });
 
       return team
+        .filter((p: any) => PM_ROLES.has(p.role) || (counts[p.id] || 0) > 0)
         .map((p: any) => ({ id: p.id, name: nameOf(p), projects: counts[p.id] || 0 }))
+        .filter((row) => row.projects > 0)
         .sort((a, b) => b.projects - a.projects);
     },
   });
 }
+
+export interface StaleProjectsByPMRow {
+  id: string;
+  name: string;
+  fresh: number;     // 0-7 days
+  warming: number;   // 8 to threshold-1
+  stale: number;     // >= threshold
+  total: number;
+}
+
+export function useStaleProjectsByPM(thresholdDays: number = 14) {
+  const { profile } = useAuth();
+  return useQuery({
+    queryKey: ["stale-projects-by-pm", profile?.company_id, thresholdDays],
+    enabled: !!profile?.company_id,
+    queryFn: async (): Promise<StaleProjectsByPMRow[]> => {
+      const companyId = profile!.company_id!;
+      const team = await fetchActiveTeam(companyId);
+
+      const { data: projects } = await supabase
+        .from("projects")
+        .select("id, assigned_pm_id, last_activity_at, status")
+        .eq("company_id", companyId)
+        .eq("status", "open");
+
+      const byPm = new Map<string, StaleProjectsByPMRow>();
+      team
+        .filter((p: any) => PM_ROLES.has(p.role))
+        .forEach((p: any) =>
+          byPm.set(p.id, { id: p.id, name: nameOf(p), fresh: 0, warming: 0, stale: 0, total: 0 })
+        );
+
+      const now = Date.now();
+      (projects || []).forEach((p: any) => {
+        if (!p.assigned_pm_id) return;
+        let row = byPm.get(p.assigned_pm_id);
+        if (!row) {
+          const t = team.find((m: any) => m.id === p.assigned_pm_id);
+          row = { id: p.assigned_pm_id, name: t ? nameOf(t) : "Unknown", fresh: 0, warming: 0, stale: 0, total: 0 };
+          byPm.set(p.assigned_pm_id, row);
+        }
+        const days = p.last_activity_at
+          ? Math.floor((now - new Date(p.last_activity_at).getTime()) / 86400000)
+          : 9999;
+        if (days >= thresholdDays) row.stale += 1;
+        else if (days >= 8) row.warming += 1;
+        else row.fresh += 1;
+        row.total += 1;
+      });
+
+      return Array.from(byPm.values())
+        .filter((r) => r.total > 0)
+        .sort((a, b) => b.stale - a.stale || b.total - a.total);
+    },
+  });
+}
+
+export function useCompanyDashboardSettings() {
+  const { profile } = useAuth();
+  return useQuery({
+    queryKey: ["company-dashboard-settings", profile?.company_id],
+    enabled: !!profile?.company_id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("companies")
+        .select("settings")
+        .eq("id", profile!.company_id!)
+        .single();
+      const settings = (data?.settings as Record<string, any>) || {};
+      return {
+        staleProjectDays: Number(settings.stale_project_days) || 14,
+      };
+    },
+  });
+}
+
+export function useUserBillingGoals() {
+  const { profile } = useAuth();
+  return useQuery({
+    queryKey: ["user-billing-goals", profile?.company_id],
+    enabled: !!profile?.company_id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, monthly_goal")
+        .eq("company_id", profile!.company_id!)
+        .eq("is_active", true);
+      const map: Record<string, number> = {};
+      (data || []).forEach((p: any) => {
+        map[p.id] = Number(p.monthly_goal) || 0;
+      });
+      return map;
+    },
+  });
+}
+
+export interface RecentProposalEvent {
+  id: string;
+  title: string | null;
+  clientName: string | null;
+  amount: number;
+  status: string;
+  eventDate: string;   // ISO
+  eventType: "sent" | "signed" | "executed";
+}
+
+export function useRecentProposalActivity(year: number) {
+  const { profile } = useAuth();
+  return useQuery({
+    queryKey: ["recent-proposal-activity", profile?.company_id, year],
+    enabled: !!profile?.company_id,
+    queryFn: async (): Promise<RecentProposalEvent[]> => {
+      const start = `${year}-01-01`;
+      const end = `${year + 1}-01-01`;
+      const { data } = await supabase
+        .from("proposals")
+        .select("id, title, status, total_amount, sent_at, signed_at, executed_at, clients(name)")
+        .eq("company_id", profile!.company_id!)
+        .or(`and(sent_at.gte.${start},sent_at.lt.${end}),and(signed_at.gte.${start},signed_at.lt.${end}),and(executed_at.gte.${start},executed_at.lt.${end})`);
+
+      const events: RecentProposalEvent[] = [];
+      (data || []).forEach((p: any) => {
+        const base = {
+          id: p.id,
+          title: p.title,
+          clientName: p.clients?.name ?? null,
+          amount: Number(p.total_amount) || 0,
+          status: p.status,
+        };
+        if (p.executed_at && p.executed_at >= start && p.executed_at < end) {
+          events.push({ ...base, eventDate: p.executed_at, eventType: "executed" });
+        } else if (p.signed_at && p.signed_at >= start && p.signed_at < end) {
+          events.push({ ...base, eventDate: p.signed_at, eventType: "signed" });
+        } else if (p.sent_at && p.sent_at >= start && p.sent_at < end) {
+          events.push({ ...base, eventDate: p.sent_at, eventType: "sent" });
+        }
+      });
+
+      return events
+        .sort((a, b) => (a.eventDate < b.eventDate ? 1 : -1))
+        .slice(0, 25);
+    },
+  });
+}
+
 
 export function useTeamUtilization() {
   const { profile } = useAuth();
