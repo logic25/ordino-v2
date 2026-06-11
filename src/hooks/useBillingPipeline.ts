@@ -86,6 +86,35 @@ export function useBillingPipeline(scope: PipelineScope = "company") {
         });
       });
 
+      // Group services by project so we can ask the AI predictor for
+      // missing bill dates in batches (one call per project).
+      const byProject = new Map<string, any[]>();
+      (data || []).forEach((s: any) => {
+        if (!byProject.has(s.project_id)) byProject.set(s.project_id, []);
+        byProject.get(s.project_id)!.push(s);
+      });
+
+      // Pre-compute AI predictions for any service missing an estimated bill date.
+      // This is best-effort: if it fails, we still fall back to project dates.
+      const aiByServiceId = new Map<string, string>(); // serviceId -> predicted yyyy-MM-dd
+      try {
+        const predictionTasks = Array.from(byProject.entries()).map(async ([pid, svcs]) => {
+          const input = svcs.map((s: any) => ({
+            id: s.id,
+            name: s.name,
+            status: s.status,
+            estimatedBillDate: s.estimated_bill_date,
+          }));
+          const preds = await predictBillDates(pid, companyId, input);
+          preds.forEach((p) => aiByServiceId.set(p.serviceId, p.predictedDate));
+          // Cache predictions back to the row so the AI doesn't run again next time
+          if (preds.length > 0) applyBillDatePredictions(preds).catch(() => {});
+        });
+        await Promise.all(predictionTasks);
+      } catch {
+        // swallow — we'll just fall back to project dates
+      }
+
       const rows: BillingPipelineRow[] = (data || [])
         .map((s: any): BillingPipelineRow => {
           const total = Number(s.total_amount) || Number(s.fixed_price) || 0;
@@ -105,6 +134,9 @@ export function useBillingPipeline(scope: PipelineScope = "company") {
           if (date) {
             source = (s.bill_date_source as BillDateSource) || "manual";
             if (source !== "ai" && source !== "manual") source = "manual";
+          } else if (aiByServiceId.has(s.id)) {
+            date = aiByServiceId.get(s.id)!;
+            source = "ai";
           } else if (s.projects?.estimated_construction_completion) {
             date = s.projects.estimated_construction_completion;
             source = "project_target";
