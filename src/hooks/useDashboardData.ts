@@ -457,9 +457,13 @@ export function useProposalConversionRates(year: number) {
 export interface MonthlyBillingByUserRow {
   userId: string;
   name: string;
-  months: number[];   // length 12, index 0 = Jan
-  total: number;
-  invoiceCount: number;
+  hasGoal: boolean;
+  monthlyGoal: number;        // default goal (from profile)
+  fee: number[];              // length 12, fee billing per month
+  reimbursable: number[];     // length 12, reimbursable billing per month
+  total: number;              // YTD fee total
+  reimbursableTotal: number;
+  requestCount: number;
 }
 
 export function useMonthlyBillingByUser(year: number) {
@@ -472,43 +476,146 @@ export function useMonthlyBillingByUser(year: number) {
       const start = `${year}-01-01`;
       const end = `${year + 1}-01-01`;
 
-      const team = await fetchActiveTeam(companyId);
+      const [profilesRes, requestsRes, servicesRes] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, first_name, last_name, display_name, role, monthly_goal, is_active")
+          .eq("company_id", companyId),
+        supabase
+          .from("billing_requests")
+          .select("id, services, total_amount, created_at, created_by")
+          .eq("company_id", companyId)
+          .neq("status", "cancelled")
+          .gte("created_at", start)
+          .lt("created_at", end),
+        supabase
+          .from("services")
+          .select("id, is_reimbursable"),
+      ]);
 
-      const { data: invoices } = await supabase
-        .from("invoices")
-        .select("id, total_due, created_at, created_by, company_id")
-        .eq("company_id", companyId)
-        .gte("created_at", start)
-        .lt("created_at", end);
+      const profiles = profilesRes.data || [];
+      const requests = requestsRes.data || [];
+      const reimbursableSet = new Set<string>(
+        (servicesRes.data || [])
+          .filter((s: any) => s.is_reimbursable)
+          .map((s: any) => s.id)
+      );
 
       const byUser = new Map<string, MonthlyBillingByUserRow>();
-      const ensure = (id: string, name: string) => {
-        if (!byUser.has(id)) {
-          byUser.set(id, { userId: id, name, months: Array(12).fill(0), total: 0, invoiceCount: 0 });
-        }
-        return byUser.get(id)!;
+      const ensure = (uid: string) => {
+        if (byUser.has(uid)) return byUser.get(uid)!;
+        const p: any = profiles.find((x: any) => x.id === uid);
+        const row: MonthlyBillingByUserRow = {
+          userId: uid,
+          name: p ? nameOf(p) : "Unknown",
+          hasGoal: !!(p && Number(p.monthly_goal) > 0),
+          monthlyGoal: p ? Number(p.monthly_goal) || 0 : 0,
+          fee: Array(12).fill(0),
+          reimbursable: Array(12).fill(0),
+          total: 0,
+          reimbursableTotal: 0,
+          requestCount: 0,
+        };
+        byUser.set(uid, row);
+        return row;
       };
-      team.forEach((p: any) => ensure(p.id, nameOf(p)));
 
-      (invoices || []).forEach((inv: any) => {
-        if (!inv.created_at) return;
-        const uid = inv.created_by || "unassigned";
-        const teamMember = team.find((t: any) => t.id === uid);
-        const name = uid === "unassigned"
-          ? "Unassigned"
-          : (teamMember ? nameOf(teamMember) : "Other");
-        const row = ensure(uid, name);
-        const d = new Date(inv.created_at);
-        const m = d.getMonth();
-        const amt = Number(inv.total_due) || 0;
-        row.months[m] += amt;
-        row.total += amt;
-        row.invoiceCount += 1;
+      // Always include active goal-holders
+      profiles
+        .filter((p: any) => p.is_active && Number(p.monthly_goal) > 0)
+        .forEach((p: any) => ensure(p.id));
+
+      requests.forEach((req: any) => {
+        if (!req.created_by || !req.created_at) return;
+        const row = ensure(req.created_by);
+        const month = new Date(req.created_at).getMonth();
+        const lines: any[] = Array.isArray(req.services) ? req.services : [];
+        let feeAmt = 0;
+        let reimbAmt = 0;
+        if (lines.length === 0) {
+          feeAmt = Number(req.total_amount) || 0;
+        } else {
+          for (const line of lines) {
+            const amt = Number(line.billed_amount) || Number(line.amount) || 0;
+            const sid = line.service_id || line.serviceId;
+            const isReimb = sid ? reimbursableSet.has(sid) : false;
+            if (isReimb) reimbAmt += amt;
+            else feeAmt += amt;
+          }
+        }
+        row.fee[month] += feeAmt;
+        row.reimbursable[month] += reimbAmt;
+        row.total += feeAmt;
+        row.reimbursableTotal += reimbAmt;
+        row.requestCount += 1;
       });
 
-      return Array.from(byUser.values())
-        .sort((a, b) => b.total - a.total);
+      return Array.from(byUser.values()).sort((a, b) => b.total - a.total);
     },
   });
 }
+
+export function useUserMonthlyGoals(year: number) {
+  const { profile } = useAuth();
+  return useQuery({
+    queryKey: ["user-monthly-goals", profile?.company_id, year],
+    enabled: !!profile?.company_id,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("user_monthly_goals")
+        .select("user_id, year, month, goal_amount")
+        .eq("company_id", profile!.company_id!)
+        .eq("year", year);
+      const map: Record<string, number> = {};
+      (data || []).forEach((r: any) => {
+        map[`${r.user_id}:${r.month}`] = Number(r.goal_amount) || 0;
+      });
+      return map;
+    },
+  });
+}
+
+export function useUserBacklog() {
+  const { profile } = useAuth();
+  return useQuery({
+    queryKey: ["user-backlog", profile?.company_id],
+    enabled: !!profile?.company_id,
+    queryFn: async () => {
+      const companyId = profile!.company_id!;
+      const { data: projects } = await supabase
+        .from("projects")
+        .select("id, assigned_pm_id, status")
+        .eq("company_id", companyId)
+        .eq("status", "open");
+      const projectIds = (projects || []).map((p: any) => p.id);
+      if (projectIds.length === 0) return {} as Record<string, number>;
+
+      const { data: services } = await supabase
+        .from("services")
+        .select("project_id, total_amount, fixed_price, billed_amount, is_reimbursable")
+        .in("project_id", projectIds);
+
+      const remainingByProject = new Map<string, number>();
+      (services || []).forEach((s: any) => {
+        if (s.is_reimbursable) return;
+        const contract = Number(s.total_amount) || Number(s.fixed_price) || 0;
+        const billed = Number(s.billed_amount) || 0;
+        const remaining = Math.max(0, contract - billed);
+        remainingByProject.set(
+          s.project_id,
+          (remainingByProject.get(s.project_id) || 0) + remaining
+        );
+      });
+
+      const byUser: Record<string, number> = {};
+      (projects || []).forEach((p: any) => {
+        if (!p.assigned_pm_id) return;
+        const v = remainingByProject.get(p.id) || 0;
+        byUser[p.assigned_pm_id] = (byUser[p.assigned_pm_id] || 0) + v;
+      });
+      return byUser;
+    },
+  });
+}
+
 
