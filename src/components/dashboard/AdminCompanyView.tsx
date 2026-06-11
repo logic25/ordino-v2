@@ -60,6 +60,10 @@ export function AdminCompanyView({ isVisible }: { isVisible?: (id: string) => bo
       {/* Proposals Pipeline by Stage */}
       {show("proposals-pipeline") && <ProposalsPipelineCard />}
 
+      {/* Monthly conversion rates */}
+      {show("proposal-conversion-rates") && <ProposalConversionTable />}
+
+
       {/* Revenue Trend (unified) */}
       {show("revenue-trend") && <RevenueTrendChart defaultMode="6" />}
 
