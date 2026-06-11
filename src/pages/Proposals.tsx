@@ -59,6 +59,7 @@ export default function Proposals() {
   const [signingProposal, setSigningProposal] = useState<ProposalWithRelations | null>(null);
   const [approvingProposal, setApprovingProposal] = useState<ProposalWithRelations | null>(null);
   const [sendingProposal, setSendingProposal] = useState<ProposalWithRelations | null>(null);
+  const [clockInProject, setClockInProject] = useState<{ id: string; name: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("proposals");
