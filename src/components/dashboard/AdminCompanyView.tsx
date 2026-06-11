@@ -126,10 +126,8 @@ export function AdminCompanyView({ isVisible, editMode = false, order, onReorder
 
   const visibleOrdered = effectiveOrder.filter((id) => widgets[id] && show(id));
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
+
+
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
