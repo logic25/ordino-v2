@@ -30,6 +30,7 @@ import {
   ProposalWithRelations,
   ProposalFormInput,
 } from "@/hooks/useProposals";
+import { useCreateDepositInvoice } from "@/hooks/useInvoices";
 import { useSaveProposalContacts, type ProposalContactInput } from "@/hooks/useProposalContacts";
 import {
   useMarkProposalApproved,
@@ -747,6 +748,7 @@ export default function Proposals() {
                       onPreview={(p) => setPreviewProposal(p)}
                       onMarkApproved={handleOpenApproval}
                       onMarkLost={handleMarkLost}
+                      onCreateDepositInvoice={handleCreateDepositInvoice}
                       onDismissFollowUp={handleDismissFollowUp}
                       onLogFollowUp={handleLogFollowUp}
                       onSnoozeFollowUp={handleSnoozeFollowUp}
