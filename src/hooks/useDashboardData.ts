@@ -401,6 +401,7 @@ export interface ProposalConversionRow {
   rate: number;         // 0..1
   proposedValue: number;
   convertedValue: number;
+  convertedCOValue: number;
 }
 
 const WON_STATUSES = new Set(["signed_client", "executed", "won"]);
@@ -414,21 +415,30 @@ export function useProposalConversionRates(year: number) {
     queryFn: async (): Promise<ProposalConversionRow[]> => {
       const start = `${year}-01-01`;
       const end = `${year + 1}-01-01`;
-      const { data } = await supabase
-        .from("proposals")
-        .select("status, total_amount, sent_at, created_at")
-        .eq("company_id", profile!.company_id!)
-        .gte("sent_at", start)
-        .lt("sent_at", end);
+      const [proposalsRes, cosRes] = await Promise.all([
+        supabase
+          .from("proposals")
+          .select("status, total_amount, sent_at, created_at")
+          .eq("company_id", profile!.company_id!)
+          .gte("sent_at", start)
+          .lt("sent_at", end),
+        (supabase as any)
+          .from("change_orders")
+          .select("amount, client_signed_at")
+          .eq("company_id", profile!.company_id!)
+          .not("client_signed_at", "is", null)
+          .gte("client_signed_at", start)
+          .lt("client_signed_at", end),
+      ]);
 
       const buckets = new Map<string, ProposalConversionRow>();
       for (let m = 0; m < 12; m++) {
         const key = `${year}-${String(m + 1).padStart(2, "0")}`;
         const label = new Date(year, m, 1).toLocaleString("en-US", { month: "short", year: "numeric" });
-        buckets.set(key, { month: key, label, sent: 0, converted: 0, rate: 0, proposedValue: 0, convertedValue: 0 });
+        buckets.set(key, { month: key, label, sent: 0, converted: 0, rate: 0, proposedValue: 0, convertedValue: 0, convertedCOValue: 0 });
       }
 
-      (data || []).forEach((p: any) => {
+      (proposalsRes.data || []).forEach((p: any) => {
         if (!p.sent_at) return;
         if (!SENT_STATUSES.has(p.status)) return;
         const d = new Date(p.sent_at);
@@ -444,11 +454,19 @@ export function useProposalConversionRates(year: number) {
         }
       });
 
+      (cosRes.data || []).forEach((co: any) => {
+        if (!co.client_signed_at) return;
+        const d = new Date(co.client_signed_at);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        const row = buckets.get(key);
+        if (!row) return;
+        row.convertedCOValue += Number(co.amount) || 0;
+      });
+
       const rows = Array.from(buckets.values()).map((r) => ({
         ...r,
         rate: r.sent > 0 ? r.converted / r.sent : 0,
       }));
-      // Chronological: Jan first
       return rows.sort((a, b) => a.month.localeCompare(b.month));
     },
   });

@@ -9,6 +9,7 @@ import {
 import { RfpStatusBadge } from "./RfpStatusBadge";
 import { RfpEditDialog } from "./RfpEditDialog";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
+import { THWT } from "@/components/ui/table-head-with-tip";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -301,14 +302,14 @@ export function RfpTableView({ rfps, isLoading, cardFilter }: RfpTableViewProps)
           <TableHeader>
             <TableRow>
               <TableHead className="w-8"></TableHead>
-              <TableHead><SortHeader label="Title" field="title" /></TableHead>
-              <TableHead>RFP #</TableHead>
-              <TableHead><SortHeader label="Agency" field="agency" /></TableHead>
-              <TableHead><SortHeader label="Status" field="status" /></TableHead>
-              <TableHead><SortHeader label="Due Date" field="due_date" /></TableHead>
-              <TableHead><SortHeader label="Date Entered" field="created_at" /></TableHead>
-              <TableHead>Entered By</TableHead>
-              <TableHead>Value</TableHead>
+              <THWT tip="RFP title as published by the agency."><SortHeader label="Title" field="title" /></THWT>
+              <THWT tip="Solicitation / RFP number from the issuing agency.">RFP #</THWT>
+              <THWT tip="Issuing public agency (NYC DDC, SCA, NYCHA, etc.)."><SortHeader label="Agency" field="agency" /></THWT>
+              <THWT tip="Pursuit stage: Prospect → Drafting → Submitted → Won / Lost."><SortHeader label="Status" field="status" /></THWT>
+              <THWT tip="Submission deadline. Past-due rows are highlighted."><SortHeader label="Due Date" field="due_date" /></THWT>
+              <THWT tip="Date the RFP was added to Ordino."><SortHeader label="Date Entered" field="created_at" /></THWT>
+              <THWT tip="Team member who added this RFP.">Entered By</THWT>
+              <THWT tip="Estimated contract value, if disclosed in the solicitation.">Value</THWT>
               <TableHead className="w-10"></TableHead>
             </TableRow>
           </TableHeader>

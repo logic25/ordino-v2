@@ -7,6 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { THWT } from "@/components/ui/table-head-with-tip";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -173,12 +174,12 @@ export function ClientTable({
         <TableHeader>
           <TableRow>
             {mergeMode && <TableHead className="w-[40px]" />}
-            <TableHead>Name</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Phone</TableHead>
-            <TableHead>Address</TableHead>
-            <TableHead>Added</TableHead>
+            <THWT tip="Client / company name. Click a row to expand and see contacts and project history.">Name</THWT>
+            <THWT tip="Client type — Owner, GC, Architect, Engineer, Property Manager, etc.">Type</THWT>
+            <THWT tip="Primary email on file for the client company (not individual contacts).">Email</THWT>
+            <THWT tip="Primary phone on file for the client company.">Phone</THWT>
+            <THWT tip="Mailing address for the client.">Address</THWT>
+            <THWT tip="Date this client was added to your workspace.">Added</THWT>
             <TableHead className="w-[60px]"></TableHead>
           </TableRow>
         </TableHeader>
