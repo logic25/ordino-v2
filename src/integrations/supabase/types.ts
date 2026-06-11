@@ -3088,6 +3088,7 @@ export type Database = {
       clients: {
         Row: {
           address: string | null
+          client_tier: string | null
           client_type: string | null
           company_id: string
           created_at: string | null
@@ -3114,6 +3115,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          client_tier?: string | null
           client_type?: string | null
           company_id: string
           created_at?: string | null
@@ -3140,6 +3142,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          client_tier?: string | null
           client_type?: string | null
           company_id?: string
           created_at?: string | null
@@ -6203,6 +6206,149 @@ export type Database = {
           },
         ]
       }
+      prediction_accuracy_history: {
+        Row: {
+          company_id: string
+          id: string
+          median_abs_error_days: number | null
+          pct_within_14d: number | null
+          pct_within_30d: number | null
+          pct_within_7d: number | null
+          sample_size: number
+          service_type: string | null
+          snapshot_date: string
+        }
+        Insert: {
+          company_id: string
+          id?: string
+          median_abs_error_days?: number | null
+          pct_within_14d?: number | null
+          pct_within_30d?: number | null
+          pct_within_7d?: number | null
+          sample_size?: number
+          service_type?: string | null
+          snapshot_date?: string
+        }
+        Update: {
+          company_id?: string
+          id?: string
+          median_abs_error_days?: number | null
+          pct_within_14d?: number | null
+          pct_within_30d?: number | null
+          pct_within_7d?: number | null
+          sample_size?: number
+          service_type?: string | null
+          snapshot_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prediction_accuracy_history_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prediction_feedback: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          predicted_date: string | null
+          reason: string | null
+          service_id: string
+          user_estimated_date: string | null
+          user_id: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          predicted_date?: string | null
+          reason?: string | null
+          service_id: string
+          user_estimated_date?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          predicted_date?: string | null
+          reason?: string | null
+          service_id?: string
+          user_estimated_date?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prediction_feedback_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prediction_feedback_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prediction_outcomes: {
+        Row: {
+          actual_billed_date: string | null
+          company_id: string
+          error_days: number | null
+          id: string
+          model_version: string
+          predicted_at: string
+          predicted_date: string
+          prediction_inputs: Json
+          service_id: string
+        }
+        Insert: {
+          actual_billed_date?: string | null
+          company_id: string
+          error_days?: number | null
+          id?: string
+          model_version?: string
+          predicted_at?: string
+          predicted_date: string
+          prediction_inputs?: Json
+          service_id: string
+        }
+        Update: {
+          actual_billed_date?: string | null
+          company_id?: string
+          error_days?: number | null
+          id?: string
+          model_version?: string
+          predicted_at?: string
+          predicted_date?: string
+          prediction_inputs?: Json
+          service_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prediction_outcomes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prediction_outcomes_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           about: string | null
@@ -7401,6 +7547,7 @@ export type Database = {
           internal_signature_data: string | null
           internal_signed_at: string | null
           internal_signed_by: string | null
+          is_pro_cert: boolean
           job_description: string | null
           last_follow_up_at: string | null
           lead_id: string | null
@@ -7484,6 +7631,7 @@ export type Database = {
           internal_signature_data?: string | null
           internal_signed_at?: string | null
           internal_signed_by?: string | null
+          is_pro_cert?: boolean
           job_description?: string | null
           last_follow_up_at?: string | null
           lead_id?: string | null
@@ -7567,6 +7715,7 @@ export type Database = {
           internal_signature_data?: string | null
           internal_signed_at?: string | null
           internal_signed_by?: string | null
+          is_pro_cert?: boolean
           job_description?: string | null
           last_follow_up_at?: string | null
           lead_id?: string | null
@@ -8767,12 +8916,114 @@ export type Database = {
           },
         ]
       }
+      service_duration_baselines: {
+        Row: {
+          building_class: string | null
+          client_tier: string | null
+          company_id: string
+          complexity: string | null
+          computed_at: string
+          id: string
+          is_pro_cert: boolean
+          median_active_days: number | null
+          median_hours: number | null
+          median_total_days: number | null
+          p20_days: number | null
+          p80_days: number | null
+          sample_size: number
+          service_type: string
+          std_dev_days: number | null
+        }
+        Insert: {
+          building_class?: string | null
+          client_tier?: string | null
+          company_id: string
+          complexity?: string | null
+          computed_at?: string
+          id?: string
+          is_pro_cert?: boolean
+          median_active_days?: number | null
+          median_hours?: number | null
+          median_total_days?: number | null
+          p20_days?: number | null
+          p80_days?: number | null
+          sample_size?: number
+          service_type: string
+          std_dev_days?: number | null
+        }
+        Update: {
+          building_class?: string | null
+          client_tier?: string | null
+          company_id?: string
+          complexity?: string | null
+          computed_at?: string
+          id?: string
+          is_pro_cert?: boolean
+          median_active_days?: number | null
+          median_hours?: number | null
+          median_total_days?: number | null
+          p20_days?: number | null
+          p80_days?: number | null
+          sample_size?: number
+          service_type?: string
+          std_dev_days?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_duration_baselines_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_prediction_cache: {
+        Row: {
+          ai_payload: Json
+          company_id: string
+          computed_at: string
+          notes_hash: string
+          service_id: string
+        }
+        Insert: {
+          ai_payload?: Json
+          company_id: string
+          computed_at?: string
+          notes_hash: string
+          service_id: string
+        }
+        Update: {
+          ai_payload?: Json
+          company_id?: string
+          computed_at?: string
+          notes_hash?: string
+          service_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_prediction_cache_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_prediction_cache_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: true
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       services: {
         Row: {
           actual_hours: number | null
           application_id: string
           assigned_to: string | null
           assigned_to_name: string | null
+          bill_date_reasoning: string | null
           bill_date_source: string
           billed_amount: number | null
           billed_at: string | null
@@ -8789,16 +9040,20 @@ export type Database = {
           disciplines: string[] | null
           due_date: string | null
           estimated_bill_date: string | null
+          estimated_bill_date_computed_at: string | null
           estimated_hours: number | null
+          filed_at: string | null
           fixed_price: number | null
           hourly_rate: number | null
           id: string
+          is_pro_cert: boolean
           is_reimbursable: boolean
           job_description: string | null
           metadata: Json | null
           name: string
           needs_dob_filing: boolean
           notes: string | null
+          objections_received_at: string | null
           parent_service_id: string | null
           project_id: string | null
           qb_invoice_id: string | null
@@ -8811,6 +9066,7 @@ export type Database = {
           application_id: string
           assigned_to?: string | null
           assigned_to_name?: string | null
+          bill_date_reasoning?: string | null
           bill_date_source?: string
           billed_amount?: number | null
           billed_at?: string | null
@@ -8827,16 +9083,20 @@ export type Database = {
           disciplines?: string[] | null
           due_date?: string | null
           estimated_bill_date?: string | null
+          estimated_bill_date_computed_at?: string | null
           estimated_hours?: number | null
+          filed_at?: string | null
           fixed_price?: number | null
           hourly_rate?: number | null
           id?: string
+          is_pro_cert?: boolean
           is_reimbursable?: boolean
           job_description?: string | null
           metadata?: Json | null
           name: string
           needs_dob_filing?: boolean
           notes?: string | null
+          objections_received_at?: string | null
           parent_service_id?: string | null
           project_id?: string | null
           qb_invoice_id?: string | null
@@ -8849,6 +9109,7 @@ export type Database = {
           application_id?: string
           assigned_to?: string | null
           assigned_to_name?: string | null
+          bill_date_reasoning?: string | null
           bill_date_source?: string
           billed_amount?: number | null
           billed_at?: string | null
@@ -8865,16 +9126,20 @@ export type Database = {
           disciplines?: string[] | null
           due_date?: string | null
           estimated_bill_date?: string | null
+          estimated_bill_date_computed_at?: string | null
           estimated_hours?: number | null
+          filed_at?: string | null
           fixed_price?: number | null
           hourly_rate?: number | null
           id?: string
+          is_pro_cert?: boolean
           is_reimbursable?: boolean
           job_description?: string | null
           metadata?: Json | null
           name?: string
           needs_dob_filing?: boolean
           notes?: string | null
+          objections_received_at?: string | null
           parent_service_id?: string | null
           project_id?: string | null
           qb_invoice_id?: string | null
