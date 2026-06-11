@@ -262,7 +262,7 @@ export default function Projects() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FolderKanban className="h-5 w-5" />
-              {isAdmin && showAllProjects ? "All Projects" : "My Projects"}
+              {showAllProjects ? "All Projects" : "My Projects"}
               {!isLoading && (
                 <span className="text-muted-foreground font-normal text-sm">
                   ({filteredProjects.length})
@@ -287,7 +287,7 @@ export default function Projects() {
                   Projects are created when proposals are signed. Create a proposal first, then sign it to generate a project.
                 </p>
               </div>
-            ) : (
+            ) : groupBy === "none" ? (
               <ProjectTable
                 projects={filteredProjects}
                 onEdit={handleEdit}
@@ -297,6 +297,55 @@ export default function Projects() {
                 isDeleting={deleteProject.isPending}
                 isSendingRfi={createRfi.isPending}
               />
+            ) : (
+              (() => {
+                const groups = new Map<string, ProjectWithRelations[]>();
+                filteredProjects.forEach((p) => {
+                  const key =
+                    groupBy === "client"
+                      ? p.clients?.name || "— No client —"
+                      : p.properties?.address || "— No address —";
+                  if (!groups.has(key)) groups.set(key, []);
+                  groups.get(key)!.push(p);
+                });
+                const sorted = Array.from(groups.entries()).sort(([a], [b]) =>
+                  a.localeCompare(b)
+                );
+                return (
+                  <div className="space-y-6">
+                    {sorted.map(([key, list]) => {
+                      const value = list.reduce(
+                        (sum, p) => sum + Number(p.proposals?.total_amount || 0),
+                        0
+                      );
+                      return (
+                        <div key={key} className="space-y-2">
+                          <div className="flex items-center justify-between border-b pb-2">
+                            <h3 className="font-semibold text-base">
+                              {key}
+                              <span className="ml-2 text-sm font-normal text-muted-foreground">
+                                ({list.length})
+                              </span>
+                            </h3>
+                            <span className="text-sm text-muted-foreground">
+                              {formatCurrency(value)}
+                            </span>
+                          </div>
+                          <ProjectTable
+                            projects={list}
+                            onEdit={handleEdit}
+                            onView={handleView}
+                            onDelete={handleDelete}
+                            onSendRfi={handleSendRfi}
+                            isDeleting={deleteProject.isPending}
+                            isSendingRfi={createRfi.isPending}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()
             )}
           </CardContent>
         </Card>
