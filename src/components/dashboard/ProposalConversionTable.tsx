@@ -41,10 +41,12 @@ export function ProposalConversionTable() {
       <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
         <div>
           <CardTitle className="text-base flex items-center gap-1.5">
-            Proposals & Billing
+            Proposal Conversion
             <InfoTooltip>
-              <strong>Conversion</strong> — monthly Sent vs Converted proposals (Sent = sent_at in month; Converted = status reached signed/executed/won).<br />
-              <strong>Billing</strong> — amounts sent to billing (billing requests) grouped by who sent them, fee work only. Reimbursables (filing fees, pass-throughs) are shown separately and never count toward goals. Goal-holders are always shown; anyone who sent something to billing also appears. Click a goal cell to set a per-month override (admin only).
+              <strong>Sent</strong> — proposals created in the month (matches the Reports → Proposals Monthly Conversion view).<br />
+              <strong>Won</strong> — proposals whose status reached <em>executed</em>.<br />
+              <strong>COs / CO $</strong> — change orders client-signed in the month.<br />
+              Switch to <strong>Billing by User</strong> for send-to-billing totals by user; click a goal cell to set a per-month override (admin only).
             </InfoTooltip>
           </CardTitle>
           <CardDescription>
@@ -93,6 +95,7 @@ function ProposalsTab({ year }: { year: number }) {
       rate: sent > 0 ? converted / sent : 0,
       proposedValue: rows.reduce((s, r) => s + r.proposedValue, 0),
       convertedValue: rows.reduce((s, r) => s + r.convertedValue, 0),
+      coCount: rows.reduce((s, r) => s + r.coCount, 0),
       convertedCOValue: rows.reduce((s, r) => s + r.convertedCOValue, 0),
     };
   }, [rows]);
@@ -107,44 +110,50 @@ function ProposalsTab({ year }: { year: number }) {
           <TableHead className="text-right">
             <span className="inline-flex items-center gap-1 justify-end">
               Sent
-              <InfoTooltip>Proposals whose <strong>Sent</strong> date falls in this month.</InfoTooltip>
+              <InfoTooltip>All proposals created this month (matches the Reports Monthly Conversion table).</InfoTooltip>
             </span>
           </TableHead>
           <TableHead className="text-right">
             <span className="inline-flex items-center gap-1 justify-end">
-              Converted
-              <InfoTooltip>Of proposals sent that month, how many reached signed / executed / won.</InfoTooltip>
+              Won
+              <InfoTooltip>Proposals whose status reached <strong>executed</strong>.</InfoTooltip>
             </span>
           </TableHead>
           <TableHead className="text-right">
             <span className="inline-flex items-center gap-1 justify-end">
               Rate
-              <InfoTooltip>Converted ÷ Sent for the month.</InfoTooltip>
+              <InfoTooltip>Won ÷ Sent for the month.</InfoTooltip>
             </span>
           </TableHead>
           <TableHead className="text-right">
             <span className="inline-flex items-center gap-1 justify-end">
-              Proposed $
-              <InfoTooltip>Dollar value of proposals sent that month.</InfoTooltip>
+              Won $
+              <InfoTooltip>Total value of proposals won this month.</InfoTooltip>
             </span>
           </TableHead>
           <TableHead className="text-right">
             <span className="inline-flex items-center gap-1 justify-end">
-              Converted $
-              <InfoTooltip>Dollar value of the proposals (from that month's sent batch) that converted.</InfoTooltip>
+              Total $
+              <InfoTooltip>Total value of all proposals created in the month.</InfoTooltip>
+            </span>
+          </TableHead>
+          <TableHead className="text-right border-l border-border">
+            <span className="inline-flex items-center gap-1 justify-end">
+              COs
+              <InfoTooltip>Change orders client-signed in this month.</InfoTooltip>
             </span>
           </TableHead>
           <TableHead className="text-right">
             <span className="inline-flex items-center gap-1 justify-end">
-              Change Orders $
-              <InfoTooltip>Total value of change orders <strong>client-signed</strong> in this month, regardless of when the original proposal was sent.</InfoTooltip>
+              CO $
+              <InfoTooltip>Total value of change orders client-signed this month.</InfoTooltip>
             </span>
           </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {rows.map((r) => {
-          const empty = r.sent === 0 && r.convertedCOValue === 0;
+          const empty = r.sent === 0 && r.coCount === 0;
           return (
             <TableRow
               key={r.month}
@@ -157,8 +166,11 @@ function ProposalsTab({ year }: { year: number }) {
               <TableCell className="text-right">
                 {r.sent === 0 ? "—" : `${(r.rate * 100).toFixed(1)}%`}
               </TableCell>
-              <TableCell className="text-right">{formatCompactCurrency(r.proposedValue)}</TableCell>
               <TableCell className="text-right">{formatCompactCurrency(r.convertedValue)}</TableCell>
+              <TableCell className="text-right">{formatCompactCurrency(r.proposedValue)}</TableCell>
+              <TableCell className="text-right border-l border-border">
+                {r.coCount === 0 ? "—" : r.coCount}
+              </TableCell>
               <TableCell className="text-right">
                 {r.convertedCOValue === 0 ? "—" : formatCompactCurrency(r.convertedCOValue)}
               </TableCell>
@@ -172,8 +184,9 @@ function ProposalsTab({ year }: { year: number }) {
           <TableCell className="text-right">
             {totals.sent > 0 ? `${(totals.rate * 100).toFixed(1)}%` : "—"}
           </TableCell>
-          <TableCell className="text-right">{formatCompactCurrency(totals.proposedValue)}</TableCell>
           <TableCell className="text-right">{formatCompactCurrency(totals.convertedValue)}</TableCell>
+          <TableCell className="text-right">{formatCompactCurrency(totals.proposedValue)}</TableCell>
+          <TableCell className="text-right border-l border-border">{totals.coCount}</TableCell>
           <TableCell className="text-right">{formatCompactCurrency(totals.convertedCOValue)}</TableCell>
         </TableRow>
       </TableBody>

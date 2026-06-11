@@ -9837,6 +9837,10 @@ export type Database = {
       }
       track_proposal_view: { Args: { _token: string }; Returns: undefined }
       track_rfi_view: { Args: { _token: string }; Returns: undefined }
+      user_has_app_role: {
+        Args: { _role: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       activity_type:
