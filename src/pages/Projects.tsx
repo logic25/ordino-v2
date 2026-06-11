@@ -26,7 +26,8 @@ export default function Projects() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<ProjectWithRelations | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showAllProjects, setShowAllProjects] = useState(false);
+  const [showAllProjects, setShowAllProjects] = useState(true);
+  const [groupBy, setGroupBy] = useState<"none" | "client" | "address">("none");
   const [statusFilter, setStatusFilter] = useState("all");
   const { toast } = useToast();
   const { profile } = useAuth();
@@ -42,7 +43,7 @@ export default function Projects() {
   const myProjects = profile?.id
     ? projects.filter((p) => p.assigned_pm_id === profile.id || p.senior_pm_id === profile.id)
     : projects;
-  const visibleProjects = (isAdmin && showAllProjects) ? projects : myProjects;
+  const visibleProjects = showAllProjects ? projects : myProjects;
 
   const isStale = (p: any) => {
     if (p.status !== "open" || !p.last_activity_at) return false;
@@ -163,10 +164,20 @@ export default function Projects() {
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Projects</h1>
             <p className="text-muted-foreground mt-1">
-              {isAdmin && showAllProjects ? "All company projects" : "Your assigned projects"}
+              {showAllProjects ? "All company projects" : "Your assigned projects"}
             </p>
           </div>
-          {isAdmin && (
+          <div className="flex items-center gap-2">
+            <select
+              value={groupBy}
+              onChange={(e) => setGroupBy(e.target.value as "none" | "client" | "address")}
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              aria-label="Group projects by"
+            >
+              <option value="none">No grouping</option>
+              <option value="client">Group by Client</option>
+              <option value="address">Group by Address</option>
+            </select>
             <Button
               variant={showAllProjects ? "default" : "outline"}
               size="sm"
@@ -176,7 +187,7 @@ export default function Projects() {
               <Users className="h-4 w-4" />
               {showAllProjects ? "All Projects" : "My Projects"}
             </Button>
-          )}
+          </div>
         </div>
 
         <div className="grid gap-3 grid-cols-2 lg:grid-cols-4" data-tour="projects-stats">
@@ -251,7 +262,7 @@ export default function Projects() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FolderKanban className="h-5 w-5" />
-              {isAdmin && showAllProjects ? "All Projects" : "My Projects"}
+              {showAllProjects ? "All Projects" : "My Projects"}
               {!isLoading && (
                 <span className="text-muted-foreground font-normal text-sm">
                   ({filteredProjects.length})
@@ -276,7 +287,7 @@ export default function Projects() {
                   Projects are created when proposals are signed. Create a proposal first, then sign it to generate a project.
                 </p>
               </div>
-            ) : (
+            ) : groupBy === "none" ? (
               <ProjectTable
                 projects={filteredProjects}
                 onEdit={handleEdit}
@@ -286,6 +297,55 @@ export default function Projects() {
                 isDeleting={deleteProject.isPending}
                 isSendingRfi={createRfi.isPending}
               />
+            ) : (
+              (() => {
+                const groups = new Map<string, ProjectWithRelations[]>();
+                filteredProjects.forEach((p) => {
+                  const key =
+                    groupBy === "client"
+                      ? p.clients?.name || "— No client —"
+                      : p.properties?.address || "— No address —";
+                  if (!groups.has(key)) groups.set(key, []);
+                  groups.get(key)!.push(p);
+                });
+                const sorted = Array.from(groups.entries()).sort(([a], [b]) =>
+                  a.localeCompare(b)
+                );
+                return (
+                  <div className="space-y-6">
+                    {sorted.map(([key, list]) => {
+                      const value = list.reduce(
+                        (sum, p) => sum + Number(p.proposals?.total_amount || 0),
+                        0
+                      );
+                      return (
+                        <div key={key} className="space-y-2">
+                          <div className="flex items-center justify-between border-b pb-2">
+                            <h3 className="font-semibold text-base">
+                              {key}
+                              <span className="ml-2 text-sm font-normal text-muted-foreground">
+                                ({list.length})
+                              </span>
+                            </h3>
+                            <span className="text-sm text-muted-foreground">
+                              {formatCurrency(value)}
+                            </span>
+                          </div>
+                          <ProjectTable
+                            projects={list}
+                            onEdit={handleEdit}
+                            onView={handleView}
+                            onDelete={handleDelete}
+                            onSendRfi={handleSendRfi}
+                            isDeleting={deleteProject.isPending}
+                            isSendingRfi={createRfi.isPending}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()
             )}
           </CardContent>
         </Card>
