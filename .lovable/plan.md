@@ -1,132 +1,62 @@
+# Unified "Ready to Invoice" Worklist
 
-# Billing Dashboard Unification + Role Tune-Up
+## Problem
 
-## Part A — Role tune-up
+The Ready to Invoice tab currently shows three separate tables stacked on top of each other (PM Submissions, Ready to Send, Drafts). It looks like three different screens glued together and forces Sai to scan three lists instead of one.
 
-**Migration**
-1. Re-tag the 3 current `production` users as `pm`
-2. Confirm Sai is `accounting`; add explicit read grants to `projects`, `proposals`, `properties`, `clients`, `services`, `dob_applications` so she can review context but not edit
-3. Leave `manager`, `production`, `staff` defined in the enum — zero cost, ready when you grow
-4. Expose all 6 roles in Settings → Team dropdown with one-line role descriptions
+## Goal
 
-**Effective access matrix**
+One table. One row per item. A status chip tells you what kind of thing it is. A single primary button on each row moves it to the next step. The header total still matches the card.
 
-| Capability | admin | pm | accounting |
-|---|---|---|---|
-| Create/edit proposals, projects, properties, RFIs, services | ✓ | ✓ | – |
-| View projects/proposals (read-only) | ✓ | ✓ | ✓ |
-| Time logs (own) | ✓ | ✓ | ✓ |
-| Invoices, payments, billing pipeline (all PMs) | ✓ | – | ✓ |
-| Own BillingPulse (week/month vs goal) | ✓ | ✓ | ✓ |
-| Company-wide BillingPulse + financial reports | ✓ | – | ✓ |
-| Settings, role assignment, billing goals | ✓ | – | – |
+## What the row types mean (terminology, for the tooltip + empty state)
 
-## Part B — Billing dashboard unification
+- **Submission** — A PM sent services over via "Send to Billing." No invoice exists yet. Next step: create the invoice.
+- **Draft** — An invoice that was created and parked (either via "Save as Draft" in Create Invoice, or by editing a finalized invoice back to draft). Next step: finish it and mark it ready.
+- **Ready** — A finalized invoice waiting to be emailed to the client. Next step: send.
 
-### Surface separation (each answers a different question)
-
-| Surface | Question | Owns |
-|---|---|---|
-| **Dashboard** | "What should I do this week?" | BillingPulse (time-bounded, pace), Inbox snapshot, Needs Attention |
-| **`/invoices`** | "Manage the invoice lifecycle" | 6 lifecycle cards, full table + tabs, **Analytics tab kept as-is** |
-| **Reports → Billing** | "How are we doing historically?" | A/R aging, BillingPulse over any range, enriched per-line pipeline table |
-
-No metric appears on two surfaces measuring the same thing.
-
-### What gets built
-
-**1. Company billing goals**
-- New columns on `companies`: `weekly_billing_goal_override`, `monthly_billing_goal_override` (nullable, admin-only)
-- Effective: `monthly = override ?? SUM(active PMs' monthly_goal)`, `weekly = override ?? monthly / 4.33`
-- New Billing Goals section in Company Settings
-
-**2. Per-user weekly goal**
-- Add `profiles.weekly_goal` (nullable; defaults to `monthly_goal / 4.33`)
-- Admin can edit in Settings → Team; user can edit own from dashboard
-
-**3. `BillingPulse` component (new)**
-Hero block. Three scopes:
-- `scope: "company"` — admin/accounting view of all invoices
-- `scope: "self-pm"` — PM view: invoices where project's `assigned_pm = me`
-- `scope: "self-biller"` — Sai's view: invoices where `created_by = me` (her throughput)
-
-Shows: This Week $invoiced / $goal · pace badge (green ≥100, amber 80–99, red <80) · This Month $invoiced / $goal · days left · projected month-end · 8-week sparkline · for Sai also "X of Y items in inbox cleared this week"
-
-**4. Unified `RevenueTrendChart`** — replaces Revenue Trend + YoY
-- Mode toggle: 3M / 6M / 12M / YoY
-- Dotted goal-line overlay
-
-**5. `BillingPipelineTable` (Sai's enriched table — new)**
-Dense, sortable, filterable. Columns: PM · Project · Service · Status · Est. Bill Date · Amount · Source (AI/manual) · Action
-Filters: PM, status, this week / next week / month / overdue-to-bill, AI vs manual
-Footer: totals per filter · Row → Services tab · "Bill now" → create-invoice flow
-Lives on: Reports → Billing (full), Accounting dashboard, Admin dashboard (collapsed)
-
-**6. `/invoices` cleanup (minimal — operational page stays operational)**
-- Rename first card **"Draft" → "Ready to Invoice"** (already mixes draft invoices + ready-to-send services)
-- Leave the 6 lifecycle cards otherwise unchanged
-- **Leave Analytics tab as-is** (promises kept, payment reliability, etc. — still useful)
-
-**7. Sai's dashboard (action-first)**
-- **My Billing Pulse** (self-biller scope) — her throughput vs goal
-- **Inbox snapshot** — "12 items waiting · $9,675 · oldest 22 days" → deep-links to `/invoices?tab=to-invoice`
-- **Needs my attention** — overdue collections, failed payments, disputes, payment promises due today
-- **Company BillingPulse** (small) — what the team is doing
-
-**8. PM dashboard**
-- **My Billing Pulse** (self-pm scope) — what I produced vs my goal
-- **My Billable Pipeline** (scoped table) — open services with `estimated_bill_date ≤ end-of-week`
-- Tasks, action items as today
-
-**9. Admin dashboard re-arrangement**
+## The new layout
 
 ```text
-┌─────────────────────────────────────────────┐
-│  Company BillingPulse  (week + month + pace) │
-├──────────────────────┬──────────────────────┤
-│  Proposals Pipeline  │  Proposal Activity   │
-├──────────────────────┴──────────────────────┤
-│  RevenueTrendChart  (with goal line)        │
-├─────────────────────────────────────────────┤
-│  Billing Pipeline Table  (collapsed)        │
-├──────────────────────┬──────────────────────┤
-│  Team Utilization    │  Projects by PM      │
-├──────────────────────┴──────────────────────┤
-│  Expense Approvals · Follow-Ups · Team      │
-└─────────────────────────────────────────────┘
+Ready to Invoice                                       [Create Invoice]
+21 items · $32,100.00 ready to bill
+
+[ All 21 ] [ Submissions 12 ] [ Ready 8 ] [ Drafts 1 ]      Sort: Oldest first ▾
+
+┌────────┬──────────────┬──────────────────────────┬──────────┬──────────┬──────────────┐
+│ Status │ Date         │ Client / Project         │ Services │   Amount │ Action       │
+├────────┼──────────────┼──────────────────────────┼──────────┼──────────┼──────────────┤
+│ ●Sub   │ 04/29/2026   │ Rudin · 2026-0722        │ ALT-2 D14│ $100.00  │ Create Inv ▸ │
+│ ●Ready │ 04/21/2026   │ SL Green · 2026-0728     │ ALT-2 D14│ $750.00  │ Send ▸       │
+│ ●Draft │ 04/15/2026   │ Brookfield · 2026-0701   │ Filing   │ $1,200.00│ Finish ▸     │
+│ …                                                                                    │
+└──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Removed: top KPI strip, `AccountingSummaryStrip`, `YearOverYearChart`, `BillingGoalTracker`, `BillingSummary`
+### Rules
 
-### Files
+1. **One table, three row sources merged client-side**, sorted by oldest `created_at` first so the staleness of submissions and drafts is visible alongside ready invoices.
+2. **Status chip** colors: Submission = amber, Draft = muted/gray, Ready = primary/blue. Chip is also the filter — clicking a chip at the top filters the table.
+3. **One primary action per row** based on type:
+   - Submission → `Create Invoice` (existing `useCreateInvoiceFromRequest` flow)
+   - Draft → `Finish` (opens `InvoiceDetailSheet` so she can edit + mark ready)
+   - Ready → `Send` (opens `SendInvoiceModal`)
+4. **Row click** on any row opens the matching detail/expansion (submission expands inline like today; invoices open `InvoiceDetailSheet`).
+5. **Secondary actions** live in a `⋯` menu per row: Reject (submissions), Delete (drafts), View invoice (ready). Keeps the row clean.
+6. **Header** shows the combined count + total so it equals the "Ready to Invoice" card. Subtitle: `12 submissions · 8 ready · 1 draft`. Filter chips also show per-bucket counts.
+7. **Bulk action** stays: when one or more Submissions are selected, the existing `Create All Invoices` button appears in the header. Selection only enables bulk for compatible row types.
+8. **Empty state**: one friendly "All caught up — nothing to invoice" instead of three empty boxes.
 
-**New**
-- `src/components/dashboard/BillingPulse.tsx`
-- `src/components/dashboard/RevenueTrendChart.tsx`
-- `src/components/billing/BillingPipelineTable.tsx`
-- `src/hooks/useBillingPulse.ts`
-- `src/hooks/useBillingPipeline.ts`
-- `src/components/settings/BillingGoalsSection.tsx`
+## Files affected
 
-**Edited**
-- `AdminCompanyView.tsx`, `AccountingView.tsx`, `PMDailyView.tsx`
-- `BillingReports.tsx` (prepend BillingPulse + pipeline table)
-- `CompanySettings.tsx`, `DashboardLayoutConfig.tsx`
-- `InvoiceSummaryCards.tsx` (rename Draft → Ready to Invoice)
-- Settings → Team UI (expose 6 roles + per-user weekly goal)
+- `src/components/invoices/BillingInboxView.tsx` — rewrite from three sections to one unified table. Merge `useBillingRequests("pending")` + `useInvoices("draft")` + `useInvoices("ready_to_send")` into a single sorted array of `{ kind, id, date, client, project, services, amount, raw }`.
+- No changes needed to `InvoiceSummaryCards`, `useInvoices`, `useBillingRequests`, or `InvoiceFilterTabs` — the totals/counts wiring done last turn already lines up.
 
-**Deleted**
-- `BillingSummary.tsx`, `AccountingSummaryStrip.tsx`, `YearOverYearChart.tsx`, `BillingGoalTracker.tsx`
+## Out of scope
 
-**Migrations**
-1. Re-tag `production` → `pm`, explicit accounting reads, changelog
-2. `companies` goal-override columns + `profiles.weekly_goal` + admin-only RLS, changelog
+- No DB / migration changes.
+- No changes to how submissions get created, how drafts are edited, or how invoices are sent — only the list UI changes.
+- No change to the Sent / Overdue / Paid tabs.
 
-### Out of scope
-- Dedicated dashboards for manager/production/staff
-- Forecast modeling beyond linear run-rate
-- "Lock the week" workflow
-- Touching the Analytics tab on `/invoices`
+## Changelog
 
-### Approval
-Reply **go** and I'll start with the role migration, then BillingPulse + the rest in order.
+Add a `changelog_entries` row: "Billing → Ready to Invoice is now one unified worklist with a status chip per row and a single next-step action, instead of three stacked tables."
