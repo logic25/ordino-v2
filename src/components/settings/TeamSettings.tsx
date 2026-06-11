@@ -134,6 +134,179 @@ const DEFAULT_BONUS_TIERS: BonusTier[] = [
   { min_pct: 126, max_pct: 999, amount: 1000 },
 ];
 
+// Role-aware metric profile
+type MetricKind = "pm" | "accounting" | "generic";
+function getMetricProfile(role: string | null | undefined): MetricKind {
+  const r = (role || "").toLowerCase();
+  if (r === "accounting") return "accounting";
+  if (r === "admin" || r === "pm" || r === "senior_pm" || r === "production" || r === "manager") return "pm";
+  return "generic";
+}
+
+// Accounting KPIs: invoices issued, $ invoiced, time-to-invoice, backlog, collection rate
+function useAccountingStats(userId: string, period: Period, monthlyInvoiceGoal: number | null) {
+  const range = getPeriodRange(period);
+  return useQuery({
+    queryKey: ["user-accounting-stats", userId, period, monthlyInvoiceGoal],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data: invoices } = await supabase
+        .from("invoices")
+        .select("id, total_due, created_at, paid_at, payment_amount, billing_request_id, status")
+        .eq("created_by", userId)
+        .gte("created_at", format(range.start, "yyyy-MM-dd"))
+        .lte("created_at", format(range.end, "yyyy-MM-dd'T'23:59:59"));
+
+      const invList = invoices || [];
+      const invoicesIssued = invList.length;
+      const totalInvoiced = invList.reduce((s, i) => s + (Number(i.total_due) || 0), 0);
+
+      const reqIds = invList.map((i) => i.billing_request_id).filter(Boolean) as string[];
+      let avgHoursToInvoice: number | null = null;
+      if (reqIds.length > 0) {
+        const { data: reqs } = await supabase
+          .from("billing_requests")
+          .select("id, created_at")
+          .in("id", reqIds);
+        const reqMap = new Map((reqs || []).map((r: any) => [r.id, new Date(r.created_at).getTime()]));
+        const diffs: number[] = [];
+        for (const inv of invList) {
+          if (!inv.billing_request_id) continue;
+          const start = reqMap.get(inv.billing_request_id);
+          if (!start) continue;
+          diffs.push((new Date(inv.created_at).getTime() - start) / (1000 * 60 * 60));
+        }
+        if (diffs.length > 0) {
+          avgHoursToInvoice = Math.round((diffs.reduce((s, d) => s + d, 0) / diffs.length) * 10) / 10;
+        }
+      }
+
+      const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: backlogRows } = await supabase
+        .from("billing_requests")
+        .select("id")
+        .eq("status", "pending")
+        .lte("created_at", twoDaysAgo);
+      const backlogCount = (backlogRows || []).length;
+
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: agedInvs } = await supabase
+        .from("invoices")
+        .select("total_due, payment_amount")
+        .eq("created_by", userId)
+        .lte("created_at", thirtyDaysAgo);
+      const agedList = agedInvs || [];
+      const agedTotal = agedList.reduce((s, i) => s + (Number(i.total_due) || 0), 0);
+      const agedPaid = agedList.reduce((s, i) => s + (Number(i.payment_amount) || 0), 0);
+      const collectionPct = agedTotal > 0 ? Math.min(100, Math.round((agedPaid / agedTotal) * 100)) : null;
+
+      const invIds = invList.map((i) => i.id);
+      let accuracyPct: number | null = null;
+      if (invIds.length > 0) {
+        const { data: disputes } = await supabase
+          .from("invoice_disputes" as any)
+          .select("invoice_id")
+          .in("invoice_id", invIds);
+        const disputedIds = new Set((disputes || []).map((d: any) => d.invoice_id));
+        accuracyPct = Math.round(((invIds.length - disputedIds.size) / invIds.length) * 100);
+      }
+
+      const { data: attendanceLogs } = await supabase
+        .from("attendance_logs")
+        .select("log_date")
+        .eq("user_id", userId)
+        .gte("log_date", format(range.start, "yyyy-MM-dd"))
+        .lte("log_date", format(range.end, "yyyy-MM-dd"));
+      const daysClockedIn = new Set((attendanceLogs || []).map((a) => a.log_date)).size;
+      const { data: timeEntries } = await supabase
+        .from("activities")
+        .select("activity_date")
+        .eq("user_id", userId)
+        .eq("activity_type", "time_log")
+        .gte("activity_date", format(range.start, "yyyy-MM-dd"))
+        .lte("activity_date", format(range.end, "yyyy-MM-dd"));
+      const daysWithEntries = new Set((timeEntries || []).map((e) => e.activity_date)).size;
+      const timelogCompletion = daysClockedIn > 0 ? Math.min(100, Math.round((daysWithEntries / daysClockedIn) * 100)) : 0;
+
+      const months = period === "this_month" || period === "last_month" ? 1 : period === "last_3" ? 3 : period === "last_6" ? 6 : 12;
+      const effectiveGoal = monthlyInvoiceGoal ? monthlyInvoiceGoal * months : 0;
+      const volumePct = effectiveGoal > 0 ? Math.round((invoicesIssued / effectiveGoal) * 100) : null;
+
+      // Target 48h: score 100 at 0h, 0 at 96h
+      const ttiScore = avgHoursToInvoice === null ? null : Math.max(0, Math.min(100, Math.round(100 - (avgHoursToInvoice / 96) * 100)));
+      // Backlog score: 100 if 0, 0 if 20+
+      const backlogScore = Math.max(0, Math.min(100, Math.round(100 - (backlogCount / 20) * 100)));
+
+      const components: { v: number; w: number }[] = [];
+      if (ttiScore !== null) components.push({ v: ttiScore, w: 30 });
+      if (collectionPct !== null) components.push({ v: collectionPct, w: 25 });
+      if (accuracyPct !== null) components.push({ v: accuracyPct, w: 20 });
+      components.push({ v: backlogScore, w: 15 });
+      components.push({ v: timelogCompletion, w: 10 });
+      const totalW = components.reduce((s, c) => s + c.w, 0);
+      const efficiency = totalW > 0
+        ? Math.round(components.reduce((s, c) => s + c.v * c.w, 0) / totalW)
+        : 0;
+
+      return {
+        invoicesIssued,
+        totalInvoiced,
+        avgHoursToInvoice,
+        backlogCount,
+        collectionPct,
+        accuracyPct,
+        timelogCompletion,
+        volumePct,
+        hasGoal: !!monthlyInvoiceGoal,
+        efficiency,
+      };
+    },
+  });
+}
+
+// Accounting monthly chart: invoices issued by user, by month
+function useAccountingChart(userId: string, year: number) {
+  return useQuery({
+    queryKey: ["user-accounting-chart", userId, year],
+    enabled: !!userId,
+    queryFn: async () => {
+      const yearStart = `${year}-01-01`;
+      const yearEnd = `${year}-12-31T23:59:59`;
+      const { data: invoices } = await supabase
+        .from("invoices")
+        .select("total_due, created_at, billing_request_id")
+        .eq("created_by", userId)
+        .gte("created_at", yearStart)
+        .lte("created_at", yearEnd);
+      const invList = invoices || [];
+      const reqIds = invList.map((i) => i.billing_request_id).filter(Boolean) as string[];
+      const reqMap = new Map<string, number>();
+      if (reqIds.length > 0) {
+        const { data: reqs } = await supabase
+          .from("billing_requests")
+          .select("id, created_at")
+          .in("id", reqIds);
+        for (const r of (reqs || [])) reqMap.set((r as any).id, new Date((r as any).created_at).getTime());
+      }
+      return MONTHS.map((m, idx) => {
+        const monthInvs = invList.filter((i) => new Date(i.created_at).getMonth() === idx);
+        const billed = monthInvs.reduce((s, i) => s + (Number(i.total_due) || 0), 0);
+        const diffs: number[] = [];
+        for (const inv of monthInvs) {
+          if (!inv.billing_request_id) continue;
+          const start = reqMap.get(inv.billing_request_id);
+          if (!start) continue;
+          diffs.push((new Date(inv.created_at).getTime() - start) / (1000 * 60 * 60));
+        }
+        const avgHours = diffs.length > 0
+          ? Math.round((diffs.reduce((s, d) => s + d, 0) / diffs.length) * 10) / 10
+          : null;
+        return { month: m, count: monthInvs.length, billed: Math.round(billed), avgHours };
+      });
+    },
+  });
+}
+
 function useUserBillingStats(userId: string, period: Period, monthlyGoal: number | null, bonusTiers?: BonusTier[]) {
   const range = getPeriodRange(period);
 
@@ -687,11 +860,16 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
   });
   const bonusTiers: BonusTier[] = companySettings?.bonus_tiers || DEFAULT_BONUS_TIERS;
 
+  const metricKind = getMetricProfile(user.role as string);
+  const goalLabel = metricKind === "accounting" ? "Monthly Invoices Goal" : "Monthly Goal ($)";
+
   const { data: stats, isLoading: statsLoading } = useUserBillingStats(user.id, period, monthlyGoal, bonusTiers);
+  const { data: acctStats, isLoading: acctStatsLoading } = useAccountingStats(user.id, period, metricKind === "accounting" ? monthlyGoal : null);
   const { data: proposals = [], isLoading: proposalsLoading } = useUserProposals(user.id);
   const { data: projects = [], isLoading: projectsLoading } = useUserProjects(user.id);
   const { data: empReviews = [], isLoading: reviewsLoading, refetch: refetchReviews } = useEmployeeReviews(user.id);
   const { data: chartData, isLoading: chartLoading } = useUserBillingChart(user.id, chartYear, monthlyGoal);
+  const { data: acctChart, isLoading: acctChartLoading } = useAccountingChart(user.id, chartYear);
 
   // Proposals stats
   const totalProposals = proposals.length;
@@ -818,7 +996,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                   {isViewerAdmin && monthlyGoal && (
                     <div className="flex items-center gap-2">
                       <Target className="h-4 w-4 text-muted-foreground" />
-                      <span>Goal: ${monthlyGoal.toLocaleString()}/mo</span>
+                      <span>{metricKind === "accounting" ? `Goal: ${monthlyGoal} invoices/mo` : `Goal: $${monthlyGoal.toLocaleString()}/mo`}</span>
                     </div>
                   )}
                   <div className="flex items-center gap-2 text-muted-foreground">
@@ -881,8 +1059,8 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <Label className="text-xs">Monthly Goal ($)</Label>
-                    <Input className="h-8 text-xs" type="number" placeholder="33000" value={editForm.monthly_goal} onChange={(e) => setEditForm({ ...editForm, monthly_goal: e.target.value })} />
+                    <Label className="text-xs">{goalLabel}</Label>
+                    <Input className="h-8 text-xs" type="number" placeholder={metricKind === "accounting" ? "40" : "33000"} value={editForm.monthly_goal} onChange={(e) => setEditForm({ ...editForm, monthly_goal: e.target.value })} />
                   </div>
                   <div>
                     <Label className="text-xs">Weekly Goal ($)</Label>
@@ -947,62 +1125,126 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
               </div>
             </CardHeader>
             <CardContent>
-              {statsLoading ? (
+              {(metricKind === "accounting" ? acctStatsLoading : statsLoading) ? (
                 <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-              ) : (() => {
-                // Use mock data when no real stats or no goal
-                const hasRealData = stats && (stats.totalBilled > 0 || stats.totalHours > 0);
-                const mockStats = { billingPct: 69, timelogCompletion: 87, efficiency: 72, potentialBonus: 0, hasGoal: true, nonBillableCOTotal: 0, accuracyPct: null };
-                const displayStats = hasRealData ? stats : { ...stats, ...mockStats };
-                const isMock = !hasRealData;
-                return (
-                  <>
-                    {isMock && <p className="text-xs text-muted-foreground italic mb-2">Showing sample data for preview.</p>}
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      <StatCard
-                        icon={Target}
-                        label="Billing %"
-                        value={displayStats?.hasGoal ? displayStats.billingPct : "—"}
-                        suffix={displayStats?.hasGoal ? "%" : ""}
-                        tooltip="Total invoiced on your projects ÷ Monthly Goal (× number of months in period). Example: $50k billed ÷ $40k goal = 125%."
-                      />
-                      <StatCard
-                        icon={AlertCircle}
-                        label="Non-Billable COs"
-                        value={`$${(displayStats?.nonBillableCOTotal || 0).toLocaleString()}`}
-                        tooltip="Sum of change orders marked as non-billable (internal mistakes) on your projects during the selected period."
-                      />
-                      <StatCard
-                        icon={CheckCircle}
-                        label="Timelog Completion"
-                        value={displayStats?.timelogCompletion || 0}
-                        suffix="%"
-                        tooltip="Days with time entries ÷ Days clocked in. If you clocked in 20 days and logged time on 15, completion = 75%."
-                      />
-                      <StatCard
-                        icon={BarChart3}
-                        label="Accuracy"
-                        value={displayStats?.accuracyPct !== null && displayStats?.accuracyPct !== undefined ? displayStats.accuracyPct : "—"}
-                        suffix={displayStats?.accuracyPct !== null && displayStats?.accuracyPct !== undefined ? "%" : ""}
-                        tooltip="% of assigned services completed on or before their estimated completion date. Requires services with both a due date and completion date."
-                      />
-                      <StatCard
-                        icon={Zap}
-                        label="Efficiency Rating"
-                        value={displayStats?.efficiency || 0}
-                        suffix="%"
-                        tooltip="Weighted composite: Billing % × 40% + Timelog Completion × 30% + Accuracy × 23% + Non-Billable CO factor × 7%. When Accuracy has no data, weights redistribute to Billing 53% + Timelog 40% + CO 7%."
-                      />
-                      <StatCard
-                        icon={Award}
-                        label="Potential Bonus"
-                        value={`$${displayStats?.potentialBonus || 0}`}
-                        tooltip="Based on Billing % tiers: 100–110% → $250, 111–125% → $500, 126%+ → $1,000. Tiers are configurable in Settings → Invoices & Billing."
-                      />
-                    </div>
-                  </>
-                );
-              })()}
+              ) : metricKind === "accounting" ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <StatCard
+                    icon={FileText}
+                    label="Invoices Issued"
+                    value={acctStats?.invoicesIssued ?? 0}
+                    suffix={acctStats?.hasGoal && acctStats?.volumePct !== null ? ` / ${acctStats.volumePct}%` : ""}
+                    tooltip="Count of invoices this user created in the selected period. Goal % is vs. Monthly Invoices Goal × number of months."
+                  />
+                  <StatCard
+                    icon={DollarSign}
+                    label="$ Invoiced"
+                    value={`$${(acctStats?.totalInvoiced || 0).toLocaleString()}`}
+                    tooltip="Total amount on invoices this user created in the selected period."
+                  />
+                  <StatCard
+                    icon={Clock}
+                    label="Avg Time to Invoice"
+                    value={acctStats?.avgHoursToInvoice === null || acctStats?.avgHoursToInvoice === undefined ? "—" : acctStats.avgHoursToInvoice}
+                    suffix={acctStats?.avgHoursToInvoice !== null && acctStats?.avgHoursToInvoice !== undefined ? "h" : ""}
+                    tooltip="Average hours between a PM submitting a billing request and this user issuing the invoice. Target: ≤48h."
+                  />
+                  <StatCard
+                    icon={AlertCircle}
+                    label="Backlog"
+                    value={acctStats?.backlogCount ?? 0}
+                    tooltip="Live count of pending billing requests older than 2 days across the company. Not period-bound."
+                  />
+                  <StatCard
+                    icon={Target}
+                    label="Collection Rate"
+                    value={acctStats?.collectionPct === null || acctStats?.collectionPct === undefined ? "—" : acctStats.collectionPct}
+                    suffix={acctStats?.collectionPct !== null && acctStats?.collectionPct !== undefined ? "%" : ""}
+                    tooltip="$ paid ÷ $ invoiced for invoices this user issued that are 30+ days old."
+                  />
+                  <StatCard
+                    icon={CheckCircle}
+                    label="Timelog Completion"
+                    value={acctStats?.timelogCompletion ?? 0}
+                    suffix="%"
+                    tooltip="Days with time entries ÷ Days clocked in."
+                  />
+                  <StatCard
+                    icon={BarChart3}
+                    label="Invoice Accuracy"
+                    value={acctStats?.accuracyPct === null || acctStats?.accuracyPct === undefined ? "—" : acctStats.accuracyPct}
+                    suffix={acctStats?.accuracyPct !== null && acctStats?.accuracyPct !== undefined ? "%" : ""}
+                    tooltip="% of invoices this user issued that did NOT receive a dispute."
+                  />
+                  <StatCard
+                    icon={Zap}
+                    label="Efficiency Rating"
+                    value={acctStats?.efficiency ?? 0}
+                    suffix="%"
+                    tooltip="Weighted composite: Time-to-Invoice 30% + Collection 25% + Accuracy 20% + Backlog cleared 15% + Timelog 10%. Components with no data are skipped and remaining weights re-normalize."
+                  />
+                </div>
+              ) : metricKind === "generic" ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <StatCard
+                    icon={CheckCircle}
+                    label="Timelog Completion"
+                    value={stats?.timelogCompletion ?? 0}
+                    suffix="%"
+                    tooltip="Days with time entries ÷ Days clocked in."
+                  />
+                  <StatCard
+                    icon={BarChart3}
+                    label="Accuracy"
+                    value={stats?.accuracyPct === null || stats?.accuracyPct === undefined ? "—" : stats.accuracyPct}
+                    suffix={stats?.accuracyPct !== null && stats?.accuracyPct !== undefined ? "%" : ""}
+                    tooltip="% of assigned services completed on or before their estimated completion date."
+                  />
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <StatCard
+                    icon={Target}
+                    label="Billing %"
+                    value={stats?.hasGoal ? stats.billingPct : "—"}
+                    suffix={stats?.hasGoal ? "%" : ""}
+                    tooltip="Total invoiced on projects where this user is PM or Senior PM ÷ Monthly Goal (× number of months). Counts invoices regardless of who created them."
+                  />
+                  <StatCard
+                    icon={AlertCircle}
+                    label="Non-Billable COs"
+                    value={`$${(stats?.nonBillableCOTotal || 0).toLocaleString()}`}
+                    tooltip="Sum of change orders marked as non-billable (internal mistakes) on this user's projects during the selected period. Counts COs on projects regardless of who logged them."
+                  />
+                  <StatCard
+                    icon={CheckCircle}
+                    label="Timelog Completion"
+                    value={stats?.timelogCompletion ?? 0}
+                    suffix="%"
+                    tooltip="Days with time entries ÷ Days clocked in."
+                  />
+                  <StatCard
+                    icon={BarChart3}
+                    label="Accuracy"
+                    value={stats?.accuracyPct === null || stats?.accuracyPct === undefined ? "—" : stats.accuracyPct}
+                    suffix={stats?.accuracyPct !== null && stats?.accuracyPct !== undefined ? "%" : ""}
+                    tooltip="% of assigned services completed on or before their estimated completion date."
+                  />
+                  <StatCard
+                    icon={Zap}
+                    label="Efficiency Rating"
+                    value={stats?.efficiency ?? 0}
+                    suffix="%"
+                    tooltip="Weighted composite: Billing % × 40% + Timelog × 30% + Accuracy × 23% + Non-Billable CO factor × 7%. When Accuracy has no data, weights redistribute to Billing 53% + Timelog 40% + CO 7%."
+                  />
+                  <StatCard
+                    icon={Award}
+                    label="Potential Bonus"
+                    value={`$${stats?.potentialBonus || 0}`}
+                    tooltip="Based on Billing % tiers: 100–110% → $250, 111–125% → $500, 126%+ → $1,000."
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -1032,7 +1274,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                 {/* Billing Tab */}
                 <TabsContent value="billing" className="mt-4 space-y-4">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-medium">Monthly Billing</h4>
+                    <h4 className="text-sm font-medium">{metricKind === "accounting" ? "Billing Activity" : "Monthly Billing"}</h4>
                     <Select value={String(chartYear)} onValueChange={(v) => setChartYear(Number(v))}>
                       <SelectTrigger className="w-[100px] h-8 text-xs">
                         <SelectValue />
@@ -1045,26 +1287,71 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                     </Select>
                   </div>
 
-                  {chartLoading ? (
+                  {metricKind === "accounting" ? (
+                    acctChartLoading ? (
+                      <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+                    ) : !acctChart || acctChart.every((d) => d.count === 0) ? (
+                      <Card className="border-dashed">
+                        <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                          No invoices issued by this user in {chartYear}.
+                          <p className="text-xs mt-1">Invoices generated from billing requests will appear here.</p>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <>
+                        <div className="h-[280px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <ComposedChart data={acctChart}>
+                              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                              <XAxis dataKey="month" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
+                              <YAxis yAxisId="left" className="text-xs" tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
+                              <YAxis yAxisId="right" orientation="right" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
+                              <RechartsTooltip
+                                contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: 12 }}
+                              />
+                              <Legend wrapperStyle={{ fontSize: 11 }} />
+                              <Bar yAxisId="left" dataKey="billed" fill="hsl(var(--primary))" name="$ Invoiced" radius={[4, 4, 0, 0]} />
+                              <Line yAxisId="right" type="monotone" dataKey="count" stroke="hsl(142 71% 45%)" name="Invoices" strokeWidth={2} />
+                            </ComposedChart>
+                          </ResponsiveContainer>
+                        </div>
+
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Month</TableHead>
+                              <TableHead className="text-right">Invoices</TableHead>
+                              <TableHead className="text-right">$ Invoiced</TableHead>
+                              <TableHead className="text-right">Avg Time to Invoice</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {acctChart.map((d) => (
+                              <TableRow key={d.month}>
+                                <TableCell className="text-sm">{d.month}</TableCell>
+                                <TableCell className="text-right tabular-nums text-sm">{d.count}</TableCell>
+                                <TableCell className="text-right tabular-nums text-sm">${d.billed.toLocaleString()}</TableCell>
+                                <TableCell className="text-right tabular-nums text-sm">{d.avgHours === null ? "—" : `${d.avgHours}h`}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </>
+                    )
+                  ) : chartLoading ? (
                     <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-                  ) : (() => {
-                    const mockChartData = MONTHS.map((m, i) => ({
-                      month: m,
-                      billed: Math.round(18000 + Math.random() * 25000),
-                      estimated: Math.round(15000 + Math.random() * 20000),
-                      goal: 33000,
-                      qty: Math.floor(2 + Math.random() * 6),
-                      goalPct: Math.round(50 + Math.random() * 80),
-                    }));
-                    const hasRealChart = chartData && chartData.some((d) => d.billed > 0 || d.estimated > 0);
-                    const displayChart = hasRealChart ? chartData : mockChartData;
-                    const isMockChart = !hasRealChart;
-                    return displayChart ? (
+                  ) : !chartData || !chartData.some((d) => d.billed > 0 || d.estimated > 0) ? (
+                    <Card className="border-dashed">
+                      <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                        No billing recorded for {chartYear}.
+                        <p className="text-xs mt-1">Invoices on projects where this user is PM or Senior PM will appear here.</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
                     <>
-                      {isMockChart && <p className="text-xs text-muted-foreground italic mb-2">Showing sample billing data for preview.</p>}
                       <div className="h-[280px]">
                         <ResponsiveContainer width="100%" height="100%">
-                          <ComposedChart data={displayChart}>
+                          <ComposedChart data={chartData}>
                             <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                             <XAxis dataKey="month" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
                             <YAxis className="text-xs" tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
@@ -1091,7 +1378,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {displayChart.map((d) => (
+                          {chartData.map((d) => (
                             <TableRow key={d.month}>
                               <TableCell className="text-sm">{d.month}</TableCell>
                               <TableCell className="text-right tabular-nums text-sm">{d.qty}</TableCell>
@@ -1107,8 +1394,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                         </TableBody>
                       </Table>
                     </>
-                    ) : null;
-                  })()}
+                  )}
                 </TabsContent>
 
                 {/* Proposals Tab */}
@@ -1223,53 +1509,27 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
 
                   {reviewsLoading ? (
                     <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-                  ) : (() => {
-                    // Mock data when no real reviews exist
-                    const mockReviews = [
-                      {
-                        id: "mock-1",
-                        review_period: "2026-01-01",
-                        overall_rating: 82,
-                        previous_rating: 75,
-                        raise_pct: 3,
-                        category_ratings: { "Technical Knowledge": 4, "Quality of Work": 4, "Time Management": 3, "Communication": 5, "Initiative": 4, "Teamwork": 4 },
-                        comments: "Strong quarter. Improved communication with clients and consistently hit deadlines. Could improve time management on larger projects.",
-                        reviewer: { display_name: "Sarah Chen", first_name: "Sarah", last_name: "Chen" },
-                        created_at: "2026-01-15T10:00:00Z",
-                      },
-                      {
-                        id: "mock-2",
-                        review_period: "2025-10-01",
-                        overall_rating: 75,
-                        previous_rating: 70,
-                        raise_pct: 2,
-                        category_ratings: { "Technical Knowledge": 4, "Quality of Work": 3, "Time Management": 3, "Communication": 4, "Initiative": 3, "Teamwork": 4 },
-                        comments: "Good progress overall. Technical skills are solid. Needs to focus on proactive problem-solving.",
-                        reviewer: { display_name: "Michael Torres", first_name: "Michael", last_name: "Torres" },
-                        created_at: "2025-10-20T10:00:00Z",
-                      },
-                    ];
-                    const displayReviews = empReviews.length > 0 ? empReviews : mockReviews;
-                    const isMock = empReviews.length === 0;
-
-                    return (
-                      <div className="space-y-3">
-                        {isMock && (
-                          <p className="text-xs text-muted-foreground italic">Showing sample reviews for preview purposes.</p>
-                        )}
-                        {displayReviews.map((r: any) => (
-                          <ReviewCard
-                            key={r.id}
-                            review={r}
-                            isMock={isMock}
-                            isAdmin={isViewerAdmin}
-                            employeeId={user.id}
-                            onUpdate={() => refetchReviews()}
-                          />
-                        ))}
-                      </div>
-                    );
-                  })()}
+                  ) : empReviews.length === 0 ? (
+                    <Card className="border-dashed">
+                      <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                        No performance reviews yet.
+                        {isViewerAdmin && <p className="text-xs mt-1">Add the first review using the button above.</p>}
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="space-y-3">
+                      {empReviews.map((r: any) => (
+                        <ReviewCard
+                          key={r.id}
+                          review={r}
+                          isMock={false}
+                          isAdmin={isViewerAdmin}
+                          employeeId={user.id}
+                          onUpdate={() => refetchReviews()}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </TabsContent>
               </Tabs>
             </CardContent>
