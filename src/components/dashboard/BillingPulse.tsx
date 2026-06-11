@@ -6,6 +6,7 @@ import { formatCompactCurrency } from "@/lib/utils";
 import { TrendingUp, TrendingDown, Minus, Inbox, Calendar } from "lucide-react";
 import { ResponsiveContainer, LineChart, Line, Tooltip } from "recharts";
 import { useNavigate } from "react-router-dom";
+import { InfoTooltip } from "./InfoTooltip";
 
 interface Props {
   scope?: BillingPulseScope;
@@ -53,7 +54,17 @@ export function BillingPulse({ scope = "company", title, compact = false }: Prop
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-base">{heading}</CardTitle>
+        <CardTitle className="text-base flex items-center gap-1.5">
+          {heading}
+          <InfoTooltip>
+            Tracks billing pace against this week's and this month's goal.
+            <strong> This Week / This Month</strong> = billing requests created in that
+            window (excluding cancelled). <strong>Pace %</strong> compares actual
+            vs expected at this point in the period. <strong>Projected</strong> extrapolates
+            current pace to month-end. <strong>Ready to invoice</strong> counts services
+            flagged ready that have no open billing request.
+          </InfoTooltip>
+        </CardTitle>
         {!hasGoals && (
           <span className="text-xs text-muted-foreground">
             No goal set ·{" "}

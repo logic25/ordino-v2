@@ -17,6 +17,8 @@ import { format, differenceInDays, parseISO } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ComposeEmailDialog } from "@/components/emails/ComposeEmailDialog";
+import { DrillInModal } from "./DrillInModal";
+import { useDrilldownList } from "@/hooks/useDrilldownList";
 
 export function ProposalFollowUps() {
   const navigate = useNavigate();
@@ -30,6 +32,8 @@ export function ProposalFollowUps() {
   const [composeSubject, setComposeSubject] = useState("");
   const [composeBody, setComposeBody] = useState("");
   const [draftingId, setDraftingId] = useState<string | null>(null);
+  const [drillOpen, setDrillOpen] = useState(false);
+  const drill = useDrilldownList("proposal-followups", { enabled: drillOpen });
 
   const handleDraftFollowUp = async (proposal: any) => {
     setDraftingId(proposal.id);
@@ -95,9 +99,11 @@ export function ProposalFollowUps() {
           <Bell className="h-4 w-4 text-accent-foreground" />
           Proposals to Follow Up
           {proposals.length > 0 && (
-            <Badge variant="destructive" className="ml-auto text-xs">
-              {proposals.length}
-            </Badge>
+            <button onClick={() => setDrillOpen(true)} className="ml-auto">
+              <Badge variant="destructive" className="text-xs cursor-pointer hover:opacity-80">
+                {proposals.length}
+              </Badge>
+            </button>
           )}
         </CardTitle>
         <CardDescription>Sent proposals that need your attention</CardDescription>
@@ -207,6 +213,15 @@ export function ProposalFollowUps() {
         defaultTo={composeTo}
         defaultSubject={composeSubject}
         defaultBody={composeBody}
+      />
+
+      <DrillInModal
+        open={drillOpen}
+        onOpenChange={setDrillOpen}
+        title="Proposals to Follow Up"
+        description="Sent proposals past their next follow-up date."
+        loading={drill.isLoading}
+        rows={drill.data || []}
       />
     </Card>
   );

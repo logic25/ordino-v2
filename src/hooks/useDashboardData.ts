@@ -658,22 +658,44 @@ export function useActiveProjectsKpi() {
   });
 }
 
-/** Active proposals: sent + signed_client, plus $ in flight */
+/**
+ * Proposals Written momentum: count created this calendar month vs last month,
+ * plus dollars currently in flight (sent + signed) as a secondary signal.
+ */
 export function useActiveProposalsKpi() {
   const { profile } = useAuth();
   return useQuery({
     queryKey: ["kpi-active-proposals", profile?.company_id],
     enabled: !!profile?.company_id,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("proposals")
-        .select("id, total_amount, status")
-        .eq("company_id", profile!.company_id!)
-        .in("status", ["sent", "signed_client"]);
-      const rows = data || [];
-      const value = rows.length;
-      const inFlight = rows.reduce((s: number, p: any) => s + (Number(p.total_amount) || 0), 0);
-      return { value, inFlight };
+      const companyId = profile!.company_id!;
+      const { start, end, prevStart } = monthBounds();
+      const [thisMonth, lastMonth, inFlightRes] = await Promise.all([
+        supabase
+          .from("proposals")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", companyId)
+          .gte("created_at", start.toISOString())
+          .lt("created_at", end.toISOString()),
+        supabase
+          .from("proposals")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", companyId)
+          .gte("created_at", prevStart.toISOString())
+          .lt("created_at", start.toISOString()),
+        supabase
+          .from("proposals")
+          .select("total_amount")
+          .eq("company_id", companyId)
+          .in("status", ["sent", "signed_client"]),
+      ]);
+      const value = thisMonth.count ?? 0;
+      const prior = lastMonth.count ?? 0;
+      const inFlight = (inFlightRes.data || []).reduce(
+        (s: number, p: any) => s + (Number(p.total_amount) || 0),
+        0
+      );
+      return { value, delta: value - prior, inFlight };
     },
   });
 }

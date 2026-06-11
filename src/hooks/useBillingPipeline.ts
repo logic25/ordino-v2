@@ -19,6 +19,16 @@ export interface BillingPipelineRow {
 
 export type PipelineScope = "company" | "self-pm";
 
+/**
+ * Upcoming Billing Pipeline:
+ * Services on OPEN projects that still have a remaining balance and an
+ * estimated bill date, excluding services already attached to an open
+ * (pending/approved) billing request.
+ *
+ * Statuses considered "billable upcoming": in_progress, billed.
+ * (We include 'billed' because in some workflows it means "marked ready to bill"
+ * with a partial balance still open.)
+ */
 export function useBillingPipeline(scope: PipelineScope = "company") {
   const { profile } = useAuth() as any;
   return useQuery({
@@ -28,21 +38,21 @@ export function useBillingPipeline(scope: PipelineScope = "company") {
     queryFn: async (): Promise<BillingPipelineRow[]> => {
       const companyId = profile.company_id as string;
 
-      // "Upcoming billing" = deliverables marked `billed` (ready-to-invoice)
-      // with remaining balance and no open billing request yet.
       const q = supabase
         .from("services")
         .select(`
           id, name, status, estimated_bill_date, bill_date_source,
-          total_amount, billed_amount, fixed_price,
+          total_amount, billed_amount, fixed_price, is_reimbursable,
           project_id,
-          projects!inner(id, project_number, name, assigned_pm_id, company_id,
+          projects!inner(id, project_number, name, assigned_pm_id, company_id, status,
             clients(name),
             assigned_pm:profiles!projects_assigned_pm_id_fkey(id, first_name, last_name, display_name)
           )
         `)
         .eq("projects.company_id", companyId)
-        .eq("status", "billed");
+        .eq("projects.status", "open")
+        .in("status", ["in_progress", "billed"])
+        .not("estimated_bill_date", "is", null);
 
       const [{ data, error }, openBR] = await Promise.all([
         q,
@@ -54,7 +64,7 @@ export function useBillingPipeline(scope: PipelineScope = "company") {
       ]);
       if (error) throw error;
 
-      // Build set of service ids already attached to an open billing request
+      // Service ids already in an open billing request
       const tiedUp = new Set<string>();
       (openBR.data || []).forEach((br: any) => {
         const list = Array.isArray(br.services) ? br.services : [];
@@ -91,7 +101,12 @@ export function useBillingPipeline(scope: PipelineScope = "company") {
             client_name: s.projects?.clients?.name ?? null,
           };
         })
-        .filter((r) => r.amount > 0 && !tiedUp.has(r.id));
+        .filter((r) => r.amount > 0 && !tiedUp.has(r.id))
+        .sort((a, b) => {
+          const da = a.estimated_bill_date || "9999";
+          const db = b.estimated_bill_date || "9999";
+          return da.localeCompare(db);
+        });
 
       if (scope === "self-pm") {
         return rows.filter((r) => r.pm_id === profile.id);
