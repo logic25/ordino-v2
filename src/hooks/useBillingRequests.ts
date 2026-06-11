@@ -330,6 +330,21 @@ export function usePendingBillingCount() {
   });
 }
 
+/** Sum of pending billing request amounts */
+export function usePendingBillingTotal() {
+  return useQuery({
+    queryKey: ["billing-pending-total"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("billing_requests")
+        .select("total_amount")
+        .eq("status", "pending");
+      if (error) throw error;
+      return (data || []).reduce((s: number, r: any) => s + (Number(r.total_amount) || 0), 0);
+    },
+  });
+}
+
 export async function triggerBillingNotifications(billingRequest: any) {
   try {
     // Get notification preferences for this company
