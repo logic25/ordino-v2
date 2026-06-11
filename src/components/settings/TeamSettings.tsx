@@ -1274,7 +1274,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                 {/* Billing Tab */}
                 <TabsContent value="billing" className="mt-4 space-y-4">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-medium">Monthly Billing</h4>
+                    <h4 className="text-sm font-medium">{metricKind === "accounting" ? "Billing Activity" : "Monthly Billing"}</h4>
                     <Select value={String(chartYear)} onValueChange={(v) => setChartYear(Number(v))}>
                       <SelectTrigger className="w-[100px] h-8 text-xs">
                         <SelectValue />
@@ -1287,26 +1287,71 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                     </Select>
                   </div>
 
-                  {chartLoading ? (
+                  {metricKind === "accounting" ? (
+                    acctChartLoading ? (
+                      <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+                    ) : !acctChart || acctChart.every((d) => d.count === 0) ? (
+                      <Card className="border-dashed">
+                        <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                          No invoices issued by this user in {chartYear}.
+                          <p className="text-xs mt-1">Invoices generated from billing requests will appear here.</p>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <>
+                        <div className="h-[280px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <ComposedChart data={acctChart}>
+                              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                              <XAxis dataKey="month" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
+                              <YAxis yAxisId="left" className="text-xs" tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
+                              <YAxis yAxisId="right" orientation="right" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
+                              <RechartsTooltip
+                                contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: 12 }}
+                              />
+                              <Legend wrapperStyle={{ fontSize: 11 }} />
+                              <Bar yAxisId="left" dataKey="billed" fill="hsl(var(--primary))" name="$ Invoiced" radius={[4, 4, 0, 0]} />
+                              <Line yAxisId="right" type="monotone" dataKey="count" stroke="hsl(142 71% 45%)" name="Invoices" strokeWidth={2} />
+                            </ComposedChart>
+                          </ResponsiveContainer>
+                        </div>
+
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Month</TableHead>
+                              <TableHead className="text-right">Invoices</TableHead>
+                              <TableHead className="text-right">$ Invoiced</TableHead>
+                              <TableHead className="text-right">Avg Time to Invoice</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {acctChart.map((d) => (
+                              <TableRow key={d.month}>
+                                <TableCell className="text-sm">{d.month}</TableCell>
+                                <TableCell className="text-right tabular-nums text-sm">{d.count}</TableCell>
+                                <TableCell className="text-right tabular-nums text-sm">${d.billed.toLocaleString()}</TableCell>
+                                <TableCell className="text-right tabular-nums text-sm">{d.avgHours === null ? "—" : `${d.avgHours}h`}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </>
+                    )
+                  ) : chartLoading ? (
                     <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-                  ) : (() => {
-                    const mockChartData = MONTHS.map((m, i) => ({
-                      month: m,
-                      billed: Math.round(18000 + Math.random() * 25000),
-                      estimated: Math.round(15000 + Math.random() * 20000),
-                      goal: 33000,
-                      qty: Math.floor(2 + Math.random() * 6),
-                      goalPct: Math.round(50 + Math.random() * 80),
-                    }));
-                    const hasRealChart = chartData && chartData.some((d) => d.billed > 0 || d.estimated > 0);
-                    const displayChart = hasRealChart ? chartData : mockChartData;
-                    const isMockChart = !hasRealChart;
-                    return displayChart ? (
+                  ) : !chartData || !chartData.some((d) => d.billed > 0 || d.estimated > 0) ? (
+                    <Card className="border-dashed">
+                      <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                        No billing recorded for {chartYear}.
+                        <p className="text-xs mt-1">Invoices on projects where this user is PM or Senior PM will appear here.</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
                     <>
-                      {isMockChart && <p className="text-xs text-muted-foreground italic mb-2">Showing sample billing data for preview.</p>}
                       <div className="h-[280px]">
                         <ResponsiveContainer width="100%" height="100%">
-                          <ComposedChart data={displayChart}>
+                          <ComposedChart data={chartData}>
                             <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                             <XAxis dataKey="month" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
                             <YAxis className="text-xs" tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
@@ -1333,7 +1378,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {displayChart.map((d) => (
+                          {chartData.map((d) => (
                             <TableRow key={d.month}>
                               <TableCell className="text-sm">{d.month}</TableCell>
                               <TableCell className="text-right tabular-nums text-sm">{d.qty}</TableCell>
@@ -1349,8 +1394,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                         </TableBody>
                       </Table>
                     </>
-                    ) : null;
-                  })()}
+                  )}
                 </TabsContent>
 
                 {/* Proposals Tab */}
