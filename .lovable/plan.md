@@ -1,48 +1,26 @@
-# Admin Access, Conversion CO Column, Tooltips
+# Reports — admin-only tab gating
 
-Tackling items 1–4 from the open list. Digest (#7), Pro Cert (#5), and Prediction Accuracy dashboard (#6) stay parked.
+## Recommendation
 
-## 1. Fix admin access (root cause — affects #3 and #4)
+Keep `/reports` accessible to everyone, but hide three tabs from non-admins. These are the only ones that expose company-wide financial/partner/subscription data a PM doesn't need:
 
-**Diagnosis:** 3 users have `profiles.role = 'admin'` (Mike, Manny, Chris) but **zero rows in `user_roles`**. The `useIsAdmin()` hook and most RLS policies key off `user_roles`, not `profiles.role` — so these admins are silently treated as staff. That's why team-member profiles aren't clickable and Service Catalog edits get blocked by RLS.
+- **Referrals** — partner $ rankings, conversion value tiers
+- **Data Exports** — bulk CSV dumps of clients, projects, invoices, time
+- **CitiSignal** — subscription costs, trial usage, billing exposure
 
-**Fix:**
-- One-time data backfill: insert a `user_roles` row with `role = 'admin'` for every profile where `profiles.role = 'admin'` and no admin user_role exists, scoped to their `company_id`.
-- Add a DB trigger on `profiles` insert/update so any future profile flipped to `role = 'admin'` automatically gets a matching `user_roles` row (and removed when demoted). Prevents this drift from recurring.
-- No frontend changes needed — the gates already work, they just had no data.
+All other tabs (Projects, Billing, Open Services, Service Level, Time, Proposals, Operations) stay visible to staff — PMs already see project $ and billing context elsewhere in the app, so hiding those here would just create friction without adding security.
 
-## 2. Proposal Conversion table — add "Converted COs" column (#1)
+## Changes
 
-In `ProposalConversionTable.tsx` → `ProposalsTab`:
-- Extend `useProposalConversionRates` to also query `change_orders` for the same year (filter by `company_id`, `client_signed_at` not null, sum `amount`). Bucket by `client_signed_at` month.
-- Add `convertedCOValue` to `ProposalConversionRow`.
-- New column **"Change Orders $"** between "Converted $" and end, with month subtotals + year total. Match legacy column position.
-- Row click stays the same (links to `/proposals?month=...`).
+**`src/pages/Reports.tsx`**
+- Import `useIsAdmin` from `@/hooks/useIsAdmin`.
+- Wrap the three `TabsTrigger` entries (`referrals`, `exports`, `signal`) and their matching `TabsContent` blocks in `{isAdmin && ...}`.
+- Non-admins simply don't see the tabs; no route-level redirect needed.
 
-## 3. Service Catalog admin edit (#4)
-
-Once #1's backfill lands, admins will pass the company RLS update policy and saves will succeed. Add a small belt-and-braces UI guard:
-- In `ServiceCatalogSettings.tsx`, gate "Add Service", "Save", and inline edit buttons on `useIsAdmin()`. Non-admins see a read-only view with a tooltip "Admin only". No silent failures.
-
-## 4. Tooltips on major tables (#2)
-
-Reuse the existing `<InfoTooltip>` pattern already in `ProposalConversionTable`. Add a header-cell helper (`<TableHeadWithTip>`) and apply it to:
-- **Dashboard:** Proposal Conversion, Billing by User (already partially done), Open Services, Action Items
-- **Projects** list, **Properties** list, **Clients** list, **Proposals** list, **Invoices** list, **RFPs** list, **Change Orders** list, **Service Catalog** table
-
-Each column gets a one-line plain-English definition (what it is, how it's computed when not obvious). I'll write the copy as I go — no separate review step.
+**Changelog**
+- Insert one `changelog_entries` row per company describing the access change (per Core memory rule).
 
 ## Out of scope
 
-- Pro Cert flag, Prediction Accuracy dashboard, weekly digest delivery — all parked per your last message.
-- Settings tables that aren't user-facing (e.g. role permissions matrix) — not "major".
-
-## Files
-
-- **Migration:** backfill `user_roles` + trigger function
-- **Edit:** `src/hooks/useDashboardData.ts` (add CO query to conversion hook)
-- **Edit:** `src/components/dashboard/ProposalConversionTable.tsx` (new column)
-- **Edit:** `src/components/settings/ServiceCatalogSettings.tsx` (admin gates)
-- **New:** `src/components/ui/table-head-with-tip.tsx` (helper)
-- **Edit:** ~10 table list components for tooltip headers
-- **Changelog:** one entry per shipped item
+- No RLS changes — Data Exports already pulls via existing hooks/RLS; hiding the UI is sufficient for this pass. If you later want server-side enforcement on the export endpoints, that's a separate task.
+- Billing/Proposals tabs stay open to all staff. If you want those admin-only too, say the word and I'll add them.

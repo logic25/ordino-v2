@@ -2,6 +2,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart3 } from "lucide-react";
 import { useTelemetry } from "@/hooks/useTelemetry";
+import { useIsAdmin } from "@/hooks/useUserRoles";
 import ProjectReports from "@/components/reports/ProjectReports";
 import BillingReports from "@/components/reports/BillingReports";
 import TimeReports from "@/components/reports/TimeReports";
@@ -15,6 +16,7 @@ import ServiceLevelReport from "@/components/reports/ServiceLevelReport";
 
 export default function Reports() {
   const { track } = useTelemetry();
+  const isAdmin = useIsAdmin();
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -35,9 +37,9 @@ export default function Reports() {
             <TabsTrigger value="time">Time</TabsTrigger>
             <TabsTrigger value="proposals">Proposals</TabsTrigger>
             <TabsTrigger value="operations">Operations</TabsTrigger>
-            <TabsTrigger value="referrals">Referrals</TabsTrigger>
-            <TabsTrigger value="exports">Data Exports</TabsTrigger>
-            <TabsTrigger value="signal">CitiSignal</TabsTrigger>
+            {isAdmin && <TabsTrigger value="referrals">Referrals</TabsTrigger>}
+            {isAdmin && <TabsTrigger value="exports">Data Exports</TabsTrigger>}
+            {isAdmin && <TabsTrigger value="signal">CitiSignal</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="projects"><ProjectReports /></TabsContent>
@@ -47,9 +49,9 @@ export default function Reports() {
           <TabsContent value="time"><TimeReports /></TabsContent>
           <TabsContent value="proposals"><ProposalReports /></TabsContent>
           <TabsContent value="operations"><OperationsReports /></TabsContent>
-          <TabsContent value="referrals"><ReferralReports /></TabsContent>
-          <TabsContent value="exports"><DataExports /></TabsContent>
-          <TabsContent value="signal"><SignalReports /></TabsContent>
+          {isAdmin && <TabsContent value="referrals"><ReferralReports /></TabsContent>}
+          {isAdmin && <TabsContent value="exports"><DataExports /></TabsContent>}
+          {isAdmin && <TabsContent value="signal"><SignalReports /></TabsContent>}
         </Tabs>
       </div>
     </AppLayout>
