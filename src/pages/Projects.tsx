@@ -403,6 +403,14 @@ export default function Projects() {
         project={editingProject}
         isLoading={createProject.isPending || updateProject.isPending}
       />
+
+      <BulkActionBar
+        count={selectedIds.size}
+        onClear={() => setSelectedIds(new Set())}
+        onSetStatus={(s) => runBulkUpdate({ status: s }, `Status → ${s}`)}
+        onAssignPm={(id) => runBulkUpdate({ assigned_pm_id: id }, id ? "PM assigned" : "PM cleared")}
+        isBusy={bulkBusy}
+      />
     </AppLayout>
   );
 }
