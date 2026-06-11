@@ -16,7 +16,7 @@ import ServiceLevelReport from "@/components/reports/ServiceLevelReport";
 
 export default function Reports() {
   const { track } = useTelemetry();
-  const { isAdmin } = useIsAdmin();
+  const { isAdmin } = { isAdmin: useIsAdmin() };
   return (
     <AppLayout>
       <div className="space-y-6">
