@@ -91,7 +91,7 @@ export function useBillingPipeline(scope: PipelineScope = "company") {
             client_name: s.projects?.clients?.name ?? null,
           };
         })
-        .filter((r) => r.amount > 0);
+        .filter((r) => r.amount > 0 && !tiedUp.has(r.id));
 
       if (scope === "self-pm") {
         return rows.filter((r) => r.pm_id === profile.id);
