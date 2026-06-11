@@ -225,5 +225,6 @@ export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, is
         </TableBody>
       </Table>
     </div>
+    </TooltipProvider>
   );
 }
