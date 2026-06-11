@@ -11,6 +11,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Pencil, Trash2, Eye, FileText } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { ProjectWithRelations } from "@/hooks/useProjects";
 import { useAssignableProfiles } from "@/hooks/useProfiles";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +27,9 @@ interface ProjectTableProps {
   onSendRfi?: (project: ProjectWithRelations) => void;
   isDeleting: boolean;
   isSendingRfi?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
+  onToggleAll?: (ids: string[], select: boolean) => void;
 }
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
