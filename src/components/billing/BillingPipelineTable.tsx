@@ -165,7 +165,7 @@ export function BillingPipelineTable({ scope = "company", title = "Billing Pipel
               {isLoading ? (
                 <tr><td colSpan={7} className="p-6"><Skeleton className="h-32 w-full" /></td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">No services match</td></tr>
+                <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">No billed deliverables waiting for a billing request. New items appear here when a service is marked <span className="font-medium">billed</span>.</td></tr>
               ) : (
                 filtered.slice(0, 200).map((r) => {
                   const overdue = r.estimated_bill_date && new Date(r.estimated_bill_date) < now;
