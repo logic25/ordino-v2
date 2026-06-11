@@ -134,6 +134,179 @@ const DEFAULT_BONUS_TIERS: BonusTier[] = [
   { min_pct: 126, max_pct: 999, amount: 1000 },
 ];
 
+// Role-aware metric profile
+type MetricKind = "pm" | "accounting" | "generic";
+function getMetricProfile(role: string | null | undefined): MetricKind {
+  const r = (role || "").toLowerCase();
+  if (r === "accounting") return "accounting";
+  if (r === "admin" || r === "pm" || r === "senior_pm" || r === "production" || r === "manager") return "pm";
+  return "generic";
+}
+
+// Accounting KPIs: invoices issued, $ invoiced, time-to-invoice, backlog, collection rate
+function useAccountingStats(userId: string, period: Period, monthlyInvoiceGoal: number | null) {
+  const range = getPeriodRange(period);
+  return useQuery({
+    queryKey: ["user-accounting-stats", userId, period, monthlyInvoiceGoal],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data: invoices } = await supabase
+        .from("invoices")
+        .select("id, total_due, created_at, paid_at, payment_amount, billing_request_id, status")
+        .eq("created_by", userId)
+        .gte("created_at", format(range.start, "yyyy-MM-dd"))
+        .lte("created_at", format(range.end, "yyyy-MM-dd'T'23:59:59"));
+
+      const invList = invoices || [];
+      const invoicesIssued = invList.length;
+      const totalInvoiced = invList.reduce((s, i) => s + (Number(i.total_due) || 0), 0);
+
+      const reqIds = invList.map((i) => i.billing_request_id).filter(Boolean) as string[];
+      let avgHoursToInvoice: number | null = null;
+      if (reqIds.length > 0) {
+        const { data: reqs } = await supabase
+          .from("billing_requests")
+          .select("id, created_at")
+          .in("id", reqIds);
+        const reqMap = new Map((reqs || []).map((r: any) => [r.id, new Date(r.created_at).getTime()]));
+        const diffs: number[] = [];
+        for (const inv of invList) {
+          if (!inv.billing_request_id) continue;
+          const start = reqMap.get(inv.billing_request_id);
+          if (!start) continue;
+          diffs.push((new Date(inv.created_at).getTime() - start) / (1000 * 60 * 60));
+        }
+        if (diffs.length > 0) {
+          avgHoursToInvoice = Math.round((diffs.reduce((s, d) => s + d, 0) / diffs.length) * 10) / 10;
+        }
+      }
+
+      const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: backlogRows } = await supabase
+        .from("billing_requests")
+        .select("id")
+        .eq("status", "pending")
+        .lte("created_at", twoDaysAgo);
+      const backlogCount = (backlogRows || []).length;
+
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: agedInvs } = await supabase
+        .from("invoices")
+        .select("total_due, payment_amount")
+        .eq("created_by", userId)
+        .lte("created_at", thirtyDaysAgo);
+      const agedList = agedInvs || [];
+      const agedTotal = agedList.reduce((s, i) => s + (Number(i.total_due) || 0), 0);
+      const agedPaid = agedList.reduce((s, i) => s + (Number(i.payment_amount) || 0), 0);
+      const collectionPct = agedTotal > 0 ? Math.min(100, Math.round((agedPaid / agedTotal) * 100)) : null;
+
+      const invIds = invList.map((i) => i.id);
+      let accuracyPct: number | null = null;
+      if (invIds.length > 0) {
+        const { data: disputes } = await supabase
+          .from("invoice_disputes" as any)
+          .select("invoice_id")
+          .in("invoice_id", invIds);
+        const disputedIds = new Set((disputes || []).map((d: any) => d.invoice_id));
+        accuracyPct = Math.round(((invIds.length - disputedIds.size) / invIds.length) * 100);
+      }
+
+      const { data: attendanceLogs } = await supabase
+        .from("attendance_logs")
+        .select("log_date")
+        .eq("user_id", userId)
+        .gte("log_date", format(range.start, "yyyy-MM-dd"))
+        .lte("log_date", format(range.end, "yyyy-MM-dd"));
+      const daysClockedIn = new Set((attendanceLogs || []).map((a) => a.log_date)).size;
+      const { data: timeEntries } = await supabase
+        .from("activities")
+        .select("activity_date")
+        .eq("user_id", userId)
+        .eq("activity_type", "time_log")
+        .gte("activity_date", format(range.start, "yyyy-MM-dd"))
+        .lte("activity_date", format(range.end, "yyyy-MM-dd"));
+      const daysWithEntries = new Set((timeEntries || []).map((e) => e.activity_date)).size;
+      const timelogCompletion = daysClockedIn > 0 ? Math.min(100, Math.round((daysWithEntries / daysClockedIn) * 100)) : 0;
+
+      const months = period === "this_month" || period === "last_month" ? 1 : period === "last_3" ? 3 : period === "last_6" ? 6 : 12;
+      const effectiveGoal = monthlyInvoiceGoal ? monthlyInvoiceGoal * months : 0;
+      const volumePct = effectiveGoal > 0 ? Math.round((invoicesIssued / effectiveGoal) * 100) : null;
+
+      // Target 48h: score 100 at 0h, 0 at 96h
+      const ttiScore = avgHoursToInvoice === null ? null : Math.max(0, Math.min(100, Math.round(100 - (avgHoursToInvoice / 96) * 100)));
+      // Backlog score: 100 if 0, 0 if 20+
+      const backlogScore = Math.max(0, Math.min(100, Math.round(100 - (backlogCount / 20) * 100)));
+
+      const components: { v: number; w: number }[] = [];
+      if (ttiScore !== null) components.push({ v: ttiScore, w: 30 });
+      if (collectionPct !== null) components.push({ v: collectionPct, w: 25 });
+      if (accuracyPct !== null) components.push({ v: accuracyPct, w: 20 });
+      components.push({ v: backlogScore, w: 15 });
+      components.push({ v: timelogCompletion, w: 10 });
+      const totalW = components.reduce((s, c) => s + c.w, 0);
+      const efficiency = totalW > 0
+        ? Math.round(components.reduce((s, c) => s + c.v * c.w, 0) / totalW)
+        : 0;
+
+      return {
+        invoicesIssued,
+        totalInvoiced,
+        avgHoursToInvoice,
+        backlogCount,
+        collectionPct,
+        accuracyPct,
+        timelogCompletion,
+        volumePct,
+        hasGoal: !!monthlyInvoiceGoal,
+        efficiency,
+      };
+    },
+  });
+}
+
+// Accounting monthly chart: invoices issued by user, by month
+function useAccountingChart(userId: string, year: number) {
+  return useQuery({
+    queryKey: ["user-accounting-chart", userId, year],
+    enabled: !!userId,
+    queryFn: async () => {
+      const yearStart = `${year}-01-01`;
+      const yearEnd = `${year}-12-31T23:59:59`;
+      const { data: invoices } = await supabase
+        .from("invoices")
+        .select("total_due, created_at, billing_request_id")
+        .eq("created_by", userId)
+        .gte("created_at", yearStart)
+        .lte("created_at", yearEnd);
+      const invList = invoices || [];
+      const reqIds = invList.map((i) => i.billing_request_id).filter(Boolean) as string[];
+      const reqMap = new Map<string, number>();
+      if (reqIds.length > 0) {
+        const { data: reqs } = await supabase
+          .from("billing_requests")
+          .select("id, created_at")
+          .in("id", reqIds);
+        for (const r of (reqs || [])) reqMap.set((r as any).id, new Date((r as any).created_at).getTime());
+      }
+      return MONTHS.map((m, idx) => {
+        const monthInvs = invList.filter((i) => new Date(i.created_at).getMonth() === idx);
+        const billed = monthInvs.reduce((s, i) => s + (Number(i.total_due) || 0), 0);
+        const diffs: number[] = [];
+        for (const inv of monthInvs) {
+          if (!inv.billing_request_id) continue;
+          const start = reqMap.get(inv.billing_request_id);
+          if (!start) continue;
+          diffs.push((new Date(inv.created_at).getTime() - start) / (1000 * 60 * 60));
+        }
+        const avgHours = diffs.length > 0
+          ? Math.round((diffs.reduce((s, d) => s + d, 0) / diffs.length) * 10) / 10
+          : null;
+        return { month: m, count: monthInvs.length, billed: Math.round(billed), avgHours };
+      });
+    },
+  });
+}
+
 function useUserBillingStats(userId: string, period: Period, monthlyGoal: number | null, bonusTiers?: BonusTier[]) {
   const range = getPeriodRange(period);
 
