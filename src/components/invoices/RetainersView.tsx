@@ -69,8 +69,15 @@ export function RetainersView() {
     if (!newClientId || !newAmount || !newProjectId) return;
     setCreating(true);
     try {
-      const { data: profile } = await supabase.from("profiles").select("id, company_id").single();
-      if (!profile) throw new Error("No profile");
+      const { data: auth } = await supabase.auth.getUser();
+      const userId = auth?.user?.id;
+      if (!userId) throw new Error("Not signed in");
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, company_id")
+        .eq("id", userId)
+        .maybeSingle();
+      if (!profile?.company_id) throw new Error("No profile found for current user");
 
       const amount = parseFloat(newAmount);
       const project = projects.find((p) => p.id === newProjectId);

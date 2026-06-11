@@ -31,6 +31,22 @@ export interface RetainerTransaction {
   profiles?: { display_name: string } | null;
 }
 
+// Helper: get current user's profile row, properly scoped to auth.uid().
+// Using `.single()` without an id filter breaks under RLS when 0 or >1 rows are visible.
+async function getCurrentProfile(): Promise<{ id: string; company_id: string }> {
+  const { data: auth } = await supabase.auth.getUser();
+  const userId = auth?.user?.id;
+  if (!userId) throw new Error("Not signed in");
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select("id, company_id")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!profile?.company_id) throw new Error("No profile found for current user");
+  return { id: profile.id, company_id: profile.company_id };
+}
+
 export function useRetainers() {
   return useQuery({
     queryKey: ["client-retainers"],
@@ -88,11 +104,7 @@ export function useCreateRetainer() {
       original_amount: number;
       notes?: string;
     }) => {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("company_id, id")
-        .single();
-      if (!profile) throw new Error("No profile");
+      const profile = await getCurrentProfile();
 
       const { data, error } = await supabase
         .from("client_retainers")
@@ -108,7 +120,6 @@ export function useCreateRetainer() {
         .single();
       if (error) throw error;
 
-      // Record deposit transaction
       await supabase.from("retainer_transactions").insert({
         company_id: profile.company_id,
         retainer_id: data.id,
@@ -136,13 +147,8 @@ export function useApplyRetainer() {
       invoice_id: string;
       amount: number;
     }) => {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("company_id, id")
-        .single();
-      if (!profile) throw new Error("No profile");
+      const profile = await getCurrentProfile();
 
-      // Get current retainer balance
       const { data: retainer, error: rErr } = await supabase
         .from("client_retainers")
         .select("current_balance")
@@ -153,7 +159,6 @@ export function useApplyRetainer() {
       const newBalance = retainer.current_balance - payload.amount;
       if (newBalance < 0) throw new Error("Insufficient retainer balance");
 
-      // Update retainer balance
       const newStatus = newBalance === 0 ? "depleted" : "active";
       const { error: uErr } = await supabase
         .from("client_retainers")
@@ -161,7 +166,6 @@ export function useApplyRetainer() {
         .eq("id", payload.retainer_id);
       if (uErr) throw uErr;
 
-      // Record transaction
       const { error: tErr } = await supabase
         .from("retainer_transactions")
         .insert({
@@ -176,7 +180,6 @@ export function useApplyRetainer() {
         });
       if (tErr) throw tErr;
 
-      // Update invoice with retainer info
       const { error: iErr } = await supabase
         .from("invoices")
         .update({
@@ -205,11 +208,7 @@ export function useAddRetainerFunds() {
       amount: number;
       description?: string;
     }) => {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("company_id, id")
-        .single();
-      if (!profile) throw new Error("No profile");
+      const profile = await getCurrentProfile();
 
       const { data: retainer } = await supabase
         .from("client_retainers")

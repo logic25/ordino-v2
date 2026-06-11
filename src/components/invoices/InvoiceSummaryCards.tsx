@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { FileText, Send, AlertTriangle, CheckCircle, Clock, Wallet } from "lucide-react";
+import { FileText, Send, AlertTriangle, CheckCircle, Wallet } from "lucide-react";
 import type { InvoiceStatus, InvoiceCounts } from "@/hooks/useInvoices";
 import type { BillingTab } from "@/components/invoices/InvoiceFilterTabs";
 
@@ -71,15 +71,9 @@ export function InvoiceSummaryCards({ counts, totals, pendingBillingTotal = 0, p
       subtitle: "This month",
       colorClass: "text-success",
     },
-    {
-      key: "needs_review",
-      label: "Needs Review",
-      icon: Clock,
-      amount: totals.needs_review,
-      subtitle: counts.needs_review > 0 ? "Requires action" : "All clear",
-      colorClass: "text-warning",
-    },
   ];
+  // Needs Review intentionally removed as a top-level card — it now lives inside the
+  // "Ready to Invoice" worklist as a filter chip so accounting works it in one place.
 
   if (depositSummary) {
     cards.push({
@@ -94,7 +88,7 @@ export function InvoiceSummaryCards({ counts, totals, pendingBillingTotal = 0, p
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         {cards.map((card) => {
           const Icon = card.icon;
           const isActive = activeFilter === card.key;
