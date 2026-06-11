@@ -40,8 +40,7 @@ export function useBillingPipeline(scope: PipelineScope = "company") {
           )
         `)
         .eq("projects.company_id", companyId)
-        .neq("status", "billed")
-        .neq("status", "cancelled");
+        .not("status", "in", "(billed,paid,dropped)");
 
       const { data, error } = await q;
       if (error) throw error;
