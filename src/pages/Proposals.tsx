@@ -937,6 +937,13 @@ export default function Proposals() {
         defaultSubject={composeSubject}
         defaultBody={composeBody}
       />
+
+      <PostConversionClockInModal
+        open={!!clockInProject}
+        onOpenChange={(open) => { if (!open) setClockInProject(null); }}
+        projectId={clockInProject?.id ?? null}
+        projectName={clockInProject?.name ?? ""}
+      />
     </AppLayout>
   );
 }
