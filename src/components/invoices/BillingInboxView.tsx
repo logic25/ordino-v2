@@ -83,7 +83,7 @@ export function BillingInboxView() {
         id: `sub-${r.id}`,
         kind: "submission",
         date: r.created_at,
-        clientName: r.projects?.clients?.name || r.clients?.name || "—",
+        clientName: (r.projects as any)?.clients?.name || (r as any).clients?.name || "—",
         projectNumber: r.projects?.project_number || "—",
         projectName: r.projects?.name || "",
         address: r.projects?.properties?.address,
