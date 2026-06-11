@@ -21,7 +21,7 @@ import { InvoiceDetailSheet } from "@/components/invoices/InvoiceDetailSheet";
 import { SendInvoiceModal } from "@/components/invoices/SendInvoiceModal";
 import { toast } from "@/hooks/use-toast";
 
-type RowKind = "submission" | "draft" | "ready";
+type RowKind = "submission" | "draft" | "ready" | "needs_review";
 
 interface UnifiedRow {
   id: string;
@@ -36,6 +36,7 @@ interface UnifiedRow {
   amount: number;
   submittedBy?: string;
   invoiceNumber?: string;
+  isDeposit?: boolean;
   request?: BillingRequestWithRelations;
   invoice?: InvoiceWithRelations;
 }
@@ -44,12 +45,14 @@ const KIND_LABELS: Record<RowKind, string> = {
   submission: "Submission",
   draft: "Draft",
   ready: "Ready",
+  needs_review: "Needs Review",
 };
 
 const KIND_CHIP: Record<RowKind, string> = {
   submission: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
   draft: "bg-muted text-muted-foreground border-border",
   ready: "bg-primary/15 text-primary border-primary/30",
+  needs_review: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300 border-yellow-500/30",
 };
 
 type FilterKey = "all" | RowKind;
@@ -58,6 +61,7 @@ export function BillingInboxView() {
   const { data: requests = [], isLoading: reqLoading } = useBillingRequests("pending");
   const { data: drafts = [], isLoading: draftsLoading } = useInvoices("draft");
   const { data: readyInvoices = [], isLoading: readyLoading } = useInvoices("ready_to_send");
+  const { data: reviewInvoices = [], isLoading: reviewLoading } = useInvoices("needs_review");
   const createInvoice = useCreateInvoiceFromRequest();
   const rejectRequest = useRejectBillingRequest();
   const deleteInvoice = useDeleteInvoice();
@@ -68,7 +72,7 @@ export function BillingInboxView() {
   const [sendInvoice, setSendInvoice] = useState<InvoiceWithRelations | null>(null);
   const [filter, setFilter] = useState<FilterKey>("all");
 
-  const isLoading = reqLoading || draftsLoading || readyLoading;
+  const isLoading = reqLoading || draftsLoading || readyLoading || reviewLoading;
 
   const rows = useMemo<UnifiedRow[]>(() => {
     const submissionRows: UnifiedRow[] = requests.map((r) => {
@@ -97,7 +101,7 @@ export function BillingInboxView() {
       };
     });
 
-    const invoiceRows: UnifiedRow[] = [...drafts, ...readyInvoices].map((inv) => {
+    const invoiceRows: UnifiedRow[] = [...drafts, ...readyInvoices, ...reviewInvoices].map((inv) => {
       const services = (inv.line_items || []).map((li: any) => ({
         name: li.description || "Line item",
         description: li.description,
@@ -105,9 +109,13 @@ export function BillingInboxView() {
         rate: Number(li.rate || 0),
         amount: Number(li.amount || 0),
       }));
+      const kind: RowKind =
+        inv.status === "draft" ? "draft"
+        : inv.status === "needs_review" ? "needs_review"
+        : "ready";
       return {
         id: `inv-${inv.id}`,
-        kind: inv.status === "draft" ? "draft" : "ready",
+        kind,
         date: inv.created_at,
         clientName: inv.clients?.name || "—",
         projectNumber: inv.projects?.project_number || "—",
@@ -116,6 +124,7 @@ export function BillingInboxView() {
         servicesLabel: services.map((s) => s.name).join(", ") || `Invoice ${inv.invoice_number}`,
         amount: Number(inv.total_due || 0),
         invoiceNumber: inv.invoice_number,
+        isDeposit: Boolean((inv as any).is_deposit),
         invoice: inv,
       };
     });
@@ -123,13 +132,14 @@ export function BillingInboxView() {
     return [...submissionRows, ...invoiceRows].sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
-  }, [requests, drafts, readyInvoices]);
+  }, [requests, drafts, readyInvoices, reviewInvoices]);
 
   const counts = useMemo(() => ({
     all: rows.length,
     submission: rows.filter((r) => r.kind === "submission").length,
     draft: rows.filter((r) => r.kind === "draft").length,
     ready: rows.filter((r) => r.kind === "ready").length,
+    needs_review: rows.filter((r) => r.kind === "needs_review").length,
   }), [rows]);
 
   const totals = useMemo(() => ({
@@ -137,6 +147,7 @@ export function BillingInboxView() {
     submission: rows.filter((r) => r.kind === "submission").reduce((s, r) => s + r.amount, 0),
     draft: rows.filter((r) => r.kind === "draft").reduce((s, r) => s + r.amount, 0),
     ready: rows.filter((r) => r.kind === "ready").reduce((s, r) => s + r.amount, 0),
+    needs_review: rows.filter((r) => r.kind === "needs_review").reduce((s, r) => s + r.amount, 0),
   }), [rows]);
 
   const visibleRows = filter === "all" ? rows : rows.filter((r) => r.kind === filter);
@@ -189,6 +200,7 @@ export function BillingInboxView() {
     { key: "submission", label: "Submissions" },
     { key: "ready", label: "Ready" },
     { key: "draft", label: "Drafts" },
+    { key: "needs_review", label: "Needs Review" },
   ];
 
   return (
@@ -205,7 +217,7 @@ export function BillingInboxView() {
             <span className="text-muted-foreground">ready to bill</span>
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {counts.submission} submission{counts.submission !== 1 ? "s" : ""} · {counts.ready} ready · {counts.draft} draft{counts.draft !== 1 ? "s" : ""}
+            {counts.submission} submission{counts.submission !== 1 ? "s" : ""} · {counts.ready} ready · {counts.draft} draft{counts.draft !== 1 ? "s" : ""}{counts.needs_review > 0 ? ` · ${counts.needs_review} needs review` : ""}
           </p>
         </div>
         {counts.submission > 1 && (
@@ -313,7 +325,14 @@ export function BillingInboxView() {
                         <div className="text-xs text-muted-foreground truncate max-w-[240px]">{row.address}</div>
                       )}
                       {row.invoiceNumber && (
-                        <div className="text-[11px] text-muted-foreground mt-0.5">#{row.invoiceNumber}</div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5">
+                          #{row.invoiceNumber}
+                          {row.isDeposit && (
+                            <span className="ml-1 inline-flex items-center rounded-sm bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 px-1 py-px text-[9px] font-semibold uppercase tracking-wide">
+                              Deposit
+                            </span>
+                          )}
+                        </div>
                       )}
                     </TableCell>
                     <TableCell>
@@ -356,6 +375,12 @@ export function BillingInboxView() {
                           <Button size="sm" variant="outline" onClick={() => setDetailInvoice(row.invoice!)}>
                             <Eye className="h-3.5 w-3.5 mr-1" />
                             Finish
+                          </Button>
+                        )}
+                        {row.kind === "needs_review" && row.invoice && (
+                          <Button size="sm" variant="outline" onClick={() => setDetailInvoice(row.invoice!)}>
+                            <Eye className="h-3.5 w-3.5 mr-1" />
+                            Resolve
                           </Button>
                         )}
                         <DropdownMenu>

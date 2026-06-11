@@ -4983,6 +4983,7 @@ export type Database = {
           id: string
           idempotency_key: string | null
           invoice_number: string
+          is_deposit: boolean
           line_items: Json
           paid_at: string | null
           parent_invoice_id: string | null
@@ -5017,6 +5018,7 @@ export type Database = {
           id?: string
           idempotency_key?: string | null
           invoice_number: string
+          is_deposit?: boolean
           line_items?: Json
           paid_at?: string | null
           parent_invoice_id?: string | null
@@ -5051,6 +5053,7 @@ export type Database = {
           id?: string
           idempotency_key?: string | null
           invoice_number?: string
+          is_deposit?: boolean
           line_items?: Json
           paid_at?: string | null
           parent_invoice_id?: string | null
