@@ -141,7 +141,8 @@ export function useMarkProposalApproved() {
 
         // Create services from proposal items
         const items = (proposal as any).items || [];
-        if (items.length > 0) {
+        const billableItems = items.filter((item: any) => !item.is_optional);
+        if (billableItems.length > 0) {
           // Create DOB application placeholder for FK constraint
           const { data: application } = await supabase
             .from("dob_applications")
@@ -159,10 +160,44 @@ export function useMarkProposalApproved() {
             .single();
 
           if (application) {
-            const servicesData = items.filter((item: any) => !item.is_optional).map((item: any) => ({
+            // Base "Original Scope" CO so every billable service has a CO parent
+            let baseCoId: string | null = null;
+            try {
+              const totalAmount = billableItems.reduce(
+                (s: number, it: any) => s + (Number(it.total_price) || 0),
+                0
+              );
+              const { data: baseCo } = await supabase
+                .from("change_orders" as any)
+                .insert({
+                  company_id: profile.company_id,
+                  project_id: projectId,
+                  co_number: "BASE",
+                  title: "Original Scope",
+                  description: `Base scope from proposal ${proposal.proposal_number} (approved via ${approvalMethod.replace(/_/g, " ")})`,
+                  amount: totalAmount,
+                  status: "approved",
+                  linked_service_names: billableItems.map((it: any) => it.name),
+                  line_items: billableItems.map((it: any) => ({
+                    name: it.name,
+                    amount: Number(it.total_price) || 0,
+                    description: it.description || undefined,
+                  })),
+                  approved_at: new Date().toISOString(),
+                  created_by: profile.id,
+                })
+                .select("id")
+                .single();
+              baseCoId = (baseCo as any)?.id ?? null;
+            } catch (coErr) {
+              console.error("Error creating base CO:", coErr);
+            }
+
+            const servicesData = billableItems.map((item: any) => ({
               company_id: profile.company_id,
               application_id: application.id,
               project_id: projectId,
+              change_order_id: baseCoId,
               name: item.name,
               description: item.description,
               estimated_hours: item.estimated_hours || null,
@@ -177,6 +212,7 @@ export function useMarkProposalApproved() {
             await supabase.from("services").insert(servicesData);
           }
         }
+
 
         // Create notification for assigned PM
         if (pmId && pmId !== profile.id) {
