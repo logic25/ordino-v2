@@ -441,6 +441,12 @@ export default function Proposals() {
           console.error("Auto-send after sign failed:", sendErr);
           toast({ title: "Proposal signed", description: "Signed successfully but email send failed. You can resend from the proposal menu.", variant: "destructive" });
         }
+
+        // Offer to clock in on the new project's services
+        const newProjectId = (result as any)?.project?.id;
+        if (newProjectId) {
+          setClockInProject({ id: newProjectId, name: fullProposal.title || "New project" });
+        }
       } else {
         toast({ title: "Proposal signed!", description: "Open the proposal to send to client." });
       }
