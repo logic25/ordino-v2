@@ -57,7 +57,7 @@ export function useBillingPipeline(scope: PipelineScope = "company") {
           project_id,
           projects!inner(id, project_number, name, assigned_pm_id, company_id, status,
             estimated_construction_completion, completion_date,
-            clients(name),
+            clients!projects_client_id_fkey(name),
             assigned_pm:profiles!projects_assigned_pm_id_fkey(id, first_name, last_name, display_name)
           )
         `)

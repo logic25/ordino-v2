@@ -1,61 +1,70 @@
-## 1. Upcoming Billing Pipeline
+## 1. Fix blank Upcoming Billing Pipeline (root cause found)
 
-**Filter change** in `useBillingPipeline.ts`:
-- Include services with status `not_started` or `in_progress` on `open` projects.
-- Remove `billed` (a fully billed service isn't upcoming).
-- Keep guards: not tied to an open/pending billing request, remaining balance > 0 (or `total > 0` for `not_started`).
+Network shows the `services` query returning HTTP 300 with `PGRST201`:
+> Could not embed because more than one relationship was found for 'projects' and 'clients'
 
-**Undated services — use project fallback:**
-- If `services.estimated_bill_date` is null, fall back to `projects.expected_close_date`, then `projects.due_date` (whichever exists).
-- New row field `effective_bill_date` + `bill_date_source` flag (`"service"`, `"project_close"`, `"project_due"`, `"none"`).
-- Sort by `effective_bill_date` ASC; items with no date at all sort last under an "Undated" group.
-- In `BillingPipelineTable.tsx`: show the date with a small badge when it came from the project, and an "Undated" pill when nothing is available. Add a Status column (Not Started / In Progress).
+There are two FKs from `projects` → `clients` (`client_id` and `building_owner_id`), so the nested `clients(name)` is ambiguous and **every row is dropped** — that's why the pipeline is empty even though 97 services qualify in the DB.
 
-## 2. Stale Projects pills clickable even at 0
+Fix in `src/hooks/useBillingPipeline.ts`: change `clients(name)` → `clients!projects_client_id_fkey(name)` (matches the rule in our memory about explicit FK joins). No other logic changes.
 
-- In `StaleProjectsCard.tsx`, make per-PM rows always open the modal (showing that PM's full open-project list with fresh/warming/stale labels).
-- Make Fresh, Warming, and Stale pills standalone buttons; each opens the modal pre-filtered to that bucket.
-- Total count button and "View all" stay enabled even when stale = 0 → opens the full list.
-- `useDrilldownList` gains a `bucket: "fresh" | "warming" | "stale" | "all"` arg for the `stale-projects` source.
+## 2. Billing / BD menu access
 
-## 3. $25K company goal explained
+Leave merge decision to you — recommend **leave separate**: BD = pipeline + RFPs (BD/accounting), Billing = invoices/payments (accounting/admin). Merging would force RFP discovery into the billing screen.
 
-Formula in `RevenueTrendChart.useCompanyMonthlyGoal`:
-1. `companies.monthly_billing_goal_override` if set, else
-2. Sum of `profiles.monthly_goal` for **active** users with role `pm`, `admin`, or `manager`.
-Currently only Manny Russell ($25K active admin) contributes; Mike Johnson's $33K is on an inactive profile.
+What I will do now: audit `AppSidebar` so Billing is visible to **admin + accounting** only (current state uses generic `invoices` resource — confirm it's gated, tighten if not). No nav restructure.
 
-- Wrap the goal `ReferenceLine` label in a Popover that shows the formula + contributor breakdown + a deep link to `Settings → Company` to set/edit the override.
-- Add an `InfoTooltip` next to the chart title summarising it.
-- If a company-override editor doesn't already exist, add a simple numeric input in Company Settings (verify during implementation; only build if missing).
+## 3. Port "Total Open Services" widget (from legacy screenshot)
 
-## 4. Resizable widgets
+New card on Admin Dashboard + a tab in `Reports → Billing`:
 
-In `useDashboardLayout.ts`, remove `lockedFull` from:
-- `proposal-followups`
-- `stale-projects-total`
+| Column | Source |
+|---|---|
+| Open service (name) | `services.name` grouped |
+| Amount | sum of remaining (`total_amount - billed_amount`) for services where `status ≠ 'billed'` |
+| Qty | count |
+| Avg Days | avg days since `services.created_at` (open age) |
 
-Keep `lockedFull` on tables/multi-panel widgets that genuinely need full width (`kpis`, `sales-health`, `billing-pipeline`, `proposal-conversion-rates`, `revenue-trend`, `team-utilization`, `team-overview`, `my-projects`).
+- Hook: `useOpenServicesSummary(companyId)` aggregating in-memory from existing `services` fetch (or a Postgres view if perf needs it).
+- Sortable, paginated (10/25/50), search box, total row at bottom — matches legacy layout.
+- Row click → `DrillInModal` listing the underlying open services with project link.
 
-Verify each newly-resizable widget reads cleanly at `half`.
+## 4. Port "Service Level" report
 
-## 5. Tooltips on every dashboard widget
+New tab in `Reports` (`/reports?tab=service-level`):
 
-Audit the admin (and PM) dashboards and ensure **every** card has an `InfoTooltip` next to its title explaining what's measured and the data source. Currently missing on at least: Billing Pulse, Revenue Trend, Team Utilization, Projects by PM, Expense Approvals, Proposal Follow-Ups, Proposals & Billing (both tabs), KPI strip pills. Each tooltip should be 1–2 short sentences.
+| Column | Source |
+|---|---|
+| Service | `services.name` (grouped across all time, completed services only) |
+| Avg Days | avg(`completed_date - created_at`) where `status='billed'` or `completed_date` set |
+| Avg Timelog | avg sum of `time_entries.hours` per service (if `time_entries.service_id` exists) — fall back to "—" with tooltip if not wired |
+| Total Days | sum of days |
+| Qty | count |
+| Amount | sum(`total_amount`) |
 
-## Changelog
-Insert one `changelog_entries` row covering the four user-visible fixes.
+- Hook: `useServiceLevelReport({ from, to, pmId, clientId, borough })` with same filter bar as legacy screenshot.
+- Default sort: Avg Days desc.
+- I will check whether `time_entries` / `project_activities` already link to `service_id`; if not, Avg Timelog renders "—" and we log a follow-up rather than adding a migration in this pass.
+
+## 5. Tooltips
+
+Add `InfoTooltip` to the two new cards explaining the formulas.
 
 ## Out of scope
-- Pixel-perfect drag-resize (keep `full | half` snap).
-- Editing per-user `monthly_goal` UX (only adding/exposing the company override).
-- Reclassifying services as in-progress vs not-started elsewhere in the app.
 
-## Technical notes
-- `useBillingPipeline.ts`: extend join to pull `projects.expected_close_date, due_date`; compute `effective_bill_date` and `bill_date_source` in the mapper; update sort + filter.
-- `BillingPipelineTable.tsx`: add Status column, date-source badge, "Undated" pill.
-- `StaleProjectsCard.tsx`: convert fresh/warming/stale spans → buttons; remove `disabled` on zero; add `bucket` to `setOpenPm` state (tuple `{pmId, bucket}`).
-- `useDrilldownList.ts`: extend `stale-projects` branch with optional `bucket` filter that maps to days-since-touch ranges.
-- `RevenueTrendChart.tsx`: replace plain `Label` on `ReferenceLine` with a `Popover` trigger; query active contributors to render breakdown.
-- `useDashboardLayout.ts`: drop `lockedFull` from the two widgets above.
-- Add `InfoTooltip` imports to each card flagged in §5.
+- Merging BD + Billing nav.
+- New schema for service-level time logging (only if existing data isn't sufficient — will report back).
+- Reworking existing dashboard layout beyond inserting the Total Open Services card.
+
+## Files
+
+- `src/hooks/useBillingPipeline.ts` (FK fix)
+- `src/components/layout/AppSidebar.tsx` (gate audit only)
+- `src/hooks/useOpenServicesSummary.ts` (new)
+- `src/hooks/useServiceLevelReport.ts` (new)
+- `src/components/dashboard/OpenServicesCard.tsx` (new)
+- `src/components/reports/OpenServicesReport.tsx` (new tab)
+- `src/components/reports/ServiceLevelReport.tsx` (new tab)
+- `src/pages/Reports.tsx` (register tabs)
+- `src/components/dashboard/AdminCompanyView.tsx` (insert card)
+- `src/hooks/useDashboardLayout.ts` (register widget id)
+- Changelog entry.

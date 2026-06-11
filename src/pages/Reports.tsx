@@ -10,6 +10,8 @@ import OperationsReports from "@/components/reports/OperationsReports";
 import ReferralReports from "@/components/reports/ReferralReports";
 import DataExports from "@/components/reports/DataExports";
 import SignalReports from "@/components/reports/SignalReports";
+import OpenServicesReport from "@/components/reports/OpenServicesReport";
+import ServiceLevelReport from "@/components/reports/ServiceLevelReport";
 
 export default function Reports() {
   const { track } = useTelemetry();
@@ -28,6 +30,8 @@ export default function Reports() {
           <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="projects">Projects</TabsTrigger>
             <TabsTrigger value="billing">Billing</TabsTrigger>
+            <TabsTrigger value="open-services">Open Services</TabsTrigger>
+            <TabsTrigger value="service-level">Service Level</TabsTrigger>
             <TabsTrigger value="time">Time</TabsTrigger>
             <TabsTrigger value="proposals">Proposals</TabsTrigger>
             <TabsTrigger value="operations">Operations</TabsTrigger>
@@ -38,6 +42,8 @@ export default function Reports() {
 
           <TabsContent value="projects"><ProjectReports /></TabsContent>
           <TabsContent value="billing"><BillingReports /></TabsContent>
+          <TabsContent value="open-services"><OpenServicesReport /></TabsContent>
+          <TabsContent value="service-level"><ServiceLevelReport /></TabsContent>
           <TabsContent value="time"><TimeReports /></TabsContent>
           <TabsContent value="proposals"><ProposalReports /></TabsContent>
           <TabsContent value="operations"><OperationsReports /></TabsContent>
