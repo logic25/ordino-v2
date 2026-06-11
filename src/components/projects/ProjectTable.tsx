@@ -80,6 +80,15 @@ export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, is
       <Table className="min-w-[800px]">
         <TableHeader>
           <TableRow>
+            {selectable && (
+              <TableHead className="w-[36px]">
+                <Checkbox
+                  checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                  onCheckedChange={(v) => onToggleAll?.(ids, !!v)}
+                  aria-label="Select all"
+                />
+              </TableHead>
+            )}
             <TableHead>Project #</TableHead>
             <TableHead>Name</TableHead>
             <TableHead>Property</TableHead>
@@ -94,6 +103,7 @@ export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, is
         <TableBody>
           {projects.map((project) => {
             const status = statusConfig[project.status] || statusConfig.open;
+            const isSelected = selectedIds?.has(project.id) ?? false;
 
             return (
               <TableRow
