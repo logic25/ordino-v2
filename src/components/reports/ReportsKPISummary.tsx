@@ -25,7 +25,7 @@ function useReportsKPIs() {
       const openInvoiceCount = openInvoices.length;
       const openInvoiceValue = openInvoices.reduce((s: number, i: any) => s + ((i.total_due || 0) - (i.payment_amount || 0)), 0);
 
-      const activeProjects = (projects || []).filter((p: any) => p.status === "active").length;
+      const activeProjects = (projects || []).filter((p: any) => p.status === "open").length;
 
       const ytdStart = startOfYear(new Date()).toISOString();
       const ytdCollected = (invoices || [])
