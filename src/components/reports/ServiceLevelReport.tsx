@@ -56,9 +56,20 @@ export default function ServiceLevelReport() {
         <CardDescription>How long each service type takes — and how much time it consumes</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="relative max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search service…" className="pl-8" />
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search service…" className="pl-8" />
+          </div>
+          <select
+            className="h-9 rounded-md border bg-background px-2 text-sm"
+            value={pageSize}
+            onChange={(e) => setPageSize(Number(e.target.value))}
+            title="Rows shown (select All to remove the limit)"
+          >
+            {[10, 25, 50, 100].map((n) => <option key={n} value={n}>{n} rows</option>)}
+            <option value={100000}>Show all ({rows.length})</option>
+          </select>
         </div>
 
         {isLoading ? (
