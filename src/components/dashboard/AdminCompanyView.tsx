@@ -46,6 +46,11 @@ export function AdminCompanyView({ isVisible, editMode = false, order, onReorder
   const effectiveOrder = order ?? fallbackLayout.order;
   const handleReorder = onReorder ?? fallbackLayout.setOrder;
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
   if (view === "my") {
     return (
       <div className="space-y-4">
@@ -121,10 +126,8 @@ export function AdminCompanyView({ isVisible, editMode = false, order, onReorder
 
   const visibleOrdered = effectiveOrder.filter((id) => widgets[id] && show(id));
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
+
+
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
