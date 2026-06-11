@@ -25,6 +25,7 @@ export const ROLE_WIDGETS: Record<string, WidgetDef[]> = {
     { id: "sales-health", label: "Sales Health", lockedFull: true },
     { id: "stale-projects-total", label: "Stale Projects" },
     { id: "billing-pipeline", label: "Upcoming Billing Pipeline", lockedFull: true },
+    { id: "open-services", label: "Total Open Services", lockedFull: true },
     { id: "proposal-conversion-rates", label: "Proposals & Billing", lockedFull: true },
     { id: "revenue-trend", label: "Revenue Trend", lockedFull: true },
     { id: "team-utilization", label: "Team Utilization & Projects by PM", lockedFull: true },

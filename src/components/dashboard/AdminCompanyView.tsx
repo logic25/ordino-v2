@@ -114,11 +114,11 @@ export function AdminCompanyView({ isVisible, editMode = false, order, onReorder
                 <CardTitle className="text-base flex items-center gap-1.5">
                   Upcoming Billing Pipeline
                   <InfoTooltip>
-                    Services on <strong>open projects</strong> with a remaining
-                    balance and an estimated bill date set — and not yet attached
-                    to a pending or approved billing request. Includes services
-                    flagged <em>in progress</em> and <em>billed (ready to invoice)</em>.
-                    Sorted by estimated bill date.
+                    Services on <strong>open projects</strong> in <em>not started</em>
+                    or <em>in progress</em> with a remaining balance, excluding any
+                    already attached to a pending or approved billing request.
+                    When a service has no estimated bill date we fall back to the
+                    project's target completion or completion date.
                   </InfoTooltip>
                 </CardTitle>
                 <CardDescription>Deliverables expected to bill next</CardDescription>
