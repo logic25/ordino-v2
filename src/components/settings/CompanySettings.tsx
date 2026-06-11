@@ -99,6 +99,7 @@ export function CompanySettings() {
   const [logoUrl, setLogoUrl] = useState("");
   const [gchatEnabled, setGchatEnabled] = useState(false);
   const [gchatSpaceId, setGchatSpaceId] = useState("");
+  const [staleProjectDays, setStaleProjectDays] = useState<string>("14");
   useEffect(() => {
     if (company) {
       setName(company.name || "");
@@ -115,6 +116,7 @@ export function CompanySettings() {
       setLogoUrl(theme?.logo_url || company.logo_url || "");
       setGchatEnabled(!!settings?.gchat_enabled);
       setGchatSpaceId(settings?.gchat_space_id || "");
+      setStaleProjectDays(String(Number(settings?.stale_project_days) || 14));
     }
   }, [company]);
 
