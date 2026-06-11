@@ -8,7 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProjectTable } from "@/components/projects/ProjectTable";
+import { BulkActionBar } from "@/components/projects/BulkActionBar";
 import { ProjectDialog } from "@/components/projects/ProjectDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useProjects,
   useCreateProject,
@@ -29,9 +32,12 @@ export default function Projects() {
   const [showAllProjects, setShowAllProjects] = useState(true);
   const [groupBy, setGroupBy] = useState<"none" | "client" | "address">("none");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
   const { toast } = useToast();
   const { profile } = useAuth();
   const isAdmin = useIsAdmin();
+  const queryClient = useQueryClient();
 
   const { data: projects = [], isLoading } = useProjects();
   const createProject = useCreateProject();
@@ -156,6 +162,39 @@ export default function Projects() {
       });
     }
   };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = (ids: string[], select: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => (select ? next.add(id) : next.delete(id)));
+      return next;
+    });
+  };
+
+  const runBulkUpdate = async (patch: Record<string, any>, label: string) => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    const { error } = await supabase.from("projects").update(patch as any).in("id", ids);
+    setBulkBusy(false);
+    if (error) {
+      toast({ title: "Bulk update failed", description: error.message, variant: "destructive" });
+      return;
+    }
+    await queryClient.invalidateQueries({ queryKey: ["projects"] });
+    toast({ title: `${ids.length} project${ids.length === 1 ? "" : "s"} updated`, description: label });
+    setSelectedIds(new Set());
+  };
+
+
 
   return (
     <AppLayout>
@@ -296,6 +335,9 @@ export default function Projects() {
                 onSendRfi={handleSendRfi}
                 isDeleting={deleteProject.isPending}
                 isSendingRfi={createRfi.isPending}
+                selectedIds={selectedIds}
+                onToggleSelect={toggleSelect}
+                onToggleAll={toggleAll}
               />
             ) : (
               (() => {
@@ -339,6 +381,9 @@ export default function Projects() {
                             onSendRfi={handleSendRfi}
                             isDeleting={deleteProject.isPending}
                             isSendingRfi={createRfi.isPending}
+                            selectedIds={selectedIds}
+                            onToggleSelect={toggleSelect}
+                            onToggleAll={toggleAll}
                           />
                         </div>
                       );
@@ -357,6 +402,14 @@ export default function Projects() {
         onSubmit={handleSubmit}
         project={editingProject}
         isLoading={createProject.isPending || updateProject.isPending}
+      />
+
+      <BulkActionBar
+        count={selectedIds.size}
+        onClear={() => setSelectedIds(new Set())}
+        onSetStatus={(s) => runBulkUpdate({ status: s }, `Status → ${s}`)}
+        onAssignPm={(id) => runBulkUpdate({ assigned_pm_id: id }, id ? "PM assigned" : "PM cleared")}
+        isBusy={bulkBusy}
       />
     </AppLayout>
   );

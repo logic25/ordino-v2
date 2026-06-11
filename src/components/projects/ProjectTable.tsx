@@ -11,6 +11,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Pencil, Trash2, Eye, FileText } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { ProjectWithRelations } from "@/hooks/useProjects";
 import { useAssignableProfiles } from "@/hooks/useProfiles";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +27,9 @@ interface ProjectTableProps {
   onSendRfi?: (project: ProjectWithRelations) => void;
   isDeleting: boolean;
   isSendingRfi?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
+  onToggleAll?: (ids: string[], select: boolean) => void;
 }
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -40,11 +44,15 @@ const formatName = (profile: { first_name: string | null; last_name: string | nu
   return [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "—";
 };
 
-export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, isDeleting, isSendingRfi }: ProjectTableProps) {
+export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, isDeleting, isSendingRfi, selectedIds, onToggleSelect, onToggleAll }: ProjectTableProps) {
   const navigate = useNavigate();
   const { data: assignableProfiles = [] } = useAssignableProfiles();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const selectable = !!onToggleSelect;
+  const ids = projects.map((p) => p.id);
+  const allSelected = selectable && ids.length > 0 && ids.every((id) => selectedIds?.has(id));
+  const someSelected = selectable && ids.some((id) => selectedIds?.has(id)) && !allSelected;
 
   const handlePmChange = async (projectId: string, profileId: string) => {
     const pmId = profileId === "__unassigned__" ? null : profileId;
@@ -57,11 +65,30 @@ export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, is
     }
   };
 
+  const handleStatusChange = async (projectId: string, status: string) => {
+    const { error } = await supabase.from("projects").update({ status } as any).eq("id", projectId);
+    if (error) {
+      toast({ title: "Error", description: "Failed to update status.", variant: "destructive" });
+    } else {
+      toast({ title: "Status Updated" });
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+    }
+  };
+
   return (
     <div className="overflow-x-auto -mx-4 sm:mx-0">
       <Table className="min-w-[800px]">
         <TableHeader>
           <TableRow>
+            {selectable && (
+              <TableHead className="w-[36px]">
+                <Checkbox
+                  checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                  onCheckedChange={(v) => onToggleAll?.(ids, !!v)}
+                  aria-label="Select all"
+                />
+              </TableHead>
+            )}
             <TableHead>Project #</TableHead>
             <TableHead>Name</TableHead>
             <TableHead>Property</TableHead>
@@ -76,13 +103,24 @@ export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, is
         <TableBody>
           {projects.map((project) => {
             const status = statusConfig[project.status] || statusConfig.open;
+            const isSelected = selectedIds?.has(project.id) ?? false;
 
             return (
               <TableRow
                 key={project.id}
-                className="cursor-pointer hover:bg-muted/50"
+                data-state={isSelected ? "selected" : undefined}
+                className="cursor-pointer hover:bg-muted/50 data-[state=selected]:bg-muted"
                 onClick={() => navigate(`/projects/${project.id}`)}
               >
+                {selectable && (
+                  <TableCell onClick={(e) => e.stopPropagation()} className="w-[36px]">
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => onToggleSelect?.(project.id)}
+                      aria-label="Select row"
+                    />
+                  </TableCell>
+                )}
                 <TableCell className="font-mono text-sm">{project.project_number || "—"}</TableCell>
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-1.5 flex-wrap">
@@ -123,9 +161,24 @@ export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, is
                     </SelectContent>
                   </Select>
                 </TableCell>
-                <TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-1.5">
-                    <Badge variant={status.variant}>{status.label}</Badge>
+                    <Select
+                      value={project.status || "open"}
+                      onValueChange={(val) => handleStatusChange(project.id, val)}
+                    >
+                      <SelectTrigger className="h-7 w-auto min-w-[90px] border-none bg-transparent shadow-none text-sm p-0 px-1 hover:bg-muted/40 focus:ring-0 gap-1">
+                        <SelectValue>
+                          <Badge variant={status.variant}>{status.label}</Badge>
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="open">Open</SelectItem>
+                        <SelectItem value="on_hold">On Hold</SelectItem>
+                        <SelectItem value="closed">Closed</SelectItem>
+                        <SelectItem value="paid">Paid</SelectItem>
+                      </SelectContent>
+                    </Select>
                     {(() => {
                       const last = (project as any).last_activity_at;
                       const threshold = (project as any).stale_threshold_days || 14;
@@ -162,7 +215,7 @@ export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, is
           })}
           {projects.length === 0 && (
             <TableRow>
-              <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={selectable ? 10 : 9} className="text-center py-8 text-muted-foreground">
                 No projects match your search.
               </TableCell>
             </TableRow>
