@@ -70,6 +70,27 @@ export default function Proposals() {
   const pageSize = 25;
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const createDepositInvoice = useCreateDepositInvoice();
+
+  const handleCreateDepositInvoice = async (proposal: ProposalWithRelations) => {
+    try {
+      await createDepositInvoice.mutateAsync({
+        proposal: {
+          id: proposal.id,
+          client_id: (proposal as any).client_id || null,
+          proposal_number: proposal.proposal_number || null,
+          converted_project_id: (proposal as any).converted_project_id || null,
+          deposit_required: (proposal as any).deposit_required || 0,
+        },
+      });
+      toast({
+        title: "Deposit invoice created",
+        description: "Find it in Billing → Ready to Invoice to review and send.",
+      });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
 
   // Debounce search for server-side query
   const [debouncedSearch, setDebouncedSearch] = useState("");
