@@ -51,22 +51,40 @@ export function BillingPulse({ scope = "company", title, compact = false }: Prop
 
   const hasGoals = data.weekGoal > 0 || data.monthGoal > 0;
 
+  const scopeSubtitle =
+    scope === "company"
+      ? "Scope: every billing request company-wide"
+      : scope === "self-biller"
+      ? "Scope: invoices/requests you created"
+      : "Scope: services on projects you manage";
+
+  const scopeTooltip =
+    scope === "company"
+      ? <>Pace is measured against the <strong>company monthly goal</strong> (override in Settings → Company, otherwise sum of every active PM/Admin/Manager's individual monthly goal).</>
+      : scope === "self-biller"
+      ? <>Counts billing requests <strong>you created</strong>. Goal = your personal <em>monthly_goal</em> (Settings → Team → edit user).</>
+      : <>Counts services on <strong>projects you manage</strong>. Goal = your personal <em>monthly_goal</em> (Settings → Team → edit user).</>;
+
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-base flex items-center gap-1.5">
-          {heading}
-          <InfoTooltip>
-            Tracks billing pace against this week's and this month's goal.
-            <strong> This Week / This Month</strong> = billing requests created in that
-            window (excluding cancelled). <strong>Pace %</strong> compares actual
-            vs expected at this point in the period. <strong>Projected</strong> extrapolates
-            current pace to month-end. <strong>Ready to invoice</strong> counts services
-            flagged ready that have no open billing request.
-          </InfoTooltip>
-        </CardTitle>
+      <CardHeader className="flex flex-row items-start justify-between pb-2 gap-2">
+        <div className="min-w-0">
+          <CardTitle className="text-base flex items-center gap-1.5">
+            {heading}
+            <InfoTooltip>
+              Tracks billing pace against this week's and this month's goal.
+              <br /><strong>This Week / This Month</strong> = billing requests created in that
+              window (excluding cancelled). <strong>Pace %</strong> compares actual
+              vs expected at this point in the period. <strong>Projected</strong> extrapolates
+              current pace to month-end. <strong>Ready to invoice</strong> counts services
+              flagged ready that have no open billing request.
+              <br /><br />{scopeTooltip}
+            </InfoTooltip>
+          </CardTitle>
+          <p className="text-[11px] text-muted-foreground mt-0.5">{scopeSubtitle}</p>
+        </div>
         {!hasGoals && (
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-muted-foreground shrink-0">
             No goal set ·{" "}
             <button onClick={() => navigate("/settings?section=team")} className="underline">
               configure
