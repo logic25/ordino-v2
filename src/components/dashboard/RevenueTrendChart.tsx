@@ -10,6 +10,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, ReferenceLine, ComposedChart, Line,
 } from "recharts";
 import { formatCompactCurrency } from "@/lib/utils";
+import { InfoTooltip } from "./InfoTooltip";
 
 type Mode = "3" | "6" | "12" | "yoy";
 
@@ -83,7 +84,18 @@ export function RevenueTrendChart({ defaultMode = "6" }: Props) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-base">Revenue Trend</CardTitle>
+        <CardTitle className="text-base flex items-center gap-1.5">
+          Revenue Trend
+          <InfoTooltip>
+            Monthly <strong>Billed</strong>, <strong>Collected</strong>, and{" "}
+            <strong>Outstanding</strong> invoice totals. The dashed <em>Goal</em> line is
+            the company's monthly billing goal:{" "}
+            <strong>company override</strong> (Settings → Company →
+            "Monthly billing goal") if set, otherwise the <strong>sum of monthly
+            goals</strong> on all active PM, Admin, and Manager profiles
+            (Settings → Team → edit user). Inactive profiles do not contribute.
+          </InfoTooltip>
+        </CardTitle>
         <Select value={mode} onValueChange={(v) => setMode(v as Mode)}>
           <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>

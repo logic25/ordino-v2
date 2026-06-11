@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ComposeEmailDialog } from "@/components/emails/ComposeEmailDialog";
 import { DrillInModal } from "./DrillInModal";
 import { useDrilldownList } from "@/hooks/useDrilldownList";
+import { InfoTooltip } from "./InfoTooltip";
 
 export function ProposalFollowUps() {
   const navigate = useNavigate();
@@ -98,6 +99,12 @@ export function ProposalFollowUps() {
         <CardTitle className="flex items-center gap-2 text-base">
           <Bell className="h-4 w-4 text-accent-foreground" />
           Proposals to Follow Up
+          <InfoTooltip>
+            Sent proposals past their <strong>next follow-up date</strong>.
+            Cadence is configured per proposal (default: every 3 days for the
+            first 2 weeks, then weekly). Use the menu to draft an AI email,
+            log a call, snooze, or dismiss.
+          </InfoTooltip>
           {proposals.length > 0 && (
             <button onClick={() => setDrillOpen(true)} className="ml-auto">
               <Badge variant="destructive" className="text-xs cursor-pointer hover:opacity-80">
