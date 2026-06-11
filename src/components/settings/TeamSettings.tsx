@@ -1255,21 +1255,26 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                 <TabsList className="flex-wrap h-auto gap-1">
                   <TabsTrigger value="billing" className="gap-1">
                     <DollarSign className="h-3.5 w-3.5" />
-                    Billing
+                    {metricKind === "accounting" ? "Billing Activity" : "Billing"}
                   </TabsTrigger>
-                  <TabsTrigger value="proposals" className="gap-1">
-                    <FileText className="h-3.5 w-3.5" />
-                    Proposals ({totalProposals})
-                  </TabsTrigger>
-                  <TabsTrigger value="projects" className="gap-1">
-                    <FolderKanban className="h-3.5 w-3.5" />
-                    Projects ({projects.length})
-                  </TabsTrigger>
+                  {metricKind !== "accounting" && (
+                    <>
+                      <TabsTrigger value="proposals" className="gap-1">
+                        <FileText className="h-3.5 w-3.5" />
+                        Proposals ({totalProposals})
+                      </TabsTrigger>
+                      <TabsTrigger value="projects" className="gap-1">
+                        <FolderKanban className="h-3.5 w-3.5" />
+                        Projects ({projects.length})
+                      </TabsTrigger>
+                    </>
+                  )}
                   <TabsTrigger value="reviews" className="gap-1">
                     <Star className="h-3.5 w-3.5" />
                     Reviews ({empReviews.length})
                   </TabsTrigger>
                 </TabsList>
+
 
                 {/* Billing Tab */}
                 <TabsContent value="billing" className="mt-4 space-y-4">
