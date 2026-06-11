@@ -32,6 +32,7 @@ import { RevenueTrendChart } from "./RevenueTrendChart";
 import { SalesHealthCard } from "./SalesHealthCard";
 import { StaleProjectsCard } from "./StaleProjectsCard";
 import { BillingPipelineTable } from "@/components/billing/BillingPipelineTable";
+import OpenServicesReport from "@/components/reports/OpenServicesReport";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
@@ -134,6 +135,7 @@ export function AdminCompanyView({ isVisible, editMode = false, order, onReorder
         </Card>
       </Collapsible>
     ),
+    "open-services": <OpenServicesReport />,
     "team-utilization": <TeamUtilizationStrip />,
     "proposal-followups": <ProposalFollowUps />,
     "expense-approvals": <ExpenseApprovalsCard />,
