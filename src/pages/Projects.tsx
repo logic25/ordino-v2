@@ -335,6 +335,9 @@ export default function Projects() {
                 onSendRfi={handleSendRfi}
                 isDeleting={deleteProject.isPending}
                 isSendingRfi={createRfi.isPending}
+                selectedIds={selectedIds}
+                onToggleSelect={toggleSelect}
+                onToggleAll={toggleAll}
               />
             ) : (
               (() => {
@@ -378,6 +381,9 @@ export default function Projects() {
                             onSendRfi={handleSendRfi}
                             isDeleting={deleteProject.isPending}
                             isSendingRfi={createRfi.isPending}
+                            selectedIds={selectedIds}
+                            onToggleSelect={toggleSelect}
+                            onToggleAll={toggleAll}
                           />
                         </div>
                       );
