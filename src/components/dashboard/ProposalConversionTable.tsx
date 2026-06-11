@@ -103,16 +103,47 @@ function ProposalsTab({ year }: { year: number }) {
       <TableHeader>
         <TableRow>
           <TableHead>Month</TableHead>
-          <TableHead className="text-right">Sent</TableHead>
-          <TableHead className="text-right">Converted</TableHead>
-          <TableHead className="text-right">Rate</TableHead>
-          <TableHead className="text-right">Proposed $</TableHead>
-          <TableHead className="text-right">Converted $</TableHead>
+          <TableHead className="text-right">
+            <span className="inline-flex items-center gap-1 justify-end">
+              Sent
+              <InfoTooltip>Proposals whose <strong>Sent</strong> date falls in this month.</InfoTooltip>
+            </span>
+          </TableHead>
+          <TableHead className="text-right">
+            <span className="inline-flex items-center gap-1 justify-end">
+              Converted
+              <InfoTooltip>Of proposals sent that month, how many reached signed / executed / won.</InfoTooltip>
+            </span>
+          </TableHead>
+          <TableHead className="text-right">
+            <span className="inline-flex items-center gap-1 justify-end">
+              Rate
+              <InfoTooltip>Converted ÷ Sent for the month.</InfoTooltip>
+            </span>
+          </TableHead>
+          <TableHead className="text-right">
+            <span className="inline-flex items-center gap-1 justify-end">
+              Proposed $
+              <InfoTooltip>Dollar value of proposals sent that month.</InfoTooltip>
+            </span>
+          </TableHead>
+          <TableHead className="text-right">
+            <span className="inline-flex items-center gap-1 justify-end">
+              Converted $
+              <InfoTooltip>Dollar value of the proposals (from that month's sent batch) that converted.</InfoTooltip>
+            </span>
+          </TableHead>
+          <TableHead className="text-right">
+            <span className="inline-flex items-center gap-1 justify-end">
+              Change Orders $
+              <InfoTooltip>Total value of change orders <strong>client-signed</strong> in this month, regardless of when the original proposal was sent.</InfoTooltip>
+            </span>
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {rows.map((r) => {
-          const empty = r.sent === 0;
+          const empty = r.sent === 0 && r.convertedCOValue === 0;
           return (
             <TableRow
               key={r.month}
@@ -123,10 +154,13 @@ function ProposalsTab({ year }: { year: number }) {
               <TableCell className="text-right">{r.sent}</TableCell>
               <TableCell className="text-right">{r.converted}</TableCell>
               <TableCell className="text-right">
-                {empty ? "—" : `${(r.rate * 100).toFixed(1)}%`}
+                {r.sent === 0 ? "—" : `${(r.rate * 100).toFixed(1)}%`}
               </TableCell>
               <TableCell className="text-right">{formatCompactCurrency(r.proposedValue)}</TableCell>
               <TableCell className="text-right">{formatCompactCurrency(r.convertedValue)}</TableCell>
+              <TableCell className="text-right">
+                {r.convertedCOValue === 0 ? "—" : formatCompactCurrency(r.convertedCOValue)}
+              </TableCell>
             </TableRow>
           );
         })}
@@ -139,6 +173,7 @@ function ProposalsTab({ year }: { year: number }) {
           </TableCell>
           <TableCell className="text-right">{formatCompactCurrency(totals.proposedValue)}</TableCell>
           <TableCell className="text-right">{formatCompactCurrency(totals.convertedValue)}</TableCell>
+          <TableCell className="text-right">{formatCompactCurrency(totals.convertedCOValue)}</TableCell>
         </TableRow>
       </TableBody>
     </Table>
