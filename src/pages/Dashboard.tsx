@@ -11,7 +11,7 @@ import { RolePreviewSelector, type DashboardRole } from "@/components/dashboard/
 import { DashboardLayoutConfig } from "@/components/dashboard/DashboardLayoutConfig";
 import { useDashboardLayout } from "@/hooks/useDashboardLayout";
 import { Button } from "@/components/ui/button";
-import { X, BookOpen, Map } from "lucide-react";
+import { X, BookOpen, Map, LayoutGrid, Check, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWalkthrough } from "@/components/walkthrough/WalkthroughProvider";
 import { WALKTHROUGHS } from "@/components/walkthrough/walkthroughs";
