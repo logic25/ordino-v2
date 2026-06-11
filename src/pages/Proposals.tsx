@@ -17,6 +17,7 @@ import { LeadsTable } from "@/components/proposals/LeadsTable";
 import { SignatureDialog, type SignatureRecipient } from "@/components/proposals/SignatureDialog";
 import { ProposalApprovalDialog } from "@/components/proposals/ProposalApprovalDialog";
 import { ProposalPreviewModal } from "@/components/proposals/ProposalPreviewModal";
+import { PostConversionClockInModal } from "@/components/proposals/PostConversionClockInModal";
 import { CaptureLeadModal } from "@/components/bd/CaptureLeadModal";
 import { SendProposalDialog } from "@/components/proposals/SendProposalDialog";
 import {
