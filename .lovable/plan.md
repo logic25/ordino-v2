@@ -1,61 +1,48 @@
-## Weekly Project Digest — tightening + email delivery
+# Admin Access, Conversion CO Column, Tooltips
 
-### Problem recap
-- Cron runs Mondays 11:00 UTC and succeeds, but it only writes in-app notifications — **no email is ever sent**, which is why your inbox is empty.
-- Scope is "every open project" — too broad. Stale and quiet projects burn AI calls and clutter the digest.
-- Nightly summarizer already regenerates active projects daily, so the weekly run duplicates work.
+Tackling items 1–4 from the open list. Digest (#7), Pro Cert (#5), and Prediction Accuracy dashboard (#6) stay parked.
 
-### Behavior
+## 1. Fix admin access (root cause — affects #3 and #4)
 
-**Bucketing per open project (computed from last signal across `project_notes`, `project_timeline_events`, `services.updated_at`, `activities`, `emails` tagged to project):**
+**Diagnosis:** 3 users have `profiles.role = 'admin'` (Mike, Manny, Chris) but **zero rows in `user_roles`**. The `useIsAdmin()` hook and most RLS policies key off `user_roles`, not `profiles.role` — so these admins are silently treated as staff. That's why team-member profiles aren't clickable and Service Catalog edits get blocked by RLS.
 
-| Bucket | Last signal | AI summary | Digest treatment |
-|---|---|---|---|
-| Active | ≤7 days | Reuse if <24h fresh from nightly, else regenerate | Green, full summary |
-| Quiet | 8–30 days | **Reuse last summary** (no AI call) | Yellow, "No movement in N days" flag |
-| Stale | >30 days | **Regenerate** (so PM sees latest read before action) | Red, "Stale — needs attention or close" flag |
+**Fix:**
+- One-time data backfill: insert a `user_roles` row with `role = 'admin'` for every profile where `profiles.role = 'admin'` and no admin user_role exists, scoped to their `company_id`.
+- Add a DB trigger on `profiles` insert/update so any future profile flipped to `role = 'admin'` automatically gets a matching `user_roles` row (and removed when demoted). Prevents this drift from recurring.
+- No frontend changes needed — the gates already work, they just had no data.
 
-Skip projects that are `archived`, `on_hold`, or have no `assigned_pm_id`.
+## 2. Proposal Conversion table — add "Converted COs" column (#1)
 
-Per-PM cap of 25 AI regenerations per run; remainder fall back to last summary with a "Skipped — capacity" note.
+In `ProposalConversionTable.tsx` → `ProposalsTab`:
+- Extend `useProposalConversionRates` to also query `change_orders` for the same year (filter by `company_id`, `client_signed_at` not null, sum `amount`). Bucket by `client_signed_at` month.
+- Add `convertedCOValue` to `ProposalConversionRow`.
+- New column **"Change Orders $"** between "Converted $" and end, with month subtotals + year total. Match legacy column position.
+- Row click stays the same (links to `/proposals?month=...`).
 
-### Email delivery (the missing piece)
+## 3. Service Catalog admin edit (#4)
 
-- Send via Lovable Emails (`send-transactional-email`) from `notify@ordinopm.com`.
-- New React Email template: `weekly-project-digest.tsx` with three sections (Active / Quiet / Stale), counts in subject, project links.
-- Admins (role = admin) get a **company-wide roll-up** version including every PM's projects.
-- Idempotency key: `weekly-digest-{user_id}-{YYYY-WW}` so re-runs don't double-send.
-- In-app notification still fires alongside the email.
+Once #1's backfill lands, admins will pass the company RLS update policy and saves will succeed. Add a small belt-and-braces UI guard:
+- In `ServiceCatalogSettings.tsx`, gate "Add Service", "Save", and inline edit buttons on `useIsAdmin()`. Non-admins see a read-only view with a tooltip "Admin only". No silent failures.
 
-### Settings toggle
+## 4. Tooltips on major tables (#2)
 
-`Settings → Notifications → Weekly project digest`:
-- ☑ Email me the weekly digest (default on)
-- Scope: All my projects / Active only / Active + Stale (default)
+Reuse the existing `<InfoTooltip>` pattern already in `ProposalConversionTable`. Add a header-cell helper (`<TableHeadWithTip>`) and apply it to:
+- **Dashboard:** Proposal Conversion, Billing by User (already partially done), Open Services, Action Items
+- **Projects** list, **Properties** list, **Clients** list, **Proposals** list, **Invoices** list, **RFPs** list, **Change Orders** list, **Service Catalog** table
 
-Stored on `profiles.notification_preferences.weekly_digest`.
+Each column gets a one-line plain-English definition (what it is, how it's computed when not obvious). I'll write the copy as I go — no separate review step.
 
-### Observability
+## Out of scope
 
-- One `automation_logs` row per run: `active_count`, `quiet_count`, `stale_count`, `ai_calls_made`, `ai_calls_skipped`, `emails_sent`, `errors`.
-- Email deliverability visible in `email_send_log` (system-wide).
+- Pro Cert flag, Prediction Accuracy dashboard, weekly digest delivery — all parked per your last message.
+- Settings tables that aren't user-facing (e.g. role permissions matrix) — not "major".
 
-### Files
+## Files
 
-- **Edit** `supabase/functions/weekly-project-digest/index.ts` — bucket logic, reuse-summary, throttle, email send, automation log
-- **New** `supabase/functions/_shared/transactional-email-templates/weekly-project-digest.tsx`
-- **Edit** `supabase/functions/_shared/transactional-email-templates/registry.ts` — register template
-- **Edit** `src/components/settings/NotificationSettings.tsx` — toggle + scope dropdown
-- **Changelog** entry
-
-### AI cost impact
-
-- Today: ~1 AI call per open project per week.
-- After: ~1 AI call per active project per week (most active projects reuse nightly's output, so likely 0 new calls) + 1 per stale project. Quiet projects = $0. Net: significant reduction.
-
-### Out of scope (this turn)
-
-- Changing nightly schedule
-- Digest archive page in the app
-- Per-client / per-PM custom delivery times
-- Auto-archiving stale projects (just flagged for now)
+- **Migration:** backfill `user_roles` + trigger function
+- **Edit:** `src/hooks/useDashboardData.ts` (add CO query to conversion hook)
+- **Edit:** `src/components/dashboard/ProposalConversionTable.tsx` (new column)
+- **Edit:** `src/components/settings/ServiceCatalogSettings.tsx` (admin gates)
+- **New:** `src/components/ui/table-head-with-tip.tsx` (helper)
+- **Edit:** ~10 table list components for tooltip headers
+- **Changelog:** one entry per shipped item
