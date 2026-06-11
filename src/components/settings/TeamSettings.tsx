@@ -632,10 +632,21 @@ function AddReviewDialog({ employeeId, onSuccess }: { employeeId: string; onSucc
           <DialogTitle>Add Performance Review</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
+          <div className="rounded-md border bg-muted/40 p-3 text-[11px] text-muted-foreground space-y-1">
+            <div className="flex items-center gap-1.5 text-foreground font-medium text-xs">
+              <Info className="h-3.5 w-3.5" />
+              How to score this review
+            </div>
+            <p><strong className="text-foreground">Review Period</strong> — the month this review covers (typically the end of the period).</p>
+            <p><strong className="text-foreground">Category Ratings (1–5)</strong> — 1 = Needs Improvement, 3 = Meets Expectations, 5 = Exceptional. Score each area independently of overall.</p>
+            <p><strong className="text-foreground">Overall Rating (0–100)</strong> — holistic score. The Raise % auto-fills from this (≥90 → 5%, 80–89 → 3%, 70–79 → 2%, &lt;70 → 0%). Override if needed.</p>
+            <p><strong className="text-foreground">Comments</strong> — concrete examples and goals for next period. Visible to the employee.</p>
+          </div>
           <div>
             <Label>Review Period</Label>
             <Input type="date" value={period} onChange={(e) => setPeriod(e.target.value)} />
           </div>
+
 
           <div>
             <Label className="mb-2 block">Category Ratings (1-5)</Label>
@@ -1178,7 +1189,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                   />
                   <StatCard
                     icon={Zap}
-                    label="Efficiency Rating"
+                    label="Accounting Efficiency"
                     value={acctStats?.efficiency ?? 0}
                     suffix="%"
                     tooltip="Weighted composite: Time-to-Invoice 30% + Collection 25% + Accuracy 20% + Backlog cleared 15% + Timelog 10%. Components with no data are skipped and remaining weights re-normalize."
@@ -1255,21 +1266,26 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                 <TabsList className="flex-wrap h-auto gap-1">
                   <TabsTrigger value="billing" className="gap-1">
                     <DollarSign className="h-3.5 w-3.5" />
-                    Billing
+                    {metricKind === "accounting" ? "Billing Activity" : "Billing"}
                   </TabsTrigger>
-                  <TabsTrigger value="proposals" className="gap-1">
-                    <FileText className="h-3.5 w-3.5" />
-                    Proposals ({totalProposals})
-                  </TabsTrigger>
-                  <TabsTrigger value="projects" className="gap-1">
-                    <FolderKanban className="h-3.5 w-3.5" />
-                    Projects ({projects.length})
-                  </TabsTrigger>
+                  {metricKind !== "accounting" && (
+                    <>
+                      <TabsTrigger value="proposals" className="gap-1">
+                        <FileText className="h-3.5 w-3.5" />
+                        Proposals ({totalProposals})
+                      </TabsTrigger>
+                      <TabsTrigger value="projects" className="gap-1">
+                        <FolderKanban className="h-3.5 w-3.5" />
+                        Projects ({projects.length})
+                      </TabsTrigger>
+                    </>
+                  )}
                   <TabsTrigger value="reviews" className="gap-1">
                     <Star className="h-3.5 w-3.5" />
                     Reviews ({empReviews.length})
                   </TabsTrigger>
                 </TabsList>
+
 
                 {/* Billing Tab */}
                 <TabsContent value="billing" className="mt-4 space-y-4">
