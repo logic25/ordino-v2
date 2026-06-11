@@ -860,11 +860,16 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
   });
   const bonusTiers: BonusTier[] = companySettings?.bonus_tiers || DEFAULT_BONUS_TIERS;
 
+  const metricKind = getMetricProfile(user.role as string);
+  const goalLabel = metricKind === "accounting" ? "Monthly Invoices Goal" : "Monthly Goal ($)";
+
   const { data: stats, isLoading: statsLoading } = useUserBillingStats(user.id, period, monthlyGoal, bonusTiers);
+  const { data: acctStats, isLoading: acctStatsLoading } = useAccountingStats(user.id, period, metricKind === "accounting" ? monthlyGoal : null);
   const { data: proposals = [], isLoading: proposalsLoading } = useUserProposals(user.id);
   const { data: projects = [], isLoading: projectsLoading } = useUserProjects(user.id);
   const { data: empReviews = [], isLoading: reviewsLoading, refetch: refetchReviews } = useEmployeeReviews(user.id);
   const { data: chartData, isLoading: chartLoading } = useUserBillingChart(user.id, chartYear, monthlyGoal);
+  const { data: acctChart, isLoading: acctChartLoading } = useAccountingChart(user.id, chartYear);
 
   // Proposals stats
   const totalProposals = proposals.length;
