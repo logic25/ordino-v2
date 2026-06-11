@@ -1,14 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { predictBillDates, applyBillDatePredictions } from "@/hooks/useBillDatePrediction";
 
 export type BillDateSource =
-  | "service" // services.estimated_bill_date
-  | "ai" // AI-predicted service date
-  | "manual" // manually entered service date
-  | "project_target" // projects.estimated_construction_completion
-  | "project_completion" // projects.completion_date
+  | "service"
+  | "ai"
+  | "manual"
+  | "project_target"
+  | "project_completion"
   | "none";
 
 export interface BillingPipelineRow {
@@ -17,6 +16,7 @@ export interface BillingPipelineRow {
   service_status: string;
   estimated_bill_date: string | null;
   bill_date_source: BillDateSource;
+  bill_date_reasoning: string | null;
   amount: number;
   project_id: string;
   project_number: string | null;
@@ -53,7 +53,7 @@ export function useBillingPipeline(scope: PipelineScope = "company") {
       const q = supabase
         .from("services")
         .select(`
-          id, name, status, estimated_bill_date, bill_date_source,
+          id, name, status, estimated_bill_date, bill_date_source, bill_date_reasoning,
           total_amount, billed_amount, fixed_price, is_reimbursable,
           project_id,
           projects!inner(id, project_number, name, assigned_pm_id, company_id, status,
@@ -76,7 +76,6 @@ export function useBillingPipeline(scope: PipelineScope = "company") {
       ]);
       if (error) throw error;
 
-      // Service ids already in an open billing request
       const tiedUp = new Set<string>();
       (openBR.data || []).forEach((br: any) => {
         const list = Array.isArray(br.services) ? br.services : [];
@@ -86,33 +85,16 @@ export function useBillingPipeline(scope: PipelineScope = "company") {
         });
       });
 
-      // Group services by project so we can ask the AI predictor for
-      // missing bill dates in batches (one call per project).
-      const byProject = new Map<string, any[]>();
-      (data || []).forEach((s: any) => {
-        if (!byProject.has(s.project_id)) byProject.set(s.project_id, []);
-        byProject.get(s.project_id)!.push(s);
-      });
-
-      // Pre-compute AI predictions for any service missing an estimated bill date.
-      // This is best-effort: if it fails, we still fall back to project dates.
-      const aiByServiceId = new Map<string, string>(); // serviceId -> predicted yyyy-MM-dd
-      try {
-        const predictionTasks = Array.from(byProject.entries()).map(async ([pid, svcs]) => {
-          const input = svcs.map((s: any) => ({
-            id: s.id,
-            name: s.name,
-            status: s.status,
-            estimatedBillDate: s.estimated_bill_date,
-          }));
-          const preds = await predictBillDates(pid, companyId, input);
-          preds.forEach((p) => aiByServiceId.set(p.serviceId, p.predictedDate));
-          // Cache predictions back to the row so the AI doesn't run again next time
-          if (preds.length > 0) applyBillDatePredictions(preds).catch(() => {});
-        });
-        await Promise.all(predictionTasks);
-      } catch {
-        // swallow — we'll just fall back to project dates
+      // Trigger AI predictions for services missing a bill date (fire-and-forget;
+      // the edge function writes results back to services and we re-read on next
+      // refresh). For the current render we still fall back to project dates.
+      const needsPrediction = (data || []).some(
+        (s: any) => !s.estimated_bill_date && !["billed", "paid", "dropped"].includes(s.status)
+      );
+      if (needsPrediction) {
+        supabase.functions
+          .invoke("predict-service-dates", { body: { companyId, allOpen: true } })
+          .catch(() => {});
       }
 
       const rows: BillingPipelineRow[] = (data || [])
@@ -128,15 +110,11 @@ export function useBillingPipeline(scope: PipelineScope = "company") {
                 "Unassigned"
               : "Unassigned";
 
-          // Date precedence
           let date: string | null = s.estimated_bill_date || null;
           let source: BillDateSource;
           if (date) {
             source = (s.bill_date_source as BillDateSource) || "manual";
             if (source !== "ai" && source !== "manual") source = "manual";
-          } else if (aiByServiceId.has(s.id)) {
-            date = aiByServiceId.get(s.id)!;
-            source = "ai";
           } else if (s.projects?.estimated_construction_completion) {
             date = s.projects.estimated_construction_completion;
             source = "project_target";
@@ -153,6 +131,7 @@ export function useBillingPipeline(scope: PipelineScope = "company") {
             service_status: s.status,
             estimated_bill_date: date,
             bill_date_source: source,
+            bill_date_reasoning: s.bill_date_reasoning || null,
             amount: remaining || total,
             project_id: s.project_id,
             project_number: s.projects?.project_number ?? null,
