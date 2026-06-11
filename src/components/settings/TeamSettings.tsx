@@ -1059,8 +1059,8 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <Label className="text-xs">Monthly Goal ($)</Label>
-                    <Input className="h-8 text-xs" type="number" placeholder="33000" value={editForm.monthly_goal} onChange={(e) => setEditForm({ ...editForm, monthly_goal: e.target.value })} />
+                    <Label className="text-xs">{goalLabel}</Label>
+                    <Input className="h-8 text-xs" type="number" placeholder={metricKind === "accounting" ? "40" : "33000"} value={editForm.monthly_goal} onChange={(e) => setEditForm({ ...editForm, monthly_goal: e.target.value })} />
                   </div>
                   <div>
                     <Label className="text-xs">Weekly Goal ($)</Label>
