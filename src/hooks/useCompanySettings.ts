@@ -56,6 +56,8 @@ export interface ServiceCatalogItem {
   default_requirements?: ServiceRequirement[];
   complexity_weight?: number;
   needs_dob_filing?: boolean;
+  is_reimbursable?: boolean;
+
 }
 
 export interface CompanySettings {
