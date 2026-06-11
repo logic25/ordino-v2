@@ -104,7 +104,14 @@ export default function Dashboard() {
       case "pm":
         return <PMDailyView isVisible={layout.isVisible} />;
       case "admin":
-        return <AdminCompanyView isVisible={layout.isVisible} />;
+        return (
+          <AdminCompanyView
+            isVisible={layout.isVisible}
+            editMode={editLayout}
+            order={layout.order}
+            onReorder={layout.setOrder}
+          />
+        );
       case "accounting":
         return <AccountingView isVisible={layout.isVisible} />;
       default:
