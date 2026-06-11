@@ -1,14 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { predictBillDates, applyBillDatePredictions } from "@/hooks/useBillDatePrediction";
 
 export type BillDateSource =
-  | "service" // services.estimated_bill_date
-  | "ai" // AI-predicted service date
-  | "manual" // manually entered service date
-  | "project_target" // projects.estimated_construction_completion
-  | "project_completion" // projects.completion_date
+  | "service"
+  | "ai"
+  | "manual"
+  | "project_target"
+  | "project_completion"
   | "none";
 
 export interface BillingPipelineRow {
@@ -17,6 +16,7 @@ export interface BillingPipelineRow {
   service_status: string;
   estimated_bill_date: string | null;
   bill_date_source: BillDateSource;
+  bill_date_reasoning: string | null;
   amount: number;
   project_id: string;
   project_number: string | null;
