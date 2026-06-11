@@ -7,6 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { THWT } from "@/components/ui/table-head-with-tip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -175,16 +176,16 @@ export function ProposalTable({
       <Table>
         <TableHeader>
           <TableRow>
-            {show("proposal_number") && <TableHead className="whitespace-nowrap">Proposal #</TableHead>}
-            {show("property") && <TableHead>Property</TableHead>}
-            {show("title") && <TableHead>Title</TableHead>}
-            {show("client") && <TableHead>Client</TableHead>}
-            {show("pm") && <TableHead>PM</TableHead>}
-            {show("status") && <TableHead>Status</TableHead>}
-            {show("follow_up") && <TableHead>Follow-up</TableHead>}
-            {show("total") && <TableHead className="text-right whitespace-nowrap">Total</TableHead>}
-            {show("creator") && <TableHead>Creator</TableHead>}
-            {show("created") && <TableHead>Created</TableHead>}
+            {show("proposal_number") && <THWT className="whitespace-nowrap" tip="Internal proposal number, assigned when the proposal is created (format YYYY-NNNN).">Proposal #</THWT>}
+            {show("property") && <THWT tip="The NYC property this proposal is for.">Property</THWT>}
+            {show("title") && <THWT tip="Short title / scope label for the proposal.">Title</THWT>}
+            {show("client") && <THWT tip="Client company the proposal is addressed to.">Client</THWT>}
+            {show("pm") && <THWT tip="Project manager assigned (filled in automatically once the proposal converts to a project).">PM</THWT>}
+            {show("status") && <THWT tip="Lifecycle stage: Draft → Sent → Signed → Executed / Lost.">Status</THWT>}
+            {show("follow_up") && <THWT tip="Next scheduled follow-up date. Highlighted red when overdue.">Follow-up</THWT>}
+            {show("total") && <THWT align="right" className="whitespace-nowrap" tip="Total proposal amount (sum of all line items).">Total</THWT>}
+            {show("creator") && <THWT tip="Team member who drafted the proposal.">Creator</THWT>}
+            {show("created") && <THWT tip="Date the proposal was first created (not when it was sent).">Created</THWT>}
             <TableHead className="w-[60px]"></TableHead>
           </TableRow>
         </TableHeader>

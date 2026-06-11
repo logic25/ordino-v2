@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { THWT } from "@/components/ui/table-head-with-tip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -116,13 +117,13 @@ export function PropertyTable({
           <TableHeader>
             <TableRow className="bg-muted/50">
               <TableHead className="w-[40px]"></TableHead>
-              <TableHead className="w-[260px]">Address</TableHead>
-              <TableHead>Borough</TableHead>
-              <TableHead>Block / Lot</TableHead>
-              <TableHead>BIN</TableHead>
-              <TableHead>Owner</TableHead>
-              <TableHead>CitiSignal</TableHead>
-              <TableHead>Projects</TableHead>
+              <THWT tip="Street address resolved via NYC GeoSearch / PAD.">Address</THWT>
+              <THWT tip="NYC borough.">Borough</THWT>
+              <THWT tip="Tax block and lot identifier — used to look up DOB and PLUTO records.">Block / Lot</THWT>
+              <THWT tip="Building Identification Number from DOB. Primary key for DOB filings, violations, and CO records.">BIN</THWT>
+              <THWT tip="Recorded owner of the property (from PLUTO / DOB).">Owner</THWT>
+              <THWT tip="Whether this property is enrolled in CitiSignal monitoring (14-day trial or paid).">CitiSignal</THWT>
+              <THWT tip="Number of Ordino projects associated with this property.">Projects</THWT>
               <TableHead className="w-[70px]"></TableHead>
             </TableRow>
           </TableHeader>

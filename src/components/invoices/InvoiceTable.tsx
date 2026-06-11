@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { THWT } from "@/components/ui/table-head-with-tip";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { InvoiceStatusBadge } from "./InvoiceStatusBadge";
@@ -180,11 +181,11 @@ export function InvoiceTable({
             <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
           </TableHead>
           <TableHead className="w-8"></TableHead>
-          <TableHead>Client / Project / Invoice</TableHead>
-          <TableHead className="text-right">Amount</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Delivery</TableHead>
-          <TableHead>Date</TableHead>
+          <THWT tip="Grouped hierarchy — Client → Project → individual invoices. Click chevrons to expand.">Client / Project / Invoice</THWT>
+          <THWT align="right" tip="Amount due on this invoice (total minus payments applied).">Amount</THWT>
+          <THWT tip="Invoice lifecycle stage: Draft, Sent, Paid, Past Due, Disputed, etc.">Status</THWT>
+          <THWT tip="Whether the invoice has been emailed and whether it was opened by the recipient.">Delivery</THWT>
+          <THWT tip="Invoice date (or send date when sent).">Date</THWT>
           <TableHead className="w-10 text-right">
             <Button variant="ghost" size="icon" onClick={toggleExpandAll} className="h-7 w-7 text-muted-foreground" title={allExpanded ? "Collapse all" : "Expand all"}>
               {allExpanded ? <ChevronsDownUp className="h-4 w-4" /> : <ChevronsUpDown className="h-4 w-4" />}
