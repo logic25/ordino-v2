@@ -237,15 +237,145 @@ export function useUpdateInvoice() {
         .from("invoices")
         .update(updateData as any)
         .eq("id", id)
-        .select()
+        .select("*")
         .single();
 
       if (error) throw error;
+
+      // Deposit-invoice side effect: when a deposit invoice is marked paid, mirror
+      // the payment into client_retainers so it shows up in the Deposits tab no
+      // matter the payment method (check, cash, ACH, wire, card).
+      const row = data as any;
+      if (input.status === "paid" && row?.is_deposit && !row?.retainer_id && row?.client_id) {
+        try {
+          const amount = Number(row.payment_amount ?? row.total_due ?? row.subtotal ?? 0);
+          if (amount > 0) {
+            const { data: retainer } = await supabase
+              .from("client_retainers")
+              .insert({
+                company_id: row.company_id,
+                client_id: row.client_id,
+                original_amount: amount,
+                current_balance: amount,
+                notes: row.invoice_number ? `Deposit invoice ${row.invoice_number}` : "Deposit invoice",
+              })
+              .select("id")
+              .single();
+            if (retainer?.id) {
+              await supabase.from("retainer_transactions").insert({
+                company_id: row.company_id,
+                retainer_id: retainer.id,
+                invoice_id: row.id,
+                type: "deposit",
+                amount,
+                balance_after: amount,
+                description: `Paid via ${row.payment_method || "manual"} — Invoice ${row.invoice_number || ""}`.trim(),
+              });
+              await supabase
+                .from("invoices")
+                .update({ retainer_id: retainer.id })
+                .eq("id", row.id);
+            }
+          }
+        } catch (e) {
+          console.error("Failed to mirror deposit invoice into retainers:", e);
+        }
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["invoice-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["invoice-totals"] });
+      queryClient.invalidateQueries({ queryKey: ["client-retainers"] });
+    },
+  });
+}
+
+/**
+ * Create a "Deposit Invoice" for a proposal — used when a client wants a formal
+ * invoice for the deposit instead of paying directly via the proposal page.
+ * Created as `ready_to_send` so Sai can send it from the worklist; once she marks
+ * it paid, useUpdateInvoice mirrors the payment into client_retainers so the
+ * Deposits tab stays consistent regardless of payment method.
+ */
+export function useCreateDepositInvoice() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: {
+      proposal: {
+        id: string;
+        client_id: string | null;
+        proposal_number: string | null;
+        converted_project_id?: string | null;
+        deposit_required?: number | null;
+      };
+      override_amount?: number;
+    }) => {
+      const { data: auth } = await supabase.auth.getUser();
+      const userId = auth?.user?.id;
+      if (!userId) throw new Error("Not signed in");
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, company_id")
+        .eq("id", userId)
+        .maybeSingle();
+      if (!profile?.company_id) throw new Error("No profile found for current user");
+
+      const amount = Number(input.override_amount ?? input.proposal.deposit_required ?? 0);
+      if (!amount || amount <= 0) {
+        throw new Error("Proposal has no deposit amount — set a deposit on the proposal first.");
+      }
+
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 7);
+
+      const { data, error } = await supabase
+        .from("invoices")
+        .insert({
+          company_id: profile.company_id,
+          invoice_number: "",
+          client_id: input.proposal.client_id,
+          project_id: input.proposal.converted_project_id || null,
+          line_items: [
+            {
+              description: `Project Deposit — Proposal #${input.proposal.proposal_number || ""}`.trim(),
+              quantity: 1,
+              rate: amount,
+              amount,
+            },
+          ] as any,
+          subtotal: amount,
+          retainer_applied: 0,
+          fees: {} as any,
+          total_due: amount,
+          status: "ready_to_send",
+          payment_terms: "Due on Receipt",
+          due_date: dueDate.toISOString().slice(0, 10),
+          is_deposit: true,
+          created_by: profile.id,
+        } as any)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await supabase.from("invoice_activity_log").insert({
+        company_id: profile.company_id,
+        invoice_id: (data as any).id,
+        action: "created",
+        details: `Deposit invoice created for Proposal #${input.proposal.proposal_number || ""}`.trim(),
+        performed_by: profile.id,
+      } as any);
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["invoice-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["invoice-totals"] });
     },
   });
 }
