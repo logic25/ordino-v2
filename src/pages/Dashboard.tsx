@@ -11,7 +11,7 @@ import { RolePreviewSelector, type DashboardRole } from "@/components/dashboard/
 import { DashboardLayoutConfig } from "@/components/dashboard/DashboardLayoutConfig";
 import { useDashboardLayout } from "@/hooks/useDashboardLayout";
 import { Button } from "@/components/ui/button";
-import { X, BookOpen, Map } from "lucide-react";
+import { X, BookOpen, Map, LayoutGrid, Check, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWalkthrough } from "@/components/walkthrough/WalkthroughProvider";
 import { WALKTHROUGHS } from "@/components/walkthrough/walkthroughs";
@@ -55,6 +55,7 @@ export default function Dashboard() {
   const actualRole = profile?.role || "pm";
   const [previewRole, setPreviewRole] = useState<DashboardRole>(mapRoleToDashboard(actualRole));
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
+  const [editLayout, setEditLayout] = useState(false);
 
   const role = previewRole;
   const layout = useDashboardLayout(role);
@@ -103,7 +104,14 @@ export default function Dashboard() {
       case "pm":
         return <PMDailyView isVisible={layout.isVisible} />;
       case "admin":
-        return <AdminCompanyView isVisible={layout.isVisible} />;
+        return (
+          <AdminCompanyView
+            isVisible={layout.isVisible}
+            editMode={editLayout}
+            order={layout.order}
+            onReorder={layout.setOrder}
+          />
+        );
       case "accounting":
         return <AccountingView isVisible={layout.isVisible} />;
       default:
@@ -123,6 +131,28 @@ export default function Dashboard() {
             <p className="text-muted-foreground mt-1">{getRoleDescription()}</p>
           </div>
           <div className="flex items-center gap-2">
+            {role === "admin" && (
+              <>
+                {editLayout && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-xs text-muted-foreground"
+                    onClick={async () => { await layout.resetLayout(); }}
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" /> Reset
+                  </Button>
+                )}
+                <Button
+                  variant={editLayout ? "default" : "outline"}
+                  size="sm"
+                  className="gap-1.5 text-xs"
+                  onClick={() => setEditLayout((v) => !v)}
+                >
+                  {editLayout ? <><Check className="h-3.5 w-3.5" /> Done</> : <><LayoutGrid className="h-3.5 w-3.5" /> Edit layout</>}
+                </Button>
+              </>
+            )}
             <DashboardLayoutConfig
               widgets={layout.widgets}
               visibility={layout.visibility}

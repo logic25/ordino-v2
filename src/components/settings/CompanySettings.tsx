@@ -99,6 +99,7 @@ export function CompanySettings() {
   const [logoUrl, setLogoUrl] = useState("");
   const [gchatEnabled, setGchatEnabled] = useState(false);
   const [gchatSpaceId, setGchatSpaceId] = useState("");
+  const [staleProjectDays, setStaleProjectDays] = useState<string>("14");
   useEffect(() => {
     if (company) {
       setName(company.name || "");
@@ -115,6 +116,7 @@ export function CompanySettings() {
       setLogoUrl(theme?.logo_url || company.logo_url || "");
       setGchatEnabled(!!settings?.gchat_enabled);
       setGchatSpaceId(settings?.gchat_space_id || "");
+      setStaleProjectDays(String(Number(settings?.stale_project_days) || 14));
     }
   }, [company]);
 
@@ -132,13 +134,14 @@ export function CompanySettings() {
           address: address.trim() || null,
           website: website.trim() || null,
           ein: ein.trim() || null,
-          settings: { ...currentSettings, insurances, gchat_enabled: gchatEnabled, gchat_space_id: gchatSpaceId.trim() || null } as any,
+          settings: { ...currentSettings, insurances, gchat_enabled: gchatEnabled, gchat_space_id: gchatSpaceId.trim() || null, stale_project_days: Math.max(1, Number(staleProjectDays) || 14) } as any,
           theme: { primary_color: primaryColor, accent_color: accentColor, logo_url: logoUrl } as any,
           logo_url: logoUrl || null,
         } as any)
         .eq("id", profile.company_id);
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ["company-settings"] });
+      qc.invalidateQueries({ queryKey: ["company-dashboard-settings"] });
       toast({ title: "Company updated" });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -218,8 +221,38 @@ export function CompanySettings() {
         </CardContent>
       </Card>
 
+      {/* Project Defaults */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Project Defaults</CardTitle>
+          <CardDescription>Company-wide defaults for project tracking.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Stale project threshold (days)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={365}
+                value={staleProjectDays}
+                onChange={(e) => setStaleProjectDays(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Open projects with no activity (time, notes, status, email,
+                comment) for this many days are flagged as stale on the
+                Projects page and Admin dashboard. Default: 14.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Billing Goals (admin only) */}
       <BillingGoalsSection />
+
+
+
 
 
       {/* Insurance Policies */}

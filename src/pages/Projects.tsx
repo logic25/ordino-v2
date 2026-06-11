@@ -1,5 +1,7 @@
 import { formatCurrency } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useCompanyDashboardSettings } from "@/hooks/useDashboardData";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,6 +40,11 @@ export default function Projects() {
   const { profile } = useAuth();
   const isAdmin = useIsAdmin();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const pmFilter = searchParams.get("pm");
+  const staleBucket = searchParams.get("stale"); // "fresh" | "warming" | "stale"
+  const { data: companySettings } = useCompanyDashboardSettings();
+  const companyStaleDays = companySettings?.staleProjectDays ?? 14;
 
   const { data: projects = [], isLoading } = useProjects();
   const createProject = useCreateProject();
@@ -45,17 +52,43 @@ export default function Projects() {
   const deleteProject = useDeleteProject();
   const createRfi = useCreateRfiRequest();
 
+  // If we arrived from "Stale Projects by PM" widget, default to All scope + stale tab
+  useEffect(() => {
+    if (pmFilter && !showAllProjects) setShowAllProjects(true);
+    if (staleBucket === "stale" && statusFilter !== "stale") setStatusFilter("stale");
+    if ((staleBucket === "fresh" || staleBucket === "warming") && statusFilter !== "open") setStatusFilter("open");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pmFilter, staleBucket]);
+
   // Filter by PM assignment (non-admins see only their projects, admins can toggle)
   const myProjects = profile?.id
     ? projects.filter((p) => p.assigned_pm_id === profile.id || p.senior_pm_id === profile.id)
     : projects;
-  const visibleProjects = showAllProjects ? projects : myProjects;
+  const baseProjects = showAllProjects ? projects : myProjects;
+  const visibleProjects = pmFilter
+    ? baseProjects.filter((p) => p.assigned_pm_id === pmFilter || (p as any).senior_pm_id === pmFilter)
+    : baseProjects;
+
+  const projectAgeDays = (p: any) =>
+    p.last_activity_at
+      ? Math.floor((Date.now() - new Date(p.last_activity_at).getTime()) / 86400000)
+      : 9999;
 
   const isStale = (p: any) => {
     if (p.status !== "open" || !p.last_activity_at) return false;
-    const threshold = p.stale_threshold_days || 14;
-    const days = Math.floor((Date.now() - new Date(p.last_activity_at).getTime()) / 86400000);
-    return days >= threshold;
+    const threshold = p.stale_threshold_days || companyStaleDays;
+    return projectAgeDays(p) >= threshold;
+  };
+
+  const matchesBucket = (p: any) => {
+    if (!staleBucket) return true;
+    if (p.status !== "open") return false;
+    const days = projectAgeDays(p);
+    const threshold = p.stale_threshold_days || companyStaleDays;
+    if (staleBucket === "stale") return days >= threshold;
+    if (staleBucket === "warming") return days >= 8 && days < threshold;
+    if (staleBucket === "fresh") return days < 8;
+    return true;
   };
 
   const filteredProjects = visibleProjects.filter((p) => {
@@ -63,6 +96,7 @@ export default function Projects() {
     if (statusFilter === "stale") {
       if (!isStale(p)) return false;
     } else if (statusFilter !== "all" && p.status !== statusFilter) return false;
+    if (!matchesBucket(p)) return false;
     // Search filter
     const query = searchQuery.toLowerCase();
     if (!query) return true;

@@ -11,14 +11,16 @@ export const ROLE_WIDGETS: Record<string, { id: string; label: string }[]> = {
     { id: "quick-time-log", label: "Quick Time Log" },
   ],
   admin: [
-    { id: "kpis", label: "KPIs" },
-    { id: "revenue-trend", label: "Revenue Trend" },
-    { id: "yoy-proposals-followups", label: "YoY / Proposals / Follow-Ups" },
+    { id: "billing-pulse", label: "Billing Pulse" },
     { id: "proposals-pipeline", label: "Proposals Pipeline" },
-    { id: "proposal-conversion-rates", label: "Proposal Conversion Rates" },
-    { id: "team-utilization", label: "Team Utilization" },
-    { id: "accounting-summary", label: "Accounting Summary" },
-    { id: "billing-goal-tracker", label: "Billing Goal Tracker" },
+    { id: "proposal-conversion-rates", label: "Proposals & Billing" },
+    { id: "revenue-trend", label: "Revenue Trend" },
+    { id: "billing-pipeline", label: "Upcoming Billing Pipeline" },
+    { id: "kpis", label: "KPIs" },
+    { id: "team-utilization", label: "Team Utilization & Projects by PM" },
+    { id: "stale-projects-by-pm", label: "Stale Projects by PM" },
+    { id: "proposal-followups", label: "Proposal Follow-Ups" },
+    { id: "expense-approvals", label: "Expense Approvals" },
     { id: "team-overview", label: "Team Overview" },
   ],
   accounting: [
@@ -41,15 +43,19 @@ export const ROLE_WIDGETS: Record<string, { id: string; label: string }[]> = {
   ],
 };
 
-// Default: all widgets visible
 function getDefaultVisibility(role: string): Record<string, boolean> {
   const widgets = ROLE_WIDGETS[role] || [];
   return Object.fromEntries(widgets.map((w) => [w.id, true]));
 }
 
+function getDefaultOrder(role: string): string[] {
+  return (ROLE_WIDGETS[role] || []).map((w) => w.id);
+}
+
 export function useDashboardLayout(role: string) {
   const { profile } = useAuth();
   const [visibility, setVisibility] = useState<Record<string, boolean>>(() => getDefaultVisibility(role));
+  const [order, setOrderState] = useState<string[]>(() => getDefaultOrder(role));
   const [loaded, setLoaded] = useState(false);
 
   // Load saved layout from profile preferences
@@ -64,53 +70,98 @@ export function useDashboardLayout(role: string) {
 
       const prefs = (data?.notification_preferences as any) || {};
       const savedLayout = prefs?.dashboard_layout?.[role];
+      const savedOrder = prefs?.dashboard_order?.[role];
 
       if (savedLayout && typeof savedLayout === "object") {
-        // Merge with defaults so new widgets show up
         setVisibility({ ...getDefaultVisibility(role), ...savedLayout });
       } else {
         setVisibility(getDefaultVisibility(role));
+      }
+
+      const defaultOrder = getDefaultOrder(role);
+      if (Array.isArray(savedOrder)) {
+        // Merge: keep saved order, append any new widgets at the end
+        const merged = [
+          ...savedOrder.filter((id) => defaultOrder.includes(id)),
+          ...defaultOrder.filter((id) => !savedOrder.includes(id)),
+        ];
+        setOrderState(merged);
+      } else {
+        setOrderState(defaultOrder);
       }
       setLoaded(true);
     };
     loadPrefs();
   }, [profile?.id, role]);
 
-  const toggleWidget = useCallback(
-    async (widgetId: string) => {
-      const newVis = { ...visibility, [widgetId]: !visibility[widgetId] };
-      setVisibility(newVis);
-
+  const savePrefs = useCallback(
+    async (next: { visibility?: Record<string, boolean>; order?: string[] }) => {
       if (!profile?.id) return;
-
-      // Save to profile
       const { data } = await supabase
         .from("profiles")
         .select("notification_preferences")
         .eq("id", profile.id)
         .single();
-
       const prefs = (data?.notification_preferences as any) || {};
-      const updatedPrefs = {
-        ...prefs,
-        dashboard_layout: {
+      const updated = { ...prefs };
+      if (next.visibility) {
+        updated.dashboard_layout = {
           ...(prefs.dashboard_layout || {}),
-          [role]: newVis,
-        },
-      };
-
+          [role]: next.visibility,
+        };
+      }
+      if (next.order) {
+        updated.dashboard_order = {
+          ...(prefs.dashboard_order || {}),
+          [role]: next.order,
+        };
+      }
       await supabase
         .from("profiles")
-        .update({ notification_preferences: updatedPrefs } as any)
+        .update({ notification_preferences: updated } as any)
         .eq("id", profile.id);
     },
-    [visibility, profile?.id, role]
+    [profile?.id, role]
   );
+
+  const toggleWidget = useCallback(
+    async (widgetId: string) => {
+      const newVis = { ...visibility, [widgetId]: !visibility[widgetId] };
+      setVisibility(newVis);
+      await savePrefs({ visibility: newVis });
+    },
+    [visibility, savePrefs]
+  );
+
+  const setOrder = useCallback(
+    async (newOrder: string[]) => {
+      setOrderState(newOrder);
+      await savePrefs({ order: newOrder });
+    },
+    [savePrefs]
+  );
+
+  const resetLayout = useCallback(async () => {
+    const defaultVis = getDefaultVisibility(role);
+    const defaultOrd = getDefaultOrder(role);
+    setVisibility(defaultVis);
+    setOrderState(defaultOrd);
+    await savePrefs({ visibility: defaultVis, order: defaultOrd });
+  }, [role, savePrefs]);
 
   const isVisible = useCallback(
     (widgetId: string) => visibility[widgetId] !== false,
     [visibility]
   );
 
-  return { visibility, toggleWidget, isVisible, loaded, widgets: ROLE_WIDGETS[role] || [] };
+  return {
+    visibility,
+    order,
+    toggleWidget,
+    setOrder,
+    resetLayout,
+    isVisible,
+    loaded,
+    widgets: ROLE_WIDGETS[role] || [],
+  };
 }
