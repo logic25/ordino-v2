@@ -26,19 +26,18 @@ import { PMDailyView } from "./PMDailyView";
 import { TeamOverview } from "./TeamOverview";
 import { ProposalFollowUps } from "./ProposalFollowUps";
 import { ProposalConversionTable } from "./ProposalConversionTable";
-import { StaleProjectsByPM } from "./StaleProjectsByPM";
 import { ExpenseApprovalsCard } from "./ExpenseApprovalsCard";
 import { BillingPulse } from "./BillingPulse";
 import { RevenueTrendChart } from "./RevenueTrendChart";
 import { SalesHealthCard } from "./SalesHealthCard";
-import { CycleTimesCard } from "./CycleTimesCard";
-import { CollectedVsBilledCard } from "./CollectedVsBilledCard";
 import { StaleProjectsCard } from "./StaleProjectsCard";
 import { BillingPipelineTable } from "@/components/billing/BillingPipelineTable";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { InfoTooltip } from "./InfoTooltip";
+import { DrillInModal } from "./DrillInModal";
+import { useDrilldownList, type DrilldownKind } from "@/hooks/useDrilldownList";
 import { formatCurrency } from "@/lib/utils";
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent,
@@ -59,7 +58,6 @@ interface AdminCompanyViewProps {
 export function AdminCompanyView({ isVisible, editMode = false, order, onReorder }: AdminCompanyViewProps) {
   const show = isVisible || (() => true);
   const [view, setView] = useState<"company" | "my">("company");
-  const navigate = useNavigate();
   const fallbackLayout = useDashboardLayout("admin");
   const effectiveOrder = order ?? fallbackLayout.order;
   const handleReorder = onReorder ?? fallbackLayout.setOrder;
@@ -70,14 +68,31 @@ export function AdminCompanyView({ isVisible, editMode = false, order, onReorder
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  const ViewToggle = (
+    <div className="inline-flex rounded-md border bg-card p-0.5">
+      <Button
+        size="sm"
+        variant={view === "company" ? "default" : "ghost"}
+        className="h-7 px-3 text-xs"
+        onClick={() => setView("company")}
+      >
+        Company
+      </Button>
+      <Button
+        size="sm"
+        variant={view === "my" ? "default" : "ghost"}
+        className="h-7 px-3 text-xs"
+        onClick={() => setView("my")}
+      >
+        My View
+      </Button>
+    </div>
+  );
+
   if (view === "my") {
     return (
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setView("company")}>
-            ← Company View
-          </Button>
-        </div>
+        <div className="flex items-center gap-2">{ViewToggle}</div>
         <PMDailyView />
       </div>
     );
@@ -87,22 +102,26 @@ export function AdminCompanyView({ isVisible, editMode = false, order, onReorder
     "kpis": <KpiStrip />,
     "billing-pulse": <BillingPulse scope="company" />,
     "sales-health": <SalesHealthCard />,
-    "cycle-times": <CycleTimesCard />,
-    "collected-vs-billed": <CollectedVsBilledCard />,
     "stale-projects-total": <StaleProjectsCard />,
     "proposal-conversion-rates": <ProposalConversionTable />,
     "revenue-trend": <RevenueTrendChart defaultMode="6" />,
     "billing-pipeline": (
-      <Collapsible>
+      <Collapsible defaultOpen>
         <Card>
           <CollapsibleTrigger asChild>
             <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-base flex items-center gap-1.5">
                   Upcoming Billing Pipeline
-                  <InfoTooltip>Services marked <strong>billed</strong> (ready to invoice) with remaining balance and no open billing request.</InfoTooltip>
+                  <InfoTooltip>
+                    Services on <strong>open projects</strong> with a remaining
+                    balance and an estimated bill date set — and not yet attached
+                    to a pending or approved billing request. Includes services
+                    flagged <em>in progress</em> and <em>billed (ready to invoice)</em>.
+                    Sorted by estimated bill date.
+                  </InfoTooltip>
                 </CardTitle>
-                <CardDescription>Billed deliverables awaiting a billing request</CardDescription>
+                <CardDescription>Deliverables expected to bill next</CardDescription>
               </div>
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -116,7 +135,6 @@ export function AdminCompanyView({ isVisible, editMode = false, order, onReorder
       </Collapsible>
     ),
     "team-utilization": <TeamUtilizationStrip />,
-    "stale-projects-by-pm": <StaleProjectsByPM />,
     "proposal-followups": <ProposalFollowUps />,
     "expense-approvals": <ExpenseApprovalsCard />,
     "team-overview": <TeamOverview />,
@@ -136,11 +154,7 @@ export function AdminCompanyView({ isVisible, editMode = false, order, onReorder
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" onClick={() => setView("my")}>
-          My View →
-        </Button>
-      </div>
+      <div className="flex items-center gap-2">{ViewToggle}</div>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={visibleOrdered} strategy={rectSortingStrategy}>
@@ -221,18 +235,29 @@ function SortableWidget({
 }
 
 function KpiStrip() {
-  const navigate = useNavigate();
   const { data: active, isLoading: l1 } = useActiveProjectsKpi();
   const { data: prop, isLoading: l2 } = useActiveProposalsKpi();
   const { data: ar, isLoading: l3 } = useArOutstandingKpi();
   const { data: goal, isLoading: l4 } = useMonthGoalKpi();
+
+  const [drillKind, setDrillKind] = useState<DrilldownKind | null>(null);
+  const drill = useDrilldownList((drillKind ?? "active-projects") as DrilldownKind, { enabled: drillKind !== null });
+
+  const modalMeta: Record<DrilldownKind, { title: string; description?: string }> = {
+    "active-projects": { title: "Active Projects", description: "Open projects sorted by most recent activity." },
+    "active-proposals": { title: "Proposals In Flight", description: "Sent and signed proposals awaiting execution." },
+    "ar-outstanding": { title: "Accounts Receivable", description: "Sent and overdue invoices with a balance." },
+    "proposal-followups": { title: "Proposal Follow-Ups", description: "Sent proposals past their next follow-up date." },
+    "stale-projects": { title: "Stale Projects", description: "Open projects with no recent activity." },
+  };
 
   const cards = [
     {
       label: "Active Projects",
       icon: Building2,
       loading: l1,
-      onClick: () => navigate("/projects?status=open"),
+      tooltip: "Currently open projects. Δ compares to projects open at the start of this month.",
+      kind: "active-projects" as DrilldownKind,
       body: active ? (
         <>
           <p className="text-2xl font-bold tabular-nums">{active.value}</p>
@@ -249,15 +274,22 @@ function KpiStrip() {
       ) : null,
     },
     {
-      label: "Active Proposals",
+      label: "Proposals Written",
       icon: FileText,
       loading: l2,
-      onClick: () => navigate("/proposals"),
+      tooltip: "Count of proposals created this calendar month vs last month. Subtitle shows dollars currently in flight (sent + signed).",
+      kind: "active-proposals" as DrilldownKind,
       body: prop ? (
         <>
           <p className="text-2xl font-bold tabular-nums">{prop.value}</p>
-          <p className="text-xs text-muted-foreground tabular-nums">
-            {formatCurrency(prop.inFlight)} in flight
+          <p className="text-xs text-muted-foreground flex items-center gap-1">
+            {prop.delta > 0 ? (
+              <><ArrowUp className="h-3 w-3 text-emerald-500" /> +{prop.delta} vs last month · {formatCurrency(prop.inFlight)} in flight</>
+            ) : prop.delta < 0 ? (
+              <><ArrowDown className="h-3 w-3 text-red-500" /> {prop.delta} vs last month · {formatCurrency(prop.inFlight)} in flight</>
+            ) : (
+              <>Same as last month · {formatCurrency(prop.inFlight)} in flight</>
+            )}
           </p>
         </>
       ) : null,
@@ -266,7 +298,8 @@ function KpiStrip() {
       label: "AR Outstanding",
       icon: DollarSign,
       loading: l3,
-      onClick: () => navigate("/billing"),
+      tooltip: "Open invoice balances (sent + overdue).",
+      kind: "ar-outstanding" as DrilldownKind,
       body: ar ? (
         <>
           <p className="text-2xl font-bold tabular-nums">{formatCurrency(ar.total)}</p>
@@ -283,7 +316,8 @@ function KpiStrip() {
       label: "Month-to-Goal",
       icon: Target,
       loading: l4,
-      onClick: () => navigate("/billing?tab=by-user"),
+      tooltip: "Billed month-to-date ÷ the company monthly billing goal (override or sum of PM goals).",
+      kind: null as DrilldownKind | null,
       body: goal ? (
         <>
           <p className={`text-2xl font-bold tabular-nums ${
@@ -302,23 +336,37 @@ function KpiStrip() {
   ];
 
   return (
-    <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-      {cards.map((k) => (
-        <Card
-          key={k.label}
-          className="cursor-pointer hover:shadow-md transition-shadow"
-          onClick={k.onClick}
-        >
-          <CardContent className="pt-6">
-            <div className="flex items-start justify-between mb-1">
-              <p className="text-xs text-muted-foreground font-medium">{k.label}</p>
-              <k.icon className="h-4 w-4 text-muted-foreground" />
-            </div>
-            {k.loading ? <Skeleton className="h-10 w-24" /> : k.body}
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+    <>
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        {cards.map((k) => (
+          <Card
+            key={k.label}
+            className={k.kind ? "cursor-pointer hover:shadow-md transition-shadow" : ""}
+            onClick={() => k.kind && setDrillKind(k.kind)}
+          >
+            <CardContent className="pt-6">
+              <div className="flex items-start justify-between mb-1">
+                <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                  {k.label}
+                  <InfoTooltip>{k.tooltip}</InfoTooltip>
+                </p>
+                <k.icon className="h-4 w-4 text-muted-foreground" />
+              </div>
+              {k.loading ? <Skeleton className="h-10 w-24" /> : k.body}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <DrillInModal
+        open={drillKind !== null}
+        onOpenChange={(o) => !o && setDrillKind(null)}
+        title={drillKind ? modalMeta[drillKind].title : ""}
+        description={drillKind ? modalMeta[drillKind].description : undefined}
+        loading={drill.isLoading}
+        rows={drill.data || []}
+      />
+    </>
   );
 }
 
