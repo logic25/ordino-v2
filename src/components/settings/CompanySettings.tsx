@@ -141,6 +141,7 @@ export function CompanySettings() {
         .eq("id", profile.company_id);
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ["company-settings"] });
+      qc.invalidateQueries({ queryKey: ["company-dashboard-settings"] });
       toast({ title: "Company updated" });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
