@@ -1,53 +1,76 @@
-## Quick answers (no code)
+## Goal
+Tighten the Admin dashboard: merge widgets, fix the PM list, add tooltips everywhere, show goals on the Billing tab, surface project "touches", and let users reorder cards.
 
-**Projects → "Paid"** = projects whose invoices are fully paid. The project lifecycle is `open → closed → paid`. Closed means work is done; Paid means the final invoice cleared.
+## Changes
 
-**Projects → "Stale"** = an **open** project with no activity (no time logged, no notes, no status change, no email/comment) for **14+ days** (per-project threshold defaults to 14, set on the project). It's a nudge, not a real status — the project is still `open`, it's just been quiet.
+### 1. Merge "Proposal Activity" into "Proposals & Billing"
+The old `ProposalActivityCard` (a list of recently sent / signed / executed proposals) lives just below the KPI tiles today. Retire it and surface the same data as a new **Activity** tab inside the existing `Proposals & Billing` card, alongside the Conversion and Billing tabs.
 
-I'll add a "?" tooltip on both tabs so this is visible to anyone.
+- Tab shows: latest sent, signed, executed proposals for the selected year, with date, client, amount, and a link into the proposal.
+- Remove `<ProposalActivityCard />` from `AdminCompanyView.tsx` (it currently renders twice via the `yoy-proposals-followups` flag — both invocations go away).
 
----
+### 2. Projects by PM — only real PMs
+Currently lists every active profile (that's why Sai appears). Change `useProjectsByPM` to only return users who **either**:
+- have role `pm`, `senior_pm`, or `admin`, **or**
+- are assigned as PM on ≥1 open project.
 
-## Admin Dashboard fix
+Drop zero-count non-PMs. Sort by open-project count desc.
 
-You want the same at-a-glance proposal-conversion view the old Ordino had: monthly rows showing how many proposals went out, how many converted, the rate, and the dollars. We already have a "Proposals Pipeline" card (bars by stage), but no monthly conversion table — that's what's missing.
+### 3. Tooltips on every dashboard card
+Add a small `(i)` icon next to each card title with a hover tooltip explaining what it shows, the time window, and how the number is calculated. Coverage: Billing Pulse, Proposals Pipeline, Proposals & Billing (per tab), Revenue Trend, Upcoming Billing Pipeline, KPIs (each tile), Team Utilization, Projects by PM, Proposal Follow-Ups, Expense Approvals, Team Overview, Stale Projects (new).
 
-### New widget: **Proposal Conversion Rates**
-A table on the admin dashboard, last 12 months by default:
+### 4. Team Utilization — clarify labels
+Keep the chart, sharpen the framing:
+- Subtitle: "Billable hours logged vs total hours logged · Mon–Sun"
+- Tooltip: **Billable** = activities flagged billable in the last 7 days; **Total** = all logged activities; **% Billable** = billable ÷ total.
 
-| Month | Sent | Converted | Rate | Proposed $ | Converted $ |
-|-------|------|-----------|------|------------|-------------|
-| Jun 2026 | 15 | 4 | 26.7% | $77,775 | $11,875 |
-| May 2026 | 38 | 26 | 68.4% | $196,500 | $110,400 |
-| … | | | | | |
-| **Total** | 192 | 120 | **62.5%** | $1.6M | $750k |
+No formula change.
 
-**Definitions**
-- **Sent** = proposals where `sent_at` falls in that month (status `sent`, `signed_client`, `executed`, or `won`).
-- **Converted** = proposals from that same month-of-send whose status reached `signed_client`/`executed`/`won` (so the rate reflects the cohort, not just signatures that happened to land in that month — matches how you used to read the old report).
-- **Rate** = Converted ÷ Sent.
-- **Proposed $** = sum of `total_amount` of all Sent proposals.
-- **Converted $** = sum of `total_amount` of converted proposals.
+### 5. New widget: Stale Projects by PM ("touches")
+Per-PM count of open projects with no recent activity. "Touched" = any of: time logged, note added, status changed, email sent, comment posted. Uses the existing project last-activity signal (same one the Projects → Stale tab uses).
 
-**Controls**
-- Year selector (defaults to current year, options for current + 2 prior).
-- Click a month row → navigates to `/proposals?status=sent&month=YYYY-MM` so you can drill in.
-- Totals row at the bottom.
+Buckets per PM, threshold pulled from settings (see §6):
+- 0–7 days (fresh)
+- 8–`stale_threshold` days (warming)
+- `stale_threshold`+ days (cold)
 
-### Tooltips on existing dashboard cards
-Add short hover explainers to **Proposals Pipeline** (what each stage means) and the **KPI tiles** so nothing feels mysterious.
+Clicking a bucket → `/projects?pm=<id>&stale=<bucket>`.
 
-## Files
-- `src/hooks/useDashboardData.ts` — add `useProposalConversionRates(year)` (single Supabase query over `proposals`, bucketed in JS by month).
-- `src/components/dashboard/ProposalConversionTable.tsx` — new widget (table + year picker).
-- `src/components/dashboard/AdminCompanyView.tsx` — drop it in just below `ProposalsPipelineCard` (and add it to the layout-config registry so it can be toggled).
-- `src/hooks/useDashboardLayout.ts` (or the widget list file) — register `proposal-conversion-rates`.
-- `src/pages/Projects.tsx` — small `?` tooltip on the Paid and Stale tab triggers.
-- `changelog_entries` — one row: "Admin Dashboard: monthly proposal conversion rates."
+### 6. Configurable stale threshold (default 14d)
+Add a "Stale project threshold (days)" setting under **Settings → Projects** (or Settings → Reports — flag in open questions). Defaults to 14. Stored on `companies` as a new `stale_project_days` column. Used by:
+- The Projects → Stale tab
+- The new Stale Projects by PM widget
 
-## Out of scope
-- Reworking the Pipeline card itself (it stays — it's the live "where are deals right now" view; the new table is the historical "how are we converting").
-- Filtering by source/PM (can add later if you want — flag it after you see the table).
-- Charts. Table only for now to match the old layout you referenced.
+### 7. Billing by User — add goals
+Pull each user's monthly billing goal from the existing `billing_goals` source (already used by `BillingPulse`). Add to the Billing tab:
+- **Goal** column (monthly $)
+- **vs Goal** column (% achieved, color-coded: red <50%, amber 50–90%, green ≥90%)
+- Totals row aggregates goal and shows aggregate %.
 
-No DB migration needed.
+### 8. User-arrangeable dashboard
+Extend `useDashboardLayout`:
+- Already stores per-role visibility in `profiles.notification_preferences.dashboard_layout`.
+- Add an `order: string[]` array alongside visibility.
+- Render widgets in saved order (fall back to default).
+- Add an "Edit layout" toggle near the existing Customize button. In edit mode, a drag handle appears on each card. Use `@dnd-kit/sortable` (already in deps).
+- "Reset layout" restores defaults.
+
+### Not doing
+- ~~Weekly breakdown tables like the screenshot ("Jun 1–7", "Jun 8–14")~~ — per your call, skipping.
+- Editing billing goals from the dashboard (still in Settings → Billing Goals).
+- Cross-role shared layouts (each user keeps their own arrangement).
+
+## Files touched
+- `src/hooks/useDashboardData.ts` — PM filter; billing-goal join; recent-proposals query for Activity tab; stale-projects-by-PM query
+- `src/hooks/useDashboardLayout.ts` — add `order`, `setOrder`, `resetLayout`
+- `src/components/dashboard/AdminCompanyView.tsx` — remove `ProposalActivityCard`, add `StaleProjectsByPM`, wire dnd-kit + edit mode, render in saved order, add info tooltips
+- `src/components/dashboard/ProposalConversionTable.tsx` — add **Activity** tab, add **Goal / vs Goal** columns to Billing tab
+- `src/components/dashboard/StaleProjectsByPM.tsx` (new)
+- `src/components/dashboard/DashboardCardShell.tsx` (new) — small wrapper providing the info-tooltip slot and drag handle
+- `src/components/settings/ProjectSettings.tsx` (or equivalent) — add "Stale project threshold" input
+- `src/pages/Projects.tsx` — read threshold from company settings instead of hard-coded 14
+- Migration: `companies.stale_project_days int default 14`
+- Changelog entry
+
+## Open question
+**Where should the "Stale project threshold (days)" live in Settings — under Projects, Reports, or Company?** Default suggestion: **Settings → Projects** (next to other project-wide defaults).
