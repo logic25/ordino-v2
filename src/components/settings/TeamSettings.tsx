@@ -1189,7 +1189,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                   />
                   <StatCard
                     icon={Zap}
-                    label="Efficiency Rating"
+                    label="Accounting Efficiency"
                     value={acctStats?.efficiency ?? 0}
                     suffix="%"
                     tooltip="Weighted composite: Time-to-Invoice 30% + Collection 25% + Accuracy 20% + Backlog cleared 15% + Timelog 10%. Components with no data are skipped and remaining weights re-normalize."
