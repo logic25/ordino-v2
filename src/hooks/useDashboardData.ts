@@ -238,3 +238,65 @@ export function useProposalsPipeline() {
     },
   });
 }
+
+export interface ProposalConversionRow {
+  month: string;        // YYYY-MM
+  label: string;        // e.g. "Jun 2026"
+  sent: number;
+  converted: number;
+  rate: number;         // 0..1
+  proposedValue: number;
+  convertedValue: number;
+}
+
+const WON_STATUSES = new Set(["signed_client", "executed", "won"]);
+const SENT_STATUSES = new Set(["sent", "signed_client", "executed", "won", "lost"]);
+
+export function useProposalConversionRates(year: number) {
+  const { profile } = useAuth();
+  return useQuery({
+    queryKey: ["proposal-conversion-rates", profile?.company_id, year],
+    enabled: !!profile?.company_id,
+    queryFn: async (): Promise<ProposalConversionRow[]> => {
+      const start = `${year}-01-01`;
+      const end = `${year + 1}-01-01`;
+      const { data } = await supabase
+        .from("proposals")
+        .select("status, total_amount, sent_at, created_at")
+        .eq("company_id", profile!.company_id!)
+        .gte("sent_at", start)
+        .lt("sent_at", end);
+
+      const buckets = new Map<string, ProposalConversionRow>();
+      for (let m = 0; m < 12; m++) {
+        const key = `${year}-${String(m + 1).padStart(2, "0")}`;
+        const label = new Date(year, m, 1).toLocaleString("en-US", { month: "short", year: "numeric" });
+        buckets.set(key, { month: key, label, sent: 0, converted: 0, rate: 0, proposedValue: 0, convertedValue: 0 });
+      }
+
+      (data || []).forEach((p: any) => {
+        if (!p.sent_at) return;
+        if (!SENT_STATUSES.has(p.status)) return;
+        const d = new Date(p.sent_at);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        const row = buckets.get(key);
+        if (!row) return;
+        const amount = Number(p.total_amount) || 0;
+        row.sent += 1;
+        row.proposedValue += amount;
+        if (WON_STATUSES.has(p.status)) {
+          row.converted += 1;
+          row.convertedValue += amount;
+        }
+      });
+
+      const rows = Array.from(buckets.values()).map((r) => ({
+        ...r,
+        rate: r.sent > 0 ? r.converted / r.sent : 0,
+      }));
+      // Most recent first
+      return rows.sort((a, b) => b.month.localeCompare(a.month));
+    },
+  });
+}
+
