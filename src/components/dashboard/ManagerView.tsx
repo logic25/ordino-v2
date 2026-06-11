@@ -12,7 +12,7 @@ import { RecentProjects } from "./RecentProjects";
 import { QuickTimeLog } from "@/components/time/QuickTimeLog";
 import { Users, Clock, FileText, FolderKanban } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import { BillingGoalTracker } from "./BillingGoalTracker";
+import { BillingPulse } from "./BillingPulse";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -153,8 +153,8 @@ export function ManagerView({ isVisible }: { isVisible?: (id: string) => boolean
       </div>
       )}
 
-      {/* Billing Goal Tracker */}
-      {show("billing-goal-tracker") && <BillingGoalTracker />}
+      {/* Billing Pulse */}
+      {show("billing-goal-tracker") && <BillingPulse scope="company" />}
 
       {show("proposal-followups") && (
       <div className="grid gap-6 lg:grid-cols-3">

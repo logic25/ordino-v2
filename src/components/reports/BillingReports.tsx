@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from "recharts";
 import { DollarSign } from "lucide-react";
+import { BillingPipelineTable } from "@/components/billing/BillingPipelineTable";
+import { RevenueTrendChart } from "@/components/dashboard/RevenueTrendChart";
 
 const DONUT_COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--destructive))", "hsl(var(--muted-foreground))", "hsl(142, 76%, 36%)", "hsl(45, 93%, 47%)"];
 
@@ -84,6 +86,8 @@ export default function BillingReports() {
 
   return (
     <div className="space-y-4">
+      <BillingPipelineTable scope="company" title="Billing Pipeline" description="Services not yet invoiced across the team" />
+      <RevenueTrendChart defaultMode="6" />
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {/* Revenue Trend */}
         <Card className="md:col-span-2">
