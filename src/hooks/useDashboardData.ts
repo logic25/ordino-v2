@@ -294,8 +294,66 @@ export function useProposalConversionRates(year: number) {
         ...r,
         rate: r.sent > 0 ? r.converted / r.sent : 0,
       }));
-      // Most recent first
-      return rows.sort((a, b) => b.month.localeCompare(a.month));
+      // Chronological: Jan first
+      return rows.sort((a, b) => a.month.localeCompare(b.month));
+    },
+  });
+}
+
+export interface MonthlyBillingByUserRow {
+  userId: string;
+  name: string;
+  months: number[];   // length 12, index 0 = Jan
+  total: number;
+  invoiceCount: number;
+}
+
+export function useMonthlyBillingByUser(year: number) {
+  const { profile } = useAuth();
+  return useQuery({
+    queryKey: ["monthly-billing-by-user", profile?.company_id, year],
+    enabled: !!profile?.company_id,
+    queryFn: async (): Promise<MonthlyBillingByUserRow[]> => {
+      const companyId = profile!.company_id!;
+      const start = `${year}-01-01`;
+      const end = `${year + 1}-01-01`;
+
+      const team = await fetchActiveTeam(companyId);
+
+      const { data: invoices } = await supabase
+        .from("invoices")
+        .select("id, total_due, created_at, created_by, company_id")
+        .eq("company_id", companyId)
+        .gte("created_at", start)
+        .lt("created_at", end);
+
+      const byUser = new Map<string, MonthlyBillingByUserRow>();
+      const ensure = (id: string, name: string) => {
+        if (!byUser.has(id)) {
+          byUser.set(id, { userId: id, name, months: Array(12).fill(0), total: 0, invoiceCount: 0 });
+        }
+        return byUser.get(id)!;
+      };
+      team.forEach((p: any) => ensure(p.id, nameOf(p)));
+
+      (invoices || []).forEach((inv: any) => {
+        if (!inv.created_at) return;
+        const uid = inv.created_by || "unassigned";
+        const teamMember = team.find((t: any) => t.id === uid);
+        const name = uid === "unassigned"
+          ? "Unassigned"
+          : (teamMember ? nameOf(teamMember) : "Other");
+        const row = ensure(uid, name);
+        const d = new Date(inv.created_at);
+        const m = d.getMonth();
+        const amt = Number(inv.total_due) || 0;
+        row.months[m] += amt;
+        row.total += amt;
+        row.invoiceCount += 1;
+      });
+
+      return Array.from(byUser.values())
+        .sort((a, b) => b.total - a.total);
     },
   });
 }
