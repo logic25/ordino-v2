@@ -93,6 +93,7 @@ function ProposalsTab({ year }: { year: number }) {
       rate: sent > 0 ? converted / sent : 0,
       proposedValue: rows.reduce((s, r) => s + r.proposedValue, 0),
       convertedValue: rows.reduce((s, r) => s + r.convertedValue, 0),
+      convertedCOValue: rows.reduce((s, r) => s + r.convertedCOValue, 0),
     };
   }, [rows]);
 
