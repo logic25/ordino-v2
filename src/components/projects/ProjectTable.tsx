@@ -78,6 +78,7 @@ export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, is
   };
 
   return (
+    <TooltipProvider>
     <div className="overflow-x-auto -mx-4 sm:mx-0">
       <Table className="min-w-[800px]">
         <TableHeader>
@@ -91,14 +92,13 @@ export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, is
                 />
               </TableHead>
             )}
-            <TableHead>Project #</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Property</TableHead>
-            <TableHead>Client</TableHead>
-            <TableHead>PM</TableHead>
-             <TableHead>Status</TableHead>
-            
-            <TableHead>Value</TableHead>
+            <THWT tip="Internal project number (format YYYY-NNNN), assigned at creation.">Project #</THWT>
+            <THWT tip="Display name shown across the app. Auto-generated from the property address unless renamed.">Name</THWT>
+            <THWT tip="The NYC property this project is associated with (block / lot / BIN).">Property</THWT>
+            <THWT tip="Client company that this project bills to.">Client</THWT>
+            <THWT tip="Assigned project manager. Senior PM shown in parentheses if assigned.">PM</THWT>
+            <THWT tip="Current workflow stage of the project.">Status</THWT>
+            <THWT tip="Total contracted fee — signed proposal value plus all signed change orders.">Value</THWT>
             <TableHead className="w-[50px]" />
           </TableRow>
         </TableHeader>
