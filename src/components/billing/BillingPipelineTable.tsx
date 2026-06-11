@@ -41,6 +41,15 @@ export function BillingPipelineTable({ scope = "company", title = "Billing Pipel
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [sortKey, setSortKey] = useState<SortKey>("estimated_bill_date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(() => {
+    const stored = typeof window !== "undefined" ? localStorage.getItem("billing-pipeline-page-size") : null;
+    return stored ? Number(stored) : 10;
+  });
+  useEffect(() => {
+    try { localStorage.setItem("billing-pipeline-page-size", String(pageSize)); } catch {}
+    setPage(1);
+  }, [pageSize, search, pmFilter, statusFilter, dateFilter, sourceFilter]);
 
   const now = new Date();
   const pms = useMemo(() => {
