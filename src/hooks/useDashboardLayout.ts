@@ -30,7 +30,7 @@ export const ROLE_WIDGETS: Record<string, WidgetDef[]> = {
     { id: "stale-projects-total", label: "Stale Projects" },
     { id: "billing-pipeline", label: "Upcoming Billing Pipeline" },
     { id: "open-services", label: "Total Open Services" },
-    { id: "proposal-conversion-rates", label: "Proposals & Billing" },
+    { id: "proposal-conversion-rates", label: "Proposal Conversion" },
     { id: "revenue-trend", label: "Revenue Trend" },
     { id: "team-utilization", label: "Team Utilization & Projects by PM" },
     { id: "proposal-followups", label: "Proposal Follow-Ups" },
