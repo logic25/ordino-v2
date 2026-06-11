@@ -133,6 +133,27 @@ export function useInvoiceCounts() {
   });
 }
 
+/** Totals ($ amount) per status across ALL invoices, independent of any list filter. */
+export function useInvoiceTotals() {
+  return useQuery({
+    queryKey: ["invoice-totals"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("invoices")
+        .select("status, total_due");
+      if (error) throw error;
+      const totals: Record<InvoiceStatus, number> = {
+        draft: 0, ready_to_send: 0, needs_review: 0, sent: 0, overdue: 0, paid: 0, legal_hold: 0,
+      };
+      (data || []).forEach((inv: any) => {
+        const s = inv.status as InvoiceStatus;
+        if (s in totals) totals[s] += Number(inv.total_due) || 0;
+      });
+      return totals;
+    },
+  });
+}
+
 export function useCreateInvoice() {
   const queryClient = useQueryClient();
 

@@ -24,10 +24,10 @@ import { AnalyticsView } from "@/components/invoices/AnalyticsView";
 import { PaidView } from "@/components/invoices/PaidView";
 import { AutomationActivityPanel } from "@/components/invoices/AutomationActivityPanel";
 import {
-  useInvoices, useInvoiceCounts, useDeleteInvoice,
+  useInvoices, useInvoiceCounts, useInvoiceTotals, useDeleteInvoice,
   type InvoiceStatus, type InvoiceWithRelations,
 } from "@/hooks/useInvoices";
-import { usePendingBillingCount } from "@/hooks/useBillingRequests";
+import { usePendingBillingCount, usePendingBillingTotal } from "@/hooks/useBillingRequests";
 import { useRetainers } from "@/hooks/useRetainers";
 import { toast } from "@/hooks/use-toast";
 import { useTelemetry } from "@/hooks/useTelemetry";
@@ -48,7 +48,9 @@ export default function Invoices() {
   const queryFilter = isSpecialTab ? "all" : activeFilter;
   const { data: dbInvoices = [], isLoading } = useInvoices(queryFilter as InvoiceStatus | "all");
   const { data: dbCounts } = useInvoiceCounts();
+  const { data: dbTotals } = useInvoiceTotals();
   const { data: pendingCount = 0 } = usePendingBillingCount();
+  const { data: pendingBillingTotal = 0 } = usePendingBillingTotal();
   const { data: dbRetainers = [] } = useRetainers();
   const deleteInvoice = useDeleteInvoice();
 
@@ -66,17 +68,11 @@ export default function Invoices() {
     return dc;
   }, [dbCounts]);
 
-  const totals = useMemo(() => {
-    const t: Record<InvoiceStatus, number> = {
+  const totals = useMemo<Record<InvoiceStatus, number>>(() => {
+    return dbTotals || {
       draft: 0, ready_to_send: 0, needs_review: 0, sent: 0, overdue: 0, paid: 0, legal_hold: 0,
     };
-    dbInvoices.forEach((inv) => {
-      if (inv.status in t) {
-        t[inv.status as InvoiceStatus] += Number(inv.total_due) || 0;
-      }
-    });
-    return t;
-  }, [dbInvoices]);
+  }, [dbTotals]);
 
   const filteredInvoices = useMemo(() => {
     if (!search) return dbInvoices;
@@ -144,10 +140,11 @@ export default function Invoices() {
         <InvoiceSummaryCards
           counts={counts}
           totals={totals}
+          pendingBillingTotal={pendingBillingTotal}
+          pendingBillingCount={pendingCount}
           activeFilter={activeFilter}
           onFilterChange={(f) => setActiveFilter(f)}
           depositSummary={depositSummary}
-          data-tour="billing-summary-cards"
         />
 
         <Card>
