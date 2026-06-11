@@ -325,7 +325,14 @@ export function BillingInboxView() {
                         <div className="text-xs text-muted-foreground truncate max-w-[240px]">{row.address}</div>
                       )}
                       {row.invoiceNumber && (
-                        <div className="text-[11px] text-muted-foreground mt-0.5">#{row.invoiceNumber}</div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5">
+                          #{row.invoiceNumber}
+                          {row.isDeposit && (
+                            <span className="ml-1 inline-flex items-center rounded-sm bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 px-1 py-px text-[9px] font-semibold uppercase tracking-wide">
+                              Deposit
+                            </span>
+                          )}
+                        </div>
                       )}
                     </TableCell>
                     <TableCell>
@@ -368,6 +375,12 @@ export function BillingInboxView() {
                           <Button size="sm" variant="outline" onClick={() => setDetailInvoice(row.invoice!)}>
                             <Eye className="h-3.5 w-3.5 mr-1" />
                             Finish
+                          </Button>
+                        )}
+                        {row.kind === "needs_review" && row.invoice && (
+                          <Button size="sm" variant="outline" onClick={() => setDetailInvoice(row.invoice!)}>
+                            <Eye className="h-3.5 w-3.5 mr-1" />
+                            Resolve
                           </Button>
                         )}
                         <DropdownMenu>
