@@ -651,10 +651,12 @@ export function ServiceCatalogSettings() {
         if (!isDirty) return null;
         return (
           <div className="sticky bottom-0 z-10 bg-background border-t py-3 px-4 flex items-center justify-between rounded-lg shadow-lg -mx-2">
-            <p className="text-sm text-muted-foreground">You have unsaved changes</p>
+            <p className="text-sm text-muted-foreground">
+              {isAdmin ? "You have unsaved changes" : "Unsaved changes — admin only can save"}
+            </p>
             <Button
               onClick={handleSave}
-              disabled={updateSettings.isPending}
+              disabled={updateSettings.isPending || !isAdmin}
               className="bg-accent text-accent-foreground hover:bg-accent/90"
             >
               {updateSettings.isPending ? (
@@ -671,7 +673,7 @@ export function ServiceCatalogSettings() {
       <div className="flex justify-end">
         <Button
           onClick={handleSave}
-          disabled={updateSettings.isPending}
+          disabled={updateSettings.isPending || !isAdmin}
           className="bg-accent text-accent-foreground hover:bg-accent/90"
         >
           {updateSettings.isPending ? (
