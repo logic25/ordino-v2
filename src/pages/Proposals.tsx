@@ -465,6 +465,9 @@ export default function Proposals() {
       });
       setApprovalDialogOpen(false);
       setApprovingProposal(null);
+      if (projectId) {
+        setClockInProject({ id: projectId, name: approvingProposal.title || "New project" });
+      }
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
