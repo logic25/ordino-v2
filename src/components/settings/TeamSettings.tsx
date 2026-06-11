@@ -407,11 +407,22 @@ function useUserBillingStats(userId: string, period: Period, monthlyGoal: number
 
       // 8. Efficiency: weighted composite
       // Billing 40%, Timelog 30%, Accuracy 23%, Non-billable CO 7%
+      // If the user has no real activity in the period, leave it null instead of
+      // showing an inflated score from the default 100% CO factor.
       const accuracyForCalc = accuracyPct !== null ? accuracyPct : 0;
       const hasAccuracy = accuracyPct !== null;
-      const efficiency = hasAccuracy
+      const hasAnyActivity =
+        billingPct > 0 ||
+        timelogCompletion > 0 ||
+        accuracyPct !== null ||
+        nonBillableCOTotal > 0;
+
+      const efficiency = !hasAnyActivity
+        ? null
+        : hasAccuracy
         ? Math.round(billingPct * 0.40 + timelogCompletion * 0.30 + accuracyForCalc * 0.23 + coFactor * 0.07)
         : Math.round(billingPct * 0.53 + timelogCompletion * 0.40 + coFactor * 0.07);
+
 
       // 9. Potential Bonus (configurable tier-based on Billing %)
       const tiers = bonusTiers && bonusTiers.length > 0 ? bonusTiers : DEFAULT_BONUS_TIERS;
@@ -1244,9 +1255,9 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                   <StatCard
                     icon={Zap}
                     label="Efficiency Rating"
-                    value={stats?.efficiency ?? 0}
-                    suffix="%"
-                    tooltip="Weighted composite: Billing % × 40% + Timelog × 30% + Accuracy × 23% + Non-Billable CO factor × 7%. When Accuracy has no data, weights redistribute to Billing 53% + Timelog 40% + CO 7%."
+                    value={stats?.efficiency === null || stats?.efficiency === undefined ? "—" : stats.efficiency}
+                    suffix={stats?.efficiency === null || stats?.efficiency === undefined ? "" : "%"}
+                    tooltip="Weighted composite: Billing % × 40% + Timelog × 30% + Accuracy × 23% + Non-Billable CO factor × 7%. When Accuracy has no data, weights redistribute to Billing 53% + Timelog 40% + CO 7%. Shown as — when there's no activity in the period."
                   />
                   <StatCard
                     icon={Award}
