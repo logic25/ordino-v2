@@ -442,10 +442,22 @@ function DepositCard({
       </div>
 
       {retainer.notes && (
-        <p className="text-xs text-muted-foreground mt-2 line-clamp-1">{retainer.notes}</p>
+        <p className="text-xs text-muted-foreground mt-2 line-clamp-1">
+          <span className="font-medium">Source:</span> {sourceLabel(retainer.notes)}
+        </p>
       )}
     </div>
   );
+}
+
+function sourceLabel(notes: string | null): string {
+  if (!notes) return "Manual entry";
+  // Match "Proposal #1234", "Deposit invoice INV-001", "Deposit from Proposal #..."
+  const proposal = notes.match(/Proposal\s*#\s*([A-Z0-9\-]+)/i);
+  if (proposal) return `Proposal #${proposal[1]}`;
+  const invoice = notes.match(/Deposit invoice\s+([A-Z0-9\-]+)/i);
+  if (invoice) return `Invoice ${invoice[1]}`;
+  return notes.length > 60 ? notes.slice(0, 60) + "…" : notes;
 }
 
 function DepositDetailSheet({
