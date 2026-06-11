@@ -26,6 +26,7 @@ import {
   Tooltip, TooltipContent, TooltipTrigger, TooltipProvider,
 } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsAdmin } from "@/hooks/useUserRoles";
 import { useToast } from "@/hooks/use-toast";
 
 import { format } from "date-fns";
@@ -34,6 +35,7 @@ export function ServiceCatalogSettings() {
   const { data: companyData, isLoading } = useCompanySettings();
   const updateSettings = useUpdateCompanySettings();
   const { profile } = useAuth();
+  const isAdmin = useIsAdmin();
   const { toast } = useToast();
 
   const [services, setServices] = useState<ServiceCatalogItem[]>([]);
@@ -227,10 +229,19 @@ export function ServiceCatalogSettings() {
               Define your standard services for quick addition to proposals. Price changes are audited.
             </CardDescription>
           </div>
-          <Button type="button" size="sm" onClick={() => setAddDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Service
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button type="button" size="sm" onClick={() => setAddDialogOpen(true)} disabled={!isAdmin}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Service
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {!isAdmin && <TooltipContent>Admin only</TooltipContent>}
+            </Tooltip>
+          </TooltipProvider>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Search */}
