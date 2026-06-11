@@ -1,5 +1,7 @@
 import { formatCurrency } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useCompanyDashboardSettings } from "@/hooks/useDashboardData";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
