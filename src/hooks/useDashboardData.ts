@@ -618,4 +618,354 @@ export function useUserBacklog() {
   });
 }
 
+// =====================================================================
+// Momentum KPI aggregators (dashboard refresh)
+// =====================================================================
+
+function monthBounds(d = new Date()) {
+  const start = new Date(d.getFullYear(), d.getMonth(), 1);
+  const end = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+  const prevStart = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+  return { start, end, prevStart };
+}
+
+/** Active Projects + delta vs prior month-end count */
+export function useActiveProjectsKpi() {
+  const { profile } = useAuth();
+  return useQuery({
+    queryKey: ["kpi-active-projects", profile?.company_id],
+    enabled: !!profile?.company_id,
+    queryFn: async () => {
+      const companyId = profile!.company_id!;
+      const { start } = monthBounds();
+      const [{ count: current }, { count: lastMonth }] = await Promise.all([
+        supabase
+          .from("projects")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", companyId)
+          .eq("status", "open"),
+        supabase
+          .from("projects")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", companyId)
+          .eq("status", "open")
+          .lt("created_at", start.toISOString()),
+      ]);
+      const value = current ?? 0;
+      const prior = lastMonth ?? 0;
+      return { value, delta: value - prior };
+    },
+  });
+}
+
+/** Active proposals: sent + signed_client, plus $ in flight */
+export function useActiveProposalsKpi() {
+  const { profile } = useAuth();
+  return useQuery({
+    queryKey: ["kpi-active-proposals", profile?.company_id],
+    enabled: !!profile?.company_id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("proposals")
+        .select("id, total_amount, status")
+        .eq("company_id", profile!.company_id!)
+        .in("status", ["sent", "signed_client"]);
+      const rows = data || [];
+      const value = rows.length;
+      const inFlight = rows.reduce((s: number, p: any) => s + (Number(p.total_amount) || 0), 0);
+      return { value, inFlight };
+    },
+  });
+}
+
+/** AR Outstanding split: sent vs overdue (count + $) */
+export function useArOutstandingKpi() {
+  return useQuery({
+    queryKey: ["kpi-ar-outstanding"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("invoices")
+        .select("id, status, total_due, payment_amount")
+        .in("status", ["sent", "overdue"]);
+      let sent = 0, overdue = 0, sentCount = 0, overdueCount = 0;
+      (data || []).forEach((i: any) => {
+        const remaining = Math.max(0, (Number(i.total_due) || 0) - (Number(i.payment_amount) || 0));
+        if (i.status === "overdue") { overdue += remaining; overdueCount += 1; }
+        else { sent += remaining; sentCount += 1; }
+      });
+      return { sent, overdue, sentCount, overdueCount, total: sent + overdue };
+    },
+  });
+}
+
+/** Month-to-goal: billed MTD ÷ company monthly goal */
+export function useMonthGoalKpi() {
+  const { profile } = useAuth();
+  return useQuery({
+    queryKey: ["kpi-month-goal", profile?.company_id],
+    enabled: !!profile?.company_id,
+    queryFn: async () => {
+      const companyId = profile!.company_id!;
+      const { start, end } = monthBounds();
+
+      const [companyRow, pmGoals, brRows] = await Promise.all([
+        supabase
+          .from("companies")
+          .select("monthly_billing_goal_override")
+          .eq("id", companyId)
+          .maybeSingle(),
+        supabase
+          .from("profiles")
+          .select("monthly_goal, role")
+          .eq("company_id", companyId)
+          .eq("is_active", true),
+        supabase
+          .from("billing_requests")
+          .select("total_amount, created_at, status")
+          .eq("company_id", companyId)
+          .neq("status", "cancelled")
+          .gte("created_at", start.toISOString())
+          .lt("created_at", end.toISOString()),
+      ]);
+
+      const monthGoal =
+        (companyRow.data as any)?.monthly_billing_goal_override ??
+        (pmGoals.data || [])
+          .filter((p: any) => ["pm", "admin", "manager"].includes(p.role))
+          .reduce((s: number, p: any) => s + (Number(p.monthly_goal) || 0), 0);
+
+      const billed = (brRows.data || []).reduce(
+        (s: number, b: any) => s + (Number(b.total_amount) || 0),
+        0
+      );
+
+      const pct = monthGoal > 0 ? billed / monthGoal : 0;
+      return { billed, monthGoal, pct };
+    },
+  });
+}
+
+/** Cycle times (last 90 days): proposal sent→signed avg, invoice issued→paid avg */
+export function useCycleTimes() {
+  const { profile } = useAuth();
+  return useQuery({
+    queryKey: ["cycle-times", profile?.company_id],
+    enabled: !!profile?.company_id,
+    queryFn: async () => {
+      const since = new Date(Date.now() - 90 * 86400000).toISOString();
+      const companyId = profile!.company_id!;
+
+      const [props, invs] = await Promise.all([
+        supabase
+          .from("proposals")
+          .select("sent_at, client_signed_at")
+          .eq("company_id", companyId)
+          .not("sent_at", "is", null)
+          .not("client_signed_at", "is", null)
+          .gte("client_signed_at", since),
+        supabase
+          .from("invoices")
+          .select("created_at, paid_at")
+          .not("paid_at", "is", null)
+          .gte("paid_at", since),
+      ]);
+
+      const avg = (xs: number[]) =>
+        xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10 : 0;
+
+      const propDays = (props.data || [])
+        .map((p: any) =>
+          (new Date(p.client_signed_at).getTime() - new Date(p.sent_at).getTime()) / 86400000
+        )
+        .filter((n) => n >= 0 && n < 365);
+      const invDays = (invs.data || [])
+        .map((i: any) =>
+          (new Date(i.paid_at).getTime() - new Date(i.created_at).getTime()) / 86400000
+        )
+        .filter((n) => n >= 0 && n < 365);
+
+      return {
+        proposalSignDays: avg(propDays),
+        invoicePaidDays: avg(invDays),
+        proposalSample: propDays.length,
+        invoiceSample: invDays.length,
+      };
+    },
+  });
+}
+
+/** Collected vs Billed (MTD) */
+export function useCollectedVsBilledMtd() {
+  const { profile } = useAuth();
+  return useQuery({
+    queryKey: ["collected-vs-billed-mtd", profile?.company_id],
+    enabled: !!profile?.company_id,
+    queryFn: async () => {
+      const companyId = profile!.company_id!;
+      const { start, end } = monthBounds();
+      const [brRes, invRes] = await Promise.all([
+        supabase
+          .from("billing_requests")
+          .select("total_amount, created_at, status")
+          .eq("company_id", companyId)
+          .neq("status", "cancelled")
+          .gte("created_at", start.toISOString())
+          .lt("created_at", end.toISOString()),
+        supabase
+          .from("invoices")
+          .select("payment_amount, total_due, paid_at")
+          .gte("paid_at", start.toISOString())
+          .lt("paid_at", end.toISOString()),
+      ]);
+      const billed = (brRes.data || []).reduce(
+        (s: number, b: any) => s + (Number(b.total_amount) || 0),
+        0
+      );
+      const collected = (invRes.data || []).reduce(
+        (s: number, i: any) => s + (Number(i.payment_amount) || Number(i.total_due) || 0),
+        0
+      );
+      return { billed, collected };
+    },
+  });
+}
+
+/** Total stale-project count across the company (uses configured threshold) */
+export function useStaleProjectsTotal(thresholdDays: number = 14) {
+  const { profile } = useAuth();
+  return useQuery({
+    queryKey: ["stale-projects-total", profile?.company_id, thresholdDays],
+    enabled: !!profile?.company_id,
+    queryFn: async () => {
+      const cutoff = new Date(Date.now() - thresholdDays * 86400000).toISOString();
+      const [{ count: stale }, { count: total }] = await Promise.all([
+        supabase
+          .from("projects")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", profile!.company_id!)
+          .eq("status", "open")
+          .lt("last_activity_at", cutoff),
+        supabase
+          .from("projects")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", profile!.company_id!)
+          .eq("status", "open"),
+      ]);
+      return { stale: stale ?? 0, total: total ?? 0 };
+    },
+  });
+}
+
+export interface SalesHealthBucket {
+  status: string;
+  label: string;
+  count: number;
+  value: number;
+}
+
+export interface SalesHealthWinRow {
+  month: string;
+  label: string;
+  sent: number;
+  won: number;
+  rate: number;
+}
+
+/** Sales Health: active funnel (windowed) + 6-month rolling win rate + avg sign days */
+export function useSalesHealth(windowDays: 30 | 60 | 90 | null = 60) {
+  const { profile } = useAuth();
+  return useQuery({
+    queryKey: ["sales-health", profile?.company_id, windowDays],
+    enabled: !!profile?.company_id,
+    queryFn: async () => {
+      const companyId = profile!.company_id!;
+      const since = windowDays
+        ? new Date(Date.now() - windowDays * 86400000).toISOString()
+        : null;
+
+      let funnelQ = supabase
+        .from("proposals")
+        .select("status, total_amount, created_at, sent_at, client_signed_at")
+        .eq("company_id", companyId);
+      if (since) funnelQ = funnelQ.gte("created_at", since);
+
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      sixMonthsAgo.setDate(1);
+
+      const [funnelRes, historyRes] = await Promise.all([
+        funnelQ,
+        supabase
+          .from("proposals")
+          .select("status, sent_at, client_signed_at")
+          .eq("company_id", companyId)
+          .gte("sent_at", sixMonthsAgo.toISOString()),
+      ]);
+
+      const STAGES: { status: string; label: string }[] = [
+        { status: "draft", label: "Draft" },
+        { status: "sent", label: "Sent" },
+        { status: "signed_client", label: "Signed" },
+        { status: "executed", label: "Won" },
+        { status: "lost", label: "Lost" },
+      ];
+
+      const buckets: Record<string, SalesHealthBucket> = {};
+      STAGES.forEach((s) => (buckets[s.status] = { ...s, count: 0, value: 0 }));
+      (funnelRes.data || []).forEach((p: any) => {
+        const b = buckets[p.status];
+        if (!b) return;
+        b.count += 1;
+        b.value += Number(p.total_amount) || 0;
+      });
+
+      // 6-month win rate
+      const WON = new Set(["signed_client", "executed", "won"]);
+      const byMonth = new Map<string, SalesHealthWinRow>();
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date();
+        d.setMonth(d.getMonth() - i);
+        d.setDate(1);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        byMonth.set(key, {
+          month: key,
+          label: d.toLocaleString("en-US", { month: "short" }),
+          sent: 0,
+          won: 0,
+          rate: 0,
+        });
+      }
+      const signDays: number[] = [];
+      (historyRes.data || []).forEach((p: any) => {
+        if (!p.sent_at) return;
+        const d = new Date(p.sent_at);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        const row = byMonth.get(key);
+        if (row) {
+          row.sent += 1;
+          if (WON.has(p.status)) row.won += 1;
+        }
+        if (p.client_signed_at) {
+          const diff = (new Date(p.client_signed_at).getTime() - d.getTime()) / 86400000;
+          if (diff >= 0 && diff < 365) signDays.push(diff);
+        }
+      });
+      const winRate = Array.from(byMonth.values()).map((r) => ({
+        ...r,
+        rate: r.sent > 0 ? r.won / r.sent : 0,
+      }));
+
+      const avgSignDays = signDays.length
+        ? Math.round((signDays.reduce((a, b) => a + b, 0) / signDays.length) * 10) / 10
+        : 0;
+
+      return {
+        funnel: STAGES.map((s) => buckets[s.status]),
+        winRate,
+        avgSignDays,
+        signSample: signDays.length,
+      };
+    },
+  });
+}
 
