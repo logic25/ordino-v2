@@ -1255,9 +1255,9 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                   <StatCard
                     icon={Zap}
                     label="Efficiency Rating"
-                    value={stats?.efficiency ?? 0}
-                    suffix="%"
-                    tooltip="Weighted composite: Billing % × 40% + Timelog × 30% + Accuracy × 23% + Non-Billable CO factor × 7%. When Accuracy has no data, weights redistribute to Billing 53% + Timelog 40% + CO 7%."
+                    value={stats?.efficiency === null || stats?.efficiency === undefined ? "—" : stats.efficiency}
+                    suffix={stats?.efficiency === null || stats?.efficiency === undefined ? "" : "%"}
+                    tooltip="Weighted composite: Billing % × 40% + Timelog × 30% + Accuracy × 23% + Non-Billable CO factor × 7%. When Accuracy has no data, weights redistribute to Billing 53% + Timelog 40% + CO 7%. Shown as — when there's no activity in the period."
                   />
                   <StatCard
                     icon={Award}
