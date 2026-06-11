@@ -161,9 +161,24 @@ export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, is
                     </SelectContent>
                   </Select>
                 </TableCell>
-                <TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-1.5">
-                    <Badge variant={status.variant}>{status.label}</Badge>
+                    <Select
+                      value={project.status || "open"}
+                      onValueChange={(val) => handleStatusChange(project.id, val)}
+                    >
+                      <SelectTrigger className="h-7 w-auto min-w-[90px] border-none bg-transparent shadow-none text-sm p-0 px-1 hover:bg-muted/40 focus:ring-0 gap-1">
+                        <SelectValue>
+                          <Badge variant={status.variant}>{status.label}</Badge>
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="open">Open</SelectItem>
+                        <SelectItem value="on_hold">On Hold</SelectItem>
+                        <SelectItem value="closed">Closed</SelectItem>
+                        <SelectItem value="paid">Paid</SelectItem>
+                      </SelectContent>
+                    </Select>
                     {(() => {
                       const last = (project as any).last_activity_at;
                       const threshold = (project as any).stale_threshold_days || 14;
