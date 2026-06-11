@@ -15,6 +15,7 @@ export const ROLE_WIDGETS: Record<string, { id: string; label: string }[]> = {
     { id: "revenue-trend", label: "Revenue Trend" },
     { id: "yoy-proposals-followups", label: "YoY / Proposals / Follow-Ups" },
     { id: "proposals-pipeline", label: "Proposals Pipeline" },
+    { id: "proposal-conversion-rates", label: "Proposal Conversion Rates" },
     { id: "team-utilization", label: "Team Utilization" },
     { id: "accounting-summary", label: "Accounting Summary" },
     { id: "billing-goal-tracker", label: "Billing Goal Tracker" },

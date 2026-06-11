@@ -10,6 +10,7 @@ import { TeamOverview } from "./TeamOverview";
 import { ProposalFollowUps } from "./ProposalFollowUps";
 import { ProposalActivityCard } from "./ProposalActivityCard";
 import { ProposalsPipelineCard } from "./ProposalsPipelineCard";
+import { ProposalConversionTable } from "./ProposalConversionTable";
 import { ExpenseApprovalsCard } from "./ExpenseApprovalsCard";
 import { BillingPulse } from "./BillingPulse";
 import { RevenueTrendChart } from "./RevenueTrendChart";
@@ -58,6 +59,10 @@ export function AdminCompanyView({ isVisible }: { isVisible?: (id: string) => bo
 
       {/* Proposals Pipeline by Stage */}
       {show("proposals-pipeline") && <ProposalsPipelineCard />}
+
+      {/* Monthly conversion rates */}
+      {show("proposal-conversion-rates") && <ProposalConversionTable />}
+
 
       {/* Revenue Trend (unified) */}
       {show("revenue-trend") && <RevenueTrendChart defaultMode="6" />}
