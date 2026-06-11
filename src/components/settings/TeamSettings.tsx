@@ -1509,53 +1509,27 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
 
                   {reviewsLoading ? (
                     <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-                  ) : (() => {
-                    // Mock data when no real reviews exist
-                    const mockReviews = [
-                      {
-                        id: "mock-1",
-                        review_period: "2026-01-01",
-                        overall_rating: 82,
-                        previous_rating: 75,
-                        raise_pct: 3,
-                        category_ratings: { "Technical Knowledge": 4, "Quality of Work": 4, "Time Management": 3, "Communication": 5, "Initiative": 4, "Teamwork": 4 },
-                        comments: "Strong quarter. Improved communication with clients and consistently hit deadlines. Could improve time management on larger projects.",
-                        reviewer: { display_name: "Sarah Chen", first_name: "Sarah", last_name: "Chen" },
-                        created_at: "2026-01-15T10:00:00Z",
-                      },
-                      {
-                        id: "mock-2",
-                        review_period: "2025-10-01",
-                        overall_rating: 75,
-                        previous_rating: 70,
-                        raise_pct: 2,
-                        category_ratings: { "Technical Knowledge": 4, "Quality of Work": 3, "Time Management": 3, "Communication": 4, "Initiative": 3, "Teamwork": 4 },
-                        comments: "Good progress overall. Technical skills are solid. Needs to focus on proactive problem-solving.",
-                        reviewer: { display_name: "Michael Torres", first_name: "Michael", last_name: "Torres" },
-                        created_at: "2025-10-20T10:00:00Z",
-                      },
-                    ];
-                    const displayReviews = empReviews.length > 0 ? empReviews : mockReviews;
-                    const isMock = empReviews.length === 0;
-
-                    return (
-                      <div className="space-y-3">
-                        {isMock && (
-                          <p className="text-xs text-muted-foreground italic">Showing sample reviews for preview purposes.</p>
-                        )}
-                        {displayReviews.map((r: any) => (
-                          <ReviewCard
-                            key={r.id}
-                            review={r}
-                            isMock={isMock}
-                            isAdmin={isViewerAdmin}
-                            employeeId={user.id}
-                            onUpdate={() => refetchReviews()}
-                          />
-                        ))}
-                      </div>
-                    );
-                  })()}
+                  ) : empReviews.length === 0 ? (
+                    <Card className="border-dashed">
+                      <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                        No performance reviews yet.
+                        {isViewerAdmin && <p className="text-xs mt-1">Add the first review using the button above.</p>}
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="space-y-3">
+                      {empReviews.map((r: any) => (
+                        <ReviewCard
+                          key={r.id}
+                          review={r}
+                          isMock={false}
+                          isAdmin={isViewerAdmin}
+                          employeeId={user.id}
+                          onUpdate={() => refetchReviews()}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </TabsContent>
               </Tabs>
             </CardContent>
