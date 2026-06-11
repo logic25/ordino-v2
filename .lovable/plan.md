@@ -1,62 +1,60 @@
-# Unified "Ready to Invoice" Worklist
+# Billing fixes round 2 — Deposits, Overdue, Needs Review, Deposit Invoices, Changelog
 
-## Problem
+## 1. Deposits tab — fix "No profile" crash
+`src/hooks/useRetainers.ts` and `src/components/invoices/RetainersView.tsx` query `profiles` with `.single()` and no `auth.uid()` filter — RLS returns 0 or many rows, so `.single()` throws "No profile" (this is the toast in the screenshot). Fix every occurrence:
 
-The Ready to Invoice tab currently shows three separate tables stacked on top of each other (PM Submissions, Ready to Send, Drafts). It looks like three different screens glued together and forces Sai to scan three lists instead of one.
-
-## Goal
-
-One table. One row per item. A status chip tells you what kind of thing it is. A single primary button on each row moves it to the next step. The header total still matches the card.
-
-## What the row types mean (terminology, for the tooltip + empty state)
-
-- **Submission** — A PM sent services over via "Send to Billing." No invoice exists yet. Next step: create the invoice.
-- **Draft** — An invoice that was created and parked (either via "Save as Draft" in Create Invoice, or by editing a finalized invoice back to draft). Next step: finish it and mark it ready.
-- **Ready** — A finalized invoice waiting to be emailed to the client. Next step: send.
-
-## The new layout
-
-```text
-Ready to Invoice                                       [Create Invoice]
-21 items · $32,100.00 ready to bill
-
-[ All 21 ] [ Submissions 12 ] [ Ready 8 ] [ Drafts 1 ]      Sort: Oldest first ▾
-
-┌────────┬──────────────┬──────────────────────────┬──────────┬──────────┬──────────────┐
-│ Status │ Date         │ Client / Project         │ Services │   Amount │ Action       │
-├────────┼──────────────┼──────────────────────────┼──────────┼──────────┼──────────────┤
-│ ●Sub   │ 04/29/2026   │ Rudin · 2026-0722        │ ALT-2 D14│ $100.00  │ Create Inv ▸ │
-│ ●Ready │ 04/21/2026   │ SL Green · 2026-0728     │ ALT-2 D14│ $750.00  │ Send ▸       │
-│ ●Draft │ 04/15/2026   │ Brookfield · 2026-0701   │ Filing   │ $1,200.00│ Finish ▸     │
-│ …                                                                                    │
-└──────────────────────────────────────────────────────────────────────────────────────┘
+```ts
+const { data: { user } } = await supabase.auth.getUser();
+const { data: profile } = await supabase
+  .from("profiles").select("company_id, id")
+  .eq("id", user!.id).maybeSingle();
 ```
 
-### Rules
+After this, **New Deposit** works for any Payment Method (Cash / Check / Wire / Card / ACH). No new UI — the dropdown already exists.
 
-1. **One table, three row sources merged client-side**, sorted by oldest `created_at` first so the staleness of submissions and drafts is visible alongside ready invoices.
-2. **Status chip** colors: Submission = amber, Draft = muted/gray, Ready = primary/blue. Chip is also the filter — clicking a chip at the top filters the table.
-3. **One primary action per row** based on type:
-   - Submission → `Create Invoice` (existing `useCreateInvoiceFromRequest` flow)
-   - Draft → `Finish` (opens `InvoiceDetailSheet` so she can edit + mark ready)
-   - Ready → `Send` (opens `SendInvoiceModal`)
-4. **Row click** on any row opens the matching detail/expansion (submission expands inline like today; invoices open `InvoiceDetailSheet`).
-5. **Secondary actions** live in a `⋯` menu per row: Reject (submissions), Delete (drafts), View invoice (ready). Keeps the row clean.
-6. **Header** shows the combined count + total so it equals the "Ready to Invoice" card. Subtitle: `12 submissions · 8 ready · 1 draft`. Filter chips also show per-bucket counts.
-7. **Bulk action** stays: when one or more Submissions are selected, the existing `Create All Invoices` button appears in the header. Selection only enables bulk for compatible row types.
-8. **Empty state**: one friendly "All caught up — nothing to invoice" instead of three empty boxes.
+## 2. Overdue — derive from due dates
+No cron flips `sent → overdue`, so the Overdue card under-counts. Add `src/lib/invoiceStatus.ts` with an `effectiveStatus()` helper (`sent` + `due_date < today` → `overdue`) and use it in `useInvoices` totals/counts, `CollectionsView`, `AnalyticsView`, `PaidView`, `BillingPipelineTable`, `InvoiceTable`. DB stays untouched.
+
+## 3. Needs Review — fold into Ready to Invoice
+- Drop the Needs Review **card** from `InvoiceSummaryCards` (it's a look-alike twin of Overdue and confusing).
+- In `BillingInboxView`, include `status='needs_review'` invoices as a fourth row kind with a yellow chip and a "Resolve & Mark Ready" action that opens the detail sheet.
+- Add a `Needs Review` filter chip alongside All / Submissions / Ready / Drafts.
+- The Needs Review tab in the tab strip stays (URL/filter still works) but is no longer a primary entry point.
+
+## 4. Deposit Invoices (new)
+Some clients want a formal invoice for the deposit. Add a path so Sai can issue one without the QBO/Stripe flow.
+
+- **Where**: Add a `Create Deposit Invoice` button on the Proposal detail header (visible once the proposal is `sent` or `won`) and an entry in the project's Billing tab if no deposit invoice exists yet.
+- **What it does**:
+  - Creates an `invoices` row with `is_deposit = true`, `total_due = proposal.deposit_amount`, line item "Project Deposit — {proposal_number}", status `ready_to_send`, due_date = +7 days.
+  - When Sai sends it, normal Send flow applies.
+  - When marked Paid (or paid via Stripe), the existing `process-deposit-payment` logic also fires: creates/updates the `client_retainers` row and a `retainer_transactions` deposit entry, so it lands in the Deposits tab automatically — regardless of payment method.
+- **Schema**: Add boolean `is_deposit` to `invoices` (one migration). Backfill `false`. No other column changes; the existing `retainer_id` / `retainer_applied` columns already wire deposits to retainers.
+- **UI affordances**:
+  - Invoice list shows a small "Deposit" badge when `is_deposit=true`.
+  - In `RetainersView`, add a Source column: shows "Invoice #XXXX" (if `retainer_transactions.invoice_id` is set), "Proposal #XXXX" (parsed from notes the webhook writes), or "Manual entry."
+
+## 5. Projects "see all" — clarify, don't change behavior
+Already implemented as admin-only toggle (top-right of `/projects`, `useIsAdmin()` gated). No code change unless you tell me non-admins should also be able to see all projects — that's a permission decision, not a bug.
+
+## 6. Changelog backfill
+Add four entries to `changelog_entries` covering everything from the last few rounds that isn't logged:
+- "Needs Review tab now lands on the right place" (fix)
+- "Deposits tab fixed — Sai can now log Cash, Check, Wire, ACH, or Card deposits without errors" (fix)
+- "Overdue is always accurate — invoices flip overdue automatically when their due date passes" (improvement)
+- "Deposit invoices — issue a proper invoice for the deposit; paid deposits show up in the Deposits tab automatically" (feature)
 
 ## Files affected
-
-- `src/components/invoices/BillingInboxView.tsx` — rewrite from three sections to one unified table. Merge `useBillingRequests("pending")` + `useInvoices("draft")` + `useInvoices("ready_to_send")` into a single sorted array of `{ kind, id, date, client, project, services, amount, raw }`.
-- No changes needed to `InvoiceSummaryCards`, `useInvoices`, `useBillingRequests`, or `InvoiceFilterTabs` — the totals/counts wiring done last turn already lines up.
+- `src/hooks/useRetainers.ts`, `src/components/invoices/RetainersView.tsx` — scope profile lookup; add Source column.
+- `src/lib/invoiceStatus.ts` (new) + every read site listed in §2.
+- `src/components/invoices/InvoiceSummaryCards.tsx` — drop Needs Review card.
+- `src/components/invoices/BillingInboxView.tsx` — add needs_review row + chip.
+- `src/components/proposals/ProposalDetail*.tsx` (or the existing proposal detail page) — add `Create Deposit Invoice` button.
+- `src/hooks/useInvoices.ts` — accept `is_deposit` on create; new `useCreateDepositInvoice(proposalId)` helper.
+- `supabase/migrations/*` — add `invoices.is_deposit boolean default false`.
+- `supabase/functions/process-deposit-payment/index.ts` — also handle invoices flagged `is_deposit=true` being marked paid manually (not just Stripe webhook path).
 
 ## Out of scope
-
-- No DB / migration changes.
-- No changes to how submissions get created, how drafts are edited, or how invoices are sent — only the list UI changes.
-- No change to the Sent / Overdue / Paid tabs.
-
-## Changelog
-
-Add a `changelog_entries` row: "Billing → Ready to Invoice is now one unified worklist with a status chip per row and a single next-step action, instead of three stacked tables."
+- QBO connect/sync (you said skip).
+- Changing who can see all projects (will only do if you say so).
+- Reworking the proposal payment webhook beyond what §4 needs.
