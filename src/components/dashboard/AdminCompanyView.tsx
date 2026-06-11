@@ -10,6 +10,7 @@ import { TeamOverview } from "./TeamOverview";
 import { ProposalFollowUps } from "./ProposalFollowUps";
 import { ProposalActivityCard } from "./ProposalActivityCard";
 import { ProposalsPipelineCard } from "./ProposalsPipelineCard";
+import { ProposalConversionTable } from "./ProposalConversionTable";
 import { ExpenseApprovalsCard } from "./ExpenseApprovalsCard";
 import { BillingPulse } from "./BillingPulse";
 import { RevenueTrendChart } from "./RevenueTrendChart";
