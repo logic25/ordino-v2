@@ -32,7 +32,7 @@ export function InvoiceSummaryCards({ counts, totals, activeFilter, onFilterChan
   }[] = [
     {
       key: "draft",
-      label: "Draft",
+      label: "Ready to Invoice",
       icon: FileText,
       amount: totals.draft + totals.ready_to_send,
       subtitle: counts.ready_to_send > 0 ? `${counts.ready_to_send} ready, ${counts.draft} drafts` : `${counts.draft} invoices`,

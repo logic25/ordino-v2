@@ -3316,6 +3316,7 @@ export type Database = {
           email: string | null
           id: string
           logo_url: string | null
+          monthly_billing_goal_override: number | null
           name: string
           phone: string | null
           settings: Json | null
@@ -3323,6 +3324,7 @@ export type Database = {
           theme: Json | null
           updated_at: string | null
           website: string | null
+          weekly_billing_goal_override: number | null
         }
         Insert: {
           address?: string | null
@@ -3331,6 +3333,7 @@ export type Database = {
           email?: string | null
           id?: string
           logo_url?: string | null
+          monthly_billing_goal_override?: number | null
           name: string
           phone?: string | null
           settings?: Json | null
@@ -3338,6 +3341,7 @@ export type Database = {
           theme?: Json | null
           updated_at?: string | null
           website?: string | null
+          weekly_billing_goal_override?: number | null
         }
         Update: {
           address?: string | null
@@ -3346,6 +3350,7 @@ export type Database = {
           email?: string | null
           id?: string
           logo_url?: string | null
+          monthly_billing_goal_override?: number | null
           name?: string
           phone?: string | null
           settings?: Json | null
@@ -3353,6 +3358,7 @@ export type Database = {
           theme?: Json | null
           updated_at?: string | null
           website?: string | null
+          weekly_billing_goal_override?: number | null
         }
         Relationships: []
       }
@@ -6223,6 +6229,7 @@ export type Database = {
           signature_data: string | null
           updated_at: string | null
           user_id: string
+          weekly_goal: number | null
         }
         Insert: {
           about?: string | null
@@ -6252,6 +6259,7 @@ export type Database = {
           signature_data?: string | null
           updated_at?: string | null
           user_id: string
+          weekly_goal?: number | null
         }
         Update: {
           about?: string | null
@@ -6281,6 +6289,7 @@ export type Database = {
           signature_data?: string | null
           updated_at?: string | null
           user_id?: string
+          weekly_goal?: number | null
         }
         Relationships: [
           {

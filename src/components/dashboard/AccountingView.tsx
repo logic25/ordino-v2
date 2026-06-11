@@ -8,6 +8,8 @@ import { useDashboardStats } from "@/hooks/useDashboard";
 import { useAccountingDashboard } from "@/hooks/useDashboardData";
 import { AgingSummaryChart } from "./AgingSummaryChart";
 import { useBillingReports } from "@/hooks/useReports";
+import { BillingPulse } from "./BillingPulse";
+import { BillingPipelineTable } from "@/components/billing/BillingPipelineTable";
 
 export function AccountingView({ isVisible }: { isVisible?: (id: string) => boolean }) {
   const navigate = useNavigate();
@@ -50,6 +52,12 @@ export function AccountingView({ isVisible }: { isVisible?: (id: string) => bool
 
   return (
     <div className="space-y-6">
+      {/* Billing Pulse hero */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <BillingPulse scope="self-biller" title="My Billing Pulse" />
+        <BillingPulse scope="company" title="Company Billing Pulse" compact />
+      </div>
+
       {/* KPI Row - clickable */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {kpis.map((kpi) => (
