@@ -261,16 +261,23 @@ function BillingTab({ year }: { year: number }) {
                           {feeAmt === 0 ? "—" : formatCompactCurrency(feeAmt)}
                         </div>
                         {r.hasGoal && (
-                          <GoalSubCell
-                            userId={r.userId}
-                            year={year}
-                            month={i + 1}
-                            defaultGoal={r.monthlyGoal}
-                            currentValue={goal}
-                            isOverridden={overrides[`${r.userId}:${i + 1}`] !== undefined}
-                            colorClass={isFuture || feeAmt === 0 ? "text-muted-foreground" : goalColor(cellPct)}
-                            isAdmin={isAdmin}
-                          />
+                          <>
+                            <GoalSubCell
+                              userId={r.userId}
+                              year={year}
+                              month={i + 1}
+                              defaultGoal={r.monthlyGoal}
+                              currentValue={goal}
+                              isOverridden={overrides[`${r.userId}:${i + 1}`] !== undefined}
+                              colorClass={isFuture || feeAmt === 0 ? "text-muted-foreground" : goalColor(cellPct)}
+                              isAdmin={isAdmin}
+                            />
+                            {goal > 0 && !isFuture && feeAmt > 0 && (
+                              <div className={`text-[10px] font-medium ${goalColor(cellPct)}`}>
+                                {Math.round(cellPct * 100)}%
+                              </div>
+                            )}
+                          </>
                         )}
                         {reimbAmt > 0 && (
                           <div className="text-[10px] text-muted-foreground mt-0.5">
