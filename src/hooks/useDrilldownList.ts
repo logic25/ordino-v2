@@ -11,11 +11,15 @@ export type DrilldownKind =
   | "proposal-followups"
   | "stale-projects";
 
+export type StaleBucket = "fresh" | "warming" | "stale" | "all";
+
 interface Options {
   /** For stale-projects: only this PM */
   pmId?: string;
-  /** For stale-projects: stale threshold */
+  /** For stale-projects: stale threshold (days) */
   thresholdDays?: number;
+  /** For stale-projects: which bucket to show */
+  bucket?: StaleBucket;
   enabled?: boolean;
 }
 
@@ -27,10 +31,11 @@ export function useDrilldownList(kind: DrilldownKind, opts: Options = {}) {
   const { profile } = useAuth() as any;
   const enabled = (opts.enabled ?? true) && !!profile?.company_id;
   return useQuery({
-    queryKey: ["drilldown-list", kind, profile?.company_id, opts.pmId ?? null, opts.thresholdDays ?? null],
+    queryKey: ["drilldown-list", kind, profile?.company_id, opts.pmId ?? null, opts.thresholdDays ?? null, opts.bucket ?? "all"],
     enabled,
     queryFn: async (): Promise<DrillInRow[]> => {
       const companyId = profile.company_id as string;
+
 
       if (kind === "active-projects") {
         const { data } = await supabase
@@ -110,30 +115,53 @@ export function useDrilldownList(kind: DrilldownKind, opts: Options = {}) {
 
       if (kind === "stale-projects") {
         const threshold = opts.thresholdDays ?? 14;
-        const cutoff = new Date(Date.now() - threshold * 86400000).toISOString();
+        const bucket: StaleBucket = opts.bucket ?? "stale";
         let q = supabase
           .from("projects")
           .select("id, name, project_number, last_activity_at, assigned_pm_id, clients(name), assigned_pm:profiles!projects_assigned_pm_id_fkey(first_name, last_name, display_name)")
           .eq("company_id", companyId)
           .eq("status", "open")
-          .lt("last_activity_at", cutoff)
           .order("last_activity_at", { ascending: true })
-          .limit(200);
+          .limit(500);
+
+        const now = Date.now();
+        const warmingCutoff = new Date(now - 8 * 86400000).toISOString();
+        const staleCutoff = new Date(now - threshold * 86400000).toISOString();
+        const freshCutoff = new Date(now - 7 * 86400000).toISOString();
+
+        if (bucket === "fresh") {
+          // last_activity_at >= 7 days ago (i.e. within the last week)
+          q = q.gte("last_activity_at", freshCutoff);
+        } else if (bucket === "warming") {
+          // between 8 days and threshold
+          q = q.lt("last_activity_at", warmingCutoff).gte("last_activity_at", staleCutoff);
+        } else if (bucket === "stale") {
+          q = q.lt("last_activity_at", staleCutoff);
+        }
+        // bucket === "all" → no date filter
+
         if (opts.pmId) q = q.eq("assigned_pm_id", opts.pmId);
         const { data } = await q;
         return (data || []).map((p: any) => {
           const days = p.last_activity_at
             ? Math.floor((Date.now() - new Date(p.last_activity_at).getTime()) / 86400000)
             : 9999;
+          let tone: "default" | "success" | "warning" | "danger" = "default";
+          let label = "";
+          if (days >= 9999) { tone = "danger"; label = "No activity"; }
+          else if (days >= threshold) { tone = "danger"; label = `${days}d idle`; }
+          else if (days >= 8) { tone = "warning"; label = `${days}d idle`; }
+          else { tone = "success"; label = `${days}d ago`; }
           return {
             id: p.id,
             primary: `${p.project_number ? p.project_number + " · " : ""}${p.name || "Untitled"}`,
             secondary: [p.clients?.name, p.assigned_pm ? nameOf(p.assigned_pm) : "Unassigned"].filter(Boolean).join(" · "),
-            badge: { label: days >= 9999 ? "No activity" : `${days}d idle`, tone: days >= 30 ? "danger" : "warning" },
+            badge: { label, tone },
             href: `/projects/${p.id}`,
           };
         });
       }
+
 
       return [];
     },
