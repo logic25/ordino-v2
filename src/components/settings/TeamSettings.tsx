@@ -415,8 +415,8 @@ function useUserBillingStats(userId: string, period: Period, monthlyGoal: number
         billingPct > 0 ||
         timelogCompletion > 0 ||
         accuracyPct !== null ||
-        nonBillableCOTotal > 0 ||
-        projectIds.length > 0;
+        nonBillableCOTotal > 0;
+
       const efficiency = !hasAnyActivity
         ? null
         : hasAccuracy
