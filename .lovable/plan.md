@@ -1,87 +1,57 @@
-# Admin Dashboard Upgrade + Proposal Conversion Fix
+## Admin Dashboard — Round 3 Cleanup
 
-## 1. New KPI strip (replaces current 4 cards)
+### 1. Upcoming Billing Pipeline (fix empty state)
+Change `useBillingPipeline.ts` from "status = billed" to **services on active projects with `estimated_bill_date` set, not fully billed**:
+- `services.status IN ('in_progress','billed')`
+- `billed_amount < total_amount` (or `fixed_price` if no total)
+- `estimated_bill_date IS NOT NULL`
+- `projects.status = 'active'` and not closed
+- Exclude services already inside a pending/approved `billing_requests`
+- Sort by `estimated_bill_date` ASC, default show next 60 days; "Show all" toggle
+- Add `InfoTooltip` on the card title explaining the rule
 
-Replace static/operational cards with momentum metrics. Card grid stays 4-wide on desktop.
+### 2. Sales Health absorbs Cycle Times
+- Add to `SalesHealthCard`: "Avg proposal sign time (Xd)" and "Avg invoice payment time (Yd)" as a small footer row under the win-rate panel
+- Delete `CycleTimesCard.tsx` and remove `"cycle-times"` from layout defaults + `ROLE_WIDGETS.admin`
 
-| Card | Source | Click-through |
-|---|---|---|
-| **Active Projects** + Δ vs last month | `projects.is_active = true` (canonical) | `/projects?status=open` |
-| **Active Proposals** (sent + signed_client) + $ in flight | `proposals.status IN ('sent','signed_client')`, sum `total_amount` | `/proposals?status=active` |
-| **AR Outstanding** — Sent / Overdue split | `invoices.status IN ('sent','overdue')` | `/invoices?status=outstanding` |
-| **Month-to-Goal** — `billedMTD / monthGoal` % | reuse `useBillingPulse` | Billing → By User tab |
+### 3. Remove Collected vs Billed card
+- Drop `CollectedVsBilledCard` from admin dashboard widget map + role defaults (kept inside `BillingReports`/`AccountingView` where collection rate already lives)
+- Delete `CollectedVsBilledCard.tsx`
 
-Drop: Team Members (static), Outstanding $ single line, Overdue Invoices count.
+### 4. Merge Stale Projects (total + by-PM)
+- New unified `StaleProjectsCard`: header shows total count pill; body lists PM rows with their stale count as a click-pill
+- Clicking the total pill OR any PM pill opens `StaleProjectsModal` with the project list (project #, name, PM, days since activity, link) — styled like the legacy Change Orders modal screenshot
+- Remove `StaleProjectsByPM` widget id from layout
 
-Also reconcile `is_active` vs `status='active'` mismatch between `useDashboard` and `ReportsKPISummary` — pick `is_active` as canonical and update Reports.
+### 5. Active Proposals KPI — momentum
+In `KpiStrip` (`AdminCompanyView`):
+- Primary: count of proposals **created** this calendar month
+- Delta vs prior month (▲/▼ N, color-coded), value shown as secondary subtitle
+- Tooltip: "Proposals created this month vs last month"
 
-## 2. Sales Health card (replaces Proposals Pipeline funnel)
+### 6. Click-through modals for count pills (legacy-style)
+Create reusable `<DrillInModal title count>` (Dialog wrapper matching the Change Orders modal layout: summary header strip + scrollable list). Wire into:
+- Stale Projects total + per-PM pills → project list
+- Proposal Follow-Ups card count → follow-up rows
+- KPI strip pills (Active Projects, Active Proposals, AR Outstanding) → underlying list (projects / proposals / invoices)
 
-Two panels, single card:
+### 7. Billing Pulse tooltip
+Add `InfoTooltip` next to "Billing Pulse" title explaining: MTD billed vs collected, current AR aging buckets, % of monthly goal. (Card already exists; just add tooltip wiring.)
 
-- **Active funnel** — proposals from last 60 days (default), grouped by status (draft / sent / signed_client / executed / lost), showing count + sum(`total_amount`). 60d is default because most close fast but occasional stragglers shouldn't be hidden; user can switch window via segmented control (30 / 60 / 90 / All).
-- **Conversion** — rolling 6-month win rate (`signed_client|executed` ÷ all sent that month) sparkline + avg `sent_at → client_signed_at` days.
+### 8. My View button polish
+In `AdminCompanyView`:
+- Render as segmented control "Company | My View" using `Tabs` styling, current view filled (`variant="default"`), other `variant="outline"`. Same toggle behavior, just visually obvious which is active.
 
-Keep Proposal Follow-Ups widget unchanged below it.
+### 9. Answer-only items (no code changes)
+- **AI summary cron frequency:** project summaries are **event-driven** (regenerated immediately when an action item, note, checklist item, or status change is inserted via `enqueue_project_summary` → `auto-summarize-projects`). The `weekly-project-digest` edge function additionally sweeps every open project **once a week** as a safety net. Will surface this in a small "Last refreshed: Xh ago" line on the project detail summary card (out of scope here — flagging for next round).
 
-## 3. Resizable widgets (full / half)
+### Files
+**Edit:** `useBillingPipeline.ts`, `AdminCompanyView.tsx`, `SalesHealthCard.tsx`, `useDashboardData.ts` (add cycle-time aggregates to sales-health query, proposals-this-month vs last-month, stale projects with PM breakdown), `useDashboardLayout.ts` (remove cycle-times, collected-vs-billed, stale-projects-by-pm ids from defaults), `StaleProjectsCard.tsx`, `BillingPulse.tsx`, `ProposalFollowUps.tsx`, `KpiStrip` block in `AdminCompanyView.tsx`.
+**New:** `DrillInModal.tsx` (shared), `StaleProjectsModal.tsx`.
+**Delete:** `CycleTimesCard.tsx`, `CollectedVsBilledCard.tsx`, `StaleProjectsByPM.tsx`.
+**Changelog:** insert `changelog_entries` row summarising dashboard v3.
 
-- Extend `dashboard_layouts.layout` JSON: `{ order: string[], hidden: string[], widths: Record<id, "full"|"half"> }` (default full, backward-compatible).
-- Wrap SortableContext in `grid-cols-1 md:grid-cols-2`. Full-width widgets span both columns via `col-span-2`.
-- Add ⇿ toggle next to each widget header in edit mode. Tables (Billing By User, Pipeline, etc.) lock to full width.
-
-## 4. Fix Upcoming Billing Pipeline
-
-`useBillingPipeline` currently includes `not_started` services, so the card description doesn't match the data. Narrow to:
-`services.status = 'billed'` AND `remaining_amount > 0` AND no open `billing_request`.
-User confirmed `billed` is the trigger status. Update empty-state copy: "All billed deliverables have an open billing request."
-
-## 5. New small widgets (default ON, half-width)
-
-- **Cycle Times** — avg proposal sent→signed, avg invoice issued→paid (last 90d)
-- **Collected vs Billed (MTD)** — two-bar mini chart
-- **Stale Projects total** — count + link to `/projects?stale=stale`
-
-## 6. Proposal → Project conversion: change orders + clock-in
-
-Currently `useSignProposalInternal` creates `projects` + `services` but **no `change_orders`** and never prompts clock-in. Fix:
-
-**a. Auto-create base change order on conversion**
-- After project insert, create one `change_orders` row labeled "Original Scope" (status `executed`, signed using the same proposal signature), summing all `proposal_items.total`.
-- Set `services.change_order_id` to that CO id when inserting the services rows (currently left null).
-- This mirrors Ordino's existing CO data model so every billable service has a CO parent — needed for job-costing/margin views that already join through CO.
-- Also apply the same change in `useProposalFollowUps.ts:102` duplicate conversion path (or extract a shared helper — preferred).
-
-**b. Post-conversion clock-in modal**
-- After successful conversion in `Proposals.tsx#handleSign`, open a new `<PostConversionClockInModal>`:
-  - Lists the newly created services with a checkbox per item
-  - "Start timer on selected" → calls existing project timer hook (`useProjectTimer`) scoped to the new project
-  - "Skip" closes it
-- Modal opens before/after the existing PDF preview modal (after, so the signed PDF capture isn't interrupted).
-
-## 7. Out of scope
-
-- react-grid-layout pixel resize, profitability dashboards, lead-source attribution, restoring Activity tab.
-
-## Files touched
-
-- `src/hooks/useDashboardLayout.ts` — widths schema
-- `src/hooks/useDashboardData.ts` — new aggregators (activeProposals$, AR split, MTD goal, cycle times, collected vs billed, stale count)
-- `src/hooks/useBillingPipeline.ts` — narrow to `status='billed'`
-- `src/hooks/useDashboard.ts` + `src/components/reports/ReportsKPISummary.tsx` — reconcile active-project filter
-- `src/hooks/useProposals.ts` (`useSignProposalInternal`) — base CO insert, link services
-- `src/hooks/useProposalFollowUps.ts` — same (or refactor to shared helper)
-- `src/components/dashboard/AdminCompanyView.tsx` — new KPI strip, grid wrapper, width toggle
-- `src/components/dashboard/SalesHealthCard.tsx` *(new)*
-- `src/components/dashboard/CycleTimesCard.tsx` *(new)*
-- `src/components/dashboard/CollectedVsBilledCard.tsx` *(new)*
-- `src/components/dashboard/StaleProjectsCard.tsx` *(new)*
-- `src/components/dashboard/BillingPipelineTable.tsx` — empty-state copy
-- `src/pages/Proposals.tsx` + `src/components/proposals/PostConversionClockInModal.tsx` *(new)*
-- `changelog_entries` row inserted via migration
-
-## Technical notes
-
-- No schema changes required — `services.change_order_id` FK already exists; `dashboard_layouts.layout` is JSONB.
-- All new aggregators are read-only Supabase queries respecting existing RLS (`company_id` filter).
-- Widths state migration: missing `widths` defaults to `full` for every id (no breaking change for existing rows).
+### Out of scope
+- Project-detail "last AI refresh" timestamp UI
+- Per-project AI summary frequency knob
+- Pixel-resize widgets (react-grid-layout)
