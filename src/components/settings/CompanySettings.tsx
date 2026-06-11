@@ -134,7 +134,7 @@ export function CompanySettings() {
           address: address.trim() || null,
           website: website.trim() || null,
           ein: ein.trim() || null,
-          settings: { ...currentSettings, insurances, gchat_enabled: gchatEnabled, gchat_space_id: gchatSpaceId.trim() || null } as any,
+          settings: { ...currentSettings, insurances, gchat_enabled: gchatEnabled, gchat_space_id: gchatSpaceId.trim() || null, stale_project_days: Math.max(1, Number(staleProjectDays) || 14) } as any,
           theme: { primary_color: primaryColor, accent_color: accentColor, logo_url: logoUrl } as any,
           logo_url: logoUrl || null,
         } as any)
