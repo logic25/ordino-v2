@@ -24,10 +24,10 @@ import { AnalyticsView } from "@/components/invoices/AnalyticsView";
 import { PaidView } from "@/components/invoices/PaidView";
 import { AutomationActivityPanel } from "@/components/invoices/AutomationActivityPanel";
 import {
-  useInvoices, useInvoiceCounts, useDeleteInvoice,
+  useInvoices, useInvoiceCounts, useInvoiceTotals, useDeleteInvoice,
   type InvoiceStatus, type InvoiceWithRelations,
 } from "@/hooks/useInvoices";
-import { usePendingBillingCount } from "@/hooks/useBillingRequests";
+import { usePendingBillingCount, usePendingBillingTotal } from "@/hooks/useBillingRequests";
 import { useRetainers } from "@/hooks/useRetainers";
 import { toast } from "@/hooks/use-toast";
 import { useTelemetry } from "@/hooks/useTelemetry";
