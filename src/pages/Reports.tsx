@@ -2,6 +2,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart3 } from "lucide-react";
 import { useTelemetry } from "@/hooks/useTelemetry";
+import { useIsAdmin } from "@/hooks/useUserRoles";
 import ProjectReports from "@/components/reports/ProjectReports";
 import BillingReports from "@/components/reports/BillingReports";
 import TimeReports from "@/components/reports/TimeReports";
