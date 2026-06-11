@@ -108,9 +108,19 @@ export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, is
             return (
               <TableRow
                 key={project.id}
-                className="cursor-pointer hover:bg-muted/50"
+                data-state={isSelected ? "selected" : undefined}
+                className="cursor-pointer hover:bg-muted/50 data-[state=selected]:bg-muted"
                 onClick={() => navigate(`/projects/${project.id}`)}
               >
+                {selectable && (
+                  <TableCell onClick={(e) => e.stopPropagation()} className="w-[36px]">
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => onToggleSelect?.(project.id)}
+                      aria-label="Select row"
+                    />
+                  </TableCell>
+                )}
                 <TableCell className="font-mono text-sm">{project.project_number || "—"}</TableCell>
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-1.5 flex-wrap">
