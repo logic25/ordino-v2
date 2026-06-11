@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Plus, Trash2, AlertTriangle, CheckCircle2, Shield, Palette, Upload, MessageSquare } from "lucide-react";
+import { BillingGoalsSection } from "./BillingGoalsSection";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -216,6 +217,10 @@ export function CompanySettings() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Billing Goals (admin only) */}
+      <BillingGoalsSection />
+
 
       {/* Insurance Policies */}
       <Card>
