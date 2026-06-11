@@ -221,8 +221,38 @@ export function CompanySettings() {
         </CardContent>
       </Card>
 
+      {/* Project Defaults */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Project Defaults</CardTitle>
+          <CardDescription>Company-wide defaults for project tracking.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Stale project threshold (days)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={365}
+                value={staleProjectDays}
+                onChange={(e) => setStaleProjectDays(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Open projects with no activity (time, notes, status, email,
+                comment) for this many days are flagged as stale on the
+                Projects page and Admin dashboard. Default: 14.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Billing Goals (admin only) */}
       <BillingGoalsSection />
+
+
+
 
 
       {/* Insurance Policies */}
