@@ -8793,6 +8793,7 @@ export type Database = {
           fixed_price: number | null
           hourly_rate: number | null
           id: string
+          is_reimbursable: boolean
           job_description: string | null
           metadata: Json | null
           name: string
@@ -8830,6 +8831,7 @@ export type Database = {
           fixed_price?: number | null
           hourly_rate?: number | null
           id?: string
+          is_reimbursable?: boolean
           job_description?: string | null
           metadata?: Json | null
           name: string
@@ -8867,6 +8869,7 @@ export type Database = {
           fixed_price?: number | null
           hourly_rate?: number | null
           id?: string
+          is_reimbursable?: boolean
           job_description?: string | null
           metadata?: Json | null
           name?: string
@@ -9277,6 +9280,54 @@ export type Database = {
           {
             foreignKeyName: "universal_documents_uploaded_by_fkey"
             columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_monthly_goals: {
+        Row: {
+          company_id: string
+          created_at: string
+          goal_amount: number
+          id: string
+          month: number
+          updated_at: string
+          user_id: string
+          year: number
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          goal_amount?: number
+          id?: string
+          month: number
+          updated_at?: string
+          user_id: string
+          year: number
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          goal_amount?: number
+          id?: string
+          month?: number
+          updated_at?: string
+          user_id?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_monthly_goals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_monthly_goals_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
