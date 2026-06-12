@@ -387,64 +387,9 @@ export default function BdEventDetail() {
             </Card>
 
             <Card className="p-4 space-y-1">
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Strategy
-                </p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={isDrafting}
-                  onClick={async () => {
-                    const hasAny =
-                      (event.why_it_matters ?? "").trim() ||
-                      (intel.recent_news ?? "").trim() ||
-                      (intel.key_attendees ?? "").trim() ||
-                      (intel.competitive_landscape ?? "").trim();
-                    if (hasAny && !confirm("Overwrite existing Strategy fields with AI draft?")) return;
-                    setIsDrafting(true);
-                    try {
-                      const { data, error } = await supabase.functions.invoke("draft-event-strategy", {
-                        body: {
-                          event_name: event.name,
-                          source_url: (event.intel as any)?.source_url ?? event.source_url,
-                          category: event.category,
-                          target_audience: event.target_audience,
-                          why_it_matters: event.why_it_matters,
-                        },
-                      });
-                      if (error) throw error;
-                      const d = data as any;
-                      const nextIntel = {
-                        ...(event.intel ?? {}),
-                        recent_news: d.recent_news ?? intel.recent_news,
-                        key_attendees: d.key_attendees ?? intel.key_attendees,
-                        competitive_landscape: d.competitive_landscape ?? intel.competitive_landscape,
-                      };
-                      set({
-                        why_it_matters: d.why_it_matters ?? event.why_it_matters,
-                        intel: nextIntel as any,
-                      } as any);
-                      toast({ title: "AI strategy drafted" });
-                    } catch (e: any) {
-                      toast({
-                        title: "AI draft failed",
-                        description: e?.message ?? "Try again in a moment.",
-                        variant: "destructive",
-                      });
-                    } finally {
-                      setIsDrafting(false);
-                    }
-                  }}
-                >
-                  {isDrafting ? (
-                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-                  )}
-                  Draft strategy with AI
-                </Button>
-              </div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                Strategy
+              </p>
               <Field label="Why it matters">
                 <EditableText value={event.why_it_matters ?? null}
                   onSave={(v) => set({ why_it_matters: v } as any)}
