@@ -67,8 +67,11 @@ export async function askBeacon(
   userName: string,
   projectContext?: BeaconProjectContext,
   conversationHistory?: { role: string; content: string }[],
-  opts?: { companyId?: string | null; jurisdiction?: string },
+  opts?: { companyId?: string | null; jurisdiction?: string | null },
 ): Promise<BeaconChatResponse> {
+  // jurisdiction: explicitly null until Pinecone KB docs are tagged + Railway jurisdiction change ships.
+  // Sending "NYC" before that would zero out KB retrieval.
+  const jurisdiction = opts && "jurisdiction" in opts ? opts.jurisdiction : null;
   const { data, error } = await supabase.functions.invoke("beacon-proxy?action=chat", {
     body: {
       message,
