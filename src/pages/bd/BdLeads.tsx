@@ -37,7 +37,7 @@ import {
   type LeadView, type LeadViewFilters,
 } from "@/hooks/useLeadViews";
 import {
-  STAGE_META, STAGE_ORDER, SOURCE_META, TIMELINE_LABELS, profileLabel, initials, daysSince,
+  STAGE_META, STAGE_ORDER, ALL_STAGES, SOURCE_META, TIMELINE_LABELS, profileLabel, initials, daysSince,
 } from "@/components/bd/leadConstants";
 import { CaptureLeadModal } from "@/components/bd/CaptureLeadModal";
 
