@@ -375,6 +375,7 @@ function EventDialog({ open, event, onOpenChange }: { open: boolean; event: BdEv
   const create = useCreateBdEvent();
   const update = useUpdateBdEvent();
   const memberships = useMemberships();
+  const profiles = useCompanyProfiles();
   const { toast } = useToast();
 
   const [form, setForm] = useState<Partial<BdEvent>>({});
