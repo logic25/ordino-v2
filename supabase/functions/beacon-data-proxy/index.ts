@@ -242,12 +242,14 @@ function resolveStatus(raw: string): string {
   return STATUS_ALIASES[raw.toLowerCase()] ?? raw;
 }
 
-async function queryProjects(sb: any, params: any) {
-  let q = sb
-    .from("projects")
-    .select(
+async function queryProjects(ctx: Ctx, params: any) {
+  const sb = ctx.sb;
+  let q = scopeByCompany(
+    sb.from("projects").select(
       "id, name, project_number, status, filing_type, created_at, properties(address, borough, bin), profiles!projects_assigned_pm_id_fkey(display_name)"
-    )
+    ),
+    ctx,
+  )
     .order("created_at", { ascending: false })
     .limit(200);
 
@@ -263,50 +265,42 @@ async function queryProjects(sb: any, params: any) {
   return ok(data);
 }
 
-async function queryProjectDetail(sb: any, params: any) {
+async function queryProjectDetail(ctx: Ctx, params: any) {
+  const sb = ctx.sb;
   let projectId = params.project_id;
 
   if (!projectId && params.address) {
-    const { data: prop } = await sb
-      .from("properties")
-      .select("id")
-      .ilike("address", `%${params.address}%`)
-      .limit(1)
-      .maybeSingle();
+    const { data: prop } = await scopeByCompany(
+      sb.from("properties").select("id").ilike("address", `%${params.address}%`),
+      ctx,
+    ).limit(1).maybeSingle();
     if (prop) {
-      const { data: proj } = await sb
-        .from("projects")
-        .select("id")
-        .eq("property_id", prop.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const { data: proj } = await scopeByCompany(
+        sb.from("projects").select("id").eq("property_id", prop.id),
+        ctx,
+      ).order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (proj) projectId = proj.id;
     }
   }
 
   if (!projectId) return fail("Project not found", 404);
 
-  const { data: project, error } = await sb
-    .from("projects")
-    .select(
+  const { data: project, error } = await scopeByCompany(
+    sb.from("projects").select(
       "*, properties(*), services(*), project_contacts(*, client_contacts(*))"
-    )
-    .eq("id", projectId)
-    .maybeSingle();
+    ).eq("id", projectId),
+    ctx,
+  ).maybeSingle();
   if (error) {
     console.error("query_project_detail error:", error.message, error.details, error.hint);
     return fail(error.message, 500);
   }
   if (!project) return fail("Project not found", 404);
 
-  const { data: rfi } = await sb
-    .from("rfi_requests")
-    .select("responses, status")
-    .eq("project_id", projectId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const { data: rfi } = await scopeByCompany(
+    sb.from("rfi_requests").select("responses, status").eq("project_id", projectId),
+    ctx,
+  ).order("created_at", { ascending: false }).limit(1).maybeSingle();
 
   let pisFieldCount = 0;
   if (rfi?.responses) {
@@ -325,35 +319,30 @@ async function queryProjectDetail(sb: any, params: any) {
   });
 }
 
-async function queryPropertyViolations(sb: any, params: any) {
+async function queryPropertyViolations(ctx: Ctx, params: any) {
+  const sb = ctx.sb;
   let propertyId: string | null = null;
 
   if (params.bin) {
-    const { data: prop } = await sb
-      .from("properties")
-      .select("id")
-      .eq("bin", params.bin)
-      .limit(1)
-      .maybeSingle();
+    const { data: prop } = await scopeByCompany(
+      sb.from("properties").select("id").eq("bin", params.bin),
+      ctx,
+    ).limit(1).maybeSingle();
     if (prop) propertyId = prop.id;
   } else if (params.address) {
-    const { data: prop } = await sb
-      .from("properties")
-      .select("id")
-      .ilike("address", `%${params.address}%`)
-      .limit(1)
-      .maybeSingle();
+    const { data: prop } = await scopeByCompany(
+      sb.from("properties").select("id").ilike("address", `%${params.address}%`),
+      ctx,
+    ).limit(1).maybeSingle();
     if (prop) propertyId = prop.id;
   }
 
   if (!propertyId) return fail("Property not found", 404);
 
-  let q = sb
-    .from("signal_violations")
-    .select("*")
-    .eq("property_id", propertyId)
-    .order("issue_date", { ascending: false })
-    .limit(500);
+  let q = scopeByCompany(
+    sb.from("signal_violations").select("*").eq("property_id", propertyId),
+    ctx,
+  ).order("issue_date", { ascending: false }).limit(500);
 
   if (params.status) q = q.eq("status", params.status);
 
@@ -371,11 +360,12 @@ async function queryPropertyViolations(sb: any, params: any) {
   return ok({ violations: data, total_penalty: totalPenalty, count: data?.length ?? 0 });
 }
 
-async function queryPmWorkload(sb: any, params: any) {
-  let q = sb
-    .from("profiles")
-    .select("id, display_name, role")
-    .eq("is_active", true);
+async function queryPmWorkload(ctx: Ctx, params: any) {
+  const sb = ctx.sb;
+  let q = scopeByCompany(
+    sb.from("profiles").select("id, display_name, role").eq("is_active", true),
+    ctx,
+  );
 
   if (params.pm_name) q = q.ilike("display_name", `%${params.pm_name}%`);
 
@@ -387,11 +377,12 @@ async function queryPmWorkload(sb: any, params: any) {
 
   const results = [];
   for (const p of profiles || []) {
-    const { count } = await sb
-      .from("projects")
-      .select("id", { count: "exact", head: true })
-      .eq("assigned_pm_id", p.id)
-      .eq("status", "open");
+    const { count } = await scopeByCompany(
+      sb.from("projects").select("id", { count: "exact", head: true })
+        .eq("assigned_pm_id", p.id)
+        .eq("status", "open"),
+      ctx,
+    );
     results.push({
       id: p.id,
       name: p.display_name,
@@ -404,13 +395,14 @@ async function queryPmWorkload(sb: any, params: any) {
   return ok(results);
 }
 
-async function checkFilingReadiness(sb: any, params: any) {
+async function checkFilingReadiness(ctx: Ctx, params: any) {
+  const sb = ctx.sb;
   const TOTAL_FIELDS = 23;
 
-  let q = sb
-    .from("projects")
-    .select("id, name, project_number")
-    .eq("status", "open");
+  let q = scopeByCompany(
+    sb.from("projects").select("id, name, project_number").eq("status", "open"),
+    ctx,
+  );
 
   if (params.project_id) q = q.eq("id", params.project_id);
 
@@ -422,13 +414,10 @@ async function checkFilingReadiness(sb: any, params: any) {
 
   const results = [];
   for (const p of projects || []) {
-    const { data: rfi } = await sb
-      .from("rfi_requests")
-      .select("responses")
-      .eq("project_id", p.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const { data: rfi } = await scopeByCompany(
+      sb.from("rfi_requests").select("responses").eq("project_id", p.id),
+      ctx,
+    ).order("created_at", { ascending: false }).limit(1).maybeSingle();
 
     let filled = 0;
     if (rfi?.responses) {
@@ -458,14 +447,14 @@ async function checkFilingReadiness(sb: any, params: any) {
   return ok(results);
 }
 
-async function queryProposals(sb: any, params: any) {
-  let q = sb
-    .from("proposals")
-    .select(
+async function queryProposals(ctx: Ctx, params: any) {
+  const sb = ctx.sb;
+  let q = scopeByCompany(
+    sb.from("proposals").select(
       "id, proposal_number, status, total_amount, client_name, created_at, properties(address)"
-    )
-    .order("created_at", { ascending: false })
-    .limit(200);
+    ),
+    ctx,
+  ).order("created_at", { ascending: false }).limit(200);
 
   if (params.status) q = q.eq("status", params.status);
   if (params.search)
@@ -485,14 +474,14 @@ async function queryProposals(sb: any, params: any) {
   return ok({ proposals: data, total_pipeline_value: totalPipeline });
 }
 
-async function queryInvoices(sb: any, params: any) {
-  let q = sb
-    .from("invoices")
-    .select(
+async function queryInvoices(ctx: Ctx, params: any) {
+  const sb = ctx.sb;
+  let q = scopeByCompany(
+    sb.from("invoices").select(
       "id, invoice_number, status, total_due, payment_amount, paid_at, created_at"
-    )
-    .order("created_at", { ascending: false })
-    .limit(500);
+    ),
+    ctx,
+  ).order("created_at", { ascending: false }).limit(500);
 
   if (params.status) q = q.eq("status", params.status);
 
@@ -512,6 +501,7 @@ async function queryInvoices(sb: any, params: any) {
 
   return ok({ invoices: data, outstanding_total: outstanding, paid_total: paid });
 }
+
 
 // ── General-purpose query ────────────────────────────────
 
