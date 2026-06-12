@@ -275,6 +275,36 @@ export default function BdEventDetail() {
                 ))}
               </SelectContent>
             </Select>
+            {/* Priority badge — relocated from the removed Classification card. */}
+            <Select
+              value={event.priority ?? ""}
+              onValueChange={(v) => set({ priority: (v || null) as any })}
+            >
+              <SelectTrigger className="h-7 w-auto border-0 bg-transparent p-0 shadow-none focus:ring-0">
+                <Badge
+                  variant="outline"
+                  className={
+                    event.priority === "GO"
+                      ? "bg-green-100 text-green-700 border-green-200"
+                      : event.priority === "DISCUSS"
+                        ? "bg-yellow-100 text-yellow-800 border-yellow-200"
+                        : event.priority === "SKIP"
+                          ? "bg-gray-100 text-gray-600 border-gray-200"
+                          : "bg-background text-muted-foreground border-dashed"
+                  }
+                >
+                  {event.priority
+                    ? PRIORITY_OPTIONS.find((p) => p.value === event.priority)?.label
+                    : "Set priority"}
+                </Badge>
+              </SelectTrigger>
+              <SelectContent>
+                {PRIORITY_OPTIONS.map((p) => (
+                  <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             {event.source_url && (
               <a href={event.source_url} target="_blank" rel="noreferrer"
                 className="text-xs underline inline-flex items-center gap-1">
