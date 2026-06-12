@@ -4039,6 +4039,56 @@ export type Database = {
           },
         ]
       }
+      document_versions: {
+        Row: {
+          category: string | null
+          changed_by: string | null
+          company_id: string | null
+          created_at: string
+          description: string | null
+          document_id: string
+          id: string
+          jurisdiction: string | null
+          storage_path: string | null
+          title: string | null
+          version: number
+        }
+        Insert: {
+          category?: string | null
+          changed_by?: string | null
+          company_id?: string | null
+          created_at?: string
+          description?: string | null
+          document_id: string
+          id?: string
+          jurisdiction?: string | null
+          storage_path?: string | null
+          title?: string | null
+          version: number
+        }
+        Update: {
+          category?: string | null
+          changed_by?: string | null
+          company_id?: string | null
+          created_at?: string
+          description?: string | null
+          document_id?: string
+          id?: string
+          jurisdiction?: string | null
+          storage_path?: string | null
+          title?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "universal_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_attachments: {
         Row: {
           company_id: string
@@ -5288,6 +5338,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      kb_deleted_documents: {
+        Row: {
+          content: string | null
+          deleted_at: string
+          id: string
+          source_file: string
+        }
+        Insert: {
+          content?: string | null
+          deleted_at?: string
+          id?: string
+          source_file: string
+        }
+        Update: {
+          content?: string | null
+          deleted_at?: string
+          id?: string
+          source_file?: string
+        }
+        Relationships: []
+      }
+      kb_document_versions: {
+        Row: {
+          changed_by: string | null
+          company_id: string
+          content: string | null
+          created_at: string
+          id: string
+          source_file: string
+          version: number
+        }
+        Insert: {
+          changed_by?: string | null
+          company_id: string
+          content?: string | null
+          created_at?: string
+          id?: string
+          source_file: string
+          version: number
+        }
+        Update: {
+          changed_by?: string | null
+          company_id?: string
+          content?: string | null
+          created_at?: string
+          id?: string
+          source_file?: string
+          version?: number
+        }
+        Relationships: []
       }
       lead_notes: {
         Row: {
