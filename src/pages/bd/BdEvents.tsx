@@ -272,7 +272,7 @@ export default function BdEvents() {
                             </div>
                           )}
                         </TableCell>
-                        <TableCell className="text-sm">{fmtDate(e.start_date)}</TableCell>
+                        <TableCell className="text-sm">{fmtEventWhen(e)}</TableCell>
                         <TableCell onClick={(ev) => ev.stopPropagation()}>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -628,7 +628,7 @@ function EventDetailSheet({ event, onOpenChange }: { event: BdEvent | null; onOp
       <SheetContent className="sm:max-w-lg overflow-y-auto">
         <SheetHeader>
           <SheetTitle>{event.name}</SheetTitle>
-          <SheetDescription>{fmtDate(event.start_date)} · {event.location ?? "—"}</SheetDescription>
+          <SheetDescription>{fmtEventWhen(event)} · {event.location ?? "—"}</SheetDescription>
         </SheetHeader>
         <div className="space-y-6 mt-4">
           <div className="flex flex-wrap gap-2 text-xs">
