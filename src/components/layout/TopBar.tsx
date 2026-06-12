@@ -32,6 +32,18 @@ function getInitials(profile: any, email?: string | null): string {
 export function TopBar({ onMenuToggle }: TopBarProps) {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen((o) => !o);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const initials = getInitials(profile, user?.email);
   const displayName =
