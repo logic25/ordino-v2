@@ -293,7 +293,6 @@ export default function Settings() {
       case "billing_notifications": return <BillingNotificationSettings />;
       case "reports": return <ReportSettings />;
       case "expenses": return <ExpensesSettings />;
-      case "expenses": return <ExpensesSettings />;
       default:
         return (
           <>
