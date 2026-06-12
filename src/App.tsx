@@ -79,6 +79,7 @@ const BdLeads = lazyWithRetry(() => import("./pages/bd/BdLeads"), "bd-leads");
 const BdLeadDetail = lazyWithRetry(() => import("./pages/bd/BdLeadDetail"), "bd-lead-detail");
 const BdEvents = lazyWithRetry(() => import("./pages/bd/BdEvents"), "bd-events");
 const BdSequences = lazyWithRetry(() => import("./pages/bd/BdSequences"), "bd-sequences");
+const BdMarkets = lazyWithRetry(() => import("./pages/bd/BdMarkets"), "bd-markets");
 
 function PageSpinner() {
   return (
@@ -135,6 +136,7 @@ function AppRoutes() {
       <Route path="/bd/leads/:id" element={<ProtectedRoute><BdLeadDetail /></ProtectedRoute>} />
       <Route path="/bd/events" element={<ProtectedRoute><BdEvents /></ProtectedRoute>} />
       <Route path="/bd/sequences" element={<ProtectedRoute><BdSequences /></ProtectedRoute>} />
+      <Route path="/bd/markets" element={<ProtectedRoute><BdMarkets /></ProtectedRoute>} />
       <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
       <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
       <Route path="/clients/:id" element={<ProtectedRoute><ClientDetail /></ProtectedRoute>} />
