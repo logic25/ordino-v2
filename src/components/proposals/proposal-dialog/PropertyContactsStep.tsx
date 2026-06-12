@@ -1,5 +1,5 @@
-import React, { useState, useRef } from "react";
-import { Check, ChevronsUpDown, Plus } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { Check, ChevronsUpDown, Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,9 +22,16 @@ interface PropertyContactsStepProps {
   form: any;
   contacts: ProposalContactInput[];
   onContactsChange: (contacts: ProposalContactInput[]) => void;
+  /** Free-text address to resolve in the background — non-blocking, no error if no match. */
+  initialAddress?: string;
 }
 
-export function PropertyContactsStep({ form, contacts, onContactsChange }: PropertyContactsStepProps) {
+const normalizeAddr = (s: string) =>
+  s.toLowerCase().replace(/[.,#]/g, " ").replace(/\s+/g, " ").trim();
+
+export function PropertyContactsStep({
+  form, contacts, onContactsChange, initialAddress,
+}: PropertyContactsStepProps) {
   const { data: properties = [] } = useProperties();
   const { data: clients = [] } = useClients();
   const createClient = useCreateClient();
@@ -37,6 +44,47 @@ export function PropertyContactsStep({ form, contacts, onContactsChange }: Prope
   const [propertySearch, setPropertySearch] = useState("");
   const [geoSuggestions, setGeoSuggestions] = useState<Array<{ label: string; borough: string; zip: string }>>([]);
   const geoDebounceRef = useRef<ReturnType<typeof setTimeout>>();
+  // Non-blocking prefill resolver — true while we're checking NYC data for a prefilled address.
+  const [resolvingPrefill, setResolvingPrefill] = useState(false);
+  const prefillRanRef = useRef(false);
+
+  // When opened from a Lead (initialAddress set) and no property picked yet, try to
+  // map the free-text address to an existing property. This must NOT block the dialog,
+  // and must NOT show an error if nothing matches — silently leave the field empty.
+  useEffect(() => {
+    if (prefillRanRef.current) return;
+    if (!initialAddress) return;
+    if (form.getValues("property_id")) return;
+    prefillRanRef.current = true;
+
+    const target = normalizeAddr(initialAddress);
+    // 1) Instant exact-ish match against already-loaded properties.
+    const existing = properties.find((p) => normalizeAddr(p.address || "") === target);
+    if (existing) {
+      form.setValue("property_id", existing.id);
+      return;
+    }
+    // 2) Background NYC lookup → match returned address/BIN to an existing property.
+    setResolvingPrefill(true);
+    (async () => {
+      try {
+        const nyc = await lookupByAddress(initialAddress);
+        if (nyc?.bin) {
+          const byBin = properties.find((p) => p.bin && String(p.bin) === String(nyc.bin));
+          if (byBin) {
+            form.setValue("property_id", byBin.id);
+            return;
+          }
+        }
+        // No match — per spec, leave field empty, no error toast.
+      } catch {
+        /* silent — non-blocking */
+      } finally {
+        setResolvingPrefill(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialAddress, properties]);
 
   const selectedProperty = properties.find(p => p.id === form.watch("property_id"));
 
