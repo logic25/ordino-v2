@@ -603,7 +603,10 @@ async function queryOrdino(ctx: Ctx, params: any) {
     for (const f of filters) {
       if (!f.column) continue;
       const col = resolveAlias(table, f.column);
+      // Reject caller-supplied company_id filters — only the JWT-derived one counts.
+      if (col === "company_id") continue;
       const val = resolveValue(table, col, f.value);
+
       const op = f.operator || "eq";
       switch (op) {
         case "eq":    q = q.eq(col, val); break;
