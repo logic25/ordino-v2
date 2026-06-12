@@ -1,86 +1,46 @@
-# Markets Page — Replace Jurisdictions
+# Permit Playbooks — Implementation
 
-Drops the existing `/bd/markets` page and `jurisdictions` table and ships a spec-aligned `markets` table at `/markets`.
+Database, RLS, storage bucket, and Bronxville seed are already live. This plan covers the remaining code so the feature is usable end to end.
 
-## 1. Database (single migration)
+## Files to create
 
-- `DROP TABLE public.jurisdictions CASCADE;`
-- `CREATE TABLE public.markets`:
-  - `id uuid pk default gen_random_uuid()`
-  - `company_id uuid not null references companies(id) on delete cascade`
-  - `name text not null`
-  - `state text not null default 'NY'`
-  - `tier smallint not null check (tier in (1,2,3))`
-  - `mode text not null default 'reactive' check (mode in ('reactive','proactive'))`
-  - `operational_score smallint check (operational_score between 0 and 100)`
-  - `commercial_score smallint check (commercial_score between 0 and 100)`
-  - `notes text`
-  - `checklist jsonb not null default '[]'`
-  - `intel jsonb not null default '{}'`
-  - `created_at timestamptz not null default now()`
-  - `updated_at timestamptz not null default now()`
-- `CREATE UNIQUE INDEX markets_company_name_uniq ON public.markets (company_id, name);`
-- `CREATE INDEX markets_company_tier_idx ON public.markets (company_id, tier);`
-- GRANT select/insert/update/delete to `authenticated`; ALL to `service_role`.
-- RLS enabled; policy `FOR ALL USING (public.is_company_member(company_id))`.
-- `updated_at` trigger reuses the existing `public.update_updated_at_column()` (the same function `bd_events` uses — verified).
-- Seed via `DO $$` loop over `companies.id`, inserting the 5 starter rows (Manhattan T1 Proactive 90/95, Brooklyn T1 Proactive 90/80, Nassau T1 Reactive 60/30, Westchester T2 Reactive 40/20, Jersey City NJ T2 Reactive 30/15) with `ON CONFLICT (company_id, name) DO NOTHING`.
+**Backend / shared**
+- `supabase/functions/research-playbook/index.ts` — Lovable AI Gateway call (`google/gemini-2.5-flash`). Input: `{ market_name, state, permit_type, questions: [{id, question, kind}], existing_qa? }`. Output per question: `{ id, answer, source, confidence: 0-1 }`. Prompt forbids fabrication; missing info returns empty answer + `confidence: 0`. CORS + JWT verified.
+- `src/lib/permitPlaybookTemplate.ts` — 9 standard slots (submission method, turnaround, fees, dept contact, required forms, pre-requisites, inspections, renewal, gotchas) with `{ id, question, kind }`.
 
-## 2. Frontend
+**Hooks**
+- `src/hooks/usePermitPlaybooks.ts` — list by market, get by id, create (seeded with template, empty unverified), update slot, verify slot, unverify slot, delete, attachments add/remove (Storage `permit-playbooks` bucket, path `{playbook_id}/{filename}`), run AI research, accept/reject AI suggestion.
+- `src/hooks/useMarketForAddress.ts` — stub returning `null` for now (project-side integration is out of scope).
 
-Delete:
-- `src/pages/bd/BdMarkets.tsx`
-- `src/hooks/useJurisdictions.ts`
-- `BdMarkets` lazy import and `/bd/markets` route in `src/App.tsx`
-- `/bd/markets` entry in `src/components/layout/AppSidebar.tsx`
+**Components** (`src/components/playbooks/`)
+- `PlaybookList.tsx` — cards per playbook on a market, showing "N of M verified" and last verified date.
+- `AddPlaybookDialog.tsx` — pick permit type (free text + common presets), creates playbook seeded from template.
+- `QARow.tsx` — one slot: question, answer (inline edit), verified badge (green w/ verifier name+date) or AI-draft badge (amber w/ confidence dot + source link). Actions: Edit, Verify, Unverify, Re-research this slot.
+- `QAList.tsx` — renders rows + add custom question.
+- `AttachmentsPanel.tsx` — drag-drop upload, list, download, delete.
+- `EnrichDiffDialog.tsx` — shows AI suggestions side-by-side with current values. Verified slots render locked (grayed, "Protected — unverify first to overwrite"). Per-slot Accept / Reject. Accepting writes as unverified AI draft.
+- `PlaybookEditor.tsx` — header with progress, summary field, QAList, AttachmentsPanel, "Research with AI" (fills only empty slots), "Re-research / enrich" (opens diff dialog).
 
-Create:
-- `src/hooks/useMarkets.ts` — `useMarkets`, `useCreateMarket`, `useUpdateMarket`, `useDeleteMarket`, `useResearchMarket` (invokes the edge function, writes `intel` back).
-- `src/pages/Markets.tsx` — header (`Markets` h1 + `+ Add Market`), `Overview` / `Details` tabs.
-  - Overview: 3 tier summary cards (count, proactive, reactive) + table (Market, State, Tier, Mode badge — emerald for Proactive, muted for Reactive, Op Score, Comm Score, Actions).
-  - Details: per-market card with toggleable checklist (persists full array), notes editor, intel sections (`why_it_matters`, `requirements`, `key_contacts`, `competitive_landscape`), and a `Research with AI` button.
-- `src/components/markets/AddEditMarketDialog.tsx` — name, state select (default NY), tier select with tooltip, mode toggle with tooltip, two 0–100 sliders each with tooltip, notes textarea.
+**Routes / nav**
+- `src/App.tsx` — add `/markets/:marketId/playbooks/:id` → `PlaybookEditor`.
+- `src/pages/Markets.tsx` — Details panel: add "Playbooks" section using `PlaybookList` + `AddPlaybookDialog`.
 
-Wire-up:
-- Route: `<Route path="/markets" element={<ProtectedRoute><Markets /></ProtectedRoute>} />` via `lazyWithRetry`.
-- Sidebar: add `Markets` (icon `Globe2`) under Business Development, below BD Events.
+## Behavior rules (safety)
+- AI fills only slots where `answer` is empty OR slot is already an unverified AI draft. Never touches `verified=true`.
+- Every AI write sets `ai_generated: true, verified: false, source, confidence, last_ai_research_at`.
+- "Verify" sets `verified: true, verified_by: current user profile id, verified_at: now()`, clears `ai_generated`. Updates `last_verified_at` on the playbook if all slots verified.
+- "Unverify" clears verification fields (required before AI can overwrite).
+- Beacon `lookup_permit_playbook` already returns only the qa jsonb — Beacon callers should check `verified` per slot when citing.
 
-## 3. Edge function — `research-market`
+## Changelog
+Single `changelog_entries` row: `tag='feature'`, title "Permit Playbooks", description per spec.
 
-New `supabase/functions/research-market/index.ts`, mirroring `draft-event-strategy`:
-- CORS, default JWT verification, Zod-validated `{ market_name, state, tier }`.
-- Calls Lovable AI Gateway with `google/gemini-2.5-flash`, prompting for a JSON object with `why_it_matters` (2–3 sentences), `requirements`, `key_contacts`, `competitive_landscape`.
-- Resilient JSON parse: on failure return `{ warning, raw }` (per project rule); never crash.
-- Returns the intel blob; the client persists it to `markets.intel`.
+## Verification
+1. `select permit_type, jsonb_array_length(qa) from permit_playbooks;` → Bronxville Sign Permit row, 9 slots.
+2. Open Bronxville Sign Permit → all seeded answers render with green Verified badge.
+3. Add a custom empty slot → click "Research with AI" → slot fills amber with confidence dot; seeded green slots untouched.
+4. Click Verify on the amber slot → flips green with current user + today's date.
+5. Click "Re-research / enrich" → diff dialog shows verified slots as locked/protected, only unverified slots accept suggestions.
 
-## 4. Changelog
-
-Append to the same migration, using the exact column set the existing seed migrations use (verified across `20260606160200`, `20260611172809`, `20260611183329`, `20260611231819`):
-
-```sql
-INSERT INTO public.changelog_entries (company_id, date, title, description, tag)
-SELECT id, CURRENT_DATE, 'Markets page',
-       'Markets page rebuilt with tier/mode model and AI research',
-       'feature'
-FROM public.companies;
-```
-
-`created_by` is nullable; omitted to match prior inserts. RLS is bypassed during migration execution.
-
-## 5. Verification (post-ship)
-
-1. `SELECT id, name, tier, mode, operational_score FROM markets LIMIT 5;`
-2. `/markets` renders the 5 seed rows.
-3. Add Market dialog shows all 4 tooltip icons (Tier, Mode, Op, Comm).
-4. Details tab shows `Research with AI` button per market.
-
-## Technical notes
-
-- `useResearchMarket` uses `supabase.functions.invoke('research-market', { body })`; JWT is attached automatically.
-- Checklist edits write the full `checklist` array back (small payloads — no RPC needed).
-- Mode badge classes use semantic tokens (`bg-emerald-100 text-emerald-700` vs `bg-muted text-muted-foreground`).
-- Confirmed safe: `jurisdictions` is only referenced by the two files being deleted; `clients.licensed_jurisdictions` is an unrelated `text[]` column and is untouched.
-
-## Out of scope (separate follow-up)
-
-The three dashboard questions at the end of your earlier message (AR 30-day trend arrows on the KPI card; whether Sales Health includes leads or only proposals; clickable Proposal-Conversion KPI that opens a detail modal) are dashboard work, not Markets. I'll scope those in a separate plan after this ships unless you want them folded in now.
+## Out of scope (deferred)
+Project-side surfacing of relevant playbooks, cross-company library, auto-verification cron, Q&A version history.
