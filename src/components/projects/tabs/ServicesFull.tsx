@@ -711,6 +711,24 @@ export function ServicesFull({ services: initialServices, project, contacts, all
   const billed = orderedServices.reduce((s, svc) => s + (Number(svc.billedAmount) || 0), 0);
   const cost = orderedServices.reduce((s, svc) => s + (Number(svc.costAmount) || 0), 0);
   const [showBilled, setShowBilled] = useState(false);
+  const { data: projectExpenses = [] } = useProjectExpenses(project.id);
+  const releaseExpense = useReleaseExpenseToBilling();
+  const [approveExpenseId, setApproveExpenseId] = useState<string | null>(null);
+  const expenseStatusStyles: Record<string, string> = {
+    pending_approval: "bg-amber-100 text-amber-800",
+    approved: "bg-blue-100 text-blue-800",
+    denied: "bg-red-100 text-red-800",
+    on_hold: "bg-yellow-100 text-yellow-800",
+    pending_billing: "bg-purple-100 text-purple-800",
+    billed: "bg-green-100 text-green-800",
+    paid: "bg-emerald-100 text-emerald-800",
+    non_billable: "bg-muted text-muted-foreground",
+  };
+  const openExpenseReceipt = async (path: string) => {
+    try { const url = await getReceiptSignedUrl(path); window.open(url, "_blank"); }
+    catch (err: any) { toast({ title: "Could not load receipt", description: err.message, variant: "destructive" }); }
+  };
+  const totalBilledExpense = projectExpenses.reduce((s: number, e: any) => s + (Number(e.billable_amount) || 0), 0);
 
   return (
     <div className="min-w-0">
@@ -720,7 +738,6 @@ export function ServicesFull({ services: initialServices, project, contacts, all
           <DollarSign className="h-3.5 w-3.5" /> Add Expense
         </Button>
       </div>
-      <ExpensesSection projectId={project.id} clientId={project.client_id || null} />
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-2 px-6 py-3 bg-muted/40 border-b flex-wrap">
           <span className="text-sm text-muted-foreground font-medium">{selectedIds.size} selected:</span>
