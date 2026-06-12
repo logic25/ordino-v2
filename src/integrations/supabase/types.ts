@@ -964,8 +964,10 @@ export type Database = {
           created_by: string | null
           end_date: string | null
           end_time: string | null
+          event_type: string | null
           id: string
           included_in_membership: boolean
+          intel: Json
           location: string | null
           membership_id: string | null
           name: string
@@ -981,7 +983,9 @@ export type Database = {
           start_date: string | null
           start_time: string | null
           status: Database["public"]["Enums"]["bd_event_status"]
+          target_audience: string | null
           updated_at: string
+          why_it_matters: string | null
         }
         Insert: {
           category?: string | null
@@ -995,8 +999,10 @@ export type Database = {
           created_by?: string | null
           end_date?: string | null
           end_time?: string | null
+          event_type?: string | null
           id?: string
           included_in_membership?: boolean
+          intel?: Json
           location?: string | null
           membership_id?: string | null
           name: string
@@ -1012,7 +1018,9 @@ export type Database = {
           start_date?: string | null
           start_time?: string | null
           status?: Database["public"]["Enums"]["bd_event_status"]
+          target_audience?: string | null
           updated_at?: string
+          why_it_matters?: string | null
         }
         Update: {
           category?: string | null
@@ -1026,8 +1034,10 @@ export type Database = {
           created_by?: string | null
           end_date?: string | null
           end_time?: string | null
+          event_type?: string | null
           id?: string
           included_in_membership?: boolean
+          intel?: Json
           location?: string | null
           membership_id?: string | null
           name?: string
@@ -1043,7 +1053,9 @@ export type Database = {
           start_date?: string | null
           start_time?: string | null
           status?: Database["public"]["Enums"]["bd_event_status"]
+          target_audience?: string | null
           updated_at?: string
+          why_it_matters?: string | null
         }
         Relationships: [
           {
