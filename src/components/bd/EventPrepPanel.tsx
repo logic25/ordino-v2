@@ -54,7 +54,7 @@ export function EventPrepPanel({
       const { data, error } = await supabase
         .from("leads")
         .select("id, full_name, company, role, stage, property_address")
-        .in("stage", ACTIVE_LEAD_STAGES as unknown as string[])
+        .in("stage", ACTIVE_LEAD_STAGES as unknown as any)
         .is("deleted_at", null)
         .order("updated_at", { ascending: false })
         .limit(500);
