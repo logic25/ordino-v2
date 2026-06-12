@@ -8,10 +8,15 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Pencil, Save } from "lucide-react";
+import { Loader2, Pencil, Save, History, RotateCcw } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { fetchBeaconFileContent } from "@/services/beaconApi";
 import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
 import ReactMarkdown from "react-markdown";
+import { useAuth } from "@/hooks/useAuth";
+import { useKbDocumentVersions, kbVersionChangerName, type KbDocumentVersion } from "@/hooks/useKbDocumentVersions";
 
 /**
  * Parse YAML frontmatter from document content.
@@ -120,23 +125,31 @@ export function BeaconDocumentModal({
   sourceFile,
 }: BeaconDocumentModalProps) {
   const { toast } = useToast();
+  const { profile } = useAuth();
+  const qc = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [body, setBody] = useState("");
   const [metadata, setMetadata] = useState<Record<string, string>>({});
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState("");
+  const [originalContent, setOriginalContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [panel, setPanel] = useState<"doc" | "history">("doc");
+  const versions = useKbDocumentVersions(sourceFile);
+  const versionCount = versions.data?.length || 0;
 
   useEffect(() => {
     if (!open || !sourceFile) return;
     setLoading(true);
     setIsEditing(false);
+    setPanel("doc");
 
     fetchBeaconFileContent(sourceFile)
       .then((data) => {
         const parsed = parseFrontmatter(data.content);
         setMetadata(parsed.metadata);
         setBody(normalizeMarkdown(parsed.body));
+        setOriginalContent(data.content || "");
       })
       .catch((err) => {
         toast({
@@ -160,6 +173,30 @@ export function BeaconDocumentModal({
           ? `---\n${frontmatterLines}\n---\n\n${editContent}`
           : editContent;
 
+      // Snapshot the PRIOR content before re-ingesting over it, so KB edits are
+      // logged (who/when) and restorable. Non-fatal: never block the save.
+      try {
+        if (profile?.company_id && originalContent && originalContent !== fullContent) {
+          const { data: maxV } = await (supabase as any)
+            .from("kb_document_versions")
+            .select("version")
+            .eq("source_file", sourceFile)
+            .order("version", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          const nextVersion = ((maxV?.version as number) || 0) + 1;
+          await (supabase as any).from("kb_document_versions").insert({
+            company_id: profile.company_id,
+            source_file: sourceFile,
+            version: nextVersion,
+            content: originalContent,
+            changed_by: profile.id,
+          });
+        }
+      } catch (e) {
+        console.warn("[KbDocumentVersion] snapshot failed", e);
+      }
+
       const blob = new Blob([fullContent], { type: "text/markdown" });
       const file = new File([blob], `${sourceFile}.md`, { type: "text/markdown" });
 
@@ -168,7 +205,9 @@ export function BeaconDocumentModal({
       await syncDocumentToBeacon(file, file.name, metadata.category || "filing_guides");
 
       setBody(editContent);
+      setOriginalContent(fullContent);
       setIsEditing(false);
+      qc.invalidateQueries({ queryKey: ["kb-document-versions", sourceFile] });
       toast({
         title: "Document saved",
         description: "Changes synced to Beacon knowledge base",
@@ -182,6 +221,15 @@ export function BeaconDocumentModal({
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleRestore = (v: KbDocumentVersion) => {
+    const parsed = parseFrontmatter(v.content || "");
+    if (Object.keys(parsed.metadata).length) setMetadata(parsed.metadata);
+    setEditContent(parsed.body || v.content || "");
+    setIsEditing(true);
+    setPanel("doc");
+    toast({ title: `Loaded version ${v.version}`, description: "Review, then Save & Re-sync to restore it." });
   };
 
   const displayTitle = metadata.title || sourceFile;
@@ -237,6 +285,35 @@ export function BeaconDocumentModal({
             <div className="flex items-center justify-center py-20">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
+          ) : panel === "history" ? (
+            <div className="space-y-2 px-1">
+              <p className="text-xs text-muted-foreground mb-2">
+                Every saved edit snapshots the prior version here — who changed it and when.
+              </p>
+              {versions.isLoading ? (
+                <div className="flex items-center justify-center py-10">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : versionCount === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  No earlier versions yet. Future edits will appear here.
+                </p>
+              ) : (
+                versions.data!.map((v) => (
+                  <div key={v.id} className="flex items-start justify-between gap-3 border rounded-md p-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium">Version {v.version}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {kbVersionChangerName(v)} · {format(new Date(v.created_at), "MMM d, yyyy 'at' h:mm a")}
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => handleRestore(v)} className="shrink-0">
+                      <RotateCcw className="h-3.5 w-3.5 mr-1" /> Restore
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
           ) : isEditing ? (
             <textarea
               className="w-full h-[55vh] font-mono text-sm p-3 border rounded-md resize-none bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
@@ -253,18 +330,7 @@ export function BeaconDocumentModal({
         {/* Footer */}
         <DialogFooter className="flex justify-between sm:justify-between">
           <div className="flex gap-2">
-            {!isEditing ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setIsEditing(true);
-                  setEditContent(body);
-                }}
-              >
-                <Pencil className="h-4 w-4 mr-1" /> Edit
-              </Button>
-            ) : (
+            {isEditing ? (
               <>
                 <Button
                   variant="outline"
@@ -280,6 +346,32 @@ export function BeaconDocumentModal({
                     <Save className="h-4 w-4 mr-1" />
                   )}
                   Save & Re-sync
+                </Button>
+              </>
+            ) : (
+              <>
+                {panel === "doc" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsEditing(true);
+                      setEditContent(body);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4 mr-1" /> Edit
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPanel(panel === "history" ? "doc" : "history")}
+                >
+                  <History className="h-4 w-4 mr-1" />
+                  {panel === "history" ? "Back" : "History"}
+                  {panel === "doc" && versionCount > 0 && (
+                    <Badge variant="secondary" className="ml-1.5 text-[10px] px-1">{versionCount}</Badge>
+                  )}
                 </Button>
               </>
             )}
