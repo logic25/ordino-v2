@@ -56,6 +56,9 @@ export function BdScanTab() {
   const [role, setRole] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [mobile, setMobile] = useState("");
+  const [website, setWebsite] = useState("");
+  const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
   const [hot, setHot] = useState(false);
 
