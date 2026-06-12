@@ -109,7 +109,11 @@ export default function BdReports() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <Kpi label="Leads captured (30d)" value={capturedRecent} />
+        <Kpi
+          label={`Leads captured (total · ${capturedRecent} in 30d)`}
+          value={total}
+          onClick={() => navigate("/bd/leads")}
+        />
         <Kpi label="Pipeline generated" value={money(pipelineGenerated)} />
         <Kpi label="Converted $" value={money(convertedValue)} />
         <Kpi label="Conversion rate" value={`${overallRate}%`} />
