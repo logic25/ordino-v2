@@ -70,6 +70,15 @@ function fmtDate(d: string | null) {
   if (!d) return "—";
   try { return format(new Date(d), "MMM d, yyyy"); } catch { return d; }
 }
+function fmtTimeRange(start: string | null, end: string | null) {
+  if (!start && !end) return null;
+  const fmt = (v: string) => format(new Date(`2000-01-01T${v.slice(0, 5)}`), "h:mm a");
+  return [start ? fmt(start) : null, end ? fmt(end) : null].filter(Boolean).join("–");
+}
+function fmtEventWhen(event: BdEvent) {
+  const time = fmtTimeRange(event.start_time, event.end_time);
+  return time ? `${fmtDate(event.start_date)} · ${time}` : fmtDate(event.start_date);
+}
 function fmtMoney(v: number | null) {
   if (v == null) return "—";
   return `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
