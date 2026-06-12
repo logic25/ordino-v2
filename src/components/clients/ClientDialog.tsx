@@ -112,12 +112,15 @@ export function ClientDialog({
         specialty_tags: (client as any).specialty_tags || [],
         licensed_jurisdictions: (client as any).licensed_jurisdictions || [],
         internal_notes: (client as any).internal_notes || "",
+        expected_projects_per_year: (client as any).expected_projects_per_year ?? null,
+        expected_annual_value: (client as any).expected_annual_value ?? null,
       });
     } else {
       form.reset({
         name: defaultName || "", email: "", phone: "", fax: "", address: "", notes: "",
         lead_owner_id: "", tax_id: "", client_type: "", is_sia: false,
         is_rfp_partner: false, specialty_tags: [], licensed_jurisdictions: [], internal_notes: "",
+        expected_projects_per_year: null, expected_annual_value: null,
       });
     }
   }, [client, form, defaultName]);
