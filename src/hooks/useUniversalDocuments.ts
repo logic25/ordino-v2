@@ -79,6 +79,7 @@ export function useUploadDocument() {
         uploaded_by: profile.id,
         tags: input.tags || [],
         folder_id: input.folder_id || null,
+        jurisdiction: input.jurisdiction || "NYC",
         project_id: input.project_id || null,
         property_id: input.property_id || null,
         proposal_id: input.proposal_id || null,
