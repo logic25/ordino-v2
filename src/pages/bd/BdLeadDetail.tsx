@@ -117,7 +117,7 @@ export default function BdLeadDetail() {
     try {
       const proposalId = await convert.mutateAsync({ lead });
       await createActivity.mutateAsync({
-        lead_id: lead.id,
+        filter: { leadId: lead.id },
         type: "PROPOSAL_CREATED",
         content: "Proposal created from lead",
         metadata: { proposal_id: proposalId },
