@@ -269,7 +269,7 @@ export default function Documents() {
       const { data, error } = await supabase.storage.from("universal-documents").download(doc.storage_path);
       if (error || !data) throw new Error("Download failed");
 
-      const result = await syncDocumentToBeacon(data, doc.filename, selectedFolder?.name || "Beacon Knowledge Base");
+      const result = await syncDocumentToBeacon(data, doc.filename, selectedFolder?.name || "Beacon Knowledge Base", doc.jurisdiction || "NYC");
       await supabase.from("universal_documents").update({
         beacon_status: "synced",
         beacon_synced_at: new Date().toISOString(),
