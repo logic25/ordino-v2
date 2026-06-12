@@ -506,8 +506,31 @@ export default function Proposals() {
     }
   };
 
+  const handleDraftFollowUp = async (proposal: ProposalWithRelations) => {
+    setIsDraftingFollowUp(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("draft-proposal-followup", {
+        body: { proposal_id: proposal.id },
+      });
+      if (error) throw error;
+      if (data?.error) {
+        toast({ title: "AI Error", description: data.error, variant: "destructive" });
+        return;
+      }
+      setComposeTo(data.client_email || proposal.client_email || "");
+      setComposeSubject(data.subject || "");
+      setComposeBody(data.html_body || "");
+      setComposeOpen(true);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to draft follow-up", variant: "destructive" });
+    } finally {
+      setIsDraftingFollowUp(false);
+    }
+  };
+
   // Lead capture is handled by the shared <CaptureLeadModal/> (BD module);
   // lead → proposal conversion lives in BD lead detail (atomic RPC).
+
 
 
   return (
