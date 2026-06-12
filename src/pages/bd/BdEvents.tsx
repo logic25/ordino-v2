@@ -165,6 +165,9 @@ export default function BdEvents() {
                         </TableCell>
                         <TableCell className="text-sm">{e.attendee_count ?? 0}</TableCell>
                         <TableCell className="text-sm">{e.lead_count ?? 0}</TableCell>
+                        <TableCell className="text-sm text-right tabular-nums">
+                          {e.pipeline_generated ? `$${Math.round(e.pipeline_generated).toLocaleString()}` : "—"}
+                        </TableCell>
                         <TableCell onClick={(ev) => ev.stopPropagation()}>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
