@@ -194,8 +194,25 @@ export default function BdEventDetail() {
     );
   }
 
-  const set = (updates: Partial<BdEvent>) =>
-    update.mutate({ id: event.id, ...updates } as any);
+  const set = (updates: Partial<BdEvent>) => {
+    // Auto-bump status when money goes out — keeps the Invested KPI honest.
+    const enrich: Partial<BdEvent> = { ...updates };
+    const willHavePaidCost =
+      ("cost_actual" in updates && updates.cost_actual != null && Number(updates.cost_actual) > 0) ||
+      ("included_in_membership" in updates && updates.included_in_membership === true);
+    const stillConsidering = !("status" in updates) &&
+      (event.status === "PENDING_APPROVAL" || event.status === "APPROVED");
+    if (willHavePaidCost && stillConsidering) {
+      enrich.status = "REGISTERED";
+    }
+    update.mutate({ id: event.id, ...enrich } as any, {
+      onSuccess: () => {
+        if (enrich.status === "REGISTERED" && !("status" in updates)) {
+          toast({ title: "Marked as Registered", description: "Counted toward Invested." });
+        }
+      },
+    });
+  };
 
   const setIntel = (key: string, value: string | null) => {
     const next = { ...(event.intel ?? {}), [key]: value || undefined };
@@ -323,127 +340,56 @@ export default function BdEventDetail() {
             </Card>
 
 
-            <Card className="p-4 space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                Classification
-              </p>
-              <Field label="Event type">
-                <EditableText value={event.event_type ?? null}
-                  onSave={(v) => set({ event_type: v } as any)}
-                  placeholder="e.g. Conference, Mixer, Panel" />
-              </Field>
-              <Field label="Target audience">
-                <EditableText value={event.target_audience ?? null}
-                  onSave={(v) => set({ target_audience: v } as any)}
-                  placeholder="e.g. Architects + GCs, Owners" />
-              </Field>
-              <Field label="Category">
-                <EditableText value={event.category}
-                  onSave={(v) => set({ category: v })} placeholder="e.g. Conference" />
-              </Field>
-              <Field label="Priority">
-                <Select value={event.priority ?? "DISCUSS"}
-                  onValueChange={(v) => set({ priority: v as any })}>
-                  <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PRIORITY_OPTIONS.map((o) =>
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </Card>
-
-            <Card className="p-4 space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+            <Card className="p-4 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Cost
               </p>
-              <Field label="Member price">
-                <Input type="number" className="h-8" value={event.cost_member ?? ""}
-                  onChange={(e) => set({ cost_member: e.target.value ? Number(e.target.value) : null })} />
-              </Field>
-              <Field label="Non-member">
-                <Input type="number" className="h-8" value={event.cost_nonmember ?? ""}
-                  onChange={(e) => set({ cost_nonmember: e.target.value ? Number(e.target.value) : null })} />
-              </Field>
-              <Field label="Actual paid">
-                <Input type="number" className="h-8" value={event.cost_actual ?? ""}
-                  onChange={(e) => set({ cost_actual: e.target.value === "" ? null : Number(e.target.value) })} />
-              </Field>
-              <Field label="Paid by">
-                <Select
-                  value={event.paid_by_user_id ?? "__none"}
-                  onValueChange={(v) => set({ paid_by_user_id: v === "__none" ? null : v })}>
-                  <SelectTrigger className="h-8"><SelectValue placeholder="—" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none">—</SelectItem>
-                    {(profiles.data ?? []).map((p: any) =>
-                      <SelectItem key={p.id} value={p.id}>
-                        {[p.first_name, p.last_name].filter(Boolean).join(" ") || p.display_name}
-                      </SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Field>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-xs text-muted-foreground space-y-1">
+                  Member $
+                  <Input type="number" className="h-8" value={event.cost_member ?? ""}
+                    onChange={(e) => set({ cost_member: e.target.value ? Number(e.target.value) : null })} />
+                </label>
+                <label className="text-xs text-muted-foreground space-y-1">
+                  Non-member $
+                  <Input type="number" className="h-8" value={event.cost_nonmember ?? ""}
+                    onChange={(e) => set({ cost_nonmember: e.target.value ? Number(e.target.value) : null })} />
+                </label>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-xs text-muted-foreground space-y-1">
+                  Paid $
+                  <Input type="number" className="h-8" value={event.cost_actual ?? ""}
+                    onChange={(e) => set({ cost_actual: e.target.value === "" ? null : Number(e.target.value) })} />
+                </label>
+                <label className="text-xs text-muted-foreground space-y-1">
+                  Paid by
+                  <Select
+                    value={event.paid_by_user_id ?? "__none"}
+                    onValueChange={(v) => set({ paid_by_user_id: v === "__none" ? null : v })}>
+                    <SelectTrigger className="h-8"><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">—</SelectItem>
+                      {(profiles.data ?? []).map((p: any) =>
+                        <SelectItem key={p.id} value={p.id}>
+                          {[p.first_name, p.last_name].filter(Boolean).join(" ") || p.display_name}
+                        </SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </label>
+              </div>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
+                <input type="checkbox" className="h-3.5 w-3.5"
+                  checked={!!event.included_in_membership}
+                  onChange={(e) => set({ included_in_membership: e.target.checked })} />
+                Included in membership (counted as Invested with $0)
+              </label>
             </Card>
 
             <Card className="p-4 space-y-1">
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Strategy
-                </p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={isDrafting}
-                  onClick={async () => {
-                    const hasAny =
-                      (event.why_it_matters ?? "").trim() ||
-                      (intel.recent_news ?? "").trim() ||
-                      (intel.key_attendees ?? "").trim() ||
-                      (intel.competitive_landscape ?? "").trim();
-                    if (hasAny && !confirm("Overwrite existing Strategy fields with AI draft?")) return;
-                    setIsDrafting(true);
-                    try {
-                      const { data, error } = await supabase.functions.invoke("draft-event-strategy", {
-                        body: {
-                          event_name: event.name,
-                          source_url: (event.intel as any)?.source_url ?? event.source_url,
-                          category: event.category,
-                          target_audience: event.target_audience,
-                          why_it_matters: event.why_it_matters,
-                        },
-                      });
-                      if (error) throw error;
-                      const d = data as any;
-                      const nextIntel = {
-                        ...(event.intel ?? {}),
-                        recent_news: d.recent_news ?? intel.recent_news,
-                        key_attendees: d.key_attendees ?? intel.key_attendees,
-                        competitive_landscape: d.competitive_landscape ?? intel.competitive_landscape,
-                      };
-                      set({
-                        why_it_matters: d.why_it_matters ?? event.why_it_matters,
-                        intel: nextIntel as any,
-                      } as any);
-                      toast({ title: "AI strategy drafted" });
-                    } catch (e: any) {
-                      toast({
-                        title: "AI draft failed",
-                        description: e?.message ?? "Try again in a moment.",
-                        variant: "destructive",
-                      });
-                    } finally {
-                      setIsDrafting(false);
-                    }
-                  }}
-                >
-                  {isDrafting ? (
-                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-                  )}
-                  Draft strategy with AI
-                </Button>
-              </div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                Strategy
+              </p>
               <Field label="Why it matters">
                 <EditableText value={event.why_it_matters ?? null}
                   onSave={(v) => set({ why_it_matters: v } as any)}

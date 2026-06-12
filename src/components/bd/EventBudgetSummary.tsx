@@ -45,8 +45,15 @@ export function EventBudgetSummary() {
     [events, year],
   );
 
-  const invested = scoped.filter((e) => INVESTED.includes(e.status));
-  const considering = scoped.filter((e) => CONSIDERING.includes(e.status));
+  // Belt-and-suspenders: anything we've actually paid for (or that's membership-included)
+  // counts as Invested regardless of status. Catches stale APPROVED rows where the user
+  // already entered a real cost.
+  const isInvested = (e: BdEvent) =>
+    INVESTED.includes(e.status) ||
+    (e.cost_actual != null && Number(e.cost_actual) > 0) ||
+    (e.included_in_membership === true && !!e.start_date);
+  const invested = scoped.filter(isInvested);
+  const considering = scoped.filter((e) => CONSIDERING.includes(e.status) && !isInvested(e));
 
   const investedTotal = invested.reduce((s, e) => s + eventCost(e), 0);
   const consideringTotal = considering.reduce((s, e) => s + eventCost(e), 0);
