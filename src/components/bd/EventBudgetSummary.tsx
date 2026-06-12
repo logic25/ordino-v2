@@ -10,11 +10,32 @@ import { useBdEvents, type BdEvent, type EventStatus } from "@/hooks/useBdEvents
 const fmt = (n: number) =>
   `$${Math.round(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
-// Sai-approved status semantics:
-//   INVESTED   = REGISTERED + ATTENDED  (we committed; money out the door)
-//   CONSIDERING = PENDING_APPROVAL + APPROVED  (in the funnel, not yet acted)
-const INVESTED: EventStatus[] = ["REGISTERED", "ATTENDED"];
-const CONSIDERING: EventStatus[] = ["PENDING_APPROVAL", "APPROVED"];
+// Sai-approved status semantics (explicit — do not change without checking
+// EventBudgetSummary tests + spec):
+//
+//   INVESTED    = status IN ('REGISTERED','ATTENDED')
+//                 OR cost_actual > 0
+//                 OR included_in_membership = true
+//   CONSIDERING = status IN ('PENDING_APPROVAL','APPROVED')
+//                 AND NOT already captured by INVESTED   ← no double-count
+//
+// The INVESTED OR-chain catches stale APPROVED rows where money was actually
+// spent. The CONSIDERING AND-NOT-INVESTED clause is the de-dupe guard.
+const INVESTED_STATUSES: EventStatus[] = ["REGISTERED", "ATTENDED"];
+const CONSIDERING_STATUSES: EventStatus[] = ["PENDING_APPROVAL", "APPROVED"];
+
+function isInvested(e: BdEvent): boolean {
+  return (
+    INVESTED_STATUSES.includes(e.status) ||
+    (e.cost_actual != null && Number(e.cost_actual) > 0) ||
+    e.included_in_membership === true
+  );
+}
+function isConsidering(e: BdEvent): boolean {
+  // Explicit exclusion: anything already counted as Invested is OUT.
+  if (isInvested(e)) return false;
+  return CONSIDERING_STATUSES.includes(e.status);
+}
 
 function eventCost(e: BdEvent): number {
   if (e.included_in_membership) return 0;
@@ -45,15 +66,8 @@ export function EventBudgetSummary() {
     [events, year],
   );
 
-  // Belt-and-suspenders: anything we've actually paid for (or that's membership-included)
-  // counts as Invested regardless of status. Catches stale APPROVED rows where the user
-  // already entered a real cost.
-  const isInvested = (e: BdEvent) =>
-    INVESTED.includes(e.status) ||
-    (e.cost_actual != null && Number(e.cost_actual) > 0) ||
-    (e.included_in_membership === true && !!e.start_date);
   const invested = scoped.filter(isInvested);
-  const considering = scoped.filter((e) => CONSIDERING.includes(e.status) && !isInvested(e));
+  const considering = scoped.filter(isConsidering);
 
   const investedTotal = invested.reduce((s, e) => s + eventCost(e), 0);
   const consideringTotal = considering.reduce((s, e) => s + eventCost(e), 0);
