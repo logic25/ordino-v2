@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
+import { LineageBreadcrumb } from "@/components/shared/LineageBreadcrumb";
 import { useState, useEffect, useMemo } from "react";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
@@ -175,7 +176,22 @@ export default function ProjectDetail() {
     },
   });
 
+  // Lineage: lead that originated this project's proposal (for back-link chip)
+  const { data: originLead } = useQuery({
+    queryKey: ["project-origin-lead", (project as any)?.proposal_id],
+    enabled: !!(project as any)?.proposal_id,
+    queryFn: async () => {
+      const { data: prop } = await supabase
+        .from("proposals")
+        .select("lead_id, leads:lead_id (id, full_name)")
+        .eq("id", (project as any).proposal_id)
+        .maybeSingle();
+      return ((prop as any)?.leads ?? null) as { id: string; full_name: string | null } | null;
+    },
+  });
+
   // DB-backed checklist items (must be before early returns)
+
   const { data: dbChecklistItems = [] } = useProjectChecklist(id);
 
   // liveServices state removed — was causing infinite render loop. ServicesFull manages its own orderedServices internally.
