@@ -103,7 +103,8 @@ export default function BdEvents() {
   const qc = useQueryClient();
   const [editEvent, setEditEvent] = useState<BdEvent | null>(null);
   const [detailEvent, setDetailEvent] = useState<BdEvent | null>(null);
-  const [filterStatus, setFilterStatus] = useState<EventStatus | "ALL">("ALL");
+  // Multi-status filter — empty set means "all (default: hide SUGGESTED + DISMISSED)".
+  const [statusFilter, setStatusFilter] = useState<Set<EventStatus>>(new Set());
   const [search, setSearch] = useState("");
   const [timeRange, setTimeRange] = useState<"UPCOMING" | "PAST" | "THIS_MONTH" | "ALL">("UPCOMING");
   const [view, setView] = useState<"list" | "calendar">("list");
