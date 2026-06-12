@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { MockService, MockTimeEntry } from "@/components/projects/projectMockData";
 
@@ -18,29 +20,42 @@ export function JobCostingFull({ services, timeEntries }: { services: MockServic
   const totalHours = timeEntries.reduce((s, t) => s + t.hours, 0);
   const margin = contractTotal > 0 ? ((contractTotal - costTotal) / contractTotal * 100) : 0;
 
+  const stats: { label: string; value: string; tip: string }[] = [
+    { label: "Contract Price", value: formatCurrency(contractTotal), tip: "Sum of every service's Price on this project (the agreed contract amount with the client). Updates when services are added, edited, or dropped." },
+    { label: "Total Cost", value: formatCurrency(costTotal), tip: "Labor cost computed from logged time entries: Σ(hours × team member's hourly rate). Pulled live from the Time tab — does not include expenses or filing fees." },
+    { label: "Gross Profit", value: formatCurrency(contractTotal - costTotal), tip: "Contract Price − Total Cost. Negative means logged labor exceeds the contract amount (often a missing rate, mis-tagged time, or under-priced service)." },
+    { label: "Margin", value: `${Math.round(margin)}%`, tip: "Gross Profit ÷ Contract Price. Industry healthy zone for expediting is ~40–60%. <20% = red, >50% = green." },
+    { label: "Total Hours", value: `${totalHours.toFixed(1)} hrs`, tip: "All hours logged against any service on this project (from the Time tab). Includes billable and non-billable." },
+  ];
+
   return (
     <div className="p-4 sm:p-6 space-y-6">
+      <TooltipProvider delayDuration={150}>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-        {[
-          { label: "Contract Price", value: formatCurrency(contractTotal) },
-          { label: "Total Cost", value: formatCurrency(costTotal) },
-          { label: "Gross Profit", value: formatCurrency(contractTotal - costTotal) },
-          { label: "Margin", value: `${Math.round(margin)}%` },
-          { label: "Total Hours", value: `${totalHours.toFixed(1)} hrs` },
-        ].map((stat) => (
+        {stats.map((stat) => (
           <Card key={stat.label}>
             <CardContent className="p-3 sm:p-4">
-              <div className="text-xs text-muted-foreground">{stat.label}</div>
+              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                {stat.label}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3 w-3 text-muted-foreground/60 hover:text-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-[260px] text-xs leading-relaxed">{stat.tip}</TooltipContent>
+                </Tooltip>
+              </div>
               <div className="text-lg sm:text-xl font-semibold mt-1">{stat.value}</div>
             </CardContent>
           </Card>
         ))}
       </div>
+      </TooltipProvider>
       {costTotal === 0 && totalHours > 0 && (
         <p className="text-xs text-muted-foreground italic">
           Cost shows $0 because team members don't have hourly rates set. Update rates in Settings → Team to see accurate job costing.
         </p>
       )}
+
       <div className="overflow-x-auto -mx-4 sm:mx-0">
         <div className="min-w-[480px] px-4 sm:px-0">
           <Table>
