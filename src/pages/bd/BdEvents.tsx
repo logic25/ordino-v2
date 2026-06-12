@@ -46,6 +46,7 @@ import { useToast } from "@/hooks/use-toast";
 import { initials } from "@/components/bd/leadConstants";
 import { EventBudgetSummary } from "@/components/bd/EventBudgetSummary";
 import { ProposeEventDialog } from "@/components/bd/ProposeEventDialog";
+import { AttendeesPicker, AttendeeAvatarStack } from "@/components/bd/AttendeesPicker";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
