@@ -22,6 +22,7 @@ import {
   MessageSquare,
   ChevronDown,
   Globe2,
+  Camera,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,7 @@ const mainNav: NavEntry[] = [
       { title: "Events", icon: CalendarDays, href: "/bd/events", resource: "proposals" as ResourceKey },
       { title: "Sequences", icon: Mail, href: "/bd/sequences", resource: "proposals" as ResourceKey },
       { title: "Markets", icon: Globe2, href: "/bd/markets", resource: "proposals" as ResourceKey },
+      { title: "Capture", icon: Camera, href: "/bd/capture", resource: "proposals" as ResourceKey },
     ],
   },
   { title: "Billing", icon: Receipt, href: "/invoices", resource: "invoices" as ResourceKey },
@@ -80,6 +82,7 @@ const routePrefetchMap: Record<string, () => Promise<unknown>> = {
   "/bd/events": () => import("@/pages/bd/BdEvents"),
   "/bd/sequences": () => import("@/pages/bd/BdSequences"),
   "/bd/markets": () => import("@/pages/bd/BdMarkets"),
+  "/bd/capture": () => import("@/pages/bd/BdCapture"),
   "/invoices": () => import("@/pages/Invoices"),
   "/emails": () => import("@/pages/Emails"),
   "/calendar": () => import("@/pages/Calendar"),
