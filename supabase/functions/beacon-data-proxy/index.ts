@@ -83,12 +83,15 @@ Deno.serve(async (req) => {
     //   profiles.company_id derived). This is the only mode that yields a
     //   verified companyId and is REQUIRED by default.
     // Secondary: shared secret (x-beacon-key) — only honored when JWT is
-    //   missing AND BEACON_PROXY_ALLOW_SHARED_SECRET_ONLY=1. Default OFF.
+    //   missing AND BEACON_PROXY_ALLOW_SHARED_SECRET_ONLY is enabled.
+    // DEFAULT: ON (true). Railway does not yet forward the end-user JWT to this
+    // function, so strict JWT mode would break every Beacon tool call. Flip the
+    // env var to "0" only AFTER the Railway JWT-forwarding PR ships.
     const expectedKey = Deno.env.get("BEACON_ANALYTICS_KEY") ?? "";
     const beaconKey = req.headers.get("x-beacon-key") ?? "";
     const sharedSecretOk = !!expectedKey && beaconKey === expectedKey;
     const allowSharedOnly =
-      (Deno.env.get("BEACON_PROXY_ALLOW_SHARED_SECRET_ONLY") ?? "0") === "1";
+      (Deno.env.get("BEACON_PROXY_ALLOW_SHARED_SECRET_ONLY") ?? "1") !== "0";
 
     if (!sharedSecretOk) {
       return fail("Unauthorized", 401);
