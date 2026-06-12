@@ -1,29 +1,26 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Card } from "@/components/ui/card";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  ArrowLeft, Loader2, MapPin, ExternalLink, Plus, Check, X, Users, Trash2,
+  ArrowLeft, Loader2, MapPin, ExternalLink, Users, Trash2,
   Sparkles, CalendarPlus, ChevronDown, ChevronRight,
 } from "lucide-react";
 
 import {
   useBdEvent, useUpdateBdEvent, useDeleteBdEvent,
-  useEventAttendees, useAddEventAttendee, useUpdateEventAttendee, useRemoveEventAttendee,
-  useMemberships, type EventStatus, type BdEvent,
+  type EventStatus, type BdEvent,
 } from "@/hooks/useBdEvents";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useToast } from "@/hooks/use-toast";
-import { initials } from "@/components/bd/leadConstants";
 import { BdActivityThread } from "@/components/bd/BdActivityThread";
 import { EventPrepPanel } from "@/components/bd/EventPrepPanel";
 import { EventApprovalActions } from "@/components/bd/EventApprovalActions";
@@ -42,14 +39,27 @@ function addOneDay(date: string) {
   d.setDate(d.getDate() + 1);
   return d.toISOString().slice(0, 10);
 }
+function toIcsDateTime(date: string, time: string) {
+  return `${date.replace(/-/g, "")}T${time.replace(/:/g, "").slice(0, 6).padEnd(6, "0")}`;
+}
+function formatEventTime(start: string | null, end: string | null) {
+  if (!start && !end) return null;
+  const fmt = (value: string) => format(parse(value.slice(0, 5), "HH:mm", new Date()), "h:mm a");
+  return [start ? fmt(start) : null, end ? fmt(end) : null].filter(Boolean).join("–");
+}
+function formatNotes(value: string | null) {
+  return value?.split("|").map((part) => part.trim()).filter(Boolean).join("\n") ?? null;
+}
 function downloadEventIcs(event: BdEvent) {
   if (!event.start_date) {
     alert("Add a date before exporting to calendar.");
     return;
   }
-  // All-day event: DTSTART;VALUE=DATE + DTEND exclusive (next day)
-  const dtStart = toIcsDate(event.start_date);
-  const dtEnd = toIcsDate(addOneDay(event.end_date || event.start_date));
+  const hasTime = !!event.start_time;
+  const dtStart = hasTime ? toIcsDateTime(event.start_date, event.start_time as string) : toIcsDate(event.start_date);
+  const dtEnd = hasTime
+    ? toIcsDateTime(event.end_date || event.start_date, event.end_time || event.start_time as string)
+    : toIcsDate(addOneDay(event.end_date || event.start_date));
   const uid = `${event.id}@ordino`;
   const now = new Date().toISOString().replace(/[-:.]/g, "").slice(0, 15) + "Z";
   const lines = [
@@ -59,8 +69,8 @@ function downloadEventIcs(event: BdEvent) {
     "BEGIN:VEVENT",
     `UID:${uid}`,
     `DTSTAMP:${now}`,
-    `DTSTART;VALUE=DATE:${dtStart}`,
-    `DTEND;VALUE=DATE:${dtEnd}`,
+    hasTime ? `DTSTART:${dtStart}` : `DTSTART;VALUE=DATE:${dtStart}`,
+    hasTime ? `DTEND:${dtEnd}` : `DTEND;VALUE=DATE:${dtEnd}`,
     `SUMMARY:${icsEscape(event.name)}`,
     event.location ? `LOCATION:${icsEscape(event.location)}` : "",
     event.notes ? `DESCRIPTION:${icsEscape(event.notes)}` : "",
@@ -136,7 +146,7 @@ function EditableText({
   }
   return (
     <button
-      className={`text-left text-sm hover:bg-muted/50 rounded px-1 -mx-1 w-full ${className}`}
+      className={`text-left text-sm hover:bg-muted/50 rounded px-1 -mx-1 w-full ${multiline ? "whitespace-pre-wrap" : ""} ${className}`}
       onClick={() => { setDraft(value ?? ""); setEditing(true); }}
     >
       {value || <span className="text-muted-foreground">{placeholder}</span>}
@@ -160,13 +170,7 @@ export default function BdEventDetail() {
   const { data: event, isLoading } = useBdEvent(id);
   const update = useUpdateBdEvent();
   const del = useDeleteBdEvent();
-  const memberships = useMemberships();
   const profiles = useCompanyProfiles();
-  const attendees = useEventAttendees(id);
-  const addAtt = useAddEventAttendee();
-  const updAtt = useUpdateEventAttendee();
-  const rmAtt = useRemoveEventAttendee();
-  const [pickUser, setPickUser] = useState("");
   const [isDrafting, setIsDrafting] = useState(false);
   const [showResearch, setShowResearch] = useState(false);
 
@@ -199,9 +203,6 @@ export default function BdEventDetail() {
     set({ intel: next as any });
   };
   const intel = (event.intel ?? {}) as Record<string, string | undefined>;
-
-  const presentIds = new Set((attendees.data ?? []).map((a) => a.user_id));
-  const available = (profiles.data ?? []).filter((p) => !presentIds.has(p.id));
 
   return (
     <AppLayout>
@@ -236,6 +237,9 @@ export default function BdEventDetail() {
               <span>
                 {format(new Date(event.start_date + "T12:00:00"), "EEE, MMM d, yyyy")}
               </span>
+            )}
+            {formatEventTime(event.start_time, event.end_time) && (
+              <span>· {formatEventTime(event.start_time, event.end_time)}</span>
             )}
             {event.location && (
               <span className="inline-flex items-center gap-1">
@@ -301,10 +305,13 @@ export default function BdEventDetail() {
                 <Input type="date" className="h-8" value={event.start_date ?? ""}
                   onChange={(e) => set({ start_date: e.target.value || null, end_date: e.target.value || null } as any)} />
               </Field>
-              <Field label="Time">
-                <Input type="time" className="h-8" value={event.start_time ?? ""}
-                  placeholder="Optional"
-                  onChange={(e) => set({ start_time: e.target.value || null, end_time: null } as any)} />
+              <Field label="Start time">
+                <Input type="time" className="h-8" value={event.start_time?.slice(0, 5) ?? ""}
+                  onChange={(e) => set({ start_time: e.target.value || null } as any)} />
+              </Field>
+              <Field label="End time">
+                <Input type="time" className="h-8" value={event.end_time?.slice(0, 5) ?? ""}
+                  onChange={(e) => set({ end_time: e.target.value || null } as any)} />
               </Field>
 
               <Field label="Location">
@@ -444,7 +451,7 @@ export default function BdEventDetail() {
                   placeholder="Why is this event worth our time?" />
               </Field>
               <Field label="Notes">
-                <EditableText value={event.notes} onSave={(v) => set({ notes: v })}
+                <EditableText value={formatNotes(event.notes)} onSave={(v) => set({ notes: v })}
                   multiline placeholder="Anything else…" />
               </Field>
               <button

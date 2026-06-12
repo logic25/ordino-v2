@@ -70,6 +70,15 @@ function fmtDate(d: string | null) {
   if (!d) return "—";
   try { return format(new Date(d), "MMM d, yyyy"); } catch { return d; }
 }
+function fmtTimeRange(start: string | null, end: string | null) {
+  if (!start && !end) return null;
+  const fmt = (v: string) => format(new Date(`2000-01-01T${v.slice(0, 5)}`), "h:mm a");
+  return [start ? fmt(start) : null, end ? fmt(end) : null].filter(Boolean).join("–");
+}
+function fmtEventWhen(event: BdEvent) {
+  const time = fmtTimeRange(event.start_time, event.end_time);
+  return time ? `${fmtDate(event.start_date)} · ${time}` : fmtDate(event.start_date);
+}
 function fmtMoney(v: number | null) {
   if (v == null) return "—";
   return `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
@@ -263,7 +272,7 @@ export default function BdEvents() {
                             </div>
                           )}
                         </TableCell>
-                        <TableCell className="text-sm">{fmtDate(e.start_date)}</TableCell>
+                        <TableCell className="text-sm">{fmtEventWhen(e)}</TableCell>
                         <TableCell onClick={(ev) => ev.stopPropagation()}>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -482,6 +491,18 @@ function EventDialog({ open, event, onOpenChange }: { open: boolean; event: BdEv
                 onChange={(e) => setForm({ ...form, end_date: e.target.value || null })} />
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Start time</Label>
+              <Input type="time" value={form.start_time?.slice(0, 5) ?? ""}
+                onChange={(e) => setForm({ ...form, start_time: e.target.value || null })} />
+            </div>
+            <div>
+              <Label>End time</Label>
+              <Input type="time" value={form.end_time?.slice(0, 5) ?? ""}
+                onChange={(e) => setForm({ ...form, end_time: e.target.value || null })} />
+            </div>
+          </div>
           <div>
             <Label>Location</Label>
             <Input value={form.location ?? ""} onChange={(e) => setForm({ ...form, location: e.target.value || null })} />
@@ -619,7 +640,7 @@ function EventDetailSheet({ event, onOpenChange }: { event: BdEvent | null; onOp
       <SheetContent className="sm:max-w-lg overflow-y-auto">
         <SheetHeader>
           <SheetTitle>{event.name}</SheetTitle>
-          <SheetDescription>{fmtDate(event.start_date)} · {event.location ?? "—"}</SheetDescription>
+          <SheetDescription>{fmtEventWhen(event)} · {event.location ?? "—"}</SheetDescription>
         </SheetHeader>
         <div className="space-y-6 mt-4">
           <div className="flex flex-wrap gap-2 text-xs">

@@ -11,6 +11,7 @@ import {
   useUpdateEventAttendee, useRemoveEventAttendee,
 } from "@/hooks/useBdEvents";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
+import { useToast } from "@/hooks/use-toast";
 import { initials } from "@/components/bd/leadConstants";
 
 /**
@@ -23,6 +24,7 @@ export function AttendeesPicker({ eventId }: { eventId: string }) {
   const updAtt = useUpdateEventAttendee();
   const rmAtt = useRemoveEventAttendee();
   const profiles = useCompanyProfiles();
+  const { toast } = useToast();
   const [pickUser, setPickUser] = useState("");
 
   const presentIds = new Set((attendees.data ?? []).map((a) => a.user_id));
@@ -43,13 +45,20 @@ export function AttendeesPicker({ eventId }: { eventId: string }) {
         </Select>
         <Button
           size="sm"
-          disabled={!pickUser}
+          disabled={!pickUser || addAtt.isPending}
           onClick={() => {
-            addAtt.mutate({ event_id: eventId, user_id: pickUser });
-            setPickUser("");
+            addAtt.mutate(
+              { event_id: eventId, user_id: pickUser },
+              {
+                onSuccess: () => {
+                  setPickUser("");
+                  toast({ title: "Attendee saved" });
+                },
+              },
+            );
           }}
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="h-4 w-4 mr-1.5" />Save
         </Button>
       </div>
       <div className="space-y-1">
