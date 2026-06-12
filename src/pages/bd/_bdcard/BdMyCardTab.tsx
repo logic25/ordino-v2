@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Download, Printer, Save, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -153,12 +154,40 @@ export function BdMyCardTab() {
   const mobileDisplay = fmtPhone(fields.mobile);
   const addressDisplay = fields.address || COMPANY.addressDisplay;
 
+  const avatarUrl = (profile as any)?.avatar_url ?? "";
+  const initials = `${(fields.first[0] ?? "").toUpperCase()}${(fields.last[0] ?? "").toUpperCase()}` || "GLE";
+
   return (
     <div className="space-y-4">
       <Card className="print:shadow-none print:border-2">
         <CardContent className="p-6 flex flex-col items-center gap-3">
-          <div className="bg-white p-4 rounded-lg">
-            <QRCode value={card} size={220} level="M" />
+          <Avatar className="h-20 w-20 ring-2 ring-white shadow">
+            {avatarUrl && <AvatarImage src={avatarUrl} alt={`${fields.first} ${fields.last}`} />}
+            <AvatarFallback className="text-lg font-semibold" style={{ backgroundColor: "#6aa84f", color: "white" }}>
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <div className="relative bg-white p-4 rounded-lg">
+            <QRCode value={card} size={220} level="H" />
+            <div
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white p-1 shadow"
+              style={{ width: 56, height: 56 }}
+            >
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  className="w-full h-full rounded-full object-cover"
+                />
+              ) : (
+                <div
+                  className="w-full h-full rounded-full flex items-center justify-center text-xs font-bold text-white"
+                  style={{ backgroundColor: "#6aa84f" }}
+                >
+                  {initials}
+                </div>
+              )}
+            </div>
           </div>
           <div className="text-center space-y-1">
             <p className="font-semibold text-lg">{fields.first} {fields.last}</p>
@@ -180,6 +209,7 @@ export function BdMyCardTab() {
           </div>
         </CardContent>
       </Card>
+
 
       <div className="flex gap-2 print:hidden">
         <Button className="flex-1" onClick={downloadVcf}><Download className="mr-2 h-4 w-4" />Download .vcf</Button>
