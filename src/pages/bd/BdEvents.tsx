@@ -476,16 +476,6 @@ function EventDialog({ open, event, onOpenChange }: { open: boolean; event: BdEv
                 <Input type="number" value={form.cost_nonmember ?? ""}
                   onChange={(e) => setForm({ ...form, cost_nonmember: e.target.value ? Number(e.target.value) : null })} />
               </div>
-              <div>
-                <Label className="text-xs">Range low</Label>
-                <Input type="number" value={form.cost_low ?? ""}
-                  onChange={(e) => setForm({ ...form, cost_low: e.target.value ? Number(e.target.value) : null })} />
-              </div>
-              <div>
-                <Label className="text-xs">Range high</Label>
-                <Input type="number" value={form.cost_high ?? ""}
-                  onChange={(e) => setForm({ ...form, cost_high: e.target.value ? Number(e.target.value) : null })} />
-              </div>
             </div>
             <div className="flex items-start gap-2 pt-1">
               <input id="incl-mem" type="checkbox" className="mt-1"
