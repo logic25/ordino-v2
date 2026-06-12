@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,14 +42,27 @@ function addOneDay(date: string) {
   d.setDate(d.getDate() + 1);
   return d.toISOString().slice(0, 10);
 }
+function toIcsDateTime(date: string, time: string) {
+  return `${date.replace(/-/g, "")}T${time.replace(/:/g, "").slice(0, 6).padEnd(6, "0")}`;
+}
+function formatEventTime(start: string | null, end: string | null) {
+  if (!start && !end) return null;
+  const fmt = (value: string) => format(parse(value.slice(0, 5), "HH:mm", new Date()), "h:mm a");
+  return [start ? fmt(start) : null, end ? fmt(end) : null].filter(Boolean).join("–");
+}
+function formatNotes(value: string | null) {
+  return value?.split("|").map((part) => part.trim()).filter(Boolean).join("\n") ?? null;
+}
 function downloadEventIcs(event: BdEvent) {
   if (!event.start_date) {
     alert("Add a date before exporting to calendar.");
     return;
   }
-  // All-day event: DTSTART;VALUE=DATE + DTEND exclusive (next day)
-  const dtStart = toIcsDate(event.start_date);
-  const dtEnd = toIcsDate(addOneDay(event.end_date || event.start_date));
+  const hasTime = !!event.start_time;
+  const dtStart = hasTime ? toIcsDateTime(event.start_date, event.start_time as string) : toIcsDate(event.start_date);
+  const dtEnd = hasTime
+    ? toIcsDateTime(event.end_date || event.start_date, event.end_time || event.start_time as string)
+    : toIcsDate(addOneDay(event.end_date || event.start_date));
   const uid = `${event.id}@ordino`;
   const now = new Date().toISOString().replace(/[-:.]/g, "").slice(0, 15) + "Z";
   const lines = [
@@ -59,8 +72,8 @@ function downloadEventIcs(event: BdEvent) {
     "BEGIN:VEVENT",
     `UID:${uid}`,
     `DTSTAMP:${now}`,
-    `DTSTART;VALUE=DATE:${dtStart}`,
-    `DTEND;VALUE=DATE:${dtEnd}`,
+    hasTime ? `DTSTART:${dtStart}` : `DTSTART;VALUE=DATE:${dtStart}`,
+    hasTime ? `DTEND:${dtEnd}` : `DTEND;VALUE=DATE:${dtEnd}`,
     `SUMMARY:${icsEscape(event.name)}`,
     event.location ? `LOCATION:${icsEscape(event.location)}` : "",
     event.notes ? `DESCRIPTION:${icsEscape(event.notes)}` : "",
