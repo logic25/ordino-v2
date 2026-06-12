@@ -4,6 +4,7 @@ import App from "./App.tsx";
 import "./index.css";
 
 Sentry.init({
+  enabled: import.meta.env.PROD,
   dsn: import.meta.env.VITE_SENTRY_DSN,
   integrations: [
     Sentry.browserTracingIntegration(),
