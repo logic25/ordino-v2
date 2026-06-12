@@ -3951,6 +3951,7 @@ export type Database = {
           company_id: string
           created_at: string | null
           created_by: string | null
+          default_jurisdiction: string
           description: string | null
           id: string
           is_beacon_synced: boolean | null
@@ -3962,6 +3963,7 @@ export type Database = {
           company_id: string
           created_at?: string | null
           created_by?: string | null
+          default_jurisdiction?: string
           description?: string | null
           id?: string
           is_beacon_synced?: boolean | null
@@ -3973,6 +3975,7 @@ export type Database = {
           company_id?: string
           created_at?: string | null
           created_by?: string | null
+          default_jurisdiction?: string
           description?: string | null
           id?: string
           is_beacon_synced?: boolean | null
@@ -9694,6 +9697,7 @@ export type Database = {
           filename: string
           folder_id: string | null
           id: string
+          jurisdiction: string
           mime_type: string | null
           project_id: string | null
           property_id: string | null
@@ -9716,6 +9720,7 @@ export type Database = {
           filename: string
           folder_id?: string | null
           id?: string
+          jurisdiction?: string
           mime_type?: string | null
           project_id?: string | null
           property_id?: string | null
@@ -9738,6 +9743,7 @@ export type Database = {
           filename?: string
           folder_id?: string | null
           id?: string
+          jurisdiction?: string
           mime_type?: string | null
           project_id?: string | null
           property_id?: string | null
