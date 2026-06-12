@@ -1,8 +1,20 @@
 import { useState } from "react";
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, isToday, isSameDay } from "date-fns";
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, isToday, isSameDay, differenceInCalendarDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { EVENT_TYPE_COLORS, type UnifiedEvent } from "./calendarConstants";
 import type { CalendarEvent } from "@/hooks/useCalendarEvents";
+
+function getSpan(ev: UnifiedEvent, day: Date): { isMulti: boolean; dayIdx: number; total: number } {
+  if (!ev.start_time || !ev.end_time) return { isMulti: false, dayIdx: 1, total: 1 };
+  const start = ev.all_day ? new Date(`${ev.start_time.slice(0, 10)}T00:00:00`) : new Date(ev.start_time);
+  let end = ev.all_day ? new Date(`${ev.end_time.slice(0, 10)}T00:00:00`) : new Date(ev.end_time);
+  // Google all-day end-dates are exclusive
+  if (ev.all_day) end = new Date(end.getTime() - 24 * 60 * 60 * 1000);
+  const total = Math.max(1, differenceInCalendarDays(end, start) + 1);
+  if (total <= 1) return { isMulti: false, dayIdx: 1, total: 1 };
+  const dayIdx = Math.max(1, Math.min(total, differenceInCalendarDays(day, start) + 1));
+  return { isMulti: true, dayIdx, total };
+}
 
 interface CalendarWeekViewProps {
   currentDate: Date;
