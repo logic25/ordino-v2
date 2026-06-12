@@ -49,6 +49,8 @@ import { useQueryClient } from "@tanstack/react-query";
 export default function Proposals() {
   const [searchParams] = useSearchParams();
   const defaultPropertyId = searchParams.get("property") || undefined;
+  // From a Lead's "Create Proposal" link: free-text address resolves non-blocking in the dialog.
+  const initialPropertyAddress = searchParams.get("address") || undefined;
   
   const [dialogOpen, setDialogOpen] = useState(false);
   const [signDialogOpen, setSignDialogOpen] = useState(false);
@@ -145,11 +147,11 @@ export default function Proposals() {
   // Open dialog if coming from properties with a property pre-selected (once only)
   const didAutoOpen = useRef(false);
   useEffect(() => {
-    if (defaultPropertyId && !editingProposal && !didAutoOpen.current) {
+    if ((defaultPropertyId || initialPropertyAddress) && !editingProposal && !didAutoOpen.current) {
       didAutoOpen.current = true;
       setDialogOpen(true);
     }
-  }, [defaultPropertyId]);
+  }, [defaultPropertyId, initialPropertyAddress]);
 
   // For follow_up filter, apply client-side on the already-fetched page
   const filteredProposals = statusFilter === "follow_up" 
@@ -160,7 +162,7 @@ export default function Proposals() {
       })
     : displayProposals;
 
-  // Leads tab now redirects to /bd/leads (the BD module owns leads).
+  // Legacy leads-tab redirect — kept harmless; the tab itself was removed in Batch C.
   useEffect(() => {
     if (activeTab === "leads") navigate("/bd/leads");
   }, [activeTab, navigate]);
@@ -548,7 +550,7 @@ export default function Proposals() {
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Proposals</h1>
             <p className="text-muted-foreground mt-1">
-              Create and manage client proposals and leads
+              Create and manage client proposals. Capture leads from calls, emails, or referrals — they live in BD → Leads.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -684,11 +686,6 @@ export default function Proposals() {
                 {totalCount}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="leads" className="gap-1.5">
-              <UserPlus className="h-4 w-4" />
-              Leads
-            </TabsTrigger>
-
           </TabsList>
 
           <TabsContent value="proposals">
@@ -787,19 +784,6 @@ export default function Proposals() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="leads">
-            <Card>
-              <CardContent className="py-12 text-center space-y-3">
-                <UserPlus className="h-10 w-10 mx-auto text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">
-                  Leads now live in the BD module. Redirecting…
-                </p>
-                <Button variant="outline" size="sm" onClick={() => navigate("/bd/leads")}>
-                  Go to Leads
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
         </Tabs>
       </div>
@@ -812,6 +796,7 @@ export default function Proposals() {
           proposal={editingProposal}
           isLoading={createProposal.isPending || updateProposal.isPending}
           defaultPropertyId={!editingProposal ? defaultPropertyId : undefined}
+          initialPropertyAddress={!editingProposal ? initialPropertyAddress : undefined}
         />
       </Suspense>
 

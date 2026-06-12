@@ -26,6 +26,8 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -103,7 +105,8 @@ export default function BdEvents() {
   const qc = useQueryClient();
   const [editEvent, setEditEvent] = useState<BdEvent | null>(null);
   const [detailEvent, setDetailEvent] = useState<BdEvent | null>(null);
-  const [filterStatus, setFilterStatus] = useState<EventStatus | "ALL">("ALL");
+  // Multi-status filter — empty set means "all (default: hide SUGGESTED + DISMISSED)".
+  const [statusFilter, setStatusFilter] = useState<Set<EventStatus>>(new Set());
   const [search, setSearch] = useState("");
   const [timeRange, setTimeRange] = useState<"UPCOMING" | "PAST" | "THIS_MONTH" | "ALL">("UPCOMING");
   const [view, setView] = useState<"list" | "calendar">("list");
@@ -121,10 +124,11 @@ export default function BdEvents() {
 
   const filtered = useMemo(() => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
+    const hasFilter = statusFilter.size > 0;
     return (events.data ?? []).filter((e) => {
-      // Hide AI suggestions + dismissed from default views unless explicitly selected
-      if (filterStatus === "ALL" && (e.status === "SUGGESTED" || e.status === "DISMISSED")) return false;
-      if (filterStatus !== "ALL" && e.status !== filterStatus) return false;
+      // Default view (no statuses picked) hides SUGGESTED + DISMISSED noise.
+      if (!hasFilter && (e.status === "SUGGESTED" || e.status === "DISMISSED")) return false;
+      if (hasFilter && !statusFilter.has(e.status)) return false;
       if (search) {
         const q = search.toLowerCase();
         if (!(`${e.name} ${e.location ?? ""} ${e.category ?? ""}`.toLowerCase().includes(q))) return false;
@@ -143,7 +147,17 @@ export default function BdEvents() {
       const db = parseEventDate(b.start_date)?.getTime() ?? Infinity;
       return timeRange === "PAST" ? db - da : da - db;
     });
-  }, [events.data, filterStatus, search, timeRange]);
+  }, [events.data, statusFilter, search, timeRange]);
+
+  const toggleStatus = (s: EventStatus) => {
+    setStatusFilter((prev) => {
+      const next = new Set(prev);
+      next.has(s) ? next.delete(s) : next.add(s);
+      return next;
+    });
+  };
+  const isOnlyStatus = (s: EventStatus) =>
+    statusFilter.size === 1 && statusFilter.has(s);
 
   const setStatus = (id: string, status: EventStatus) =>
     updateEvent.mutate({ id, status }, { onSuccess: () => toast({ title: `Marked ${STATUS_META[status].label.toLowerCase()}` }) });
@@ -187,24 +201,59 @@ export default function BdEvents() {
                   <SelectItem value="ALL">All time</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
-                <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All statuses</SelectItem>
-                  {Object.entries(STATUS_META).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-44 justify-between font-normal">
+                    <span className="truncate">
+                      {statusFilter.size === 0
+                        ? "All statuses"
+                        : statusFilter.size === 1
+                          ? STATUS_META[[...statusFilter][0]].label
+                          : `${statusFilter.size} statuses`}
+                    </span>
+                    <ChevronDown className="h-3.5 w-3.5 opacity-60 ml-1" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-56 p-2">
+                  <div className="flex items-center justify-between px-1 pb-1.5 mb-1.5 border-b">
+                    <span className="text-xs font-medium">Filter by status</span>
+                    {statusFilter.size > 0 && (
+                      <button
+                        type="button"
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                        onClick={() => setStatusFilter(new Set())}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-0.5">
+                    {(Object.keys(STATUS_META) as EventStatus[]).map((k) => (
+                      <label
+                        key={k}
+                        className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-muted cursor-pointer"
+                      >
+                        <Checkbox
+                          checked={statusFilter.has(k)}
+                          onCheckedChange={() => toggleStatus(k)}
+                        />
+                        <Badge variant="outline" className={`${STATUS_META[k].className} text-[10px]`}>
+                          {STATUS_META[k].label}
+                        </Badge>
+                      </label>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
               {(() => {
                 const pendingCount = (events.data ?? []).filter((e) => e.status === "PENDING_APPROVAL").length;
                 const suggestedCount = (events.data ?? []).filter((e) => e.status === "SUGGESTED").length;
-                const pendingActive = filterStatus === "PENDING_APPROVAL";
-                const suggestedActive = filterStatus === "SUGGESTED";
+                const pendingActive = isOnlyStatus("PENDING_APPROVAL");
+                const suggestedActive = isOnlyStatus("SUGGESTED");
                 return (
                   <>
                     <Button size="sm" variant={pendingActive ? "default" : "outline"}
-                      onClick={() => setFilterStatus(pendingActive ? "ALL" : "PENDING_APPROVAL")}>
+                      onClick={() => setStatusFilter(pendingActive ? new Set() : new Set(["PENDING_APPROVAL"]))}>
                       Proposed
                       {pendingCount > 0 && (
                         <Badge variant="secondary" className="ml-1.5 h-5 px-1.5">{pendingCount}</Badge>
@@ -212,7 +261,7 @@ export default function BdEvents() {
                     </Button>
                     <Button size="sm" variant={suggestedActive ? "default" : "outline"}
                       className={suggestedActive ? "" : "border-amber-300 text-amber-800 hover:bg-amber-50"}
-                      onClick={() => setFilterStatus(suggestedActive ? "ALL" : "SUGGESTED")}>
+                      onClick={() => setStatusFilter(suggestedActive ? new Set() : new Set(["SUGGESTED"]))}>
                       ✨ Suggestions
                       {suggestedCount > 0 && (
                         <Badge variant="secondary" className="ml-1.5 h-5 px-1.5">{suggestedCount}</Badge>

@@ -444,6 +444,8 @@ export default function BdEventDetail() {
               eventId={event.id}
               category={event.category}
               targetAudience={event.target_audience ?? null}
+              notes={event.notes ?? null}
+              intel={(event.intel ?? null) as any}
             />
 
             <EventTasksCard eventId={event.id} />
