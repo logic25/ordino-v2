@@ -33,7 +33,10 @@ export default function Projects() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAllProjects, setShowAllProjects] = useState(true);
   const [groupBy, setGroupBy] = useState<"none" | "client" | "address">("none");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("status") || "all";
+  });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const { toast } = useToast();
