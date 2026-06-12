@@ -115,7 +115,9 @@ export function CalendarWeekView({
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, day)}
             >
-              {allDayEvents.slice(0, 2).map((ev) => (
+              {allDayEvents.slice(0, 2).map((ev) => {
+                const span = getSpan(ev, day);
+                return (
                 <button
                   key={ev.id}
                   draggable={!ev.is_billing}
@@ -130,10 +132,12 @@ export function CalendarWeekView({
                     ev.is_billing && "italic cursor-default",
                     !ev.is_billing && "cursor-grab active:cursor-grabbing"
                   )}
+                  title={span.isMulti ? `${ev.title} (Day ${span.dayIdx} of ${span.total})` : ev.title}
                 >
-                  {ev.title}
+                  {ev.title}{span.isMulti && <span className="ml-1 text-muted-foreground/80">· {span.dayIdx}/{span.total}</span>}
                 </button>
-              ))}
+                );
+              })}
             </div>
           );
         })}
