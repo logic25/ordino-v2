@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { initials } from "@/components/bd/leadConstants";
 import { BdActivityThread } from "@/components/bd/BdActivityThread";
 import { EventPrepPanel } from "@/components/bd/EventPrepPanel";
+import { EventApprovalActions } from "@/components/bd/EventApprovalActions";
 
 const STATUS_META: Record<EventStatus, { label: string; className: string }> = {
   PENDING_APPROVAL: { label: "Pending", className: "bg-gray-100 text-gray-700 border-gray-200" },
@@ -196,6 +197,8 @@ export default function BdEventDetail() {
             )}
           </div>
         </div>
+
+        <EventApprovalActions event={event} />
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* LEFT */}
