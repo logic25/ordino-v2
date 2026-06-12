@@ -28,6 +28,7 @@ import {
 } from "@/hooks/useLeadActivities";
 import { useConvertLeadToProposal } from "@/hooks/useLeadConversion";
 import { LineageBreadcrumb } from "@/components/shared/LineageBreadcrumb";
+import { LeadConnectionsCard } from "@/components/bd/LeadConnectionsCard";
 import { useQuery } from "@tanstack/react-query";
 
 import {
@@ -254,6 +255,7 @@ export default function BdLeadDetail() {
                   : <span className="text-sm">{lead.referred_by}</span>}
               </Card>
             )}
+            <LeadConnectionsCard leadId={lead.id} />
             <LeadLineageCard leadId={lead.id} clientId={lead.client_id} />
 
           </div>
