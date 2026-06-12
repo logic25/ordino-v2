@@ -19,7 +19,7 @@ import {
   ArrowLeft, Flame, Loader2, StickyNote, Phone, Users, ArrowRight, Info,
   FileText, Mail, Pin, PinOff, FilePlus2,
 } from "lucide-react";
-
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAssignableProfiles } from "@/hooks/useProfiles";
 import { useLead, useUpdateLead, type LeadStage } from "@/hooks/useLeads";
