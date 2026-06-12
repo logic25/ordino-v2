@@ -548,7 +548,7 @@ export default function Proposals() {
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Proposals</h1>
             <p className="text-muted-foreground mt-1">
-              Create and manage client proposals and leads
+              Create and manage client proposals. Capture leads from calls, emails, or referrals — they live in BD → Leads.
             </p>
           </div>
           <div className="flex items-center gap-2">
