@@ -79,12 +79,14 @@ function downloadEventIcs(event: BdEvent) {
 
 
 const STATUS_META: Record<EventStatus, { label: string; className: string }> = {
+  SUGGESTED: { label: "AI Suggested", className: "bg-amber-50 text-amber-800 border-amber-200" },
   PENDING_APPROVAL: { label: "Pending", className: "bg-gray-100 text-gray-700 border-gray-200" },
   APPROVED: { label: "Approved", className: "bg-blue-100 text-blue-700 border-blue-200" },
   REGISTERED: { label: "Registered", className: "bg-purple-100 text-purple-700 border-purple-200" },
   ATTENDED: { label: "Attended", className: "bg-green-100 text-green-700 border-green-200" },
   SKIPPED: { label: "Skipped", className: "bg-amber-100 text-amber-700 border-amber-200" },
   CANCELLED: { label: "Cancelled", className: "bg-red-100 text-red-700 border-red-200" },
+  DISMISSED: { label: "Dismissed", className: "bg-gray-50 text-gray-500 border-gray-200" },
 };
 
 const PRIORITY_OPTIONS = [
