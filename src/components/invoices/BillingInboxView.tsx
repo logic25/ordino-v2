@@ -47,7 +47,7 @@ const KIND_LABELS: Record<RowKind, string> = {
   submission: "Submission",
   draft: "Draft",
   ready: "Ready",
-  needs_review: "Needs Review",
+  needs_review: "Review",
 };
 
 const KIND_CHIP: Record<RowKind, string> = {
