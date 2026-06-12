@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -103,9 +104,16 @@ function MarketDetailsCard({ market }: { market: Market }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Playbooks (replaces generic checklist) */}
+        {/* Playbooks (replaces generic checklist) — hidden for NYC since Beacon RAG covers it */}
         <div className="space-y-2">
-          <PlaybookList marketId={market.id} />
+          {market.tier === 1 ? (
+            <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+              <div className="font-semibold uppercase tracking-wide text-[11px] mb-1">Permit Playbooks</div>
+              NYC permits are handled by Beacon's NYC knowledge base (DOB, BIS, Open Data). Playbooks here are reserved for non‑NYC jurisdictions where we don't have a live RAG.
+            </div>
+          ) : (
+            <PlaybookList marketId={market.id} />
+          )}
         </div>
 
         {/* Notes */}
@@ -152,6 +160,8 @@ export default function Markets() {
   const del = useDeleteMarket();
   const { toast } = useToast();
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") === "details" ? "details" : "overview";
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Market | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Market | null>(null);
@@ -199,7 +209,16 @@ export default function Markets() {
           <Button onClick={openAdd}><Plus className="mr-2 h-4 w-4" />Add Market</Button>
         </div>
 
-        <Tabs defaultValue="overview" className="space-y-4">
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => {
+            const next = new URLSearchParams(searchParams);
+            if (v === "overview") next.delete("tab");
+            else next.set("tab", v);
+            setSearchParams(next, { replace: true });
+          }}
+          className="space-y-4"
+        >
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="details">Details</TabsTrigger>

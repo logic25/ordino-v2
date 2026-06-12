@@ -95,7 +95,7 @@ export default function PlaybookEditor() {
     <AppLayout>
       <div className="space-y-5 animate-fade-in max-w-4xl">
         <div>
-          <Link to="/markets" className="text-sm text-muted-foreground inline-flex items-center hover:underline">
+          <Link to="/markets?tab=details" className="text-sm text-muted-foreground inline-flex items-center hover:underline">
             <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Markets
           </Link>
           <div className="flex items-start justify-between gap-3 mt-2">
