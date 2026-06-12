@@ -5202,6 +5202,117 @@ export type Database = {
           },
         ]
       }
+      jurisdictions: {
+        Row: {
+          annual_permits: number | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          eval_last_run_at: string | null
+          eval_pass_rate: number | null
+          id: string
+          inspection_scheduling_online: boolean | null
+          kb_status: string
+          license_required: boolean | null
+          name: string
+          notes: string | null
+          online_filing: boolean | null
+          online_payments: boolean | null
+          open_data_platform: string | null
+          open_data_url: string | null
+          owner_auth_sufficient: boolean | null
+          permit_trend: string | null
+          plans_upload_online: boolean | null
+          portal_platform: string | null
+          portal_url: string | null
+          research: Json
+          revenue_actual: number | null
+          revenue_goal: number | null
+          salesperson_id: string | null
+          state: string | null
+          status: string
+          tier: number | null
+          updated_at: string
+        }
+        Insert: {
+          annual_permits?: number | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          eval_last_run_at?: string | null
+          eval_pass_rate?: number | null
+          id?: string
+          inspection_scheduling_online?: boolean | null
+          kb_status?: string
+          license_required?: boolean | null
+          name: string
+          notes?: string | null
+          online_filing?: boolean | null
+          online_payments?: boolean | null
+          open_data_platform?: string | null
+          open_data_url?: string | null
+          owner_auth_sufficient?: boolean | null
+          permit_trend?: string | null
+          plans_upload_online?: boolean | null
+          portal_platform?: string | null
+          portal_url?: string | null
+          research?: Json
+          revenue_actual?: number | null
+          revenue_goal?: number | null
+          salesperson_id?: string | null
+          state?: string | null
+          status?: string
+          tier?: number | null
+          updated_at?: string
+        }
+        Update: {
+          annual_permits?: number | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          eval_last_run_at?: string | null
+          eval_pass_rate?: number | null
+          id?: string
+          inspection_scheduling_online?: boolean | null
+          kb_status?: string
+          license_required?: boolean | null
+          name?: string
+          notes?: string | null
+          online_filing?: boolean | null
+          online_payments?: boolean | null
+          open_data_platform?: string | null
+          open_data_url?: string | null
+          owner_auth_sufficient?: boolean | null
+          permit_trend?: string | null
+          plans_upload_online?: boolean | null
+          portal_platform?: string | null
+          portal_url?: string | null
+          research?: Json
+          revenue_actual?: number | null
+          revenue_goal?: number | null
+          salesperson_id?: string | null
+          state?: string | null
+          status?: string
+          tier?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jurisdictions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jurisdictions_salesperson_id_fkey"
+            columns: ["salesperson_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_sources: {
         Row: {
           company_id: string
