@@ -8,7 +8,7 @@ import { Send, Brain, FileText, Zap, X, ChevronDown, ChevronUp, ExternalLink, Me
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import { askBeacon, askBeaconProjectQA, checkBeaconHealth, type BeaconSource, type BeaconProjectContext } from "@/services/beaconApi";
+import { askBeacon, checkBeaconHealth, type BeaconSource, type BeaconProjectContext } from "@/services/beaconApi";
 import { lazy, Suspense } from "react";
 const BeaconDocumentModal = lazy(() => import("../documents/BeaconDocumentModal").then(m => ({ default: m.BeaconDocumentModal })));
 import { supabase } from "@/integrations/supabase/client";
@@ -570,7 +570,10 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
           content: m.text,
         }));
 
-        const res = await askBeacon(enrichedQuery, userId, userName, contextWithPage, conversationHistory);
+        const res = await askBeacon(enrichedQuery, userId, userName, contextWithPage, conversationHistory, {
+          companyId: profile?.company_id ?? null,
+          jurisdiction: null,
+        });
         setMessages((prev) => [
           ...prev,
           {
