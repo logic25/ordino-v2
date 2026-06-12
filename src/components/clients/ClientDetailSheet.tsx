@@ -10,10 +10,13 @@ import type { Client } from "@/hooks/useClients";
 import { useClientContacts } from "@/hooks/useClients";
 import { useTelemetry } from "@/hooks/useTelemetry";
 import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useClientRelations } from "./client-detail/useClientRelations";
 import { ClientStatsCards } from "./client-detail/ClientStatsCards";
 import { ClientContactsList } from "./client-detail/ClientContactsList";
 import { ClientRelationsList } from "./client-detail/ClientRelationsList";
+import { LineageBreadcrumb } from "@/components/shared/LineageBreadcrumb";
 
 interface ClientDetailSheetProps {
   client: Client | null;
