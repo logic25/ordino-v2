@@ -1152,7 +1152,9 @@ export type Database = {
           id: string
           last_sent_at: string | null
           lead_id: string
+          next_send_at: string | null
           paused_reason: string | null
+          sending_started_at: string | null
           sequence_id: string
           status: Database["public"]["Enums"]["bd_sequence_status"]
           updated_at: string
@@ -1165,7 +1167,9 @@ export type Database = {
           id?: string
           last_sent_at?: string | null
           lead_id: string
+          next_send_at?: string | null
           paused_reason?: string | null
+          sending_started_at?: string | null
           sequence_id: string
           status?: Database["public"]["Enums"]["bd_sequence_status"]
           updated_at?: string
@@ -1178,7 +1182,9 @@ export type Database = {
           id?: string
           last_sent_at?: string | null
           lead_id?: string
+          next_send_at?: string | null
           paused_reason?: string | null
+          sending_started_at?: string | null
           sequence_id?: string
           status?: Database["public"]["Enums"]["bd_sequence_status"]
           updated_at?: string
@@ -9820,6 +9826,30 @@ export type Database = {
       can_modify_operations: {
         Args: { target_company_id: string }
         Returns: boolean
+      }
+      claim_bd_sequence_enrollment: {
+        Args: { _owner: string }
+        Returns: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          current_step: number
+          id: string
+          last_sent_at: string | null
+          lead_id: string
+          next_send_at: string | null
+          paused_reason: string | null
+          sending_started_at: string | null
+          sequence_id: string
+          status: Database["public"]["Enums"]["bd_sequence_status"]
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "bd_sequence_enrollments"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       convert_lead_to_proposal: {
         Args: { _lead_id: string; _proposal?: Json }
