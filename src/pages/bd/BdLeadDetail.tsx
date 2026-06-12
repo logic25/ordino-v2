@@ -254,12 +254,8 @@ export default function BdLeadDetail() {
                   : <span className="text-sm">{lead.referred_by}</span>}
               </Card>
             )}
-            {lead.client_id && (
-              <Card className="p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Linked Company</p>
-                <Link to={`/clients/${lead.client_id}`} className="text-sm text-primary underline">View Company</Link>
-              </Card>
-            )}
+            <LeadLineageCard leadId={lead.id} clientId={lead.client_id} />
+
           </div>
 
           {/* RIGHT — activity thread */}
