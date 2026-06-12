@@ -16,7 +16,17 @@ import { useCreateLead } from "@/hooks/useLeads";
 
 interface ScannedContact {
   readable?: boolean;
-  full_name?: string; company?: string; role?: string; email?: string; phone?: string;
+  full_name?: string; company?: string; role?: string; email?: string;
+  phone?: string; mobile?: string; website?: string; address?: string;
+}
+
+// Format US-ish number to (xxx) xxx-xxxx.
+function fmtPhone(raw: string): string {
+  const d = (raw || "").replace(/\D/g, "");
+  if (d.length === 10) return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+  if (d.length === 11 && d.startsWith("1"))
+    return `(${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7)}`;
+  return raw || "";
 }
 
 async function compressImage(file: File, maxDim = 1600, quality = 0.8): Promise<string> {
