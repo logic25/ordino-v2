@@ -1022,9 +1022,10 @@ async function vendorLookup(ctx: Ctx, params: any) {
   if (allPartnerEmails.length > 0) {
     const orFromFilter = allPartnerEmails.map(e => `from_email.ilike.${e}`).join(",");
     const [inboundRes, outboundRes] = await Promise.all([
-      sb.from("emails").select("thread_id, from_email, to_emails, date").gte("date", ninetyDaysAgo).or(orFromFilter).limit(5000),
-      sb.from("emails").select("thread_id, from_email, to_emails, date").gte("date", ninetyDaysAgo).overlaps("to_emails", allPartnerEmails).limit(5000),
+      scopeByCompany(sb.from("emails").select("thread_id, from_email, to_emails, date"), ctx).gte("date", ninetyDaysAgo).or(orFromFilter).limit(5000),
+      scopeByCompany(sb.from("emails").select("thread_id, from_email, to_emails, date"), ctx).gte("date", ninetyDaysAgo).overlaps("to_emails", allPartnerEmails).limit(5000),
     ]);
+
     const allEmails = [...(inboundRes.data || []), ...(outboundRes.data || [])];
     const threads: Record<string, any[]> = {};
     for (const e of allEmails) {
