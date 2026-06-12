@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { formatDistanceToNow, format } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   ArrowRight, FileText, Info, Mail, Pin, PinOff, Send,
@@ -12,6 +11,8 @@ import {
 } from "@/hooks/useBdActivities";
 import { useAuth } from "@/hooks/useAuth";
 import { profileLabel, initials } from "@/components/bd/leadConstants";
+import { MentionInput, type MentionInputHandle } from "@/components/bd/MentionInput";
+import { extractMentionedIds, renderWithMentions } from "@/components/bd/mentions";
 
 const SYSTEM_TYPES = new Set<BdActivityType>([
   "STAGE_CHANGE", "STATUS_CHANGE", "SYSTEM", "PROPOSAL_CREATED", "EMAIL", "APPROVAL",
