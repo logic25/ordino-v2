@@ -9697,6 +9697,10 @@ export type Database = {
         Args: { target_company_id: string }
         Returns: boolean
       }
+      convert_lead_to_proposal: {
+        Args: { _lead_id: string; _proposal?: Json }
+        Returns: string
+      }
       current_user_company_id: { Args: never; Returns: string }
       enqueue_project_summary: {
         Args: { _company_id: string; _project_id: string }
