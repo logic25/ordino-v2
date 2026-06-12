@@ -116,6 +116,29 @@ export function ClientDetailSheet({ client, open, onOpenChange, onEdit }: Client
             </div>
           </div>
 
+          {((client as any).expected_annual_value || (client as any).expected_projects_per_year) && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Relationship Value</h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <div className="text-xs text-muted-foreground">Expected projects / yr</div>
+                    <div className="font-medium tabular-nums">{(client as any).expected_projects_per_year ?? "—"}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Expected annual value</div>
+                    <div className="font-medium tabular-nums">
+                      {(client as any).expected_annual_value
+                        ? `$${Number((client as any).expected_annual_value).toLocaleString()}`
+                        : "—"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
           <Separator />
           <ClientContactsList contacts={contacts} isLoading={contactsLoading} />
 
