@@ -109,10 +109,15 @@ export default function BdEvents() {
   const [detailEvent, setDetailEvent] = useState<BdEvent | null>(null);
   // Multi-status filter — empty set means "all (default: hide SUGGESTED + DISMISSED)".
   const [statusFilter, setStatusFilter] = useState<Set<EventStatus>>(new Set());
+  // Bucket filter from the summary strip. When set, overrides statusFilter and
+  // uses the shared helpers (isInvested / isConsidering) for the table filter
+  // so the strip totals and the table content stay in lock-step.
+  const [bucketFilter, setBucketFilter] = useState<"INVESTED" | "CONSIDERING" | null>(null);
   const [search, setSearch] = useState("");
   const [timeRange, setTimeRange] = useState<"UPCOMING" | "PAST" | "THIS_MONTH" | "ALL">("UPCOMING");
   const [view, setView] = useState<"list" | "calendar">("list");
   const [calMonth, setCalMonth] = useState<Date>(new Date());
+
 
   const events = useBdEvents();
   const updateEvent = useUpdateBdEvent();
@@ -128,9 +133,16 @@ export default function BdEvents() {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const hasFilter = statusFilter.size > 0;
     return (events.data ?? []).filter((e) => {
-      // Default view (no statuses picked) hides SUGGESTED + DISMISSED noise.
-      if (!hasFilter && (e.status === "SUGGESTED" || e.status === "DISMISSED")) return false;
-      if (hasFilter && !statusFilter.has(e.status)) return false;
+      // Bucket filter (from summary strip) wins over status filter.
+      if (bucketFilter === "INVESTED") {
+        if (!isInvested(e)) return false;
+      } else if (bucketFilter === "CONSIDERING") {
+        if (!isConsidering(e)) return false;
+      } else {
+        // Default view (no statuses picked) hides SUGGESTED + DISMISSED noise.
+        if (!hasFilter && (e.status === "SUGGESTED" || e.status === "DISMISSED")) return false;
+        if (hasFilter && !statusFilter.has(e.status)) return false;
+      }
       if (search) {
         const q = search.toLowerCase();
         if (!(`${e.name} ${e.location ?? ""} ${e.category ?? ""}`.toLowerCase().includes(q))) return false;
@@ -149,7 +161,25 @@ export default function BdEvents() {
       const db = parseEventDate(b.start_date)?.getTime() ?? Infinity;
       return timeRange === "PAST" ? db - da : da - db;
     });
-  }, [events.data, statusFilter, search, timeRange]);
+  }, [events.data, statusFilter, bucketFilter, search, timeRange]);
+
+  // Summary strip data — year-scoped to the current year. Derives off the
+  // same useBdEvents query (no extra request); shares math with the Budget tab
+  // via lib/eventBudget.ts so totals can never drift between the two views.
+  const stripData = useMemo(() => {
+    const yearScoped = scopeToYear(events.data ?? [], new Date().getFullYear());
+    const invested = yearScoped.filter(isInvested);
+    const considering = yearScoped.filter(isConsidering);
+    const byStatus = (s: EventStatus) => yearScoped.filter((e) => e.status === s).length;
+    return {
+      invested: { count: invested.length, total: invested.reduce((s, e) => s + eventCost(e), 0) },
+      considering: { count: considering.length, total: considering.reduce((s, e) => s + eventCost(e), 0) },
+      perStatus: [
+        "PENDING_APPROVAL", "APPROVED", "REGISTERED", "ATTENDED", "SKIPPED",
+      ].map((s) => ({ status: s as EventStatus, count: byStatus(s as EventStatus) })),
+    };
+  }, [events.data]);
+
 
   const toggleStatus = (s: EventStatus) => {
     setStatusFilter((prev) => {
