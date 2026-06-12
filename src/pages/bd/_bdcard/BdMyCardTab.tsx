@@ -68,6 +68,24 @@ function vCard(p: Fields) {
 
 const LS_KEY = "qr-card-fields";
 
+function ContactRow({ icon, label, href }: { icon: React.ReactNode; label: string; href?: string }) {
+  const content = (
+    <div className="flex items-center gap-3 text-sm">
+      <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-foreground/70 shrink-0">
+        {icon}
+      </span>
+      <span className="truncate">{label}</span>
+    </div>
+  );
+  return href ? (
+    <a href={href} target="_blank" rel="noreferrer" className="block hover:opacity-80 transition-opacity">
+      {content}
+    </a>
+  ) : (
+    content
+  );
+}
+
 export function BdMyCardTab() {
   const { user, profile, refreshProfile } = useAuth() as any;
   const [fields, setFields] = useState<Fields>({
