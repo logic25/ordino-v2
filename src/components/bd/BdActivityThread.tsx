@@ -125,17 +125,12 @@ export function BdActivityThread({
 
       <div className="pt-3 border-t mt-3">
         <div className="flex items-end gap-2">
-          <Textarea
+          <MentionInput
             ref={composerRef}
-            placeholder="Message the team…"
+            placeholder="Message the team… use @ to tag a teammate"
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send();
-              }
-            }}
+            onChange={setDraft}
+            onSubmit={send}
             rows={1}
             className="resize-none min-h-[36px] max-h-32"
           />
@@ -149,7 +144,7 @@ export function BdActivityThread({
           </Button>
         </div>
         <p className="text-[10px] text-muted-foreground mt-1">
-          Enter to send · Shift+Enter for a new line
+          Enter to send · Shift+Enter for newline · @ to mention
         </p>
       </div>
     </div>
