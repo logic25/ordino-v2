@@ -179,6 +179,7 @@ export default function Documents() {
 
   const handleUpload = async () => {
     if (!selectedFile || !title.trim()) return;
+    const jurisdiction = uploadJurisdiction || selectedFolder?.default_jurisdiction || "NYC";
     try {
       await uploadDoc.mutateAsync({
         file: selectedFile,
@@ -189,12 +190,13 @@ export default function Documents() {
         project_id: linkProjectId,
         property_id: linkPropertyId,
         proposal_id: linkProposalId,
+        jurisdiction,
       } as any);
 
       // If uploading to a beacon folder, sync to Beacon
       if (isBeaconFolder && selectedFile) {
         try {
-          const result = await syncDocumentToBeacon(selectedFile, selectedFile.name, selectedFolder?.name || "Beacon Knowledge Base");
+          const result = await syncDocumentToBeacon(selectedFile, selectedFile.name, selectedFolder?.name || "Beacon Knowledge Base", jurisdiction);
           // Update doc beacon status - find the latest doc
           const { data: latestDocs } = await supabase
             .from("universal_documents")
