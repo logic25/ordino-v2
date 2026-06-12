@@ -62,16 +62,21 @@ export function useBdEvents() {
       const ids = events.map((e) => e.id);
       const [{ data: att }, { data: leads }] = await Promise.all([
         supabase.from("bd_event_attendees").select("event_id").in("event_id", ids),
-        supabase.from("leads").select("event_id").in("event_id", ids).is("deleted_at", null),
+        supabase.from("leads").select("event_id, expected_value, stage").in("event_id", ids).is("deleted_at", null),
       ]);
       const aCount = new Map<string, number>();
       (att || []).forEach((r: any) => aCount.set(r.event_id, (aCount.get(r.event_id) ?? 0) + 1));
       const lCount = new Map<string, number>();
-      (leads || []).forEach((r: any) => lCount.set(r.event_id, (lCount.get(r.event_id) ?? 0) + 1));
+      const pipe = new Map<string, number>();
+      (leads || []).forEach((r: any) => {
+        lCount.set(r.event_id, (lCount.get(r.event_id) ?? 0) + 1);
+        if (r.stage !== "LOST") pipe.set(r.event_id, (pipe.get(r.event_id) ?? 0) + Number(r.expected_value || 0));
+      });
       return events.map((e) => ({
         ...e,
         attendee_count: aCount.get(e.id) ?? 0,
         lead_count: lCount.get(e.id) ?? 0,
+        pipeline_generated: pipe.get(e.id) ?? 0,
       }));
     },
   });
