@@ -159,6 +159,7 @@ export default function BdEventDetail() {
   const updAtt = useUpdateEventAttendee();
   const rmAtt = useRemoveEventAttendee();
   const [pickUser, setPickUser] = useState("");
+  const [isDrafting, setIsDrafting] = useState(false);
 
   if (isLoading) {
     return (
