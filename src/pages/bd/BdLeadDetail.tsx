@@ -1,73 +1,79 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { formatDistanceToNow, format } from "date-fns";
+import { format } from "date-fns";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  ArrowLeft, Flame, Loader2, StickyNote, Phone, Users, ArrowRight, Info,
-  FileText, Mail, Pin, PinOff, FilePlus2,
+  ArrowLeft, Flame, Loader2, Pencil, FilePlus2, Trophy, Ban, Check,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAssignableProfiles } from "@/hooks/useProfiles";
 import { useLead, useUpdateLead, type LeadStage } from "@/hooks/useLeads";
-import {
-  useLeadActivities, useCreateLeadActivity, useToggleActivityPin, type ActivityType,
-} from "@/hooks/useLeadActivities";
+import { useCreateBdActivity } from "@/hooks/useBdActivities";
 import { useConvertLeadToProposal } from "@/hooks/useLeadConversion";
 import { LineageBreadcrumb } from "@/components/shared/LineageBreadcrumb";
 import { LeadConnectionsCard } from "@/components/bd/LeadConnectionsCard";
+import { LeadStageStepper } from "@/components/bd/LeadStageStepper";
+import { BdActivityThread } from "@/components/bd/BdActivityThread";
 import { useQuery } from "@tanstack/react-query";
+import { cn } from "@/lib/utils";
 
 import {
-  STAGE_META, STAGE_ORDER, SOURCE_META, TIMELINE_LABELS, stageRank, profileLabel, initials,
+  STAGE_META, SOURCE_META, TIMELINE_LABELS, stageRank, profileLabel,
 } from "@/components/bd/leadConstants";
-
-const ACTIVITY_ICON: Record<ActivityType, typeof StickyNote> = {
-  NOTE: StickyNote, CALL: Phone, MEETING: Users, STAGE_CHANGE: ArrowRight,
-  STATUS_CHANGE: ArrowRight, SYSTEM: Info, PROPOSAL_CREATED: FileText, EMAIL: Mail,
-  APPROVAL: Info,
-};
 
 const CLIENT_TYPES = [
   "homeowner", "property_manager", "contractor", "architect",
   "developer", "management_company", "government", "other",
 ];
 
-/** Click-to-edit text field, saves on blur. */
+/** Click-to-edit text field with a hover pencil. Saves on blur or Enter. */
 function EditableText({
-  value, onSave, placeholder = "—", className = "",
-}: { value: string | null; onSave: (v: string) => void; placeholder?: string; className?: string }) {
+  value, onSave, placeholder = "Add value", forceEdit = false,
+}: {
+  value: string | null;
+  onSave: (v: string) => void;
+  placeholder?: string;
+  forceEdit?: boolean;
+}) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value ?? "");
-  if (editing) {
+  const isEditing = editing || forceEdit;
+  if (isEditing) {
     return (
       <Input
-        autoFocus
-        className={`h-8 ${className}`}
+        autoFocus={editing}
+        className="h-8"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => { setEditing(false); if (draft !== (value ?? "")) onSave(draft); }}
-        onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+        onBlur={() => {
+          setEditing(false);
+          if (draft !== (value ?? "")) onSave(draft);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        }}
       />
     );
   }
+  const empty = !value;
   return (
-    <button className={`text-left text-sm hover:bg-muted/50 rounded px-1 -mx-1 ${className}`}
-      onClick={() => { setDraft(value ?? ""); setEditing(true); }}>
-      {value || <span className="text-muted-foreground">{placeholder}</span>}
+    <button
+      type="button"
+      className="group flex w-full items-center justify-between gap-2 rounded px-1.5 -mx-1.5 py-1 text-left text-sm hover:bg-muted/50 transition-colors"
+      onClick={() => { setDraft(value ?? ""); setEditing(true); }}
+    >
+      <span className={cn(empty && "text-muted-foreground italic")}>
+        {value || placeholder}
+      </span>
+      <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
     </button>
   );
 }
@@ -89,15 +95,9 @@ export default function BdLeadDetail() {
   const { data: profiles = [] } = useAssignableProfiles();
   const update = useUpdateLead();
   const convert = useConvertLeadToProposal();
+  const createActivity = useCreateBdActivity();
 
-  const { data: activities = [] } = useLeadActivities(id);
-  const createActivity = useCreateLeadActivity();
-  const togglePin = useToggleActivityPin();
-
-  const [noteOpen, setNoteOpen] = useState(false);
-  const [noteText, setNoteText] = useState("");
-  const [callOpen, setCallOpen] = useState(false);
-  const [meetingOpen, setMeetingOpen] = useState(false);
+  const [editAll, setEditAll] = useState(false);
   const [creatingProposal, setCreatingProposal] = useState(false);
 
   if (isLoading) {
@@ -109,24 +109,15 @@ export default function BdLeadDetail() {
 
   const set = (updates: Record<string, any>) => update.mutate({ id: lead.id, ...updates });
   const stageMeta = lead.stage ? STAGE_META[lead.stage] : null;
-  const ownerProfile = profiles.find((p: any) => p.id === lead.assigned_to);
   const canCreateProposal = stageRank(lead.stage) >= stageRank("QUALIFIED");
-
-  const advanceStage = () => {
-    if (!lead.stage) return set({ stage: "CONTACTED" });
-    const idx = STAGE_ORDER.indexOf(lead.stage);
-    const next = STAGE_ORDER[Math.min(idx + 1, STAGE_ORDER.length - 1)];
-    if (next !== lead.stage) set({ stage: next });
-  };
+  const showWonLost = lead.stage === "PROPOSAL";
 
   const handleCreateProposal = async () => {
     setCreatingProposal(true);
     try {
       const proposalId = await convert.mutateAsync({ lead });
-      // Record the proposal creation in the activity thread (lead.client_id /
-      // stage / proposal_id are already updated atomically by the RPC).
       await createActivity.mutateAsync({
-        lead_id: lead.id,
+        filter: { leadId: lead.id },
         type: "PROPOSAL_CREATED",
         content: "Proposal created from lead",
         metadata: { proposal_id: proposalId },
@@ -140,59 +131,78 @@ export default function BdLeadDetail() {
     }
   };
 
-  // Pinned first, then chronological (query already returns newest-first).
-  const pinned = activities.filter((a) => a.is_pinned);
-  const rest = activities.filter((a) => !a.is_pinned);
-
   return (
     <AppLayout>
       <div className="space-y-4 animate-fade-in">
         <Button variant="ghost" size="sm" onClick={() => navigate("/bd/leads")}><ArrowLeft className="mr-2 h-4 w-4" />Leads</Button>
 
+        {/* HEADER */}
+        <div className="space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">{lead.full_name}</h1>
+              {lead.company && <p className="text-muted-foreground">{lead.company}</p>}
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                {stageMeta && (
+                  <Badge variant="outline" className={stageMeta.className}>{stageMeta.label}</Badge>
+                )}
+                {lead.source_type && (() => {
+                  const Icon = SOURCE_META[lead.source_type].icon;
+                  return <Badge variant="secondary" className="gap-1"><Icon className="h-3 w-3" />{SOURCE_META[lead.source_type].label}</Badge>;
+                })()}
+                <button onClick={() => set({ hot_opportunity: !lead.hot_opportunity })} aria-label="Toggle hot">
+                  <Flame className={`h-4 w-4 ${lead.hot_opportunity ? "text-orange-500 fill-orange-500" : "text-muted-foreground/40"}`} />
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-col items-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setEditAll((v) => !v)}>
+                <Pencil className="mr-2 h-3.5 w-3.5" />
+                {editAll ? "Done editing" : "Edit details"}
+              </Button>
+              {canCreateProposal && (
+                <Button size="sm" onClick={handleCreateProposal} disabled={creatingProposal}>
+                  {creatingProposal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FilePlus2 className="mr-2 h-4 w-4" />}
+                  Create Proposal
+                </Button>
+              )}
+              {showWonLost && (
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                    onClick={() => set({ stage: "WON" as LeadStage })}>
+                    <Trophy className="mr-1.5 h-3.5 w-3.5" />Mark Won
+                  </Button>
+                  <Button size="sm" variant="outline" className="bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
+                    onClick={() => set({ stage: "LOST" as LeadStage })}>
+                    <Ban className="mr-1.5 h-3.5 w-3.5" />Mark Lost
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* STAGE STEPPER */}
+          <Card className="p-3">
+            <LeadStageStepper
+              current={lead.stage}
+              onChange={(s) => set({ stage: s })}
+            />
+          </Card>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* LEFT — data */}
           <div className="lg:col-span-3 space-y-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight">{lead.full_name}</h1>
-                {lead.company && <p className="text-muted-foreground">{lead.company}</p>}
-                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                  <Select value={lead.stage ?? undefined} onValueChange={(v) => set({ stage: v as LeadStage })}>
-                    <SelectTrigger className="h-7 w-auto border-0 bg-transparent p-0 shadow-none focus:ring-0">
-                      <Badge variant="outline" className={stageMeta?.className}>{stageMeta?.label ?? "Set stage"}</Badge>
-                    </SelectTrigger>
-                    <SelectContent>{STAGE_ORDER.map((s) => <SelectItem key={s} value={s}>{STAGE_META[s].label}</SelectItem>)}</SelectContent>
-                  </Select>
-                  {lead.source_type && (() => {
-                    const Icon = SOURCE_META[lead.source_type].icon;
-                    return <Badge variant="secondary" className="gap-1"><Icon className="h-3 w-3" />{SOURCE_META[lead.source_type].label}</Badge>;
-                  })()}
-                  <button onClick={() => set({ hot_opportunity: !lead.hot_opportunity })} aria-label="Toggle hot">
-                    <Flame className={`h-4 w-4 ${lead.hot_opportunity ? "text-orange-500 fill-orange-500" : "text-muted-foreground/40"}`} />
-                  </button>
-                </div>
-              </div>
-              <div className="flex flex-col items-end gap-2">
-                <Button variant="outline" size="sm" onClick={advanceStage}>Advance stage</Button>
-                {canCreateProposal && (
-                  <Button size="sm" onClick={handleCreateProposal} disabled={creatingProposal}>
-                    {creatingProposal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FilePlus2 className="mr-2 h-4 w-4" />}
-                    Create Proposal
-                  </Button>
-                )}
-              </div>
-            </div>
-
             <Card className="p-4 space-y-1">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Identity</p>
-              <Field label="Name"><EditableText value={lead.full_name} onSave={(v) => set({ full_name: v })} /></Field>
-              <Field label="Company"><EditableText value={lead.company} onSave={(v) => set({ company: v })} /></Field>
-              <Field label="Role"><EditableText value={lead.role} onSave={(v) => set({ role: v })} /></Field>
-              <Field label="Email"><EditableText value={lead.contact_email} onSave={(v) => set({ contact_email: v })} /></Field>
-              <Field label="Phone"><EditableText value={lead.contact_phone} onSave={(v) => set({ contact_phone: v })} /></Field>
+              <Field label="Name"><EditableText value={lead.full_name} onSave={(v) => set({ full_name: v })} placeholder="Add name" forceEdit={editAll} /></Field>
+              <Field label="Company"><EditableText value={lead.company} onSave={(v) => set({ company: v })} placeholder="Add company" forceEdit={editAll} /></Field>
+              <Field label="Role"><EditableText value={lead.role} onSave={(v) => set({ role: v })} placeholder="Add role" forceEdit={editAll} /></Field>
+              <Field label="Email"><EditableText value={lead.contact_email} onSave={(v) => set({ contact_email: v })} placeholder="Add email" forceEdit={editAll} /></Field>
+              <Field label="Phone"><EditableText value={lead.contact_phone} onSave={(v) => set({ contact_phone: v })} placeholder="Add phone" forceEdit={editAll} /></Field>
               <Field label="Client type">
                 <Select value={lead.client_type ?? undefined} onValueChange={(v) => set({ client_type: v })}>
-                  <SelectTrigger className="h-8"><SelectValue placeholder="—" /></SelectTrigger>
+                  <SelectTrigger className="h-8"><SelectValue placeholder="Set client type" /></SelectTrigger>
                   <SelectContent>{CLIENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
                 </Select>
               </Field>
@@ -200,30 +210,31 @@ export default function BdLeadDetail() {
 
             <Card className="p-4 space-y-1">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Project Details</p>
-              <Field label="Subject"><EditableText value={lead.subject} onSave={(v) => set({ subject: v })} /></Field>
-              <Field label="Property"><EditableText value={lead.property_address} onSave={(v) => set({ property_address: v })} /></Field>
-              <Field label="Architect"><EditableText value={lead.architect_name} onSave={(v) => set({ architect_name: v })} /></Field>
-              <Field label="GC"><EditableText value={lead.gc_name} onSave={(v) => set({ gc_name: v })} /></Field>
-              <Field label="SIA"><EditableText value={lead.sia_name} onSave={(v) => set({ sia_name: v })} /></Field>
-              <Field label="TPP"><EditableText value={lead.tpp_name} onSave={(v) => set({ tpp_name: v })} /></Field>
+              <Field label="Subject"><EditableText value={lead.subject} onSave={(v) => set({ subject: v })} placeholder="Add subject" forceEdit={editAll} /></Field>
+              <Field label="Property"><EditableText value={lead.property_address} onSave={(v) => set({ property_address: v })} placeholder="Add address" forceEdit={editAll} /></Field>
+              {(lead.architect_name || editAll) && (
+                <Field label="Architect"><EditableText value={lead.architect_name} onSave={(v) => set({ architect_name: v })} placeholder="Add architect" forceEdit={editAll} /></Field>
+              )}
+              {(lead.gc_name || editAll) && (
+                <Field label="GC"><EditableText value={lead.gc_name} onSave={(v) => set({ gc_name: v })} placeholder="Add GC" forceEdit={editAll} /></Field>
+              )}
             </Card>
 
             <Card className="p-4 space-y-1">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Qualification</p>
               <Field label="Timeline">
                 <Select value={lead.project_timeline ?? undefined} onValueChange={(v) => set({ project_timeline: v })}>
-                  <SelectTrigger className="h-8"><SelectValue placeholder="—" /></SelectTrigger>
+                  <SelectTrigger className="h-8"><SelectValue placeholder="Set timeline" /></SelectTrigger>
                   <SelectContent>{Object.entries(TIMELINE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
                 </Select>
               </Field>
               <Field label="Expected value">
-                <EditableText value={lead.expected_value != null ? String(lead.expected_value) : null}
-                  onSave={(v) => set({ expected_value: v ? Number(v) : null })} placeholder="—" />
-              </Field>
-              <Field label="Hot">
-                <button onClick={() => set({ hot_opportunity: !lead.hot_opportunity })}>
-                  <Flame className={`h-4 w-4 ${lead.hot_opportunity ? "text-orange-500 fill-orange-500" : "text-muted-foreground/40"}`} />
-                </button>
+                <EditableText
+                  value={lead.expected_value != null ? String(lead.expected_value) : null}
+                  onSave={(v) => set({ expected_value: v ? Number(v) : null })}
+                  placeholder="Add expected value"
+                  forceEdit={editAll}
+                />
               </Field>
             </Card>
 
@@ -235,8 +246,18 @@ export default function BdLeadDetail() {
                   <SelectContent>{profiles.map((p: any) => <SelectItem key={p.id} value={p.id}>{profileLabel(p)}</SelectItem>)}</SelectContent>
                 </Select>
               </Field>
-              {ownerProfile && <Field label="Owner name"><span className="text-sm">{profileLabel(ownerProfile)}</span></Field>}
             </Card>
+
+            <Field label="Notes">
+              <Card className="p-3">
+                <EditableText
+                  value={(lead as any).notes ?? null}
+                  onSave={(v) => set({ notes: v })}
+                  placeholder="Add a note…"
+                  forceEdit={editAll}
+                />
+              </Card>
+            </Field>
 
             {/* Source-specific */}
             {lead.source_type === "EVENT" && lead.event && (
@@ -257,135 +278,21 @@ export default function BdLeadDetail() {
             )}
             <LeadConnectionsCard leadId={lead.id} company={lead.company} propertyAddress={lead.property_address} />
             <LeadLineageCard leadId={lead.id} clientId={lead.client_id} />
-
           </div>
 
-          {/* RIGHT — activity thread */}
-          <div className="lg:col-span-2 space-y-3">
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={() => setNoteOpen((o) => !o)}><StickyNote className="mr-1.5 h-3.5 w-3.5" />Add Note</Button>
-              <Button size="sm" variant="outline" onClick={() => setCallOpen(true)}><Phone className="mr-1.5 h-3.5 w-3.5" />Log Call</Button>
-              <Button size="sm" variant="outline" onClick={() => setMeetingOpen(true)}><Users className="mr-1.5 h-3.5 w-3.5" />Log Meeting</Button>
-            </div>
-
-            {noteOpen && (
-              <Card className="p-3 space-y-2">
-                <Textarea rows={3} placeholder="Write a note…" value={noteText} onChange={(e) => setNoteText(e.target.value)} />
-                <div className="flex justify-end gap-2">
-                  <Button size="sm" variant="ghost" onClick={() => { setNoteOpen(false); setNoteText(""); }}>Cancel</Button>
-                  <Button size="sm" disabled={!noteText.trim()} onClick={async () => {
-                    await createActivity.mutateAsync({ lead_id: lead.id, type: "NOTE", content: noteText.trim() });
-                    setNoteText(""); setNoteOpen(false);
-                  }}>Save</Button>
-                </div>
-              </Card>
-            )}
-
-            {pinned.length > 0 && (
-              <div className="space-y-2">
-                {pinned.map((a) => <ActivityRow key={a.id} a={a} onPin={() => togglePin.mutate({ id: a.id, lead_id: lead.id, is_pinned: false })} />)}
-                <div className="border-t" />
-              </div>
-            )}
-            <div className="space-y-2">
-              {rest.length === 0 && pinned.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">No activity yet.</p>}
-              {rest.map((a) => <ActivityRow key={a.id} a={a} onPin={() => togglePin.mutate({ id: a.id, lead_id: lead.id, is_pinned: true })} />)}
-            </div>
+          {/* RIGHT — chat-style discussion */}
+          <div className="lg:col-span-2">
+            <Card className="p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Discussion</p>
+              <BdActivityThread
+                filter={{ leadId: lead.id }}
+                emptyText="No activity yet — start the conversation."
+              />
+            </Card>
           </div>
         </div>
       </div>
-
-      <LogCallDialog open={callOpen} onOpenChange={setCallOpen} leadId={lead.id} createActivity={createActivity} />
-      <LogMeetingDialog open={meetingOpen} onOpenChange={setMeetingOpen} leadId={lead.id} createActivity={createActivity} profiles={profiles} />
     </AppLayout>
-  );
-}
-
-function ActivityRow({ a, onPin }: { a: any; onPin: () => void }) {
-  const Icon = ACTIVITY_ICON[a.type as ActivityType] ?? Info;
-  const author = a.author ? (profileLabel(a.author)) : "System";
-  return (
-    <div className="flex gap-2 group">
-      <div className="mt-0.5"><Icon className="h-4 w-4 text-muted-foreground" /></div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Avatar className="h-4 w-4"><AvatarFallback className="text-[8px]">{initials(author)}</AvatarFallback></Avatar>
-          <span className="font-medium text-foreground">{author}</span>
-          <span>· {formatDistanceToNow(new Date(a.created_at), { addSuffix: true })}</span>
-          <button className="ml-auto opacity-0 group-hover:opacity-100" onClick={onPin} aria-label="Pin">
-            {a.is_pinned ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
-          </button>
-        </div>
-        {a.content && <p className="text-sm whitespace-pre-wrap mt-0.5">{a.content}</p>}
-        {a.type === "CALL" && a.metadata?.duration_minutes != null && (
-          <p className="text-xs text-muted-foreground">{a.metadata.duration_minutes} min</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function LogCallDialog({ open, onOpenChange, leadId, createActivity }: any) {
-  const [duration, setDuration] = useState("");
-  const [summary, setSummary] = useState("");
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Log Call</DialogTitle></DialogHeader>
-        <div className="space-y-3">
-          <div><label className="text-sm">Duration (minutes)</label><Input type="number" value={duration} onChange={(e) => setDuration(e.target.value)} /></div>
-          <div><label className="text-sm">Summary</label><Textarea rows={3} value={summary} onChange={(e) => setSummary(e.target.value)} /></div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={async () => {
-            await createActivity.mutateAsync({ lead_id: leadId, type: "CALL", content: summary.trim() || null, metadata: { duration_minutes: duration ? Number(duration) : null } });
-            setDuration(""); setSummary(""); onOpenChange(false);
-          }}>Save</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function LogMeetingDialog({ open, onOpenChange, leadId, createActivity, profiles }: any) {
-  const [location, setLocation] = useState("");
-  const [duration, setDuration] = useState("");
-  const [summary, setSummary] = useState("");
-  const [attendees, setAttendees] = useState<string[]>([]);
-  const toggle = (id: string) => setAttendees((a) => a.includes(id) ? a.filter((x) => x !== id) : [...a, id]);
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Log Meeting</DialogTitle></DialogHeader>
-        <div className="space-y-3">
-          <div><label className="text-sm">Location</label><Input value={location} onChange={(e) => setLocation(e.target.value)} /></div>
-          <div><label className="text-sm">Duration (minutes)</label><Input type="number" value={duration} onChange={(e) => setDuration(e.target.value)} /></div>
-          <div>
-            <label className="text-sm">Attendees</label>
-            <div className="max-h-32 overflow-y-auto space-y-1 mt-1">
-              {profiles.map((p: any) => (
-                <label key={p.id} className="flex items-center gap-2 text-sm">
-                  <Checkbox checked={attendees.includes(p.id)} onCheckedChange={() => toggle(p.id)} />
-                  {profileLabel(p)}
-                </label>
-              ))}
-            </div>
-          </div>
-          <div><label className="text-sm">Summary</label><Textarea rows={3} value={summary} onChange={(e) => setSummary(e.target.value)} /></div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={async () => {
-            await createActivity.mutateAsync({
-              lead_id: leadId, type: "MEETING", content: summary.trim() || null,
-              metadata: { location: location.trim() || null, attendee_ids: attendees, duration_minutes: duration ? Number(duration) : null },
-            });
-            setLocation(""); setDuration(""); setSummary(""); setAttendees([]); onOpenChange(false);
-          }}>Save</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
 
