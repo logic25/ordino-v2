@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, addMonths, subMonths, isSameMonth, isSameDay, isToday,
@@ -43,6 +44,7 @@ import {
 import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useToast } from "@/hooks/use-toast";
 import { initials } from "@/components/bd/leadConstants";
+import { EventBudgetSummary } from "@/components/bd/EventBudgetSummary";
 
 const STATUS_META: Record<EventStatus, { label: string; className: string }> = {
   PENDING_APPROVAL: { label: "Pending", className: "bg-gray-100 text-gray-700 border-gray-200" },
@@ -66,6 +68,7 @@ function fmtMoney(v: number | null) {
 }
 
 export default function BdEvents() {
+  const navigate = useNavigate();
   const [tab, setTab] = useState("events");
   const [createOpen, setCreateOpen] = useState(false);
   const [editEvent, setEditEvent] = useState<BdEvent | null>(null);
@@ -127,6 +130,7 @@ export default function BdEvents() {
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
             <TabsTrigger value="events"><Calendar className="h-4 w-4 mr-1.5" />Events</TabsTrigger>
+            <TabsTrigger value="budget"><Calendar className="h-4 w-4 mr-1.5" />Budget</TabsTrigger>
             <TabsTrigger value="sources"><Globe className="h-4 w-4 mr-1.5" />Sources</TabsTrigger>
             <TabsTrigger value="memberships"><BadgeCheck className="h-4 w-4 mr-1.5" />Memberships</TabsTrigger>
           </TabsList>
@@ -175,7 +179,7 @@ export default function BdEvents() {
                 month={calMonth}
                 onMonthChange={setCalMonth}
                 events={filtered}
-                onSelect={(e) => setDetailEvent(e)}
+                onSelect={(e) => navigate(`/bd/events/${e.id}`)}
                 parseDate={parseEventDate}
               />
             ) : (
@@ -197,7 +201,7 @@ export default function BdEvents() {
                   <TableBody>
                     {filtered.map((e) => (
                       <TableRow key={e.id} className="cursor-pointer hover:bg-muted/40"
-                        onClick={() => setDetailEvent(e)}>
+                        onClick={() => navigate(`/bd/events/${e.id}`)}>
                         <TableCell className="font-medium">
                           <div>{e.name}</div>
                           {e.location && (
@@ -276,6 +280,7 @@ export default function BdEvents() {
             )}
           </TabsContent>
 
+          <TabsContent value="budget"><EventBudgetSummary /></TabsContent>
           <TabsContent value="sources"><SourcesTab /></TabsContent>
           <TabsContent value="memberships"><MembershipsTab /></TabsContent>
         </Tabs>
