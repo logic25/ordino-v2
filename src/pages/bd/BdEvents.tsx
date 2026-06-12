@@ -182,12 +182,14 @@ export default function BdEvents() {
 
 
   const toggleStatus = (s: EventStatus) => {
+    setBucketFilter(null); // explicit status pick clears the bucket bias
     setStatusFilter((prev) => {
       const next = new Set(prev);
       next.has(s) ? next.delete(s) : next.add(s);
       return next;
     });
   };
+
   const isOnlyStatus = (s: EventStatus) =>
     statusFilter.size === 1 && statusFilter.has(s);
 
