@@ -173,6 +173,19 @@ export default function BdEvents() {
                   ))}
                 </SelectContent>
               </Select>
+              {(() => {
+                const pendingCount = (events.data ?? []).filter((e) => e.status === "PENDING_APPROVAL").length;
+                const active = filterStatus === "PENDING_APPROVAL";
+                return (
+                  <Button size="sm" variant={active ? "default" : "outline"}
+                    onClick={() => setFilterStatus(active ? "ALL" : "PENDING_APPROVAL")}>
+                    Proposed
+                    {pendingCount > 0 && (
+                      <Badge variant="secondary" className="ml-1.5 h-5 px-1.5">{pendingCount}</Badge>
+                    )}
+                  </Button>
+                );
+              })()}
               <div className="ml-auto flex items-center gap-2">
                 <div className="text-sm text-muted-foreground">{filtered.length} events</div>
                 <div className="inline-flex rounded-md border bg-background p-0.5">
@@ -302,6 +315,7 @@ export default function BdEvents() {
 
       <EventDialog open={createOpen || !!editEvent} event={editEvent}
         onOpenChange={(o) => { if (!o) { setCreateOpen(false); setEditEvent(null); } }} />
+      <ProposeEventDialog open={proposeOpen} onOpenChange={setProposeOpen} />
       <EventDetailSheet event={detailEvent} onOpenChange={(o) => { if (!o) setDetailEvent(null); }} />
     </AppLayout>
   );
