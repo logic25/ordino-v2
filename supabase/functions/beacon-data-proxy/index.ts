@@ -443,10 +443,15 @@ function isTableBlocked(table: string): boolean {
 }
 
 async function queryOrdino(sb: any, params: any) {
+  // TODO: company_id scoping + JWT verification — planned follow-up tied to Beacon /api/chat merge
   const { table, select, filters, order, limit } = params || {};
 
   if (!table || typeof table !== "string") {
     return fail("Missing or invalid 'table' param");
+  }
+
+  if (!ALLOWED_TABLES.has(table)) {
+    return fail("table_not_allowed", 403);
   }
 
   if (isTableBlocked(table)) {
