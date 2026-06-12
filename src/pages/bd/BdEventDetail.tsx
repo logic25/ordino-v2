@@ -259,14 +259,39 @@ export default function BdEventDetail() {
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
                 Schedule & Logistics
               </p>
+              <Field label="All day">
+                <div className="flex items-center gap-2 pt-1.5">
+                  <input
+                    type="checkbox"
+                    checked={!event.start_time && !event.end_time}
+                    onChange={(e) => {
+                      if (e.target.checked) set({ start_time: null, end_time: null } as any);
+                      else set({ start_time: "09:00", end_time: "17:00" } as any);
+                    }}
+                  />
+                  <span className="text-xs text-muted-foreground">No specific time</span>
+                </div>
+              </Field>
               <Field label="Start date">
                 <Input type="date" className="h-8" value={event.start_date ?? ""}
                   onChange={(e) => set({ start_date: e.target.value || null })} />
               </Field>
+              {(event.start_time || event.end_time) && (
+                <Field label="Start time">
+                  <Input type="time" className="h-8" value={(event.start_time ?? "").slice(0, 5)}
+                    onChange={(e) => set({ start_time: e.target.value || null } as any)} />
+                </Field>
+              )}
               <Field label="End date">
                 <Input type="date" className="h-8" value={event.end_date ?? ""}
                   onChange={(e) => set({ end_date: e.target.value || null })} />
               </Field>
+              {(event.start_time || event.end_time) && (
+                <Field label="End time">
+                  <Input type="time" className="h-8" value={(event.end_time ?? "").slice(0, 5)}
+                    onChange={(e) => set({ end_time: e.target.value || null } as any)} />
+                </Field>
+              )}
               <Field label="Location">
                 <EditableText value={event.location} onSave={(v) => set({ location: v })} />
               </Field>
