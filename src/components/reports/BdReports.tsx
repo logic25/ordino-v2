@@ -128,7 +128,9 @@ export default function BdReports() {
               const count = byStage.get(s) || 0;
               const pct = total ? (count / total) * 100 : 0;
               return (
-                <div key={s} className="flex items-center gap-3">
+                <div key={s}
+                  className="flex items-center gap-3 cursor-pointer hover:opacity-80"
+                  onClick={() => navigate(`/bd/leads?stage=${s}`)}>
                   <div className="w-24 text-sm text-muted-foreground">{s}</div>
                   <div className="flex-1 bg-muted rounded h-6 overflow-hidden">
                     <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
