@@ -79,9 +79,8 @@ const BdLeads = lazyWithRetry(() => import("./pages/bd/BdLeads"), "bd-leads");
 const BdLeadDetail = lazyWithRetry(() => import("./pages/bd/BdLeadDetail"), "bd-lead-detail");
 const BdEvents = lazyWithRetry(() => import("./pages/bd/BdEvents"), "bd-events");
 const BdSequences = lazyWithRetry(() => import("./pages/bd/BdSequences"), "bd-sequences");
-const BdMarketSignals = lazyWithRetry(() => import("./pages/bd/BdMarketSignals"), "bd-market-signals");
+const MarketsHub = lazyWithRetry(() => import("./pages/MarketsHub"), "markets-hub");
 const BdFollowUps = lazyWithRetry(() => import("./pages/bd/BdFollowUps"), "bd-follow-ups");
-const Markets = lazyWithRetry(() => import("./pages/Markets"), "markets");
 const PlaybookEditor = lazyWithRetry(() => import("./pages/PlaybookEditor"), "playbook-editor");
 const BdEventDetail = lazyWithRetry(() => import("./pages/bd/BdEventDetail"), "bd-event-detail");
 const BdEventCard = lazyWithRetry(() => import("./pages/bd/BdEventCard"), "bd-event-card");
@@ -142,9 +141,9 @@ function AppRoutes() {
       <Route path="/bd/events" element={<ProtectedRoute><BdEvents /></ProtectedRoute>} />
       <Route path="/bd/events/:id" element={<ProtectedRoute><BdEventDetail /></ProtectedRoute>} />
       <Route path="/bd/sequences" element={<ProtectedRoute><BdSequences /></ProtectedRoute>} />
-      <Route path="/bd/market-signals" element={<ProtectedRoute><BdMarketSignals /></ProtectedRoute>} />
+      <Route path="/bd/market-signals" element={<ProtectedRoute><MarketsHub defaultTab="signals" /></ProtectedRoute>} />
+      <Route path="/markets" element={<ProtectedRoute><MarketsHub defaultTab="markets" /></ProtectedRoute>} />
       <Route path="/bd/follow-ups" element={<ProtectedRoute><BdFollowUps /></ProtectedRoute>} />
-      <Route path="/markets" element={<ProtectedRoute><Markets /></ProtectedRoute>} />
       <Route path="/markets/:marketId/playbooks/:id" element={<ProtectedRoute><PlaybookEditor /></ProtectedRoute>} />
       <Route path="/bd/event-card" element={<ProtectedRoute><BdEventCard /></ProtectedRoute>} />
       <Route path="/bd/capture" element={<Navigate to="/bd/event-card?tab=scan" replace />} />
