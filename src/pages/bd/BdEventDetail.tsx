@@ -13,8 +13,9 @@ import {
 } from "@/components/ui/select";
 import {
   ArrowLeft, Loader2, MapPin, ExternalLink, Plus, Check, X, Users, Trash2,
-  Sparkles, CalendarPlus,
+  Sparkles, CalendarPlus, ChevronDown, ChevronRight,
 } from "lucide-react";
+
 import {
   useBdEvent, useUpdateBdEvent, useDeleteBdEvent,
   useEventAttendees, useAddEventAttendee, useUpdateEventAttendee, useRemoveEventAttendee,
