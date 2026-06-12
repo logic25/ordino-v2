@@ -72,6 +72,15 @@ function fmtMoney(v: number | null) {
   if (v == null) return "—";
   return `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 }
+function GoingCell({ eventId }: { eventId: string }) {
+  const { data } = useEventAttendees(eventId);
+  const users = (data ?? []).map((a) => ({
+    id: a.user_id,
+    first_name: a.user?.first_name ?? null,
+    last_name: a.user?.last_name ?? null,
+  }));
+  return <AttendeeAvatarStack users={users} max={3} />;
+}
 
 export default function BdEvents() {
   const navigate = useNavigate();
