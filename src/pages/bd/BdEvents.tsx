@@ -132,13 +132,22 @@ export default function BdEvents() {
           </TabsList>
 
           <TabsContent value="events" className="space-y-4">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Input
                 placeholder="Search events…" className="max-w-sm"
                 value={search} onChange={(e) => setSearch(e.target.value)}
               />
+              <Select value={timeRange} onValueChange={(v) => setTimeRange(v as any)}>
+                <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="UPCOMING">Upcoming</SelectItem>
+                  <SelectItem value="THIS_MONTH">This month</SelectItem>
+                  <SelectItem value="PAST">Past</SelectItem>
+                  <SelectItem value="ALL">All time</SelectItem>
+                </SelectContent>
+              </Select>
               <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
-                <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">All statuses</SelectItem>
                   {Object.entries(STATUS_META).map(([k, v]) => (
@@ -146,9 +155,30 @@ export default function BdEvents() {
                   ))}
                 </SelectContent>
               </Select>
-              <div className="ml-auto text-sm text-muted-foreground">{filtered.length} events</div>
+              <div className="ml-auto flex items-center gap-2">
+                <div className="text-sm text-muted-foreground">{filtered.length} events</div>
+                <div className="inline-flex rounded-md border bg-background p-0.5">
+                  <Button size="sm" variant={view === "list" ? "secondary" : "ghost"}
+                    className="h-7 px-2" onClick={() => setView("list")}>
+                    <ListIcon className="h-3.5 w-3.5 mr-1" />List
+                  </Button>
+                  <Button size="sm" variant={view === "calendar" ? "secondary" : "ghost"}
+                    className="h-7 px-2" onClick={() => setView("calendar")}>
+                    <CalendarDays className="h-3.5 w-3.5 mr-1" />Calendar
+                  </Button>
+                </div>
+              </div>
             </div>
 
+            {view === "calendar" ? (
+              <EventCalendar
+                month={calMonth}
+                onMonthChange={setCalMonth}
+                events={filtered}
+                onSelect={(e) => setDetailEvent(e)}
+                parseDate={parseEventDate}
+              />
+            ) : (
             <Card>
               <CardContent className="p-0">
                 <Table>
@@ -217,13 +247,14 @@ export default function BdEvents() {
                     ))}
                     {filtered.length === 0 && (
                       <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground text-sm">
-                        {events.isLoading ? "Loading…" : "No events yet. Click New event to add one."}
+                        {events.isLoading ? "Loading…" : "No events match these filters."}
                       </TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
               </CardContent>
             </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="sources"><SourcesTab /></TabsContent>
