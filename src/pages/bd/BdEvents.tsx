@@ -270,7 +270,7 @@ export default function BdEvents() {
                             <span>{fmtMoney(e.cost_actual ?? e.cost_member ?? e.cost_low)}</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-sm">{e.attendee_count ?? 0}</TableCell>
+                        <TableCell className="text-sm" onClick={(ev) => ev.stopPropagation()}><GoingCell eventId={e.id} /></TableCell>
                         <TableCell className="text-sm">{e.lead_count ?? 0}</TableCell>
                         <TableCell className="text-sm text-right tabular-nums">
                           {e.pipeline_generated ? `$${Math.round(e.pipeline_generated).toLocaleString()}` : "—"}
