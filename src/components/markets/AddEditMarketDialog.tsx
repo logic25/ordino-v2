@@ -115,14 +115,14 @@ export default function AddEditMarketDialog({ open, onOpenChange, market }: Prop
             </div>
 
             <div className="space-y-1.5">
-              <FieldLabel tip="Tier 1 = markets where GLE can take a job tomorrow with no new infrastructure. Tier 2 = adjacent markets requiring some ramp-up. Tier 3 = out-of-state requiring licensure or partner.">
+              <FieldLabel tip="Tier 1 = NYC five boroughs (Manhattan, Brooklyn, Queens, Bronx, Staten Island) — our home turf. Tier 2 = NYC-adjacent NY/NJ counties where we can ramp up. Tier 3 = out-of-state, requires licensure or a local partner.">
                 Tier
               </FieldLabel>
               <Select value={String(tier)} onValueChange={(v) => setTier(Number(v) as MarketTier)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1">1 — NYC Adjacent</SelectItem>
-                  <SelectItem value="2">2 — NY & NJ</SelectItem>
+                  <SelectItem value="1">1 — NYC (Five Boroughs)</SelectItem>
+                  <SelectItem value="2">2 — NYC-Adjacent / NY & NJ</SelectItem>
                   <SelectItem value="3">3 — Out of State</SelectItem>
                 </SelectContent>
               </Select>
