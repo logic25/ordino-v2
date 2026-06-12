@@ -629,51 +629,7 @@ function EventDetailSheet({ event, onOpenChange }: { event: BdEvent | null; onOp
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-sm font-medium flex items-center gap-1.5"><Users className="h-4 w-4" />Attendees</h4>
             </div>
-            <div className="flex gap-2 mb-3">
-              <Select value={pickUser} onValueChange={setPickUser}>
-                <SelectTrigger><SelectValue placeholder="Add teammate…" /></SelectTrigger>
-                <SelectContent>
-                  {available.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {[p.first_name, p.last_name].filter(Boolean).join(" ") || p.display_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button size="sm" disabled={!pickUser}
-                onClick={() => { addAtt.mutate({ event_id: event.id, user_id: pickUser }); setPickUser(""); }}>
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="space-y-1">
-              {(attendees.data ?? []).map((a) => {
-                const name = [a.user?.first_name, a.user?.last_name].filter(Boolean).join(" ") || "Unknown";
-                return (
-                  <div key={a.id} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/40">
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-7 w-7"><AvatarFallback className="text-xs">{initials(name)}</AvatarFallback></Avatar>
-                      <span className="text-sm">{name}</span>
-                      <Badge variant="outline" className="text-xs">{a.rsvp_status ?? "—"}</Badge>
-                      {a.attended && <Badge variant="outline" className="bg-green-50 text-green-700 text-xs">Attended</Badge>}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button size="icon" variant="ghost" className="h-7 w-7"
-                        title="Mark attended"
-                        onClick={() => updAtt.mutate({ id: a.id, event_id: event.id, attended: !a.attended })}>
-                        <Check className="h-4 w-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="h-7 w-7"
-                        onClick={() => rmAtt.mutate({ id: a.id, event_id: event.id })}>
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-              {(attendees.data ?? []).length === 0 && (
-                <div className="text-xs text-muted-foreground py-2">No attendees yet.</div>
-              )}
-            </div>
+            <AttendeesPicker eventId={event.id} />
           </div>
 
           <Card>
