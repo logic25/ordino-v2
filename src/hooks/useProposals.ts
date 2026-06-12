@@ -96,7 +96,8 @@ export interface ProposalQueryOptions {
   page?: number;
   pageSize?: number;
   search?: string;
-  statusFilter?: string | null;
+  /** Single status, comma-list ("draft,sent"), or string[]. */
+  statusFilter?: string | string[] | null;
 }
 
 /**
@@ -203,10 +204,17 @@ export function useProposals(options?: ProposalQueryOptions) {
   const page = options?.page ?? 0;
   const pageSize = options?.pageSize ?? 25;
   const search = options?.search ?? "";
-  const statusFilter = options?.statusFilter ?? null;
+  const rawFilter = options?.statusFilter ?? null;
+  // Normalize: string|string[]|"a,b" → string[] of UI buckets
+  const buckets: string[] = Array.isArray(rawFilter)
+    ? rawFilter
+    : typeof rawFilter === "string"
+      ? rawFilter.split(",").map((s) => s.trim()).filter(Boolean)
+      : [];
+  const statusKey = buckets.join(",");
 
   return useQuery({
-    queryKey: ["proposals", page, pageSize, search, statusFilter],
+    queryKey: ["proposals", page, pageSize, search, statusKey],
     queryFn: async () => {
       let query = supabase
         .from("proposals")
@@ -221,17 +229,17 @@ export function useProposals(options?: ProposalQueryOptions) {
         `, { count: "exact" })
         .order("created_at", { ascending: false });
 
-      // Server-side status filter
-      if (statusFilter === "draft") {
-        query = query.eq("status", "draft");
-      } else if (statusFilter === "sent") {
-        query = query.in("status", ["sent", "viewed"]);
-      } else if (statusFilter === "executed") {
-        query = query.eq("status", "executed");
-      } else if (statusFilter === "lost") {
-        query = query.eq("status", "lost");
+      // Map UI buckets → DB status values (follow_up handled client-side)
+      const bucketToStatuses: Record<string, string[]> = {
+        draft: ["draft"],
+        sent: ["sent", "viewed"],
+        executed: ["executed"],
+        lost: ["lost"],
+      };
+      const dbStatuses = buckets.flatMap((b) => bucketToStatuses[b] ?? []);
+      if (dbStatuses.length > 0) {
+        query = query.in("status", dbStatuses);
       }
-      // Note: "follow_up" filter handled client-side after fetch since it needs date logic
 
       // Server-side search
       if (search) {
