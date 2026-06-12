@@ -376,6 +376,15 @@ async function queryInvoices(sb: any, params: any) {
 
 // ── General-purpose query ────────────────────────────────
 
+// Hard allowlist for query_ordino — only these tables may be queried via the
+// generic entry point. Specific actions above keep their own direct queries.
+const ALLOWED_TABLES = new Set([
+  "projects", "properties", "proposals", "invoices", "services",
+  "clients", "client_contacts", "project_action_items",
+  "project_checklist_items", "rfi_requests", "signal_violations",
+  "signal_applications", "profiles", "company_reviews",
+]);
+
 const BLOCKED_TABLES = new Set([
   "auth", "api_keys", "secrets", "user_roles",
 ]);
