@@ -53,6 +53,8 @@ const clientSchema = z.object({
   specialty_tags: z.array(z.string()).optional(),
   licensed_jurisdictions: z.array(z.string()).optional(),
   internal_notes: z.string().max(2000).optional(),
+  expected_projects_per_year: z.number().int().min(0).max(1000).nullable().optional(),
+  expected_annual_value: z.number().min(0).nullable().optional(),
 });
 
 type FormData = z.infer<typeof clientSchema>;
