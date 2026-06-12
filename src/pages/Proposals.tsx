@@ -131,13 +131,8 @@ export default function Proposals() {
   const logFollowUp = useLogFollowUp();
   const snoozeFollowUp = useSnoozeFollowUp();
 
-  const { data: leads = [], isLoading: leadsLoading } = useLeads();
-  const createLead = useCreateLead();
-  const deleteLead = useDeleteLead();
-  const updateLead = useUpdateLead();
-
+  const navigate = useNavigate();
   const displayProposals = proposals;
-  const displayLeads = leads;
 
   // Open dialog if coming from properties with a property pre-selected (once only)
   const didAutoOpen = useRef(false);
