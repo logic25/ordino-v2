@@ -194,10 +194,27 @@ export function BdScanTab() {
           </div>
           <div className="space-y-1.5"><Label>Email</Label>
             <Input className="h-11" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-          <div className="space-y-1.5"><Label>Phone</Label>
-            <Input className="h-11" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5"><Label>Office phone</Label>
+              <Input className="h-11" type="tel" placeholder="(212) 555-1212"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                onBlur={(e) => setPhone(fmtPhone(e.target.value))} /></div>
+            <div className="space-y-1.5"><Label>Cell</Label>
+              <Input className="h-11" type="tel" placeholder="(347) 555-1212"
+                value={mobile}
+                onChange={(e) => setMobile(e.target.value)}
+                onBlur={(e) => setMobile(fmtPhone(e.target.value))} /></div>
+          </div>
+          <div className="space-y-1.5"><Label>Website</Label>
+            <Input className="h-11" type="url" placeholder="acme.com"
+              value={website} onChange={(e) => setWebsite(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label>Address</Label>
+            <Textarea rows={2} placeholder="Street, City, State ZIP"
+              value={address} onChange={(e) => setAddress(e.target.value)} /></div>
           <div className="space-y-1.5"><Label>Context</Label>
-            <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+            <Textarea rows={2} placeholder="Where you met, what they cared about…"
+              value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
           <label className="flex items-center gap-2 py-1">
             <Checkbox checked={hot} onCheckedChange={(c) => setHot(!!c)} />
             <span className="text-sm">🔥 Hot — follow up first</span>
