@@ -92,20 +92,32 @@ export function EmailList({ emails, selectedId, highlightedIndex, onSelect }: Em
               isSelected && "bg-muted",
               isHighlighted && !isSelected && "bg-accent/10 border-l-4 border-l-primary",
               !isHighlighted && "border-l-4 border-l-transparent",
-              !email.is_read && "bg-accent/5"
+              !email.is_read && "bg-accent/5",
+              unread && email.is_read && "bg-accent/[0.03]"
             )}
           >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-0.5">
-                  <span className={cn("text-sm truncate", !email.is_read && "font-semibold")}>
+                  <span className={cn("text-sm truncate", (unread || !email.is_read) && "font-semibold")}>
                     {email.from_name || email.from_email || "Unknown"}
                   </span>
+                  {isThread && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-muted-foreground bg-muted/60 rounded px-1.5 py-0.5">
+                          <MessagesSquare className="h-3 w-3" />
+                          {count}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top"><p>{count} messages in this thread</p></TooltipContent>
+                    </Tooltip>
+                  )}
                   {email.has_attachments && (
                     <Paperclip className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
                   )}
                 </div>
-                <p className={cn("text-sm truncate", !email.is_read ? "font-medium text-foreground" : "text-foreground/80")}>
+                <p className={cn("text-sm truncate", (unread || !email.is_read) ? "font-medium text-foreground" : "text-foreground/80")}>
                   {email.subject || "(no subject)"}
                 </p>
                 <p className="text-xs text-muted-foreground truncate mt-0.5">
