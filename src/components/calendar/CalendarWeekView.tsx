@@ -155,8 +155,12 @@ export function CalendarWeekView({
               const cellKey = `${key}-${hour}`;
               const dayEvents = (eventsByDay[key] || []).filter((ev) => {
                 if (ev.all_day) return false;
-                const evHour = new Date(ev.start_time).getHours();
-                return evHour === hour;
+                const span = getSpan(ev, day);
+                const startHour = new Date(ev.start_time).getHours();
+                if (!span.isMulti) return startHour === hour;
+                // Multi-day timed: original hour on first day, top-of-window on continuation days
+                if (span.dayIdx === 1) return startHour === hour;
+                return hour === hours[0];
               });
               const today = isToday(day);
               return (
@@ -172,7 +176,9 @@ export function CalendarWeekView({
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, day, hour)}
                 >
-                  {dayEvents.map((ev) => (
+                  {dayEvents.map((ev) => {
+                    const span = getSpan(ev, day);
+                    return (
                     <button
                       key={ev.id}
                       draggable={!ev.is_billing}
@@ -187,10 +193,13 @@ export function CalendarWeekView({
                         ev.is_billing && "italic cursor-default",
                         !ev.is_billing && "cursor-grab active:cursor-grabbing"
                       )}
+                      title={span.isMulti ? `${ev.title} (Day ${span.dayIdx} of ${span.total})` : ev.title}
                     >
                       {format(new Date(ev.start_time), "h:mm")} {ev.title}
+                      {span.isMulti && <span className="ml-1 text-muted-foreground/80">· {span.dayIdx}/{span.total}</span>}
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               );
             })}
