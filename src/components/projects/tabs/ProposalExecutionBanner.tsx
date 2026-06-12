@@ -67,11 +67,17 @@ export function ProposalExecutionBanner({ project, changeOrders, onViewSignedPro
 
   return (
     <div className="flex items-center gap-3 flex-wrap">
-      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${
-        fullyExecuted 
-          ? "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800" 
-          : "bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800"
-      }`}>
+      <button
+        type="button"
+        onClick={fullyExecuted && onViewSignedProposal ? onViewSignedProposal : undefined}
+        disabled={!fullyExecuted || !onViewSignedProposal}
+        title={fullyExecuted ? "View signed proposal in Documents" : undefined}
+        className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm text-left transition-colors ${
+          fullyExecuted
+            ? "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 cursor-pointer"
+            : "bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800 cursor-default"
+        }`}
+      >
         {fullyExecuted ? (
           <>
             <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -79,6 +85,7 @@ export function ProposalExecutionBanner({ project, changeOrders, onViewSignedPro
             <span className="text-xs text-muted-foreground">
               Internal: {internalDate}{clientDate ? ` · Client: ${clientDate}` : ` · ${({physical_copy:"Physical signed copy",client_agreement:"Client's own agreement",email_confirmation:"Email confirmation"})[proposal.approval_method || ""] || "Approved (alt. method)"}`}
             </span>
+            <span className="text-[10px] text-emerald-700/70 dark:text-emerald-300/70 ml-1">View →</span>
           </>
         ) : (
           <>
