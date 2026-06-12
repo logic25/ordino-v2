@@ -368,41 +368,67 @@ export default function BdEventDetail() {
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="Price verified">
-                <Select value={event.price_verified ?? "UNKNOWN"}
-                  onValueChange={(v) => set({ price_verified: v as any })}>
-                  <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PRICE_VERIFIED_OPTIONS.map((o) =>
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Included in membership">
-                <div className="flex items-center gap-2 pt-1.5">
-                  <input type="checkbox" checked={!!event.included_in_membership}
-                    onChange={(e) => set({
-                      included_in_membership: e.target.checked,
-                      ...(e.target.checked ? {} : { membership_id: null }),
-                    } as any)} />
-                  <Select
-                    value={event.membership_id ?? "__none"}
-                    onValueChange={(v) => set({ membership_id: v === "__none" ? null : v })}>
-                    <SelectTrigger className="h-8 flex-1"><SelectValue placeholder="Linked membership" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none">None</SelectItem>
-                      {(memberships.data ?? []).map((m) =>
-                        <SelectItem key={m.id} value={m.id}>{m.organization}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </Field>
             </Card>
 
             <Card className="p-4 space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                Strategy
-              </p>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Strategy
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={isDrafting}
+                  onClick={async () => {
+                    const hasAny =
+                      (event.why_it_matters ?? "").trim() ||
+                      (intel.recent_news ?? "").trim() ||
+                      (intel.key_attendees ?? "").trim() ||
+                      (intel.competitive_landscape ?? "").trim();
+                    if (hasAny && !confirm("Overwrite existing Strategy fields with AI draft?")) return;
+                    setIsDrafting(true);
+                    try {
+                      const { data, error } = await supabase.functions.invoke("draft-event-strategy", {
+                        body: {
+                          event_name: event.name,
+                          source_url: (event.intel as any)?.source_url ?? event.source_url,
+                          category: event.category,
+                          target_audience: event.target_audience,
+                          why_it_matters: event.why_it_matters,
+                        },
+                      });
+                      if (error) throw error;
+                      const d = data as any;
+                      const nextIntel = {
+                        ...(event.intel ?? {}),
+                        recent_news: d.recent_news ?? intel.recent_news,
+                        key_attendees: d.key_attendees ?? intel.key_attendees,
+                        competitive_landscape: d.competitive_landscape ?? intel.competitive_landscape,
+                      };
+                      set({
+                        why_it_matters: d.why_it_matters ?? event.why_it_matters,
+                        intel: nextIntel as any,
+                      } as any);
+                      toast({ title: "AI strategy drafted" });
+                    } catch (e: any) {
+                      toast({
+                        title: "AI draft failed",
+                        description: e?.message ?? "Try again in a moment.",
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setIsDrafting(false);
+                    }
+                  }}
+                >
+                  {isDrafting ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                  )}
+                  Draft strategy with AI
+                </Button>
+              </div>
               <Field label="Why it matters">
                 <EditableText value={event.why_it_matters ?? null}
                   onSave={(v) => set({ why_it_matters: v } as any)}
@@ -437,50 +463,7 @@ export default function BdEventDetail() {
                   <Users className="h-3.5 w-3.5" />Attendees
                 </p>
               </div>
-              <div className="flex gap-2 mb-3">
-                <Select value={pickUser} onValueChange={setPickUser}>
-                  <SelectTrigger className="h-8"><SelectValue placeholder="Add teammate…" /></SelectTrigger>
-                  <SelectContent>
-                    {available.map((p: any) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {[p.first_name, p.last_name].filter(Boolean).join(" ") || p.display_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button size="sm" disabled={!pickUser}
-                  onClick={() => { addAtt.mutate({ event_id: event.id, user_id: pickUser }); setPickUser(""); }}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="space-y-1">
-                {(attendees.data ?? []).map((a) => {
-                  const name = [a.user?.first_name, a.user?.last_name].filter(Boolean).join(" ") || "Unknown";
-                  return (
-                    <div key={a.id} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/40">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-7 w-7"><AvatarFallback className="text-xs">{initials(name)}</AvatarFallback></Avatar>
-                        <span className="text-sm">{name}</span>
-                        {a.attended && <Badge variant="outline" className="bg-green-50 text-green-700 text-xs">Attended</Badge>}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button size="icon" variant="ghost" className="h-7 w-7"
-                          title="Toggle attended"
-                          onClick={() => updAtt.mutate({ id: a.id, event_id: event.id, attended: !a.attended })}>
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7"
-                          onClick={() => rmAtt.mutate({ id: a.id, event_id: event.id })}>
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-                {(attendees.data ?? []).length === 0 && (
-                  <p className="text-xs text-muted-foreground py-2">No attendees yet.</p>
-                )}
-              </div>
+              <AttendeesPicker eventId={event.id} />
             </Card>
 
             <EventPrepPanel
@@ -488,6 +471,8 @@ export default function BdEventDetail() {
               category={event.category}
               targetAudience={event.target_audience ?? null}
             />
+
+            <EventTasksCard eventId={event.id} />
           </div>
 
           {/* RIGHT — discussion */}
