@@ -11,71 +11,106 @@ type Lead = {
   stage: string | null;
   expected_value: number | null;
   proposal_id: string | null;
+  event_id: string | null;
   created_at: string;
 };
+type Event = { id: string; name: string };
+type Client = { id: string; name: string; expected_annual_value: number | null };
+
+const money = (n: number) => `$${Math.round(n).toLocaleString()}`;
 
 export default function BdReports() {
   const { profile } = useAuth();
   const companyId = profile?.company_id;
 
-  const { data: leads, isLoading } = useQuery({
-    queryKey: ["bd-report-leads", companyId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("leads")
-        .select("id, source, status, stage, expected_value, proposal_id, created_at")
-        .eq("company_id", companyId!)
-        .is("deleted_at", null);
-      if (error) throw error;
-      return (data || []) as Lead[];
-    },
+  const { data, isLoading } = useQuery({
+    queryKey: ["bd-report-v2", companyId],
     enabled: !!companyId,
+    queryFn: async () => {
+      const [leadsR, eventsR, clientsR] = await Promise.all([
+        supabase.from("leads")
+          .select("id, source, status, stage, expected_value, proposal_id, event_id, created_at")
+          .eq("company_id", companyId!).is("deleted_at", null),
+        supabase.from("bd_events").select("id, name").eq("company_id", companyId!),
+        supabase.from("clients").select("id, name, expected_annual_value").eq("company_id", companyId!),
+      ]);
+      if (leadsR.error) throw leadsR.error;
+      if (eventsR.error) throw eventsR.error;
+      if (clientsR.error) throw clientsR.error;
+      return {
+        leads: (leadsR.data || []) as Lead[],
+        events: (eventsR.data || []) as Event[],
+        clients: (clientsR.data || []) as Client[],
+      };
+    },
   });
 
-  if (isLoading) {
-    return <div className="space-y-3"><Skeleton className="h-32 w-full" /><Skeleton className="h-64 w-full" /></div>;
+  if (isLoading || !data) {
+    return <div className="space-y-3"><Skeleton className="h-24 w-full" /><Skeleton className="h-64 w-full" /></div>;
   }
 
-  const rows = leads || [];
-  const total = rows.length;
-  const converted = rows.filter((l) => l.status === "converted" || !!l.proposal_id).length;
+  const { leads, events, clients } = data;
+  const total = leads.length;
+  const isConverted = (l: Lead) => l.status === "converted" || !!l.proposal_id;
+  const isWon = (l: Lead) => l.stage === "WON";
+  const converted = leads.filter(isConverted).length;
   const overallRate = total ? Math.round((converted / total) * 100) : 0;
 
-  // By source
+  // KPIs
+  const since30 = Date.now() - 30 * 86400_000;
+  const capturedRecent = leads.filter((l) => new Date(l.created_at).getTime() >= since30).length;
+  const pipelineGenerated = leads
+    .filter((l) => l.stage !== "LOST")
+    .reduce((s, l) => s + Number(l.expected_value || 0), 0);
+  const convertedValue = leads.filter(isWon)
+    .reduce((s, l) => s + Number(l.expected_value || 0), 0);
+  const relationshipPipeline = clients
+    .reduce((s, c) => s + Number(c.expected_annual_value || 0), 0);
+
+  // Source breakdown
   const bySource = new Map<string, { total: number; converted: number; value: number }>();
-  for (const l of rows) {
-    const key = l.source || "Unknown";
-    const cur = bySource.get(key) || { total: 0, converted: 0, value: 0 };
+  for (const l of leads) {
+    const k = l.source || "Unknown";
+    const cur = bySource.get(k) || { total: 0, converted: 0, value: 0 };
     cur.total += 1;
-    const isConverted = l.status === "converted" || !!l.proposal_id;
-    if (isConverted) {
-      cur.converted += 1;
-      cur.value += Number(l.expected_value || 0);
-    }
-    bySource.set(key, cur);
+    if (isConverted(l)) { cur.converted += 1; cur.value += Number(l.expected_value || 0); }
+    bySource.set(k, cur);
   }
   const sourceRows = Array.from(bySource.entries())
-    .map(([source, v]) => ({
-      source,
-      ...v,
-      rate: v.total ? Math.round((v.converted / v.total) * 100) : 0,
-    }))
+    .map(([source, v]) => ({ source, ...v, rate: v.total ? Math.round((v.converted / v.total) * 100) : 0 }))
     .sort((a, b) => b.value - a.value);
 
-  // Stage funnel
+  // Event rollup
+  const eventMap = new Map(events.map((e) => [e.id, e.name]));
+  const byEvent = new Map<string, { name: string; captured: number; pipeline: number; converted: number }>();
+  for (const l of leads) {
+    if (!l.event_id) continue;
+    const name = eventMap.get(l.event_id) || "(deleted event)";
+    const cur = byEvent.get(l.event_id) || { name, captured: 0, pipeline: 0, converted: 0 };
+    cur.captured += 1;
+    if (l.stage !== "LOST") cur.pipeline += Number(l.expected_value || 0);
+    if (isWon(l)) cur.converted += Number(l.expected_value || 0);
+    byEvent.set(l.event_id, cur);
+  }
+  const eventRows = Array.from(byEvent.values()).sort((a, b) => b.pipeline - a.pipeline);
+
   const stages = ["NEW", "QUALIFIED", "PROPOSAL", "WON", "LOST"];
   const byStage = new Map<string, number>();
-  for (const l of rows) {
-    const s = l.stage || "NEW";
-    byStage.set(s, (byStage.get(s) || 0) + 1);
-  }
+  for (const l of leads) byStage.set(l.stage || "NEW", (byStage.get(l.stage || "NEW") || 0) + 1);
+
+  const Kpi = ({ label, value }: { label: string; value: string | number }) => (
+    <Card><CardHeader className="pb-2"><CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</CardTitle></CardHeader>
+      <CardContent><div className="text-2xl font-bold tabular-nums">{value}</div></CardContent></Card>
+  );
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card><CardHeader><CardTitle className="text-sm font-medium text-muted-foreground">Total Leads</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{total}</div></CardContent></Card>
-        <Card><CardHeader><CardTitle className="text-sm font-medium text-muted-foreground">Converted</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{converted}</div></CardContent></Card>
-        <Card><CardHeader><CardTitle className="text-sm font-medium text-muted-foreground">Conversion Rate</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{overallRate}%</div></CardContent></Card>
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <Kpi label="Leads captured (30d)" value={capturedRecent} />
+        <Kpi label="Pipeline generated" value={money(pipelineGenerated)} />
+        <Kpi label="Converted $" value={money(convertedValue)} />
+        <Kpi label="Conversion rate" value={`${overallRate}%`} />
+        <Kpi label="Relationship pipeline" value={money(relationshipPipeline)} />
       </div>
 
       <Card>
@@ -91,7 +126,7 @@ export default function BdReports() {
                   <div className="flex-1 bg-muted rounded h-6 overflow-hidden">
                     <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
                   </div>
-                  <div className="w-12 text-right text-sm font-medium">{count}</div>
+                  <div className="w-12 text-right text-sm font-medium tabular-nums">{count}</div>
                 </div>
               );
             })}
@@ -100,29 +135,52 @@ export default function BdReports() {
       </Card>
 
       <Card>
+        <CardHeader><CardTitle>Event ROI</CardTitle></CardHeader>
+        <CardContent>
+          <table className="w-full text-sm">
+            <thead><tr className="text-left text-muted-foreground border-b">
+              <th className="py-2">Event</th>
+              <th className="py-2 text-right">Leads captured</th>
+              <th className="py-2 text-right">Pipeline</th>
+              <th className="py-2 text-right">Converted $</th>
+            </tr></thead>
+            <tbody>
+              {eventRows.length === 0 ? (
+                <tr><td colSpan={4} className="py-6 text-center text-muted-foreground">No leads attributed to events yet.</td></tr>
+              ) : eventRows.map((r) => (
+                <tr key={r.name} className="border-b last:border-b-0">
+                  <td className="py-2 font-medium">{r.name}</td>
+                  <td className="py-2 text-right tabular-nums">{r.captured}</td>
+                  <td className="py-2 text-right tabular-nums">{money(r.pipeline)}</td>
+                  <td className="py-2 text-right tabular-nums">{money(r.converted)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader><CardTitle>Top Sources by Converted Value</CardTitle></CardHeader>
         <CardContent>
           <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-muted-foreground border-b">
-                <th className="py-2">Source</th>
-                <th className="py-2 text-right">Leads</th>
-                <th className="py-2 text-right">Converted</th>
-                <th className="py-2 text-right">Rate</th>
-                <th className="py-2 text-right">Value</th>
-              </tr>
-            </thead>
+            <thead><tr className="text-left text-muted-foreground border-b">
+              <th className="py-2">Source</th>
+              <th className="py-2 text-right">Leads</th>
+              <th className="py-2 text-right">Converted</th>
+              <th className="py-2 text-right">Rate</th>
+              <th className="py-2 text-right">Value</th>
+            </tr></thead>
             <tbody>
-              {sourceRows.length === 0 && (
+              {sourceRows.length === 0 ? (
                 <tr><td colSpan={5} className="py-6 text-center text-muted-foreground">No leads yet.</td></tr>
-              )}
-              {sourceRows.map((r) => (
+              ) : sourceRows.map((r) => (
                 <tr key={r.source} className="border-b">
                   <td className="py-2 font-medium">{r.source}</td>
-                  <td className="py-2 text-right">{r.total}</td>
-                  <td className="py-2 text-right">{r.converted}</td>
-                  <td className="py-2 text-right">{r.rate}%</td>
-                  <td className="py-2 text-right">${r.value.toLocaleString()}</td>
+                  <td className="py-2 text-right tabular-nums">{r.total}</td>
+                  <td className="py-2 text-right tabular-nums">{r.converted}</td>
+                  <td className="py-2 text-right tabular-nums">{r.rate}%</td>
+                  <td className="py-2 text-right tabular-nums">{money(r.value)}</td>
                 </tr>
               ))}
             </tbody>
