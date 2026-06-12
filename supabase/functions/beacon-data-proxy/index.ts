@@ -835,7 +835,8 @@ function resolveTradeKey(raw?: string | null): string | null {
   return null;
 }
 
-async function vendorLookup(sb: any, params: any) {
+async function vendorLookup(ctx: Ctx, params: any) {
+  const sb = ctx.sb;
   const { type, search, limit: rawLimit, jurisdiction: rawJur } = params || {};
   const safeLimit = Math.min(Math.max(Number(rawLimit) || 10, 1), 50);
   const tradeKey = resolveTradeKey(type);
@@ -843,17 +844,20 @@ async function vendorLookup(sb: any, params: any) {
   const jurisdiction = rawJur ? String(rawJur).toUpperCase().trim() : null;
 
   // 1) Pull firms: RFP partners whose client_type matches any synonym for the trade.
-  let firmQ = sb
-    .from("clients")
-    .select("id, name, email, client_type, is_rfp_partner, address, specialty_tags, internal_notes, licensed_jurisdictions")
-    .limit(500);
+  let firmQ = scopeByCompany(
+    sb.from("clients")
+      .select("id, name, email, client_type, is_rfp_partner, address, specialty_tags, internal_notes, licensed_jurisdictions"),
+    ctx,
+  ).limit(500);
   if (search) firmQ = firmQ.ilike("name", `%${search}%`);
 
   // 2) Pull candidate contacts (across ALL firms) whose title or license matches the trade.
-  let contactQ = sb
-    .from("client_contacts")
-    .select("client_id, name, first_name, last_name, email, phone, mobile, title, license_type, license_number, is_primary, licensed_jurisdictions, clients!inner(id, name, client_type, is_rfp_partner, address, specialty_tags, internal_notes, email, licensed_jurisdictions)")
-    .limit(500);
+  let contactQ = scopeByCompany(
+    sb.from("client_contacts")
+      .select("client_id, name, first_name, last_name, email, phone, mobile, title, license_type, license_number, is_primary, licensed_jurisdictions, clients!inner(id, name, client_type, is_rfp_partner, address, specialty_tags, internal_notes, email, licensed_jurisdictions)"),
+    ctx,
+  ).limit(500);
+
 
   const [firmRes, contactRes] = await Promise.all([firmQ, contactQ]);
   if (firmRes.error) return fail(firmRes.error.message, 500);
