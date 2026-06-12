@@ -223,7 +223,7 @@ export function BdMyCardTab() {
               <ContactRow icon={<Smartphone className="h-4 w-4" />} label={mobileDisplay} href={`tel:${telValue(fields.mobile, "")}`} />
             )}
             {fields.linkedin && (
-              <ContactRow icon={<Linkedin className="h-4 w-4" />} label="LinkedIn" href={fields.linkedin} />
+              <ContactRow icon={<Linkedin className="h-4 w-4" />} label="LinkedIn" href={/^https?:\/\//i.test(fields.linkedin) ? fields.linkedin : `https://${fields.linkedin.replace(/^\/+/, "")}`} />
             )}
             <ContactRow
               icon={<MapPin className="h-4 w-4" />}
