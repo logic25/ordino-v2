@@ -151,8 +151,8 @@ export default function BdLeadDetail() {
                 {editAll ? "Done editing" : "Edit details"}
               </Button>
               {canCreateProposal && (
-                <Button size="sm" onClick={handleCreateProposal} disabled={creatingProposal}>
-                  {creatingProposal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FilePlus2 className="mr-2 h-4 w-4" />}
+                <Button size="sm" onClick={handleCreateProposal}>
+                  <FilePlus2 className="mr-2 h-4 w-4" />
                   Create Proposal
                 </Button>
               )}
