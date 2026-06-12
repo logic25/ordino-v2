@@ -9835,6 +9835,7 @@ export type Database = {
         Returns: Json
       }
       get_client_tax_id: { Args: { _client_id: string }; Returns: string }
+      get_lead_connections: { Args: { _lead_id: string }; Returns: Json }
       get_my_compensation: {
         Args: never
         Returns: {
