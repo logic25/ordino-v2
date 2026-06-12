@@ -34,9 +34,8 @@ Deno.serve(async (req) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const admin = createClient(supabaseUrl, serviceKey);
 
-  // Auth: x-cron-secret header.
-  // Source of truth for this project's cron is the Vault `cron_secret` (every pg_cron job in
-  // public.cron uses it). Fall back to env CRON_SECRET so manual env-based callers still work.
+  // Auth: x-cron-secret header (pg_cron) OR a service-role Bearer (server-to-server / tests).
+  // No path accepts a user JWT — this is a privileged sender, not a public endpoint.
   const caller = req.headers.get("x-cron-secret") || "";
   let expected = "";
   try {
@@ -44,17 +43,19 @@ Deno.serve(async (req) => {
       .schema("vault" as any).from("decrypted_secrets")
       .select("decrypted_secret").eq("name", "cron_secret").maybeSingle();
     expected = (vaultRow as any)?.decrypted_secret || "";
-  } catch (e) {
-    console.error("vault read failed:", (e as Error).message);
-  }
+  } catch (_) { /* vault not readable via PostgREST in this project */ }
   const envSecret = Deno.env.get("CRON_SECRET") || "";
-  const ok = (!!expected && caller === expected) || (!!envSecret && caller === envSecret);
-  console.log("auth check", { hasCaller: !!caller, hasVault: !!expected, hasEnv: !!envSecret, ok });
+  const bearer = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  const ok =
+    (!!expected && caller === expected) ||
+    (!!envSecret && caller === envSecret) ||
+    (!!serviceKey && bearer === serviceKey);
   if (!ok) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+
 
 
 
