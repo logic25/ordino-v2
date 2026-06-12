@@ -89,6 +89,7 @@ export function ClientDialog({
       name: "", email: "", phone: "", fax: "", address: "", notes: "",
       lead_owner_id: "", tax_id: "", client_type: "", is_sia: false,
       specialty_tags: [], licensed_jurisdictions: [], internal_notes: "",
+      expected_projects_per_year: null, expected_annual_value: null,
     },
   });
 
