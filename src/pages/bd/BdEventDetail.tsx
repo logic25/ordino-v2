@@ -170,13 +170,7 @@ export default function BdEventDetail() {
   const { data: event, isLoading } = useBdEvent(id);
   const update = useUpdateBdEvent();
   const del = useDeleteBdEvent();
-  const memberships = useMemberships();
   const profiles = useCompanyProfiles();
-  const attendees = useEventAttendees(id);
-  const addAtt = useAddEventAttendee();
-  const updAtt = useUpdateEventAttendee();
-  const rmAtt = useRemoveEventAttendee();
-  const [pickUser, setPickUser] = useState("");
   const [isDrafting, setIsDrafting] = useState(false);
   const [showResearch, setShowResearch] = useState(false);
 
@@ -209,9 +203,6 @@ export default function BdEventDetail() {
     set({ intel: next as any });
   };
   const intel = (event.intel ?? {}) as Record<string, string | undefined>;
-
-  const presentIds = new Set((attendees.data ?? []).map((a) => a.user_id));
-  const available = (profiles.data ?? []).filter((p) => !presentIds.has(p.id));
 
   return (
     <AppLayout>
