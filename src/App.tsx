@@ -80,6 +80,7 @@ const BdLeadDetail = lazyWithRetry(() => import("./pages/bd/BdLeadDetail"), "bd-
 const BdEvents = lazyWithRetry(() => import("./pages/bd/BdEvents"), "bd-events");
 const BdSequences = lazyWithRetry(() => import("./pages/bd/BdSequences"), "bd-sequences");
 const Markets = lazyWithRetry(() => import("./pages/Markets"), "markets");
+const PlaybookEditor = lazyWithRetry(() => import("./pages/PlaybookEditor"), "playbook-editor");
 const BdEventDetail = lazyWithRetry(() => import("./pages/bd/BdEventDetail"), "bd-event-detail");
 const BdEventCard = lazyWithRetry(() => import("./pages/bd/BdEventCard"), "bd-event-card");
 
@@ -140,6 +141,7 @@ function AppRoutes() {
       <Route path="/bd/events/:id" element={<ProtectedRoute><BdEventDetail /></ProtectedRoute>} />
       <Route path="/bd/sequences" element={<ProtectedRoute><BdSequences /></ProtectedRoute>} />
       <Route path="/markets" element={<ProtectedRoute><Markets /></ProtectedRoute>} />
+      <Route path="/markets/:marketId/playbooks/:id" element={<ProtectedRoute><PlaybookEditor /></ProtectedRoute>} />
       <Route path="/bd/event-card" element={<ProtectedRoute><BdEventCard /></ProtectedRoute>} />
       <Route path="/bd/capture" element={<Navigate to="/bd/event-card?tab=scan" replace />} />
       <Route path="/bd/my-card" element={<Navigate to="/bd/event-card?tab=mycard" replace />} />
