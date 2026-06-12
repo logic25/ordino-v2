@@ -52,7 +52,7 @@ export function BdActivityThread({
 
   const [draft, setDraft] = useState("");
   const scrollerRef = useRef<HTMLDivElement | null>(null);
-  const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const composerRef = useRef<MentionInputHandle | null>(null);
 
   // useBdActivities returns newest-first; we render oldest-first for chat.
   const ordered = [...activities].reverse();
@@ -68,7 +68,8 @@ export function BdActivityThread({
   const send = async () => {
     const text = draft.trim();
     if (!text || create.isPending) return;
-    await create.mutateAsync({ filter, type: "NOTE", content: text });
+    const mentioned_user_ids = extractMentionedIds(text);
+    await create.mutateAsync({ filter, type: "NOTE", content: text, mentioned_user_ids });
     setDraft("");
     composerRef.current?.focus();
   };
