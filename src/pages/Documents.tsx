@@ -50,6 +50,11 @@ const CATEGORIES = [
   { value: "other", label: "Other" },
 ];
 
+// Today NYC is the only jurisdiction. Adding more here automatically lights them up in selectors.
+const JURISDICTIONS: { value: string; label: string }[] = [
+  { value: "NYC", label: "NYC" },
+];
+
 function getFileIcon(mimeType: string | null) {
   if (!mimeType) return File;
   if (mimeType.startsWith("image/")) return FileImage;
