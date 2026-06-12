@@ -190,7 +190,7 @@ export default function BdEvents() {
                       </TableRow>
                     ))}
                     {filtered.length === 0 && (
-                      <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground text-sm">
+                      <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground text-sm">
                         {events.isLoading ? "Loading…" : "No events yet. Click New event to add one."}
                       </TableCell></TableRow>
                     )}
