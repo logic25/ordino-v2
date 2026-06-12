@@ -87,6 +87,27 @@ function parseFrontmatter(raw: string): {
   return { metadata: {}, body: raw };
 }
 
+/**
+ * Reassembled Pinecone chunks often arrive as one long line with markdown
+ * markers (##, ###, ` - `, `1. `) inline. ReactMarkdown only recognizes those
+ * at the start of a line, so we re-insert line breaks before rendering.
+ */
+function normalizeMarkdown(raw: string): string {
+  if (!raw) return "";
+  let s = raw.replace(/\r\n/g, "\n");
+  // Headings: ensure ## / ### / #### start on their own line (with blank line before)
+  s = s.replace(/\s*(#{1,6})\s+/g, (_m, hashes) => `\n\n${hashes} `);
+  // Bullet list markers: " - Foo" mid-sentence → newline + "- Foo"
+  // Only when preceded by space + dash + space AND followed by a capital/word
+  s = s.replace(/ - (?=[A-Z0-9*_`\[])/g, "\n- ");
+  // Numbered list markers mid-line: " 1. Foo" → newline
+  s = s.replace(/ (\d{1,2})\.\s+(?=[A-Z])/g, "\n$1. ");
+  // Collapse 3+ blank lines
+  s = s.replace(/\n{3,}/g, "\n\n");
+  return s.trim();
+}
+
+
 interface BeaconDocumentModalProps {
   open: boolean;
   onClose: () => void;
