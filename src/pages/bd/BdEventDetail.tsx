@@ -250,6 +250,9 @@ export default function BdEventDetail() {
                 {format(new Date(event.start_date + "T12:00:00"), "EEE, MMM d, yyyy")}
               </span>
             )}
+            {formatEventTime(event.start_time, event.end_time) && (
+              <span>· {formatEventTime(event.start_time, event.end_time)}</span>
+            )}
             {event.location && (
               <span className="inline-flex items-center gap-1">
                 · <MapPin className="h-3 w-3" />{event.location}
@@ -314,10 +317,13 @@ export default function BdEventDetail() {
                 <Input type="date" className="h-8" value={event.start_date ?? ""}
                   onChange={(e) => set({ start_date: e.target.value || null, end_date: e.target.value || null } as any)} />
               </Field>
-              <Field label="Time">
-                <Input type="time" className="h-8" value={event.start_time ?? ""}
-                  placeholder="Optional"
-                  onChange={(e) => set({ start_time: e.target.value || null, end_time: null } as any)} />
+              <Field label="Start time">
+                <Input type="time" className="h-8" value={event.start_time?.slice(0, 5) ?? ""}
+                  onChange={(e) => set({ start_time: e.target.value || null } as any)} />
+              </Field>
+              <Field label="End time">
+                <Input type="time" className="h-8" value={event.end_time?.slice(0, 5) ?? ""}
+                  onChange={(e) => set({ end_time: e.target.value || null } as any)} />
               </Field>
 
               <Field label="Location">
@@ -457,7 +463,7 @@ export default function BdEventDetail() {
                   placeholder="Why is this event worth our time?" />
               </Field>
               <Field label="Notes">
-                <EditableText value={event.notes} onSave={(v) => set({ notes: v })}
+                <EditableText value={formatNotes(event.notes)} onSave={(v) => set({ notes: v })}
                   multiline placeholder="Anything else…" />
               </Field>
               <button
