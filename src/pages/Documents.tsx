@@ -114,6 +114,13 @@ export default function Documents() {
   const [linkProjectId, setLinkProjectId] = useState<string | undefined>();
   const [linkPropertyId, setLinkPropertyId] = useState<string | undefined>();
   const [linkProposalId, setLinkProposalId] = useState<string | undefined>();
+  const [uploadJurisdiction, setUploadJurisdiction] = useState<string>("NYC");
+
+  // Bulk selection / bulk-tagging state
+  const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set());
+  const [bulkTagOpen, setBulkTagOpen] = useState(false);
+  const [bulkJurisdiction, setBulkJurisdiction] = useState<string>("NYC");
+  const [bulkTagPending, setBulkTagPending] = useState(false);
 
   // Seed folders on first load
   useEffect(() => {
