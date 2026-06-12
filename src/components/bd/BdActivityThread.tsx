@@ -96,6 +96,7 @@ export function BdActivityThread({
                   key={a.id}
                   a={a}
                   isOwn={a.created_by === profile?.id}
+                  currentUserId={profile?.id}
                   onTogglePin={() =>
                     pin.mutate({ id: a.id, filter, is_pinned: false })
                   }
@@ -117,6 +118,7 @@ export function BdActivityThread({
               key={a.id}
               a={a}
               isOwn={a.created_by === profile?.id}
+              currentUserId={profile?.id}
               onTogglePin={() => pin.mutate({ id: a.id, filter, is_pinned: true })}
             />
           ),
@@ -155,10 +157,12 @@ function MessageBubble({
   a,
   isOwn,
   onTogglePin,
+  currentUserId,
 }: {
   a: BdActivity;
   isOwn: boolean;
   onTogglePin: () => void;
+  currentUserId?: string | null;
 }) {
   const author = a.author ? profileLabel(a.author) : "System";
   const displayName = isOwn ? "You" : author;
@@ -180,7 +184,9 @@ function MessageBubble({
               : "bg-muted rounded-bl-sm"
           }`}
         >
-          {a.content || <span className="opacity-60 italic">(empty)</span>}
+          {a.content
+            ? renderWithMentions(a.content, currentUserId)
+            : <span className="opacity-60 italic">(empty)</span>}
           {a.type === "CALL" && a.metadata?.duration_minutes != null && (
             <p className="text-[10px] opacity-70 mt-1">
               📞 Call · {a.metadata.duration_minutes} min
