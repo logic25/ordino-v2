@@ -185,18 +185,9 @@ function ServiceExpandedDetail({ service, projectName, projectId }: { service: M
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <Building2 className="h-3.5 w-3.5" /> Application
           </h4>
-          {service.application ? (
-            <div className="space-y-1 text-sm">
-              <div>Job #: <span className="font-mono font-medium">{service.application.jobNumber}</span></div>
-              <div>Type: <span className="font-medium">{service.application.type}</span></div>
-              <Button variant="link" size="sm" className="h-auto p-0 text-xs gap-1">
-                <ExternalLink className="h-3 w-3" /> View on DOB NOW
-              </Button>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground italic">No application linked</p>
-          )}
+          <ServiceApplicationField service={service} />
         </div>
+
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4">
