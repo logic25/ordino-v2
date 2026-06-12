@@ -1,95 +1,48 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "./useAuth";
 import type { Lead } from "./useLeads";
 
+export interface ConvertLeadOverrides {
+  title?: string;
+  client_name?: string;
+  client_email?: string;
+  billed_to_name?: string;
+  lead_source?: string;
+  referred_by?: string;
+  project_type?: string;
+  notes?: string;
+}
+
 /**
- * Lead → Company (clients row) conversion, run at "Create Proposal from Lead".
- *
- * Idempotent + dedupe-safe:
- *   1. If lead.client_id is already set, reuse it.
- *   2. Else exact-normalized (case-insensitive, trimmed) name match against clients.
- *   3. Else create a clients row + a primary client_contacts row.
- *   4. Write lead.client_id back so re-opening the flow never double-creates.
- *
- * Returns the resolved client (Company) id, or null if the lead has no company name
- * and no contact to anchor on.
+ * Atomic Lead → Client + Proposal conversion.
+ * Wraps the `convert_lead_to_proposal` SECURITY DEFINER RPC, which in a single
+ * transaction: find-or-creates the client (+ primary contact), inserts a
+ * proposal carrying all party metadata + back-link, and advances the lead to
+ * stage PROPOSAL with status 'converted'. Any failure rolls back cleanly.
  */
-export function useConvertLeadToClient() {
-  const { profile } = useAuth();
+export function useConvertLeadToProposal() {
   const qc = useQueryClient();
-
   return useMutation({
-    mutationFn: async (lead: Lead): Promise<string | null> => {
-      if (lead.client_id) return lead.client_id;
-      if (!profile?.company_id) throw new Error("No company");
-
-      const companyName = (lead.company || "").trim();
-      let clientId: string | null = null;
-
-      // Fuzzy-normalized match: strip common suffixes + punctuation, case-insensitive.
-      const normalize = (s: string) =>
-        s.toLowerCase()
-          .replace(/[.,'"`]/g, "")
-          .replace(/\b(inc|llc|ltd|corp|corporation|co|company|group|holdings|associates|partners|llp|pllc)\b/g, "")
-          .replace(/\s+/g, " ")
-          .trim();
-      if (companyName) {
-        const normTarget = normalize(companyName);
-        const { data: matches } = await supabase
-          .from("clients")
-          .select("id, name")
-          .eq("company_id", profile.company_id);
-        const exact = (matches || []).find((c: any) => normalize(c.name || "") === normTarget);
-        clientId = exact?.id ?? null;
-      }
-
-      if (!clientId) {
-        const { data: newClient, error: cErr } = await supabase
-          .from("clients")
-          .insert({
-            company_id: profile.company_id,
-            name: companyName || lead.full_name,
-            client_type: lead.client_type,
-            lead_owner_id: lead.assigned_to,
-          } as any)
-          .select("id")
-          .single();
-        if (cErr) throw cErr;
-        clientId = (newClient as { id: string }).id;
-
-        // Primary contact from the lead's person.
-        const parts = (lead.full_name || "").trim().split(/\s+/);
-        const first = parts[0] || null;
-        const last = parts.length > 1 ? parts.slice(1).join(" ") : null;
-        const { error: ctErr } = await supabase.from("client_contacts").insert({
-          company_id: profile.company_id,
-          client_id: clientId,
-          name: lead.full_name || companyName,
-          first_name: first,
-          last_name: last,
-          title: lead.role,
-          email: lead.contact_email,
-          phone: lead.contact_phone,
-          is_primary: true,
-          is_referrer: false,
-          lead_owner_id: lead.assigned_to,
-        } as any);
-        if (ctErr) throw ctErr;
-      }
-
-      // Idempotent write-back.
-      await supabase
-        .from("leads")
-        .update({ client_id: clientId, updated_by: profile.id } as any)
-        .eq("id", lead.id);
-
-      return clientId;
+    mutationFn: async ({
+      lead,
+      overrides = {},
+    }: { lead: Lead; overrides?: ConvertLeadOverrides }): Promise<string> => {
+      const { data, error } = await (supabase.rpc as any)("convert_lead_to_proposal", {
+        _lead_id: lead.id,
+        _proposal: overrides,
+      });
+      if (error) throw error;
+      return data as string;
     },
-    onSuccess: (_d, lead) => {
+    onSuccess: (_proposalId, { lead }) => {
       qc.invalidateQueries({ queryKey: ["lead", lead.id] });
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["clients"] });
+      qc.invalidateQueries({ queryKey: ["proposals"] });
+      qc.invalidateQueries({ queryKey: ["proposal-stats"] });
     },
   });
 }
+
+/** @deprecated Use useConvertLeadToProposal instead. Removed in Batch B. */
+export const useConvertLeadToClient = useConvertLeadToProposal;
