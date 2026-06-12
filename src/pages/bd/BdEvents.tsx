@@ -124,10 +124,11 @@ export default function BdEvents() {
 
   const filtered = useMemo(() => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
+    const hasFilter = statusFilter.size > 0;
     return (events.data ?? []).filter((e) => {
-      // Hide AI suggestions + dismissed from default views unless explicitly selected
-      if (filterStatus === "ALL" && (e.status === "SUGGESTED" || e.status === "DISMISSED")) return false;
-      if (filterStatus !== "ALL" && e.status !== filterStatus) return false;
+      // Default view (no statuses picked) hides SUGGESTED + DISMISSED noise.
+      if (!hasFilter && (e.status === "SUGGESTED" || e.status === "DISMISSED")) return false;
+      if (hasFilter && !statusFilter.has(e.status)) return false;
       if (search) {
         const q = search.toLowerCase();
         if (!(`${e.name} ${e.location ?? ""} ${e.category ?? ""}`.toLowerCase().includes(q))) return false;
@@ -146,7 +147,17 @@ export default function BdEvents() {
       const db = parseEventDate(b.start_date)?.getTime() ?? Infinity;
       return timeRange === "PAST" ? db - da : da - db;
     });
-  }, [events.data, filterStatus, search, timeRange]);
+  }, [events.data, statusFilter, search, timeRange]);
+
+  const toggleStatus = (s: EventStatus) => {
+    setStatusFilter((prev) => {
+      const next = new Set(prev);
+      next.has(s) ? next.delete(s) : next.add(s);
+      return next;
+    });
+  };
+  const isOnlyStatus = (s: EventStatus) =>
+    statusFilter.size === 1 && statusFilter.has(s);
 
   const setStatus = (id: string, status: EventStatus) =>
     updateEvent.mutate({ id, status }, { onSuccess: () => toast({ title: `Marked ${STATUS_META[status].label.toLowerCase()}` }) });
