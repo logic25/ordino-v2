@@ -421,6 +421,27 @@ export default function BdLeads() {
           </div>
         )}
 
+        {/* Pipeline summary strip */}
+        <div className="flex flex-wrap items-center gap-1.5 px-1">
+          <span className="text-xs text-muted-foreground mr-1">Pipeline:</span>
+          {ALL_STAGES.map((s) => {
+            const count = leads.filter((l) => l.stage === s).length;
+            const active = filters.stage?.length === 1 && filters.stage[0] === s;
+            return (
+              <button
+                key={s}
+                onClick={() => setFilters((f) => ({ ...f, stage: active ? [] : [s] }))}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                  active ? STAGE_META[s].className + " ring-2 ring-offset-1 ring-primary/30" : "bg-background hover:bg-muted"
+                }`}
+              >
+                <span className="font-medium">{STAGE_META[s].label}</span>
+                <span className={active ? "" : "text-muted-foreground"}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
         {/* Table */}
         <div className="rounded-md border">
           <Table>
