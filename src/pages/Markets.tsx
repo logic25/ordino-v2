@@ -22,6 +22,7 @@ import {
   type Market, type ChecklistItem,
 } from "@/hooks/useMarkets";
 import AddEditMarketDialog from "@/components/markets/AddEditMarketDialog";
+import PlaybookList from "@/components/playbooks/PlaybookList";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -118,27 +119,9 @@ function MarketDetailsCard({ market }: { market: Market }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Checklist */}
+        {/* Playbooks (replaces generic checklist) */}
         <div className="space-y-2">
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Phase checklist</div>
-          <p className="text-xs text-muted-foreground -mt-1">Concrete steps to make this market operational — e.g. "Register with NJ DCA", "Hire local expeditor", "Set up DOB NOW account".</p>
-          {checklist.length === 0 && <div className="text-sm text-muted-foreground italic">No items yet.</div>}
-          <ul className="space-y-1.5">
-            {checklist.map((item) => (
-              <li key={item.id} className="group flex items-center gap-2">
-                <Checkbox checked={item.done} onCheckedChange={() => toggleItem(item.id)} />
-                <span className={cn("text-sm flex-1", item.done && "line-through text-muted-foreground")}>{item.label}</span>
-                <button onClick={() => removeItem(item.id)} className="opacity-0 group-hover:opacity-100" aria-label="Remove">
-                  <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
-                </button>
-              </li>
-            ))}
-          </ul>
-          <div className="flex gap-2 pt-1">
-            <Input value={newItem} onChange={(e) => setNewItem(e.target.value)} placeholder="Add checklist item"
-              onKeyDown={(e) => { if (e.key === "Enter") addItem(); }} className="h-8" />
-            <Button size="sm" variant="outline" onClick={addItem}><PlusIcon className="h-3.5 w-3.5" /></Button>
-          </div>
+          <PlaybookList marketId={market.id} />
         </div>
 
         {/* Notes */}
@@ -148,6 +131,7 @@ function MarketDetailsCard({ market }: { market: Market }) {
             placeholder="Internal notes about this market…" />
         </div>
       </div>
+
 
       {/* Intel */}
       <div className="space-y-2 border-t pt-3">
