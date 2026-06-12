@@ -10,7 +10,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  ArrowLeft, Flame, Loader2, Pencil, FilePlus2, Trophy, Ban, Check,
+  ArrowLeft, Flame, Loader2, Pencil, FilePlus2, Trophy, Ban, Check, CalendarClock,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -177,6 +177,36 @@ export default function BdLeadDetail() {
               current={lead.stage}
               onChange={(s) => set({ stage: s })}
             />
+          </Card>
+
+          {/* NEXT FOLLOW-UP — personal cadence (not an automated sequence) */}
+          <Card className="p-3 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+              <CalendarClock className="h-3.5 w-3.5" /> Next follow-up
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="date"
+                defaultValue={lead.next_follow_up_at ?? ""}
+                onChange={(e) => set({ next_follow_up_at: e.target.value || null })}
+                className="h-9 rounded-md border bg-background px-2 text-sm"
+                key={`d-${lead.id}-${lead.next_follow_up_at ?? ""}`}
+              />
+              <input
+                type="text"
+                placeholder="Note — e.g. met at REBNY, discuss Hudson Yards"
+                defaultValue={lead.follow_up_note ?? ""}
+                onBlur={(e) => {
+                  const v = e.target.value || null;
+                  if (v !== (lead.follow_up_note ?? null)) set({ follow_up_note: v });
+                }}
+                className="h-9 flex-1 rounded-md border bg-background px-2 text-sm"
+                key={`n-${lead.id}`}
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Personal reminder — shows in <span className="font-medium">BD → Follow-ups</span>. Not an automated email.
+            </p>
           </Card>
         </div>
 
