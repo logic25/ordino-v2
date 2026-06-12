@@ -194,8 +194,25 @@ export default function BdEventDetail() {
     );
   }
 
-  const set = (updates: Partial<BdEvent>) =>
-    update.mutate({ id: event.id, ...updates } as any);
+  const set = (updates: Partial<BdEvent>) => {
+    // Auto-bump status when money goes out — keeps the Invested KPI honest.
+    const enrich: Partial<BdEvent> = { ...updates };
+    const willHavePaidCost =
+      ("cost_actual" in updates && updates.cost_actual != null && Number(updates.cost_actual) > 0) ||
+      ("included_in_membership" in updates && updates.included_in_membership === true);
+    const stillConsidering = !("status" in updates) &&
+      (event.status === "PENDING_APPROVAL" || event.status === "APPROVED");
+    if (willHavePaidCost && stillConsidering) {
+      enrich.status = "REGISTERED";
+    }
+    update.mutate({ id: event.id, ...enrich } as any, {
+      onSuccess: () => {
+        if (enrich.status === "REGISTERED" && !("status" in updates)) {
+          toast({ title: "Marked as Registered", description: "Counted toward Invested." });
+        }
+      },
+    });
+  };
 
   const setIntel = (key: string, value: string | null) => {
     const next = { ...(event.intel ?? {}), [key]: value || undefined };
