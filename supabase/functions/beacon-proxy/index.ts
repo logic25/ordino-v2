@@ -61,19 +61,24 @@ Deno.serve(async (req) => {
       });
     }
 
-    // For ingest, check admin role
+    // Ingest (KB upload + KB doc edits) is open to any AUTHENTICATED company member,
+    // not just admins — PMs (e.g. Sheri) curate the knowledge base. The caller is
+    // already authenticated above; we additionally require a real profile (i.e. a
+    // member of a company, not a bare auth user). Accountability comes from the
+    // version-history audit (kb_document_versions: who/when, with restore) rather
+    // than from locking edits to admins.
     if (action === "ingest") {
       const supabase = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id);
-      const isAdmin = roles?.some((r: { role: string }) => r.role === "admin");
-      if (!isAdmin) {
-        return new Response(JSON.stringify({ error: "Admin access required for ingestion" }), {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!prof?.company_id) {
+        return new Response(JSON.stringify({ error: "Must be a company member to contribute to the knowledge base" }), {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
