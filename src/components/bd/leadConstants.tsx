@@ -14,9 +14,14 @@ export const STAGE_META: Record<LeadStage, { label: string; className: string }>
   LOST: { label: "Lost", className: "bg-red-100 text-red-700 border-red-200" },
 };
 
-// Funnel order — used to gate the "Create Proposal" button (>= QUALIFIED) and advance.
+// Forward funnel — used by the stepper and the "Create Proposal" gate (>= QUALIFIED).
+// NEGOTIATION removed: WON/LOST are terminal actions, not steps.
 export const STAGE_ORDER: LeadStage[] = [
-  "NEW", "CONTACTED", "QUALIFIED", "PROPOSAL", "NEGOTIATION", "WON", "LOST",
+  "NEW", "CONTACTED", "QUALIFIED", "PROPOSAL", "WON",
+];
+// Stages shown in the legacy dropdown / filter chips (includes terminal states).
+export const ALL_STAGES: LeadStage[] = [
+  "NEW", "CONTACTED", "QUALIFIED", "PROPOSAL", "WON", "LOST",
 ];
 export const stageRank = (s: LeadStage | null | undefined) =>
   s ? STAGE_ORDER.indexOf(s) : -1;
