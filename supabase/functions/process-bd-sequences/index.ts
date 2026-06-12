@@ -30,16 +30,28 @@ function renderTemplate(tpl: string | null, vars: Record<string, string>): strin
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  const cronSecret = Deno.env.get("CRON_SECRET");
-  if (!cronSecret || req.headers.get("x-cron-secret") !== cronSecret) {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const admin = createClient(supabaseUrl, serviceKey);
+
+  // Auth: x-cron-secret header. Accept env CRON_SECRET OR vault `cron_secret` (same
+  // dual-source pattern as auto-summarize-projects so pg_cron + manual invocations both work).
+  let expected = Deno.env.get("CRON_SECRET") || "";
+  const caller = req.headers.get("x-cron-secret") || "";
+  let ok = !!expected && caller === expected;
+  if (!ok) {
+    const { data: vaultRow } = await admin
+      .schema("vault" as any).from("decrypted_secrets")
+      .select("decrypted_secret").eq("name", "cron_secret").maybeSingle();
+    const vaultSecret = (vaultRow as any)?.decrypted_secret || "";
+    ok = !!vaultSecret && caller === vaultSecret;
+  }
+  if (!ok) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const admin = createClient(supabaseUrl, serviceKey);
 
   const url = new URL(req.url);
   const ownerFilter = url.searchParams.get("owner"); // optional: test a single owner
