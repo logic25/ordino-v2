@@ -612,6 +612,18 @@ Deno.serve(async (req) => {
           ...(BEACON_API_KEY ? { "x-beacon-key": BEACON_API_KEY } : {}),
         },
       };
+    } else if (action === "content-generate") {
+      // Draft a blog/newsletter from a content candidate using Beacon's real LLM.
+      const body = await req.json().catch(() => ({}));
+      beaconUrl = `${BEACON_API_URL}/api/content/generate`;
+      beaconReqInit = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(BEACON_API_KEY ? { "x-beacon-key": BEACON_API_KEY } : {}),
+        },
+        body: JSON.stringify(body),
+      };
     } else {
       return new Response(JSON.stringify({ error: "Invalid action" }), {
         status: 400,
