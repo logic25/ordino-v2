@@ -208,6 +208,8 @@ export function useUpdateClient() {
           specialty_tags: input.specialty_tags ?? [],
           licensed_jurisdictions: input.licensed_jurisdictions ?? [],
           internal_notes: input.internal_notes ?? null,
+          expected_projects_per_year: input.expected_projects_per_year ?? null,
+          expected_annual_value: input.expected_annual_value ?? null,
         })
         .eq("id", id)
         .select()
