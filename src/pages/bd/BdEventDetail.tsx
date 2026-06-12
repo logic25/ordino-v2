@@ -13,8 +13,9 @@ import {
 } from "@/components/ui/select";
 import {
   ArrowLeft, Loader2, MapPin, ExternalLink, Plus, Check, X, Users, Trash2,
-  Sparkles, CalendarPlus,
+  Sparkles, CalendarPlus, ChevronDown, ChevronRight,
 } from "lucide-react";
+
 import {
   useBdEvent, useUpdateBdEvent, useDeleteBdEvent,
   useEventAttendees, useAddEventAttendee, useUpdateEventAttendee, useRemoveEventAttendee,
@@ -167,6 +168,8 @@ export default function BdEventDetail() {
   const rmAtt = useRemoveEventAttendee();
   const [pickUser, setPickUser] = useState("");
   const [isDrafting, setIsDrafting] = useState(false);
+  const [showResearch, setShowResearch] = useState(false);
+
 
   if (isLoading) {
     return (
@@ -296,8 +299,14 @@ export default function BdEventDetail() {
               </p>
               <Field label="Date">
                 <Input type="date" className="h-8" value={event.start_date ?? ""}
-                  onChange={(e) => set({ start_date: e.target.value || null, end_date: e.target.value || null, start_time: null, end_time: null } as any)} />
+                  onChange={(e) => set({ start_date: e.target.value || null, end_date: e.target.value || null } as any)} />
               </Field>
+              <Field label="Time">
+                <Input type="time" className="h-8" value={event.start_time ?? ""}
+                  placeholder="Optional"
+                  onChange={(e) => set({ start_time: e.target.value || null, end_time: null } as any)} />
+              </Field>
+
               <Field label="Location">
                 <EditableText value={event.location} onSave={(v) => set({ location: v })} />
               </Field>
@@ -434,26 +443,39 @@ export default function BdEventDetail() {
                   multiline
                   placeholder="Why is this event worth our time?" />
               </Field>
-              <Field label="Recent news">
-                <EditableText value={intel.recent_news ?? null}
-                  onSave={(v) => setIntel("recent_news", v)}
-                  multiline placeholder="What's in the news around this event?" />
-              </Field>
-              <Field label="Key attendees">
-                <EditableText value={intel.key_attendees ?? null}
-                  onSave={(v) => setIntel("key_attendees", v)}
-                  multiline placeholder="Who specifically should we talk to?" />
-              </Field>
-              <Field label="Competitive">
-                <EditableText value={intel.competitive_landscape ?? null}
-                  onSave={(v) => setIntel("competitive_landscape", v)}
-                  multiline placeholder="Who else is there competing for the same work?" />
-              </Field>
               <Field label="Notes">
                 <EditableText value={event.notes} onSave={(v) => set({ notes: v })}
                   multiline placeholder="Anything else…" />
               </Field>
+              <button
+                type="button"
+                onClick={() => setShowResearch((v) => !v)}
+                className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                {showResearch ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                {showResearch ? "Hide research" : "Show research"}
+              </button>
+              {showResearch && (
+                <div className="mt-1">
+                  <Field label="Recent news">
+                    <EditableText value={intel.recent_news ?? null}
+                      onSave={(v) => setIntel("recent_news", v)}
+                      multiline placeholder="What's in the news around this event?" />
+                  </Field>
+                  <Field label="Key attendees">
+                    <EditableText value={intel.key_attendees ?? null}
+                      onSave={(v) => setIntel("key_attendees", v)}
+                      multiline placeholder="Who specifically should we talk to?" />
+                  </Field>
+                  <Field label="Competitive">
+                    <EditableText value={intel.competitive_landscape ?? null}
+                      onSave={(v) => setIntel("competitive_landscape", v)}
+                      multiline placeholder="Who else is there competing for the same work?" />
+                  </Field>
+                </div>
+              )}
             </Card>
+
 
             {/* Attendees */}
             <Card className="p-4">
