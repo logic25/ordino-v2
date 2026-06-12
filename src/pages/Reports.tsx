@@ -14,6 +14,8 @@ import DataExports from "@/components/reports/DataExports";
 import SignalReports from "@/components/reports/SignalReports";
 import OpenServicesReport from "@/components/reports/OpenServicesReport";
 import ServiceLevelReport from "@/components/reports/ServiceLevelReport";
+import BdReports from "@/components/reports/BdReports";
+import RfpReports from "@/components/reports/RfpReports";
 
 export default function Reports() {
   const { track } = useTelemetry();
@@ -40,6 +42,8 @@ export default function Reports() {
             <TabsTrigger value="time">Time</TabsTrigger>
             <TabsTrigger value="proposals">Proposals</TabsTrigger>
             <TabsTrigger value="operations">Operations</TabsTrigger>
+            <TabsTrigger value="bd">BD / Leads</TabsTrigger>
+            <TabsTrigger value="rfp">RFPs</TabsTrigger>
             {isAdmin && <TabsTrigger value="referrals">Referrals</TabsTrigger>}
             {isAdmin && <TabsTrigger value="exports">Data Exports</TabsTrigger>}
             {isAdmin && <TabsTrigger value="signal">CitiSignal</TabsTrigger>}
@@ -52,6 +56,8 @@ export default function Reports() {
           <TabsContent value="time"><TimeReports /></TabsContent>
           <TabsContent value="proposals"><ProposalReports /></TabsContent>
           <TabsContent value="operations"><OperationsReports /></TabsContent>
+          <TabsContent value="bd"><BdReports /></TabsContent>
+          <TabsContent value="rfp"><RfpReports /></TabsContent>
           {isAdmin && <TabsContent value="referrals"><ReferralReports /></TabsContent>}
           {isAdmin && <TabsContent value="exports"><DataExports /></TabsContent>}
           {isAdmin && <TabsContent value="signal"><SignalReports /></TabsContent>}
