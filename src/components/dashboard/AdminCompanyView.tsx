@@ -183,6 +183,7 @@ export function AdminCompanyView({ isVisible, editMode = false, order, onReorder
     "proposal-followups": <ProposalFollowUps />,
     "expense-approvals": <ExpenseApprovalsCard />,
     "team-overview": <TeamOverview />,
+    "event-prep-tasks": <MyEventTasksWidget />,
   };
 
   const visibleOrdered = effectiveOrder.filter((id) => widgets[id] && show(id));
