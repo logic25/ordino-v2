@@ -71,7 +71,11 @@ export function useCreateBdActivity() {
       } as any);
       if (error) throw error;
     },
-    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: queryKey(v.filter) }),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: queryKey(v.filter) });
+      // Legacy hook cache (BdLeadDetail still uses useLeadActivities).
+      if (v.filter.leadId) qc.invalidateQueries({ queryKey: ["lead-activities", v.filter.leadId] });
+    },
   });
 }
 
