@@ -293,9 +293,7 @@ export default function Settings() {
       case "billing_notifications": return <BillingNotificationSettings />;
       case "reports": return <ReportSettings />;
       case "expenses": return <ExpensesSettings />;
-      case "bd_memberships": return <BdPlaceholderSettings title="Memberships" sprint={7} description="Track GLE's annual association memberships, renewal dates, and member portals." icon={ShieldCheck} />;
-      case "bd_event_sources": return <BdPlaceholderSettings title="Event Sources" sprint={7} description="The list of URLs Sai monitors weekly for new industry events." icon={ListChecks} />;
-      case "bd_sequence_templates": return <BdPlaceholderSettings title="Sequence Templates" sprint={8} description="Define multi-step email cadences that Leads get enrolled into." icon={Mail} />;
+      case "expenses": return <ExpensesSettings />;
       default:
         return (
           <>
