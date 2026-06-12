@@ -1,7 +1,8 @@
+import { useEffect, useState } from "react";
 import { Menu, Search, LogOut, Settings } from "lucide-react";
 import { ChatSlideOut } from "@/components/chat/ChatSlideOut";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { GlobalSearchDialog } from "@/components/layout/GlobalSearchDialog";
 import { useNavigate } from "react-router-dom";
 import {
   DropdownMenu,
