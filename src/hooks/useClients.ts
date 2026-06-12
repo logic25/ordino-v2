@@ -45,6 +45,8 @@ export interface ClientFormInput {
   specialty_tags?: string[];
   licensed_jurisdictions?: string[];
   internal_notes?: string | null;
+  expected_projects_per_year?: number | null;
+  expected_annual_value?: number | null;
   contacts?: ClientContactInput[];
 }
 
