@@ -24,6 +24,7 @@ import {
   Globe2,
   Camera,
   ClipboardList,
+  QrCode,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,7 @@ const mainNav: NavEntry[] = [
       { title: "Markets", icon: Globe2, href: "/bd/markets", resource: "proposals" as ResourceKey },
       { title: "Capture", icon: Camera, href: "/bd/capture", resource: "proposals" as ResourceKey },
       { title: "Event Prep", icon: ClipboardList, href: "/bd/prep", resource: "proposals" as ResourceKey },
+      { title: "My QR Card", icon: QrCode, href: "/bd/card", resource: "proposals" as ResourceKey },
     ],
   },
   { title: "Billing", icon: Receipt, href: "/invoices", resource: "invoices" as ResourceKey },
@@ -86,6 +88,7 @@ const routePrefetchMap: Record<string, () => Promise<unknown>> = {
   "/bd/markets": () => import("@/pages/bd/BdMarkets"),
   "/bd/capture": () => import("@/pages/bd/BdCapture"),
   "/bd/prep": () => import("@/pages/bd/BdEventPrep"),
+  "/bd/card": () => import("@/pages/bd/BdMyCard"),
   "/invoices": () => import("@/pages/Invoices"),
   "/emails": () => import("@/pages/Emails"),
   "/calendar": () => import("@/pages/Calendar"),
