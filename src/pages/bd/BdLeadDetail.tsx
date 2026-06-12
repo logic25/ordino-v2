@@ -29,7 +29,7 @@ import {
 import { useConvertLeadToProposal } from "@/hooks/useLeadConversion";
 import { LineageBreadcrumb } from "@/components/shared/LineageBreadcrumb";
 import { useQuery } from "@tanstack/react-query";
-import { useCreateProposal } from "@/hooks/useProposals";
+
 import {
   STAGE_META, STAGE_ORDER, SOURCE_META, TIMELINE_LABELS, stageRank, profileLabel, initials,
 } from "@/components/bd/leadConstants";
