@@ -202,7 +202,7 @@ export function BillingInboxView() {
     { key: "submission", label: "Submissions" },
     { key: "ready", label: "Ready" },
     { key: "draft", label: "Drafts" },
-    { key: "needs_review", label: "Needs Review" },
+    { key: "needs_review", label: "Review" },
   ];
 
   return (
