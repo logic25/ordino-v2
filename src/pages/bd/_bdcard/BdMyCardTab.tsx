@@ -18,12 +18,12 @@ const COMPANY = {
   addressDisplay: "26 Broadway, 3rd Floor\nNew York, NY 10004",
 };
 
-// Format any US-ish number to ###-###-#### for display.
+// Format any US-ish number to (xxx) xxx-xxxx for display.
 function fmtPhone(raw: string): string {
   const d = (raw || "").replace(/\D/g, "");
-  if (d.length === 10) return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
+  if (d.length === 10) return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
   if (d.length === 11 && d.startsWith("1"))
-    return `${d.slice(1, 4)}-${d.slice(4, 7)}-${d.slice(7)}`;
+    return `(${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7)}`;
   return raw || "";
 }
 
