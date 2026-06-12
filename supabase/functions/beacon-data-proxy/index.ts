@@ -571,8 +571,8 @@ function isTableBlocked(table: string): boolean {
   return false;
 }
 
-async function queryOrdino(sb: any, params: any) {
-  // TODO: company_id scoping + JWT verification — planned follow-up tied to Beacon /api/chat merge
+async function queryOrdino(ctx: Ctx, params: any) {
+  const sb = ctx.sb;
   const { table, select, filters, order, limit } = params || {};
 
   if (!table || typeof table !== "string") {
@@ -591,6 +591,13 @@ async function queryOrdino(sb: any, params: any) {
   const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 200);
 
   let q = sb.from(table).select(safeSelect).limit(safeLimit);
+
+  // Force company scoping for every allowlisted table that has company_id.
+  // The caller cannot override this filter even if they pass one in `filters`.
+  if (ctx.companyId && COMPANY_SCOPED_TABLES.has(table)) {
+    q = q.eq("company_id", ctx.companyId);
+  }
+
 
   if (Array.isArray(filters)) {
     for (const f of filters) {
