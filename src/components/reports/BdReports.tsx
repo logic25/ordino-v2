@@ -22,6 +22,7 @@ const money = (n: number) => `$${Math.round(n).toLocaleString()}`;
 
 export default function BdReports() {
   const { profile } = useAuth();
+  const navigate = useNavigate();
   const companyId = profile?.company_id;
 
   const { data, isLoading } = useQuery({
