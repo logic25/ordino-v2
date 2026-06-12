@@ -16,6 +16,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { type BeaconSource } from "@/services/beaconApi";
 import { supabase } from "@/integrations/supabase/client";
+import { ResearchAboutDialog } from "./ResearchAboutDialog";
+
 
 interface CodeResearchPanelProps {
   projectId: string;
@@ -242,6 +244,10 @@ export function CodeResearchPanel({ projectId, projectAddress, filingType }: Cod
     <div className="flex flex-col h-full">
       {/* Search bar */}
       <div className="p-4 border-b space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">Ask NYC code questions — answers cite specific sections and call out the practical impact for your filing.</p>
+          <ResearchAboutDialog />
+        </div>
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -259,6 +265,7 @@ export function CodeResearchPanel({ projectId, projectAddress, filingType }: Cod
             {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : "Research"}
           </Button>
         </div>
+
 
         {/* Suggested topics */}
         {notes.length === 0 && (

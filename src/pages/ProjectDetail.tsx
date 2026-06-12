@@ -54,7 +54,7 @@ import { AddContactDialog } from "@/components/clients/AddContactDialog";
 import { EditContactDialog } from "@/components/clients/EditContactDialog";
 import { ClientDialog } from "@/components/clients/ClientDialog";
 import { ProjectDialog } from "@/components/projects/ProjectDialog";
-import { WaitingOnToggle } from "@/components/projects/WaitingOnToggle";
+// WaitingOnToggle removed
 import { LitigationExportDialog } from "@/components/projects/LitigationExportDialog";
 import { DobNowFilingPrepSheet } from "@/components/projects/DobNowFilingPrepSheet";
 import { EditPISDialog } from "@/components/projects/EditPISDialog";
@@ -394,12 +394,8 @@ export default function ProjectDetail() {
               </Button>
             )}
             <LitigationButton onClick={() => setLitigationDialogOpen(true)} />
-            <WaitingOnToggle
-              projectId={project.id}
-              waitingOn={(project as any).waiting_on}
-              waitingSince={(project as any).waiting_since}
-              waitingNote={(project as any).waiting_note}
-            />
+            {/* WaitingOnToggle removed — replaced by simpler inbox-style "what needs your attention" surfaces. */}
+
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditDialogOpen(true)}>
               <Pencil className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Edit Project</span><span className="sm:hidden">Edit</span>
             </Button>
