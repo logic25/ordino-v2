@@ -37,8 +37,7 @@ export default function Reports() {
           <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="projects">Projects</TabsTrigger>
             <TabsTrigger value="billing">Billing</TabsTrigger>
-            <TabsTrigger value="open-services">Open Services</TabsTrigger>
-            <TabsTrigger value="service-level">Service Level</TabsTrigger>
+            <TabsTrigger value="services">Services</TabsTrigger>
             <TabsTrigger value="time">Time</TabsTrigger>
             <TabsTrigger value="proposals">Proposals</TabsTrigger>
             <TabsTrigger value="operations">Operations</TabsTrigger>
@@ -51,8 +50,10 @@ export default function Reports() {
 
           <TabsContent value="projects"><ProjectReports /></TabsContent>
           <TabsContent value="billing"><BillingReports /></TabsContent>
-          <TabsContent value="open-services"><OpenServicesReport /></TabsContent>
-          <TabsContent value="service-level"><ServiceLevelReport /></TabsContent>
+          <TabsContent value="services" className="space-y-4">
+            <OpenServicesReport />
+            <ServiceLevelReport />
+          </TabsContent>
           <TabsContent value="time"><TimeReports /></TabsContent>
           <TabsContent value="proposals"><ProposalReports /></TabsContent>
           <TabsContent value="operations"><OperationsReports /></TabsContent>
