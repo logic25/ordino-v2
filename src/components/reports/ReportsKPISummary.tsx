@@ -42,20 +42,25 @@ const fmt = (v: number) => v >= 1000 ? `$${(v / 1000).toFixed(v >= 10000 ? 0 : 1
 
 export default function ReportsKPISummary() {
   const { data, isLoading } = useReportsKPIs();
+  const navigate = useNavigate();
 
   if (isLoading || !data) return null;
 
   const kpis = [
-    { label: "Pending Proposals", value: data.pendingProposalCount, sub: fmt(data.pendingProposalValue), icon: FileText },
-    { label: "Open Invoices", value: data.openInvoiceCount, sub: fmt(data.openInvoiceValue), icon: DollarSign },
-    { label: "Active Projects", value: data.activeProjects, icon: Briefcase },
-    { label: "YTD Collected", value: fmt(data.ytdCollected), icon: TrendingUp },
+    { label: "Pending Proposals", value: data.pendingProposalCount, sub: fmt(data.pendingProposalValue), icon: FileText, href: "/proposals?status=sent" },
+    { label: "Open Invoices", value: data.openInvoiceCount, sub: fmt(data.openInvoiceValue), icon: DollarSign, href: "/invoices" },
+    { label: "Active Projects", value: data.activeProjects, icon: Briefcase, href: "/projects?status=open" },
+    { label: "YTD Collected", value: fmt(data.ytdCollected), icon: TrendingUp, href: "/reports?tab=billing" },
   ];
 
   return (
     <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
       {kpis.map((kpi) => (
-        <Card key={kpi.label}>
+        <Card
+          key={kpi.label}
+          onClick={() => navigate(kpi.href)}
+          className="cursor-pointer hover:shadow-md hover:border-primary/40 transition-all"
+        >
           <CardContent className="p-4 flex items-center gap-3">
             <div className="rounded-lg bg-primary/10 p-2">
               <kpi.icon className="h-5 w-5 text-primary" />
