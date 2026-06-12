@@ -155,8 +155,9 @@ export default function BdReports() {
               {eventRows.length === 0 ? (
                 <tr><td colSpan={4} className="py-6 text-center text-muted-foreground">No leads attributed to events yet.</td></tr>
               ) : eventRows.map((r) => (
-                <tr key={r.name} className="border-b last:border-b-0">
-                  <td className="py-2 font-medium">{r.name}</td>
+                <tr key={r.id} className="border-b last:border-b-0 cursor-pointer hover:bg-muted/40"
+                  onClick={() => navigate(`/bd/leads?event=${r.id}`)}>
+                  <td className="py-2 font-medium text-primary underline-offset-2 hover:underline">{r.name}</td>
                   <td className="py-2 text-right tabular-nums">{r.captured}</td>
                   <td className="py-2 text-right tabular-nums">{money(r.pipeline)}</td>
                   <td className="py-2 text-right tabular-nums">{money(r.converted)}</td>
