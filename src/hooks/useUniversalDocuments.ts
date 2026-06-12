@@ -19,6 +19,8 @@ export interface UniversalDocument {
   project_id: string | null;
   property_id: string | null;
   proposal_id: string | null;
+  jurisdiction: string;
+  folder_id?: string | null;
   uploader?: { display_name: string | null; first_name: string | null; last_name: string | null };
 }
 
@@ -54,6 +56,7 @@ export function useUploadDocument() {
       project_id?: string;
       property_id?: string;
       proposal_id?: string;
+      jurisdiction?: string;
     }) => {
       if (!profile?.company_id) throw new Error("No company");
       const ext = input.file.name.split(".").pop();
@@ -76,6 +79,7 @@ export function useUploadDocument() {
         uploaded_by: profile.id,
         tags: input.tags || [],
         folder_id: input.folder_id || null,
+        jurisdiction: input.jurisdiction || "NYC",
         project_id: input.project_id || null,
         property_id: input.property_id || null,
         proposal_id: input.proposal_id || null,

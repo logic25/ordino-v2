@@ -12,6 +12,7 @@ export interface DocumentFolder {
   description: string | null;
   is_system: boolean;
   is_beacon_synced: boolean;
+  default_jurisdiction: string;
 }
 
 export function useDocumentFolders() {

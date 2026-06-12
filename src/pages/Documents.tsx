@@ -22,8 +22,9 @@ import {
 } from "@/components/ui/table";
 import {
   FileText, Upload, Search, Download, Trash2, Loader2, File, FileImage,
-  FileSpreadsheet, FolderPlus, Eye, Brain, RefreshCw, ChevronRight,
+  FileSpreadsheet, FolderPlus, Eye, Brain, RefreshCw, ChevronRight, Tag,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useUniversalDocuments, useUploadDocument, useDeleteDocument, type UniversalDocument } from "@/hooks/useUniversalDocuments";
 import { useDocumentFolders, useSeedFolders, useCreateFolder, useDeleteFolder, useRenameFolder, type DocumentFolder } from "@/hooks/useDocumentFolders";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,6 +49,11 @@ const CATEGORIES = [
   { value: "financial", label: "Financial" },
   { value: "template", label: "Template" },
   { value: "other", label: "Other" },
+];
+
+// Today NYC is the only jurisdiction. Adding more here automatically lights them up in selectors.
+const JURISDICTIONS: { value: string; label: string }[] = [
+  { value: "NYC", label: "NYC" },
 ];
 
 function getFileIcon(mimeType: string | null) {
@@ -109,6 +115,13 @@ export default function Documents() {
   const [linkProjectId, setLinkProjectId] = useState<string | undefined>();
   const [linkPropertyId, setLinkPropertyId] = useState<string | undefined>();
   const [linkProposalId, setLinkProposalId] = useState<string | undefined>();
+  const [uploadJurisdiction, setUploadJurisdiction] = useState<string>("NYC");
+
+  // Bulk selection / bulk-tagging state
+  const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set());
+  const [bulkTagOpen, setBulkTagOpen] = useState(false);
+  const [bulkJurisdiction, setBulkJurisdiction] = useState<string>("NYC");
+  const [bulkTagPending, setBulkTagPending] = useState(false);
 
   // Seed folders on first load
   useEffect(() => {
@@ -167,6 +180,7 @@ export default function Documents() {
 
   const handleUpload = async () => {
     if (!selectedFile || !title.trim()) return;
+    const jurisdiction = uploadJurisdiction || selectedFolder?.default_jurisdiction || "NYC";
     try {
       await uploadDoc.mutateAsync({
         file: selectedFile,
@@ -177,12 +191,13 @@ export default function Documents() {
         project_id: linkProjectId,
         property_id: linkPropertyId,
         proposal_id: linkProposalId,
+        jurisdiction,
       } as any);
 
       // If uploading to a beacon folder, sync to Beacon
       if (isBeaconFolder && selectedFile) {
         try {
-          const result = await syncDocumentToBeacon(selectedFile, selectedFile.name, selectedFolder?.name || "Beacon Knowledge Base");
+          const result = await syncDocumentToBeacon(selectedFile, selectedFile.name, selectedFolder?.name || "Beacon Knowledge Base", jurisdiction);
           // Update doc beacon status - find the latest doc
           const { data: latestDocs } = await supabase
             .from("universal_documents")
@@ -255,7 +270,7 @@ export default function Documents() {
       const { data, error } = await supabase.storage.from("universal-documents").download(doc.storage_path);
       if (error || !data) throw new Error("Download failed");
 
-      const result = await syncDocumentToBeacon(data, doc.filename, selectedFolder?.name || "Beacon Knowledge Base");
+      const result = await syncDocumentToBeacon(data, doc.filename, selectedFolder?.name || "Beacon Knowledge Base", doc.jurisdiction || "NYC");
       await supabase.from("universal_documents").update({
         beacon_status: "synced",
         beacon_synced_at: new Date().toISOString(),
@@ -274,7 +289,46 @@ export default function Documents() {
     setTitle(""); setDescription(""); setCategory("general");
     setSelectedFile(null);
     setLinkProjectId(undefined); setLinkPropertyId(undefined); setLinkProposalId(undefined);
+    setUploadJurisdiction(selectedFolder?.default_jurisdiction || "NYC");
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // Sync jurisdiction default to selected folder
+  useEffect(() => {
+    setUploadJurisdiction(selectedFolder?.default_jurisdiction || "NYC");
+  }, [selectedFolderId, selectedFolder?.default_jurisdiction]);
+
+  const handleBulkTagJurisdiction = async () => {
+    if (selectedDocIds.size === 0) return;
+    setBulkTagPending(true);
+    try {
+      const ids = Array.from(selectedDocIds);
+      const { error } = await supabase
+        .from("universal_documents")
+        .update({ jurisdiction: bulkJurisdiction } as any)
+        .in("id", ids);
+      if (error) throw error;
+      toast({ title: `Tagged ${ids.length} document${ids.length === 1 ? "" : "s"} as ${bulkJurisdiction}` });
+      setSelectedDocIds(new Set());
+      setBulkTagOpen(false);
+      qc.invalidateQueries({ queryKey: ["universal-documents"] });
+    } catch (err: any) {
+      toast({ title: "Bulk tag failed", description: err.message, variant: "destructive" });
+    } finally {
+      setBulkTagPending(false);
+    }
+  };
+
+  const toggleSelectDoc = (id: string) => {
+    setSelectedDocIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const toggleSelectAllVisible = (checked: boolean) => {
+    if (checked) setSelectedDocIds(new Set(paginatedDocs.map((d) => d.id)));
+    else setSelectedDocIds(new Set());
   };
 
   return (
@@ -355,6 +409,18 @@ export default function Documents() {
                   </Select>
                 </div>
 
+                {selectedDocIds.size > 0 && (
+                  <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-md border bg-muted/40">
+                    <span className="text-sm">{selectedDocIds.size} selected</span>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={() => { setBulkJurisdiction("NYC"); setBulkTagOpen(true); }}>
+                        <Tag className="h-3.5 w-3.5 mr-1.5" /> Tag jurisdiction
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setSelectedDocIds(new Set())}>Clear</Button>
+                    </div>
+                  </div>
+                )}
+
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="flex items-center gap-2 text-base">
@@ -381,12 +447,20 @@ export default function Documents() {
                         <Table className="table-fixed">
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="w-[40%]">Document</TableHead>
-                              <TableHead className="w-[12%]">Category</TableHead>
-                              <TableHead className="w-[10%]">Size</TableHead>
-                              <TableHead className="w-[14%]">Uploaded By</TableHead>
-                              <TableHead className="w-[12%]">Date</TableHead>
-                              <TableHead className="w-[12%]"></TableHead>
+                              <TableHead className="w-[36px]">
+                                <Checkbox
+                                  checked={paginatedDocs.length > 0 && paginatedDocs.every((d) => selectedDocIds.has(d.id))}
+                                  onCheckedChange={(c) => toggleSelectAllVisible(!!c)}
+                                  aria-label="Select all"
+                                />
+                              </TableHead>
+                              <TableHead className="w-[34%]">Document</TableHead>
+                              <TableHead className="w-[11%]">Category</TableHead>
+                              <TableHead className="w-[10%]">Jurisdiction</TableHead>
+                              <TableHead className="w-[9%]">Size</TableHead>
+                              <TableHead className="w-[13%]">Uploaded By</TableHead>
+                              <TableHead className="w-[11%]">Date</TableHead>
+                              <TableHead className="w-[10%]"></TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -394,8 +468,12 @@ export default function Documents() {
                               const Icon = getFileIcon(doc.mime_type);
                               const uploaderName = doc.uploader?.display_name ||
                                 [doc.uploader?.first_name, doc.uploader?.last_name].filter(Boolean).join(" ") || "—";
+                              const checked = selectedDocIds.has(doc.id);
                               return (
-                                <TableRow key={doc.id} className="cursor-pointer" onClick={() => setPreviewDoc(doc)}>
+                                <TableRow key={doc.id} className="cursor-pointer" onClick={() => setPreviewDoc(doc)} data-state={checked ? "selected" : undefined}>
+                                  <TableCell onClick={(e) => e.stopPropagation()}>
+                                    <Checkbox checked={checked} onCheckedChange={() => toggleSelectDoc(doc.id)} aria-label="Select row" />
+                                  </TableCell>
                                   <TableCell>
                                     <div className="flex items-center gap-3">
                                       <Icon className="h-5 w-5 text-muted-foreground shrink-0" />
@@ -407,6 +485,9 @@ export default function Documents() {
                                   </TableCell>
                                   <TableCell>
                                     <Badge variant="outline" className="text-xs">{CATEGORIES.find((c) => c.value === doc.category)?.label || doc.category}</Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="secondary" className="text-[10px]">{doc.jurisdiction || "NYC"}</Badge>
                                   </TableCell>
                                   <TableCell className="text-muted-foreground text-sm tabular-nums">{formatFileSize(doc.size_bytes)}</TableCell>
                                   <TableCell className="text-muted-foreground text-sm">{uploaderName}</TableCell>
@@ -484,6 +565,16 @@ export default function Documents() {
                 </Select>
               </div>
             )}
+            <div>
+              <Label>Jurisdiction</Label>
+              <Select value={uploadJurisdiction} onValueChange={setUploadJurisdiction}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {JURISDICTIONS.map((j) => <SelectItem key={j.value} value={j.value}>{j.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground mt-1">Defaults to this folder's jurisdiction. Used by Beacon to scope answers.</p>
+            </div>
             <div>
               <Label>Description (optional)</Label>
               <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Brief description..." className="mt-1" rows={2} />
@@ -575,6 +666,31 @@ export default function Documents() {
       </AlertDialog>
 
       {/* Preview Sheet */}
+      {/* Bulk Tag Jurisdiction Dialog */}
+      <Dialog open={bulkTagOpen} onOpenChange={setBulkTagOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Tag {selectedDocIds.size} document{selectedDocIds.size === 1 ? "" : "s"}</DialogTitle>
+          </DialogHeader>
+          <div>
+            <Label>Jurisdiction</Label>
+            <Select value={bulkJurisdiction} onValueChange={setBulkJurisdiction}>
+              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {JURISDICTIONS.map((j) => <SelectItem key={j.value} value={j.value}>{j.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkTagOpen(false)}>Cancel</Button>
+            <Button onClick={handleBulkTagJurisdiction} disabled={bulkTagPending}>
+              {bulkTagPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Tag className="h-4 w-4 mr-2" />}
+              Apply
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <DocumentPreviewSheet
         document={previewDoc}
         open={!!previewDoc}
