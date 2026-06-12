@@ -87,7 +87,7 @@ const routePrefetchMap: Record<string, () => Promise<unknown>> = {
   "/bd/sequences": () => import("@/pages/bd/BdSequences"),
   "/bd/markets": () => import("@/pages/bd/BdMarkets"),
   "/bd/capture": () => import("@/pages/bd/BdCapture"),
-  "/bd/prep": () => import("@/pages/bd/BdEventPrep"),
+  "/bd/events/:id": () => import("@/pages/bd/BdEventDetail"),
   "/bd/card": () => import("@/pages/bd/BdMyCard"),
   "/invoices": () => import("@/pages/Invoices"),
   "/emails": () => import("@/pages/Emails"),
