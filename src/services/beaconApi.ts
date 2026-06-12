@@ -110,11 +110,13 @@ export async function askBeaconProjectQA(
 export async function syncDocumentToBeacon(
   file: File | Blob,
   filename: string,
-  folderName: string
+  folderName: string,
+  jurisdiction: string = "NYC",
 ): Promise<{ success: boolean; chunks_created: number }> {
   const formData = new FormData();
   formData.append("file", file, filename);
   formData.append("folder", folderName);
+  formData.append("jurisdiction", jurisdiction || "NYC");
 
   // Use raw fetch for FormData since supabase.functions.invoke doesn't support it well
   const { data: { session } } = await supabase.auth.getSession();
