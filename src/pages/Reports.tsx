@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart3 } from "lucide-react";
 import { useTelemetry } from "@/hooks/useTelemetry";
 import { useIsAdmin } from "@/hooks/useUserRoles";
+import { useSearchParams } from "react-router-dom";
 import ProjectReports from "@/components/reports/ProjectReports";
 import BillingReports from "@/components/reports/BillingReports";
 import TimeReports from "@/components/reports/TimeReports";
@@ -17,6 +18,8 @@ import ServiceLevelReport from "@/components/reports/ServiceLevelReport";
 export default function Reports() {
   const { track } = useTelemetry();
   const isAdmin = useIsAdmin();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get("tab") || "projects";
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -28,7 +31,7 @@ export default function Reports() {
           </div>
         </div>
 
-        <Tabs defaultValue="projects" className="space-y-4" onValueChange={(tab) => { track("reports", "tab_viewed", { tab }); }}>
+        <Tabs value={tab} className="space-y-4" onValueChange={(t) => { setSearchParams((p) => { p.set("tab", t); return p; }, { replace: true }); track("reports", "tab_viewed", { tab: t }); }}>
           <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="projects">Projects</TabsTrigger>
             <TabsTrigger value="billing">Billing</TabsTrigger>

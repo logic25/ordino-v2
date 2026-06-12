@@ -61,8 +61,15 @@ export default function Proposals() {
   const [sendingProposal, setSendingProposal] = useState<ProposalWithRelations | null>(null);
   const [clockInProject, setClockInProject] = useState<{ id: string; name: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string | null>(searchParams.get("status"));
   const [activeTab, setActiveTab] = useState("proposals");
+
+  // Sync from ?status= deep-link
+  useEffect(() => {
+    const s = searchParams.get("status");
+    if (s !== statusFilter) setStatusFilter(s);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeTo, setComposeTo] = useState("");
   const [composeSubject, setComposeSubject] = useState("");
