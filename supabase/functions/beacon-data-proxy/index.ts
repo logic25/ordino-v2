@@ -943,20 +943,23 @@ async function vendorLookup(ctx: Ctx, params: any) {
   }).join(",");
 
   const [reviewsRes, primaryContactsRes, projectsRes] = await Promise.all([
-    sb.from("company_reviews")
-      .select("client_id, rating, review_text, reviewer_name, created_at")
-      .in("client_id", firmIds),
-    sb.from("client_contacts")
-      .select("client_id, name, email, phone, title, is_primary")
-      .in("client_id", firmIds)
-      .order("is_primary", { ascending: false }),
+    scopeByCompany(
+      sb.from("company_reviews").select("client_id, rating, review_text, reviewer_name, created_at"),
+      ctx,
+    ).in("client_id", firmIds),
+    scopeByCompany(
+      sb.from("client_contacts").select("client_id, name, email, phone, title, is_primary"),
+      ctx,
+    ).in("client_id", firmIds).order("is_primary", { ascending: false }),
     projectsFilter
-      ? sb.from("projects")
-          .select("id, architect_company_name, gc_company_name, created_at, properties(address)")
-          .or(projectsFilter)
-          .limit(500)
+      ? scopeByCompany(
+          sb.from("projects")
+            .select("id, architect_company_name, gc_company_name, created_at, properties(address)"),
+          ctx,
+        ).or(projectsFilter).limit(500)
       : Promise.resolve({ data: [] }),
   ]);
+
 
   const reviews = reviewsRes.data || [];
   const allFirmContacts = primaryContactsRes.data || [];
