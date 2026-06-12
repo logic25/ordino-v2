@@ -447,12 +447,20 @@ export default function Documents() {
                         <Table className="table-fixed">
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="w-[40%]">Document</TableHead>
-                              <TableHead className="w-[12%]">Category</TableHead>
-                              <TableHead className="w-[10%]">Size</TableHead>
-                              <TableHead className="w-[14%]">Uploaded By</TableHead>
-                              <TableHead className="w-[12%]">Date</TableHead>
-                              <TableHead className="w-[12%]"></TableHead>
+                              <TableHead className="w-[36px]">
+                                <Checkbox
+                                  checked={paginatedDocs.length > 0 && paginatedDocs.every((d) => selectedDocIds.has(d.id))}
+                                  onCheckedChange={(c) => toggleSelectAllVisible(!!c)}
+                                  aria-label="Select all"
+                                />
+                              </TableHead>
+                              <TableHead className="w-[34%]">Document</TableHead>
+                              <TableHead className="w-[11%]">Category</TableHead>
+                              <TableHead className="w-[10%]">Jurisdiction</TableHead>
+                              <TableHead className="w-[9%]">Size</TableHead>
+                              <TableHead className="w-[13%]">Uploaded By</TableHead>
+                              <TableHead className="w-[11%]">Date</TableHead>
+                              <TableHead className="w-[10%]"></TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -460,8 +468,12 @@ export default function Documents() {
                               const Icon = getFileIcon(doc.mime_type);
                               const uploaderName = doc.uploader?.display_name ||
                                 [doc.uploader?.first_name, doc.uploader?.last_name].filter(Boolean).join(" ") || "—";
+                              const checked = selectedDocIds.has(doc.id);
                               return (
-                                <TableRow key={doc.id} className="cursor-pointer" onClick={() => setPreviewDoc(doc)}>
+                                <TableRow key={doc.id} className="cursor-pointer" onClick={() => setPreviewDoc(doc)} data-state={checked ? "selected" : undefined}>
+                                  <TableCell onClick={(e) => e.stopPropagation()}>
+                                    <Checkbox checked={checked} onCheckedChange={() => toggleSelectDoc(doc.id)} aria-label="Select row" />
+                                  </TableCell>
                                   <TableCell>
                                     <div className="flex items-center gap-3">
                                       <Icon className="h-5 w-5 text-muted-foreground shrink-0" />
@@ -473,6 +485,9 @@ export default function Documents() {
                                   </TableCell>
                                   <TableCell>
                                     <Badge variant="outline" className="text-xs">{CATEGORIES.find((c) => c.value === doc.category)?.label || doc.category}</Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="secondary" className="text-[10px]">{doc.jurisdiction || "NYC"}</Badge>
                                   </TableCell>
                                   <TableCell className="text-muted-foreground text-sm tabular-nums">{formatFileSize(doc.size_bytes)}</TableCell>
                                   <TableCell className="text-muted-foreground text-sm">{uploaderName}</TableCell>
