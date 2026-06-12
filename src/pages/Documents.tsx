@@ -666,6 +666,31 @@ export default function Documents() {
       </AlertDialog>
 
       {/* Preview Sheet */}
+      {/* Bulk Tag Jurisdiction Dialog */}
+      <Dialog open={bulkTagOpen} onOpenChange={setBulkTagOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Tag {selectedDocIds.size} document{selectedDocIds.size === 1 ? "" : "s"}</DialogTitle>
+          </DialogHeader>
+          <div>
+            <Label>Jurisdiction</Label>
+            <Select value={bulkJurisdiction} onValueChange={setBulkJurisdiction}>
+              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {JURISDICTIONS.map((j) => <SelectItem key={j.value} value={j.value}>{j.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkTagOpen(false)}>Cancel</Button>
+            <Button onClick={handleBulkTagJurisdiction} disabled={bulkTagPending}>
+              {bulkTagPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Tag className="h-4 w-4 mr-2" />}
+              Apply
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <DocumentPreviewSheet
         document={previewDoc}
         open={!!previewDoc}
