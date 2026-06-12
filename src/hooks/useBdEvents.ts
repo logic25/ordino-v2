@@ -35,6 +35,10 @@ export interface BdEvent {
   paid_by_user_id: string | null;
   next_action: string | null;
   notes: string | null;
+  event_type: string | null;
+  target_audience: string | null;
+  why_it_matters: string | null;
+  intel: Record<string, any>;
   created_at: string;
   updated_at: string;
   created_by: string | null;

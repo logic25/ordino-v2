@@ -4,7 +4,20 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Users, Building2 } from "lucide-react";
 import { useLeadConnections } from "@/hooks/useLeadConnections";
 
-export function LeadConnectionsCard({ leadId }: { leadId: string }) {
+/**
+ * "We work with so-and-so" / "We've filed here before" panel on a lead.
+ * Always renders both sections with explicit empty states — we want users
+ * to know we LOOKED and found nothing (vs. the panel silently disappearing).
+ */
+export function LeadConnectionsCard({
+  leadId,
+  company,
+  propertyAddress,
+}: {
+  leadId: string;
+  company: string | null;
+  propertyAddress: string | null;
+}) {
   const { data, isLoading } = useLeadConnections(leadId);
 
   if (isLoading) {
@@ -14,11 +27,9 @@ export function LeadConnectionsCard({ leadId }: { leadId: string }) {
       </Card>
     );
   }
-  if (!data) return null;
 
-  const hasPeople = data.people.length > 0;
-  const hasProjects = data.projects.length > 0;
-  if (!hasPeople && !hasProjects) return null;
+  const people = data?.people ?? [];
+  const projects = data?.projects ?? [];
 
   return (
     <Card className="p-4 space-y-3">
@@ -26,14 +37,18 @@ export function LeadConnectionsCard({ leadId }: { leadId: string }) {
         Connections
       </p>
 
-      {hasPeople && (
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-1.5 text-xs font-medium">
-            <Users className="h-3.5 w-3.5 text-muted-foreground" />
-            People at this company
-          </div>
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-1.5 text-xs font-medium">
+          <Users className="h-3.5 w-3.5 text-muted-foreground" />
+          People we know at {company || "this company"}
+        </div>
+        {people.length === 0 ? (
+          <p className="text-xs text-muted-foreground pl-5">
+            None yet — add a contact at this company in Clients.
+          </p>
+        ) : (
           <div className="flex flex-wrap gap-1.5">
-            {data.people.map((p) => {
+            {people.map((p) => {
               const to = p.kind === "lead" ? `/bd/leads/${p.id}` : `/clients`;
               return (
                 <Link key={`${p.kind}-${p.id}`} to={to}>
@@ -56,17 +71,21 @@ export function LeadConnectionsCard({ leadId }: { leadId: string }) {
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {hasProjects && (
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-1.5 text-xs font-medium">
-            <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-            We've filed at this address
-          </div>
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-1.5 text-xs font-medium">
+          <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+          Our work at {propertyAddress || "this address"}
+        </div>
+        {projects.length === 0 ? (
+          <p className="text-xs text-muted-foreground pl-5">
+            No prior projects at this address.
+          </p>
+        ) : (
           <div className="space-y-1">
-            {data.projects.map((pr) => (
+            {projects.map((pr) => (
               <Link
                 key={pr.id}
                 to={`/projects/${pr.id}`}
@@ -85,8 +104,8 @@ export function LeadConnectionsCard({ leadId }: { leadId: string }) {
               </Link>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </Card>
   );
 }
