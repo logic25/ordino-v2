@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import {
   ArrowLeft, Loader2, MapPin, ExternalLink, Plus, Check, X, Users, Trash2,
+  Sparkles, CalendarPlus,
 } from "lucide-react";
 import {
   useBdEvent, useUpdateBdEvent, useDeleteBdEvent,
@@ -25,6 +26,9 @@ import { initials } from "@/components/bd/leadConstants";
 import { BdActivityThread } from "@/components/bd/BdActivityThread";
 import { EventPrepPanel } from "@/components/bd/EventPrepPanel";
 import { EventApprovalActions } from "@/components/bd/EventApprovalActions";
+import { EventTasksCard } from "@/components/bd/EventTasksCard";
+import { AttendeesPicker } from "@/components/bd/AttendeesPicker";
+import { supabase } from "@/integrations/supabase/client";
 
 const STATUS_META: Record<EventStatus, { label: string; className: string }> = {
   PENDING_APPROVAL: { label: "Pending", className: "bg-gray-100 text-gray-700 border-gray-200" },
