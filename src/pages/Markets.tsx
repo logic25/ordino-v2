@@ -66,24 +66,8 @@ function MarketDetailsCard({ market }: { market: Market }) {
   const research = useResearchMarket();
   const { toast } = useToast();
   const [notes, setNotes] = useState(market.notes ?? "");
-  const [newItem, setNewItem] = useState("");
 
-  const checklist: ChecklistItem[] = Array.isArray(market.checklist) ? market.checklist : [];
 
-  const toggleItem = (id: string) => {
-    const next = checklist.map((c) => (c.id === id ? { ...c, done: !c.done } : c));
-    update.mutate({ id: market.id, checklist: next });
-  };
-  const addItem = () => {
-    const label = newItem.trim();
-    if (!label) return;
-    const next = [...checklist, { id: crypto.randomUUID(), label, done: false }];
-    update.mutate({ id: market.id, checklist: next });
-    setNewItem("");
-  };
-  const removeItem = (id: string) => {
-    update.mutate({ id: market.id, checklist: checklist.filter((c) => c.id !== id) });
-  };
 
   const saveNotes = () => {
     if ((notes ?? "") === (market.notes ?? "")) return;
