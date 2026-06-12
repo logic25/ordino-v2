@@ -30,6 +30,20 @@ export function ClientDetailSheet({ client, open, onOpenChange, onEdit }: Client
   const { data, isLoading: relLoading } = useClientRelations(client?.id);
   const { data: contacts = [], isLoading: contactsLoading } = useClientContacts(client?.id);
   const { track } = useTelemetry();
+  const { data: originLead } = useQuery({
+    queryKey: ["client-origin-lead", client?.id],
+    enabled: !!client?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("leads")
+        .select("id, full_name")
+        .eq("client_id", client!.id)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      return data as { id: string; full_name: string | null } | null;
+    },
+  });
 
   useEffect(() => {
     if (open && client?.id) {
