@@ -30,6 +30,49 @@ import { EventTasksCard } from "@/components/bd/EventTasksCard";
 import { AttendeesPicker } from "@/components/bd/AttendeesPicker";
 import { supabase } from "@/integrations/supabase/client";
 
+function icsEscape(v: string) {
+  return v.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;");
+}
+function toIcsDateTime(date: string, time: string | null, fallback: string) {
+  const t = (time && /^\d{2}:\d{2}/.test(time) ? time.slice(0, 5) : fallback).replace(":", "") + "00";
+  return `${date.replace(/-/g, "")}T${t}`;
+}
+function downloadEventIcs(event: BdEvent) {
+  if (!event.start_date) {
+    alert("Add a start date before exporting to calendar.");
+    return;
+  }
+  const dtStart = toIcsDateTime(event.start_date, event.start_time, "0900");
+  const dtEnd = toIcsDateTime(event.end_date || event.start_date, event.end_time, "1700");
+  const uid = `${event.id}@ordino`;
+  const now = new Date().toISOString().replace(/[-:.]/g, "").slice(0, 15) + "Z";
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Ordino//BD Events//EN",
+    "BEGIN:VEVENT",
+    `UID:${uid}`,
+    `DTSTAMP:${now}`,
+    `DTSTART:${dtStart}`,
+    `DTEND:${dtEnd}`,
+    `SUMMARY:${icsEscape(event.name)}`,
+    event.location ? `LOCATION:${icsEscape(event.location)}` : "",
+    event.notes ? `DESCRIPTION:${icsEscape(event.notes)}` : "",
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].filter(Boolean);
+  const blob = new Blob([lines.join("\r\n")], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${event.name.replace(/[^a-z0-9]+/gi, "_")}.ics`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+
 const STATUS_META: Record<EventStatus, { label: string; className: string }> = {
   PENDING_APPROVAL: { label: "Pending", className: "bg-gray-100 text-gray-700 border-gray-200" },
   APPROVED: { label: "Approved", className: "bg-blue-100 text-blue-700 border-blue-200" },
