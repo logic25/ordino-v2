@@ -443,26 +443,39 @@ export default function BdEventDetail() {
                   multiline
                   placeholder="Why is this event worth our time?" />
               </Field>
-              <Field label="Recent news">
-                <EditableText value={intel.recent_news ?? null}
-                  onSave={(v) => setIntel("recent_news", v)}
-                  multiline placeholder="What's in the news around this event?" />
-              </Field>
-              <Field label="Key attendees">
-                <EditableText value={intel.key_attendees ?? null}
-                  onSave={(v) => setIntel("key_attendees", v)}
-                  multiline placeholder="Who specifically should we talk to?" />
-              </Field>
-              <Field label="Competitive">
-                <EditableText value={intel.competitive_landscape ?? null}
-                  onSave={(v) => setIntel("competitive_landscape", v)}
-                  multiline placeholder="Who else is there competing for the same work?" />
-              </Field>
               <Field label="Notes">
                 <EditableText value={event.notes} onSave={(v) => set({ notes: v })}
                   multiline placeholder="Anything else…" />
               </Field>
+              <button
+                type="button"
+                onClick={() => setShowResearch((v) => !v)}
+                className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                {showResearch ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                {showResearch ? "Hide research" : "Show research"}
+              </button>
+              {showResearch && (
+                <div className="mt-1">
+                  <Field label="Recent news">
+                    <EditableText value={intel.recent_news ?? null}
+                      onSave={(v) => setIntel("recent_news", v)}
+                      multiline placeholder="What's in the news around this event?" />
+                  </Field>
+                  <Field label="Key attendees">
+                    <EditableText value={intel.key_attendees ?? null}
+                      onSave={(v) => setIntel("key_attendees", v)}
+                      multiline placeholder="Who specifically should we talk to?" />
+                  </Field>
+                  <Field label="Competitive">
+                    <EditableText value={intel.competitive_landscape ?? null}
+                      onSave={(v) => setIntel("competitive_landscape", v)}
+                      multiline placeholder="Who else is there competing for the same work?" />
+                  </Field>
+                </div>
+              )}
             </Card>
+
 
             {/* Attendees */}
             <Card className="p-4">
