@@ -570,7 +570,10 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
           content: m.text,
         }));
 
-        const res = await askBeacon(enrichedQuery, userId, userName, contextWithPage, conversationHistory);
+        const res = await askBeacon(enrichedQuery, userId, userName, contextWithPage, conversationHistory, {
+          companyId: profile?.company_id ?? null,
+          jurisdiction: null,
+        });
         setMessages((prev) => [
           ...prev,
           {
