@@ -49,6 +49,8 @@ import { useQueryClient } from "@tanstack/react-query";
 export default function Proposals() {
   const [searchParams] = useSearchParams();
   const defaultPropertyId = searchParams.get("property") || undefined;
+  // From a Lead's "Create Proposal" link: free-text address resolves non-blocking in the dialog.
+  const initialPropertyAddress = searchParams.get("address") || undefined;
   
   const [dialogOpen, setDialogOpen] = useState(false);
   const [signDialogOpen, setSignDialogOpen] = useState(false);
