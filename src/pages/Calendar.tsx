@@ -173,7 +173,9 @@ export default function Calendar() {
 
       const { startKey, endKey } = getAllDayRange(ev);
 
-      if (ev.all_day && startKey !== endKey) {
+      // For both all-day and timed events: if the event spans multiple days,
+      // surface it on each day in the range so multi-day events aren't hidden.
+      if (startKey !== endKey) {
         const startD = new Date(`${startKey}T00:00:00`);
         const endD = new Date(`${endKey}T00:00:00`);
         const evDays = eachDayOfInterval({ start: startD, end: endD });
