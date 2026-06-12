@@ -387,7 +387,7 @@ export default function Calendar() {
                     {teamProfiles.map((p, i) => {
                       const palette = ["bg-blue-500", "bg-emerald-500", "bg-amber-500", "bg-violet-500", "bg-rose-500", "bg-cyan-500", "bg-orange-500", "bg-pink-500"];
                       const dot = palette[i % palette.length];
-                      const name = [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email || "Unnamed";
+                      const name = [p.first_name, p.last_name].filter(Boolean).join(" ") || "Unnamed";
                       return (
                         <label key={p.id} className="flex items-center gap-2 cursor-pointer rounded-lg px-1.5 py-1 hover:bg-accent/10 transition-colors">
                           <Checkbox checked={!hiddenUsers.has(p.id)} onCheckedChange={() => toggleUser(p.id)} />
