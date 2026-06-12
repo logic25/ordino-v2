@@ -1002,10 +1002,14 @@ export function ServicesFull({ services: initialServices, project, contacts, all
                   const billedDisplayCost = billedDynamicCost > 0 ? billedDynamicCost : (Number(svc.costAmount) || 0);
                   const billedSvcTotal = Number(svc.totalAmount) || 0;
                   const billedMarginPct = billedSvcTotal > 0 ? Math.round((billedSvcTotal - billedDisplayCost) / billedSvcTotal * 100) : 0;
+                  const isExpanded = expandedIds.has(svc.id);
                   return (
-                  <TableRow key={svc.id} className="opacity-70">
+                  <Fragment key={svc.id}>
+                  <TableRow className="opacity-80 cursor-pointer hover:bg-muted/20" onClick={() => toggle(svc.id)}>
                     <TableCell className="pl-6 w-[44px]" />
-                    <TableCell className="w-[36px]" />
+                    <TableCell className="pr-0">
+                      {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                    </TableCell>
                     <TableCell className="w-[28px]" />
                     <TableCell><span className="font-medium">{svc.name}</span></TableCell>
                     <TableCell>
@@ -1025,6 +1029,14 @@ export function ServicesFull({ services: initialServices, project, contacts, all
                     </TableCell>
                     <TableCell />
                   </TableRow>
+                  {isExpanded && (
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell colSpan={12} className="p-0">
+                        <ServiceExpandedDetail service={svc} projectName={project.name || project.proposals?.title || ""} projectId={project.id} />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  </Fragment>
                   );
                 })}
               </TableBody>
