@@ -156,16 +156,21 @@ export default function BdEventDetail() {
           <Button variant="ghost" size="sm" onClick={() => navigate("/bd/events")}>
             <ArrowLeft className="mr-2 h-4 w-4" />Events
           </Button>
-          <Button variant="ghost" size="sm" className="text-destructive"
-            onClick={() => {
-              if (confirm("Delete this event?")) {
-                del.mutate(event.id, {
-                  onSuccess: () => { toast({ title: "Event deleted" }); navigate("/bd/events"); },
-                });
-              }
-            }}>
-            <Trash2 className="h-4 w-4 mr-1.5" />Delete
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="sm" onClick={() => downloadEventIcs(event)}>
+              <CalendarPlus className="h-4 w-4 mr-1.5" />Export to Calendar
+            </Button>
+            <Button variant="ghost" size="sm" className="text-destructive"
+              onClick={() => {
+                if (confirm("Delete this event?")) {
+                  del.mutate(event.id, {
+                    onSuccess: () => { toast({ title: "Event deleted" }); navigate("/bd/events"); },
+                  });
+                }
+              }}>
+              <Trash2 className="h-4 w-4 mr-1.5" />Delete
+            </Button>
+          </div>
         </div>
 
         <div>
