@@ -141,6 +141,7 @@ function AppRoutes() {
       <Route path="/bd/events" element={<ProtectedRoute><BdEvents /></ProtectedRoute>} />
       <Route path="/bd/events/:id" element={<ProtectedRoute><BdEventDetail /></ProtectedRoute>} />
       <Route path="/bd/sequences" element={<ProtectedRoute><BdSequences /></ProtectedRoute>} />
+      <Route path="/bd/market-signals" element={<ProtectedRoute><BdMarketSignals /></ProtectedRoute>} />
       <Route path="/markets" element={<ProtectedRoute><Markets /></ProtectedRoute>} />
       <Route path="/markets/:marketId/playbooks/:id" element={<ProtectedRoute><PlaybookEditor /></ProtectedRoute>} />
       <Route path="/bd/event-card" element={<ProtectedRoute><BdEventCard /></ProtectedRoute>} />
