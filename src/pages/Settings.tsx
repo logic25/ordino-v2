@@ -256,14 +256,6 @@ const settingsGroups: SettingsGroup[] = [
       { id: "beacon", title: "Beacon AI", description: "Connection status, bot identity, and Beacon dashboard", icon: Brain, adminOnly: true },
     ],
   },
-  {
-    label: "BD",
-    sections: [
-      { id: "bd_memberships", title: "Memberships", description: "Annual association memberships and renewal tracking", icon: ShieldCheck },
-      { id: "bd_event_sources", title: "Event Sources", description: "URLs monitored weekly for new industry events", icon: ListChecks },
-      { id: "bd_sequence_templates", title: "Sequence Templates", description: "Reusable email cadences for Lead follow-up", icon: Mail },
-    ],
-  },
 ];
 
 const allSections = settingsGroups.flatMap((g) => g.sections);
