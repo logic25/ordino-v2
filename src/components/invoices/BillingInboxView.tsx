@@ -3,6 +3,8 @@ import { format } from "date-fns";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 import {
   CheckCircle2, XCircle, Loader2, Receipt, ChevronDown, ChevronRight,
   Send, Eye, MoreHorizontal, Trash2,
