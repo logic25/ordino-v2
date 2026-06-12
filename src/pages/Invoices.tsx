@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +34,25 @@ import { toast } from "@/hooks/use-toast";
 import { useTelemetry } from "@/hooks/useTelemetry";
 
 export default function Invoices() {
-  const [activeFilter, setActiveFilter] = useState<BillingTab>("to_invoice");
+  const [searchParams] = useSearchParams();
+  // Honor ?status=<value> deep-link (incl. comma-list — first value wins, single-tab UI).
+  const validTabs = new Set<BillingTab>([
+    "to_invoice","needs_review","sent","overdue","paid","deposits","schedules","analytics",
+  ] as BillingTab[]);
+  const initialTab: BillingTab = (() => {
+    const raw = searchParams.get("status");
+    if (!raw) return "to_invoice";
+    const first = raw.split(",").map(s => s.trim()).find(s => validTabs.has(s as BillingTab));
+    return (first as BillingTab) ?? "to_invoice";
+  })();
+  const [activeFilter, setActiveFilter] = useState<BillingTab>(initialTab);
+  useEffect(() => {
+    const raw = searchParams.get("status");
+    if (!raw) return;
+    const first = raw.split(",").map(s => s.trim()).find(s => validTabs.has(s as BillingTab));
+    if (first && first !== activeFilter) setActiveFilter(first as BillingTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
