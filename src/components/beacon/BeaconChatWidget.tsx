@@ -8,7 +8,7 @@ import { Send, Brain, FileText, Zap, X, ChevronDown, ChevronUp, ExternalLink, Me
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import { askBeacon, askBeaconProjectQA, checkBeaconHealth, type BeaconSource, type BeaconProjectContext } from "@/services/beaconApi";
+import { askBeacon, checkBeaconHealth, type BeaconSource, type BeaconProjectContext } from "@/services/beaconApi";
 import { lazy, Suspense } from "react";
 const BeaconDocumentModal = lazy(() => import("../documents/BeaconDocumentModal").then(m => ({ default: m.BeaconDocumentModal })));
 import { supabase } from "@/integrations/supabase/client";
