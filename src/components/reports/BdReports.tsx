@@ -96,12 +96,13 @@ export default function BdReports() {
   }
   const eventRows = Array.from(byEvent.values()).sort((a, b) => b.pipeline - a.pipeline);
 
-  const stages = ["NEW", "QUALIFIED", "PROPOSAL", "WON", "LOST"];
+  const stages = ["NEW", "CONTACTED", "QUALIFIED", "PROPOSAL", "WON", "LOST"];
   const byStage = new Map<string, number>();
   for (const l of leads) byStage.set(l.stage || "NEW", (byStage.get(l.stage || "NEW") || 0) + 1);
 
-  const Kpi = ({ label, value }: { label: string; value: string | number }) => (
-    <Card><CardHeader className="pb-2"><CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</CardTitle></CardHeader>
+  const Kpi = ({ label, value, onClick }: { label: string; value: string | number; onClick?: () => void }) => (
+    <Card className={onClick ? "cursor-pointer hover:bg-muted/40 transition-colors" : ""} onClick={onClick}>
+      <CardHeader className="pb-2"><CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</CardTitle></CardHeader>
       <CardContent><div className="text-2xl font-bold tabular-nums">{value}</div></CardContent></Card>
   );
 
