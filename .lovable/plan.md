@@ -1,53 +1,86 @@
-## Batch: BD Card cleanup + Event simplification + Chat identity/mentions + AI-event flow
+# Markets Page — Replace Jurisdictions
 
-### 1. My Card tab (`src/pages/bd/_bdcard/BdMyCardTab.tsx`)
-- Remove the "Print" button entirely (line 268) and the `Printer` import.
-- Demote "Download .vcf" to a small, secondary control: `variant="ghost"`, `size="sm"`, icon + short label "Save contact (.vcf)", aligned right under the card preview instead of a full-width button row.
-- Result: the action bar stops competing with the card itself; vCard download is still one click but no longer shouts.
+Drops the existing `/bd/markets` page and `jurisdictions` table and ships a spec-aligned `markets` table at `/markets`.
 
-### 2. Event detail simplification (`src/pages/bd/BdEventDetail.tsx`)
-- Collapse `start_time` / `end_time` / "All day" toggle into a single **Date** field (`event_date`, all-day implied). Header reads "Jun 16" — no more "9:00 AM" formatting.
-- iCal export keeps working: `DTSTART;VALUE=DATE` + next-day `DTEND;VALUE=DATE` (Google all-day convention).
-- Remove the "Next action" `EditableText` block (lines ~336–337) and stop reading/writing `next_action` from this page. Column stays in DB (no migration needed) — just not surfaced.
-- Events table: drop the time-of-day display from any list cells; show date only.
+## 1. Database (single migration)
 
-### 3. Attendee saving — diagnose + harden (`src/components/bd/AttendeesPicker.tsx`)
-The schema, RLS, and mutation all look correct (unique key on `event_id,user_id`, upsert wired). Most likely the call is failing silently or you're looking at a stale cache. Fix in one pass:
-- Add an `onError` toast to `useAddEventAttendee` / Update / Remove so any RLS or constraint failure becomes visible instead of swallowing.
-- After `addAtt.mutate(...)`, await `mutateAsync` and force `qc.invalidateQueries` + refetch before clearing the picker (doctrine: await invalidation before UI transition).
-- Verify the picker is actually mounted inside the **Edit dialog** in `BdEvents.tsx` (you said attendee section was wired there) — if it's still using a stub Select, swap to `<AttendeesPicker eventId={...} />`.
+- `DROP TABLE public.jurisdictions CASCADE;`
+- `CREATE TABLE public.markets`:
+  - `id uuid pk default gen_random_uuid()`
+  - `company_id uuid not null references companies(id) on delete cascade`
+  - `name text not null`
+  - `state text not null default 'NY'`
+  - `tier smallint not null check (tier in (1,2,3))`
+  - `mode text not null default 'reactive' check (mode in ('reactive','proactive'))`
+  - `operational_score smallint check (operational_score between 0 and 100)`
+  - `commercial_score smallint check (commercial_score between 0 and 100)`
+  - `notes text`
+  - `checklist jsonb not null default '[]'`
+  - `intel jsonb not null default '{}'`
+  - `created_at timestamptz not null default now()`
+  - `updated_at timestamptz not null default now()`
+- `CREATE UNIQUE INDEX markets_company_name_uniq ON public.markets (company_id, name);`
+- `CREATE INDEX markets_company_tier_idx ON public.markets (company_id, tier);`
+- GRANT select/insert/update/delete to `authenticated`; ALL to `service_role`.
+- RLS enabled; policy `FOR ALL USING (public.is_company_member(company_id))`.
+- `updated_at` trigger reuses the existing `public.update_updated_at_column()` (the same function `bd_events` uses — verified).
+- Seed via `DO $$` loop over `companies.id`, inserting the 5 starter rows (Manhattan T1 Proactive 90/95, Brooklyn T1 Proactive 90/80, Nassau T1 Reactive 60/30, Westchester T2 Reactive 40/20, Jersey City NJ T2 Reactive 30/15) with `ON CONFLICT (company_id, name) DO NOTHING`.
 
-If after these changes saving still fails, the toast will tell us why (RLS vs FK vs network) and I'll patch from there.
+## 2. Frontend
 
-### 4. Chat thread identity + @mentions (`src/components/bd/BdActivityThread.tsx`)
-Two problems to fix together:
-- **"Can't tell it was me"**: bubbles already split by author, but the author name only shows for others. Always show a small name + timestamp header on every bubble (yours and theirs), and label your own bubble "You" so the audit trail reads cleanly in screenshots.
-- **Can't tag teammates**: add `@` autocomplete in the composer.
-  - Trigger on `@`, query `useCompanyProfiles()`, render a popover with name list, insert as `@[Name](profile_id)` token.
-  - Store mentions in a new `mentioned_user_ids uuid[]` column on `bd_activities` (migration).
-  - On insert, create a row in `notifications` for each mentioned user (type `bd_mention`, link back to the lead/event). They get the existing notification bell ping + an entry in their notification panel — that's how "they know to look."
-  - Render mentions as a styled chip inline; clicking jumps to that teammate's profile.
+Delete:
+- `src/pages/bd/BdMarkets.tsx`
+- `src/hooks/useJurisdictions.ts`
+- `BdMarkets` lazy import and `/bd/markets` route in `src/App.tsx`
+- `/bd/markets` entry in `src/components/layout/AppSidebar.tsx`
 
-### 5. AI-suggested new-event flow (proposed UX)
-When the "scout-events" pipeline finds a relevant event:
-1. Insert it into `bd_events` with `status='SUGGESTED'` and `suggested_by_ai=true` (boolean column).
-2. Fire a notification to all BD-role users: "AI found a new event — NYC Real Estate Summit (Jun 24). Worth attending?" deep-linking to the event detail.
-3. On the event detail, if `status='SUGGESTED'`, show a banner at the top with **Why AI flagged this** (already populated via `why_it_matters`) + two buttons: **Add to pipeline** (flips status to `PLANNED`) and **Dismiss** (status `DISMISSED`, hides from default list).
-4. The existing `BdActivityThread` on the event becomes the discussion surface — the AI auto-posts a system `NOTE` with its reasoning as the first message, teammates can `@mention` each other in-thread to weigh in, and once someone Adds-to-pipeline the thread carries forward.
+Create:
+- `src/hooks/useMarkets.ts` — `useMarkets`, `useCreateMarket`, `useUpdateMarket`, `useDeleteMarket`, `useResearchMarket` (invokes the edge function, writes `intel` back).
+- `src/pages/Markets.tsx` — header (`Markets` h1 + `+ Add Market`), `Overview` / `Details` tabs.
+  - Overview: 3 tier summary cards (count, proactive, reactive) + table (Market, State, Tier, Mode badge — emerald for Proactive, muted for Reactive, Op Score, Comm Score, Actions).
+  - Details: per-market card with toggleable checklist (persists full array), notes editor, intel sections (`why_it_matters`, `requirements`, `key_contacts`, `competitive_landscape`), and a `Research with AI` button.
+- `src/components/markets/AddEditMarketDialog.tsx` — name, state select (default NY), tier select with tooltip, mode toggle with tooltip, two 0–100 sliders each with tooltip, notes textarea.
 
-No separate "AI inbox" needed — reuses existing notification + event-detail surfaces.
+Wire-up:
+- Route: `<Route path="/markets" element={<ProtectedRoute><Markets /></ProtectedRoute>} />` via `lazyWithRetry`.
+- Sidebar: add `Markets` (icon `Globe2`) under Business Development, below BD Events.
 
-### Files touched
-- `src/pages/bd/_bdcard/BdMyCardTab.tsx` (remove Print, shrink vCard)
-- `src/pages/bd/BdEventDetail.tsx` (single date, drop next_action)
-- `src/pages/bd/BdEvents.tsx` (date-only cells, verify AttendeesPicker in dialog)
-- `src/hooks/useBdEvents.ts` (error toasts on attendee mutations)
-- `src/components/bd/BdActivityThread.tsx` (always-on author header, @mention composer + chip render)
-- New: `@mentions` popover component
-- Migration: `bd_activities.mentioned_user_ids uuid[]`, `bd_events.status` enum extend with `SUGGESTED`/`DISMISSED`, `bd_events.suggested_by_ai bool`
-- Edge function `scout-events` (if exists) updated to insert with new flags + dispatch notifications
+## 3. Edge function — `research-market`
 
-### Questions before I build
-1. **AI-suggested events** — is the proposed flow above what you want, or would you rather see a dedicated "Suggestions" inbox separate from the events list?
-2. **@mentions notification channel** — in-app bell only, or also email the tagged person?
-3. **Attendees bug** — when you try to add a teammate now, what happens exactly? Dropdown empty? Click does nothing? Row appears then vanishes on refresh? (helps me confirm the toast-driven diagnosis above will catch it)
+New `supabase/functions/research-market/index.ts`, mirroring `draft-event-strategy`:
+- CORS, default JWT verification, Zod-validated `{ market_name, state, tier }`.
+- Calls Lovable AI Gateway with `google/gemini-2.5-flash`, prompting for a JSON object with `why_it_matters` (2–3 sentences), `requirements`, `key_contacts`, `competitive_landscape`.
+- Resilient JSON parse: on failure return `{ warning, raw }` (per project rule); never crash.
+- Returns the intel blob; the client persists it to `markets.intel`.
+
+## 4. Changelog
+
+Append to the same migration, using the exact column set the existing seed migrations use (verified across `20260606160200`, `20260611172809`, `20260611183329`, `20260611231819`):
+
+```sql
+INSERT INTO public.changelog_entries (company_id, date, title, description, tag)
+SELECT id, CURRENT_DATE, 'Markets page',
+       'Markets page rebuilt with tier/mode model and AI research',
+       'feature'
+FROM public.companies;
+```
+
+`created_by` is nullable; omitted to match prior inserts. RLS is bypassed during migration execution.
+
+## 5. Verification (post-ship)
+
+1. `SELECT id, name, tier, mode, operational_score FROM markets LIMIT 5;`
+2. `/markets` renders the 5 seed rows.
+3. Add Market dialog shows all 4 tooltip icons (Tier, Mode, Op, Comm).
+4. Details tab shows `Research with AI` button per market.
+
+## Technical notes
+
+- `useResearchMarket` uses `supabase.functions.invoke('research-market', { body })`; JWT is attached automatically.
+- Checklist edits write the full `checklist` array back (small payloads — no RPC needed).
+- Mode badge classes use semantic tokens (`bg-emerald-100 text-emerald-700` vs `bg-muted text-muted-foreground`).
+- Confirmed safe: `jurisdictions` is only referenced by the two files being deleted; `clients.licensed_jurisdictions` is an unrelated `text[]` column and is untouched.
+
+## Out of scope (separate follow-up)
+
+The three dashboard questions at the end of your earlier message (AR 30-day trend arrows on the KPI card; whether Sales Health includes leads or only proposals; clickable Proposal-Conversion KPI that opens a detail modal) are dashboard work, not Markets. I'll scope those in a separate plan after this ships unless you want them folded in now.
