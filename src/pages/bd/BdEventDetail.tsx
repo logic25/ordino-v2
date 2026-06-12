@@ -222,7 +222,10 @@ export default function BdEventDetail() {
           </h1>
           <div className="flex items-center gap-2 mt-2 flex-wrap text-sm text-muted-foreground">
             {event.start_date && (
-              <span>{format(new Date(event.start_date + "T12:00:00"), "MMM d, yyyy")}</span>
+              <span>
+                {format(new Date(event.start_date + "T12:00:00"), "MMM d, yyyy")}
+                {event.start_time && `, ${format(new Date(`2000-01-01T${event.start_time}`), "h:mm a")}`}
+              </span>
             )}
             {event.location && (
               <span className="inline-flex items-center gap-1">
