@@ -1181,6 +1181,45 @@ export type Database = {
           },
         ]
       }
+      bd_market_signals: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          sender: string | null
+          signal_date: string | null
+          source_url: string | null
+          status: string
+          summary: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          sender?: string | null
+          signal_date?: string | null
+          source_url?: string | null
+          status?: string
+          summary?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          sender?: string | null
+          signal_date?: string | null
+          source_url?: string | null
+          status?: string
+          summary?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bd_memberships: {
         Row: {
           annual_cost: number | null
