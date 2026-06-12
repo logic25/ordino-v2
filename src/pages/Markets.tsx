@@ -121,6 +121,7 @@ function MarketDetailsCard({ market }: { market: Market }) {
         {/* Checklist */}
         <div className="space-y-2">
           <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Phase checklist</div>
+          <p className="text-xs text-muted-foreground -mt-1">Concrete steps to make this market operational — e.g. "Register with NJ DCA", "Hire local expeditor", "Set up DOB NOW account".</p>
           {checklist.length === 0 && <div className="text-sm text-muted-foreground italic">No items yet.</div>}
           <ul className="space-y-1.5">
             {checklist.map((item) => (
