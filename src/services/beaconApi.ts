@@ -156,17 +156,20 @@ export async function fetchBeaconKnowledgeList(): Promise<BeaconKnowledgeData> {
   const { data, error } = await supabase.functions.invoke("beacon-proxy?action=knowledge-list");
   if (error) throw new Error(`Beacon API error: ${error.message}`);
 
-  const folders: Record<string, string[]> = {};
-  for (const filePath of (data.files || [])) {
-    const slashIdx = filePath.indexOf('/');
-    if (slashIdx > 0) {
-      const folder = filePath.substring(0, slashIdx);
-      const filename = filePath.substring(slashIdx + 1);
-      if (!folders[folder]) folders[folder] = [];
-      folders[folder].push(filename);
-    } else {
-      if (!folders['_root']) folders['_root'] = [];
-      folders['_root'].push(filePath);
+  let folders: Record<string, string[]> = {};
+
+  if (data.folders && typeof data.folders === "object") {
+    folders = data.folders;
+  } else {
+    for (const filePath of (data.files || [])) {
+      const slashIdx = filePath.indexOf('/');
+      if (slashIdx > 0) {
+        const folder = filePath.substring(0, slashIdx);
+        const filename = filePath.substring(slashIdx + 1);
+        (folders[folder] ||= []).push(filename);
+      } else {
+        (folders['_root'] ||= []).push(filePath);
+      }
     }
   }
 
