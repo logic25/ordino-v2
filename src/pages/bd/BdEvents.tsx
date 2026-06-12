@@ -134,6 +134,7 @@ export default function BdEvents() {
                       <TableHead>Cost</TableHead>
                       <TableHead>Going</TableHead>
                       <TableHead>Leads</TableHead>
+                      <TableHead className="text-right">Pipeline</TableHead>
                       <TableHead className="w-12" />
                     </TableRow>
                   </TableHeader>
