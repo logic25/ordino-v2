@@ -146,7 +146,7 @@ function EditableText({
   }
   return (
     <button
-      className={`text-left text-sm hover:bg-muted/50 rounded px-1 -mx-1 w-full ${className}`}
+      className={`text-left text-sm hover:bg-muted/50 rounded px-1 -mx-1 w-full ${multiline ? "whitespace-pre-wrap" : ""} ${className}`}
       onClick={() => { setDraft(value ?? ""); setEditing(true); }}
     >
       {value || <span className="text-muted-foreground">{placeholder}</span>}
