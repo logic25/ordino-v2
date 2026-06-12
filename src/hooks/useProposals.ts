@@ -238,7 +238,7 @@ export function useProposals(options?: ProposalQueryOptions) {
       };
       const dbStatuses = buckets.flatMap((b) => bucketToStatuses[b] ?? []);
       if (dbStatuses.length > 0) {
-        query = query.in("status", dbStatuses);
+        query = query.in("status", dbStatuses as any);
       }
 
       // Server-side search
