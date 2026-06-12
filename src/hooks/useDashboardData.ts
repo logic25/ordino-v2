@@ -716,22 +716,43 @@ export function useActiveProposalsKpi() {
   });
 }
 
-/** AR Outstanding split: sent vs overdue (count + $) */
+/** AR Outstanding split: sent vs overdue (count + $) + MoM delta vs AR at month start */
 export function useArOutstandingKpi() {
   return useQuery({
     queryKey: ["kpi-ar-outstanding"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("invoices")
-        .select("id, status, total_due, payment_amount")
-        .in("status", ["sent", "overdue"]);
+      const { start } = monthBounds();
+      const [currentRes, priorRes] = await Promise.all([
+        supabase
+          .from("invoices")
+          .select("id, status, total_due, payment_amount")
+          .in("status", ["sent", "overdue"]),
+        // AR snapshot at the start of this month: invoices sent before month start
+        // and either still unpaid, or paid after month start.
+        supabase
+          .from("invoices")
+          .select("total_due, payment_amount, sent_at, paid_at")
+          .not("sent_at", "is", null)
+          .lt("sent_at", start.toISOString())
+          .or(`paid_at.is.null,paid_at.gte.${start.toISOString()}`),
+      ]);
       let sent = 0, overdue = 0, sentCount = 0, overdueCount = 0;
-      (data || []).forEach((i: any) => {
+      (currentRes.data || []).forEach((i: any) => {
         const remaining = Math.max(0, (Number(i.total_due) || 0) - (Number(i.payment_amount) || 0));
         if (i.status === "overdue") { overdue += remaining; overdueCount += 1; }
         else { sent += remaining; sentCount += 1; }
       });
-      return { sent, overdue, sentCount, overdueCount, total: sent + overdue };
+      const priorTotal = (priorRes.data || []).reduce((s: number, i: any) => {
+        // If invoice was paid after month start, its remaining at start = total_due.
+        // If still unpaid, remaining at start ≈ total_due - payment_amount (best available).
+        const paidAfter = i.paid_at && new Date(i.paid_at) >= start;
+        const remaining = paidAfter
+          ? Number(i.total_due) || 0
+          : Math.max(0, (Number(i.total_due) || 0) - (Number(i.payment_amount) || 0));
+        return s + remaining;
+      }, 0);
+      const total = sent + overdue;
+      return { sent, overdue, sentCount, overdueCount, total, delta: total - priorTotal };
     },
   });
 }
