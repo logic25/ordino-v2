@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
+import { LineageBreadcrumb } from "@/components/shared/LineageBreadcrumb";
 import { useState, useEffect, useMemo } from "react";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
@@ -175,7 +176,22 @@ export default function ProjectDetail() {
     },
   });
 
+  // Lineage: lead that originated this project's proposal (for back-link chip)
+  const { data: originLead } = useQuery({
+    queryKey: ["project-origin-lead", (project as any)?.proposal_id],
+    enabled: !!(project as any)?.proposal_id,
+    queryFn: async () => {
+      const { data: prop } = await supabase
+        .from("proposals")
+        .select("lead_id, leads:lead_id (id, full_name)")
+        .eq("id", (project as any).proposal_id)
+        .maybeSingle();
+      return ((prop as any)?.leads ?? null) as { id: string; full_name: string | null } | null;
+    },
+  });
+
   // DB-backed checklist items (must be before early returns)
+
   const { data: dbChecklistItems = [] } = useProjectChecklist(id);
 
   // liveServices state removed — was causing infinite render loop. ServicesFull manages its own orderedServices internally.
@@ -336,6 +352,13 @@ export default function ProjectDetail() {
                   })()}
                 </div>
               </div>
+              {(originLead || project.proposals) && (
+                <LineageBreadcrumb
+                  className="mt-1"
+                  lead={originLead}
+                  proposal={project.proposals ? { id: project.proposals.id, proposal_number: project.proposals.proposal_number, title: project.proposals.title } : null}
+                />
+              )}
               <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground flex-wrap">
                 {(project as any).tenant_name && (
                   <span className="flex items-center gap-1 text-xs">Tenant: {(project as any).tenant_name}</span>

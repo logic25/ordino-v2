@@ -26,8 +26,10 @@ import { useLead, useUpdateLead, type LeadStage } from "@/hooks/useLeads";
 import {
   useLeadActivities, useCreateLeadActivity, useToggleActivityPin, type ActivityType,
 } from "@/hooks/useLeadActivities";
-import { useConvertLeadToClient } from "@/hooks/useLeadConversion";
-import { useCreateProposal } from "@/hooks/useProposals";
+import { useConvertLeadToProposal } from "@/hooks/useLeadConversion";
+import { LineageBreadcrumb } from "@/components/shared/LineageBreadcrumb";
+import { useQuery } from "@tanstack/react-query";
+
 import {
   STAGE_META, STAGE_ORDER, SOURCE_META, TIMELINE_LABELS, stageRank, profileLabel, initials,
 } from "@/components/bd/leadConstants";
@@ -85,8 +87,7 @@ export default function BdLeadDetail() {
   const { data: lead, isLoading } = useLead(id);
   const { data: profiles = [] } = useAssignableProfiles();
   const update = useUpdateLead();
-  const convert = useConvertLeadToClient();
-  const createProposal = useCreateProposal();
+  const convert = useConvertLeadToProposal();
 
   const { data: activities = [] } = useLeadActivities(id);
   const createActivity = useCreateLeadActivity();
@@ -120,39 +121,14 @@ export default function BdLeadDetail() {
   const handleCreateProposal = async () => {
     setCreatingProposal(true);
     try {
-      const clientId = await convert.mutateAsync(lead);
-      const newProposal: any = await createProposal.mutateAsync({
-        property_id: null as any,
-        title: `Lead: ${lead.full_name}${lead.property_address ? ` – ${lead.property_address}` : ""}`,
-        client_name: lead.company || lead.full_name,
-        client_email: lead.contact_email,
-        client_id: clientId,
-        lead_source: lead.source,
-        referred_by: lead.referred_by,
-        project_type: lead.subject,
-        assigned_pm_id: lead.assigned_to,
-        sales_person_id: lead.assigned_to,
-        billed_to_name: lead.company,
-        notes: lead.notes,
-        architect_name: lead.architect_name, architect_company: lead.architect_company,
-        architect_phone: lead.architect_phone, architect_email: lead.architect_email,
-        architect_license_type: lead.architect_license_type, architect_license_number: lead.architect_license_number,
-        gc_name: lead.gc_name, gc_company: lead.gc_company, gc_phone: lead.gc_phone, gc_email: lead.gc_email,
-        sia_name: lead.sia_name, sia_company: lead.sia_company, sia_phone: lead.sia_phone, sia_email: lead.sia_email,
-        tpp_name: lead.tpp_name, tpp_email: lead.tpp_email,
-      } as any);
-
-      // Link the proposal back to the lead (lead_id isn't on ProposalFormInput).
-      if (newProposal?.id) {
-        await supabase.from("proposals").update({ lead_id: lead.id } as any).eq("id", newProposal.id);
-      }
-      // Advance stage (fires the STAGE_CHANGE trigger) + record the proposal creation.
-      update.mutate({ id: lead.id, stage: "PROPOSAL", proposal_id: newProposal?.id ?? null });
+      const proposalId = await convert.mutateAsync({ lead });
+      // Record the proposal creation in the activity thread (lead.client_id /
+      // stage / proposal_id are already updated atomically by the RPC).
       await createActivity.mutateAsync({
         lead_id: lead.id,
         type: "PROPOSAL_CREATED",
-        content: `Proposal ${newProposal?.proposal_number ?? ""} created`.trim(),
-        metadata: { proposal_id: newProposal?.id, proposal_number: newProposal?.proposal_number },
+        content: "Proposal created from lead",
+        metadata: { proposal_id: proposalId },
       });
       toast({ title: "Proposal created", description: "Opening Proposals…" });
       navigate("/proposals");
@@ -278,12 +254,8 @@ export default function BdLeadDetail() {
                   : <span className="text-sm">{lead.referred_by}</span>}
               </Card>
             )}
-            {lead.client_id && (
-              <Card className="p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Linked Company</p>
-                <Link to={`/clients/${lead.client_id}`} className="text-sm text-primary underline">View Company</Link>
-              </Card>
-            )}
+            <LeadLineageCard leadId={lead.id} clientId={lead.client_id} />
+
           </div>
 
           {/* RIGHT — activity thread */}
@@ -412,5 +384,45 @@ function LogMeetingDialog({ open, onOpenChange, leadId, createActivity, profiles
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function LeadLineageCard({ leadId, clientId }: { leadId: string; clientId: string | null }) {
+  const { data } = useQuery({
+    queryKey: ["lead-lineage", leadId],
+    queryFn: async () => {
+      const { data: prop } = await supabase
+        .from("proposals")
+        .select("id, proposal_number, title, converted_project_id, client_id, clients:client_id (id, name)")
+        .eq("lead_id", leadId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      let project: { id: string; project_number: string | null; name: string | null } | null = null;
+      if ((prop as any)?.converted_project_id) {
+        const { data: pr } = await supabase
+          .from("projects")
+          .select("id, project_number, name")
+          .eq("id", (prop as any).converted_project_id)
+          .maybeSingle();
+        project = pr as any;
+      }
+      return { proposal: prop as any, project };
+    },
+  });
+
+  const client = (data?.proposal?.clients as any) || (clientId ? { id: clientId, name: null } : null);
+  if (!client && !data?.proposal && !data?.project) return null;
+
+  return (
+    <Card className="p-4 space-y-2">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Lineage</p>
+      <LineageBreadcrumb
+        prefix="Linked"
+        client={client}
+        proposal={data?.proposal ? { id: data.proposal.id, proposal_number: data.proposal.proposal_number, title: data.proposal.title } : null}
+        project={data?.project}
+      />
+    </Card>
   );
 }

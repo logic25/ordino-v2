@@ -10,10 +10,13 @@ import type { Client } from "@/hooks/useClients";
 import { useClientContacts } from "@/hooks/useClients";
 import { useTelemetry } from "@/hooks/useTelemetry";
 import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useClientRelations } from "./client-detail/useClientRelations";
 import { ClientStatsCards } from "./client-detail/ClientStatsCards";
 import { ClientContactsList } from "./client-detail/ClientContactsList";
 import { ClientRelationsList } from "./client-detail/ClientRelationsList";
+import { LineageBreadcrumb } from "@/components/shared/LineageBreadcrumb";
 
 interface ClientDetailSheetProps {
   client: Client | null;
@@ -27,6 +30,20 @@ export function ClientDetailSheet({ client, open, onOpenChange, onEdit }: Client
   const { data, isLoading: relLoading } = useClientRelations(client?.id);
   const { data: contacts = [], isLoading: contactsLoading } = useClientContacts(client?.id);
   const { track } = useTelemetry();
+  const { data: originLead } = useQuery({
+    queryKey: ["client-origin-lead", client?.id],
+    enabled: !!client?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("leads")
+        .select("id, full_name")
+        .eq("client_id", client!.id)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      return data as { id: string; full_name: string | null } | null;
+    },
+  });
 
   useEffect(() => {
     if (open && client?.id) {
@@ -46,6 +63,9 @@ export function ClientDetailSheet({ client, open, onOpenChange, onEdit }: Client
               <SheetDescription>
                 Client since {client.created_at ? format(new Date(client.created_at), "MMM yyyy") : "—"}
               </SheetDescription>
+              {originLead && (
+                <LineageBreadcrumb prefix="Originated from" lead={originLead} className="mt-1" />
+              )}
             </div>
             <Button variant="outline" size="sm" onClick={() => { onOpenChange(false); onEdit(client); }}>
               <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit

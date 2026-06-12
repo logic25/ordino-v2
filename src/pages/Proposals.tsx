@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { lazy, Suspense } from "react";
 const ProposalDialog = lazy(() => import("@/components/proposals/ProposalDialog").then(m => ({ default: m.ProposalDialog })));
 import { ProposalTable } from "@/components/proposals/ProposalTable";
-import { LeadsTable } from "@/components/proposals/LeadsTable";
+import { useNavigate } from "react-router-dom";
 import { SignatureDialog, type SignatureRecipient } from "@/components/proposals/SignatureDialog";
 import { ProposalApprovalDialog } from "@/components/proposals/ProposalApprovalDialog";
 import { ProposalPreviewModal } from "@/components/proposals/ProposalPreviewModal";
@@ -39,7 +39,7 @@ import {
   useLogFollowUp,
   useSnoozeFollowUp,
 } from "@/hooks/useProposalFollowUps";
-import { useLeads, useCreateLead, useDeleteLead, useUpdateLead, type Lead } from "@/hooks/useLeads";
+
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -131,13 +131,8 @@ export default function Proposals() {
   const logFollowUp = useLogFollowUp();
   const snoozeFollowUp = useSnoozeFollowUp();
 
-  const { data: leads = [], isLoading: leadsLoading } = useLeads();
-  const createLead = useCreateLead();
-  const deleteLead = useDeleteLead();
-  const updateLead = useUpdateLead();
-
+  const navigate = useNavigate();
   const displayProposals = proposals;
-  const displayLeads = leads;
 
   // Open dialog if coming from properties with a property pre-selected (once only)
   const didAutoOpen = useRef(false);
@@ -157,16 +152,11 @@ export default function Proposals() {
       })
     : displayProposals;
 
-  const filteredLeads = displayLeads.filter((l) => {
-    const query = searchQuery.toLowerCase();
-    if (!query) return true;
-    return (
-      l.full_name?.toLowerCase().includes(query) ||
-      l.contact_email?.toLowerCase().includes(query) ||
-      l.property_address?.toLowerCase().includes(query) ||
-      l.subject?.toLowerCase().includes(query)
-    );
-  });
+  // Leads tab now redirects to /bd/leads (the BD module owns leads).
+  useEffect(() => {
+    if (activeTab === "leads") navigate("/bd/leads");
+  }, [activeTab, navigate]);
+
 
   // Month-over-month analytics from lightweight stats query
   const allStats = statsData || [];
@@ -538,41 +528,10 @@ export default function Proposals() {
     }
   };
 
-  // Lead capture is handled by the shared <CaptureLeadModal/> (BD module), which
-  // dual-writes + seeds the activity thread. Phantom draft proposals were removed.
+  // Lead capture is handled by the shared <CaptureLeadModal/> (BD module);
+  // lead → proposal conversion lives in BD lead detail (atomic RPC).
 
-  const handleDeleteLead = async (id: string) => {
-    try {
-      await deleteLead.mutateAsync(id);
-      toast({ title: "Lead deleted" });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    }
-  };
 
-  const handleConvertLeadToProposal = async (lead: Lead) => {
-    try {
-      const newProposal = await createProposal.mutateAsync({
-        property_id: null as any,
-        title: `Lead: ${lead.full_name}${lead.property_address ? ` – ${lead.property_address}` : ""}`,
-        client_name: lead.full_name,
-        client_email: lead.contact_email || null,
-        lead_source: lead.source,
-        notes: [
-          lead.contact_phone ? `Phone: ${lead.contact_phone}` : "",
-          lead.subject ? `Subject: ${lead.subject}` : "",
-          lead.client_type ? `Type: ${lead.client_type}` : "",
-          lead.notes || "",
-        ].filter(Boolean).join("\n"),
-      } as any);
-
-      await updateLead.mutateAsync({ id: lead.id, status: "converted", proposal_id: newProposal.id });
-      toast({ title: "Proposal created!", description: `Draft proposal created from lead ${lead.full_name}.` });
-      setActiveTab("proposals");
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    }
-  };
 
   return (
     <AppLayout>
@@ -720,10 +679,8 @@ export default function Proposals() {
             <TabsTrigger value="leads" className="gap-1.5">
               <UserPlus className="h-4 w-4" />
               Leads
-              <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">
-                {leads.length}
-              </Badge>
             </TabsTrigger>
+
           </TabsList>
 
           <TabsContent value="proposals">
@@ -824,56 +781,18 @@ export default function Proposals() {
 
           <TabsContent value="leads">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <UserPlus className="h-5 w-5" />
-                  Leads
-                  {!leadsLoading && (
-                    <span className="text-muted-foreground font-normal text-sm">
-                      ({filteredLeads.length})
-                    </span>
-                  )}
-                </CardTitle>
-                <CardDescription>
-                  Track incoming leads from calls, emails, and website forms. Convert to proposals when ready.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {leadsLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </div>
-                ) : filteredLeads.length === 0 && !searchQuery ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <UserPlus className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                    <h3 className="text-lg font-medium">No leads yet</h3>
-                    <p className="text-muted-foreground mt-1 mb-4">
-                      Capture your first lead to start tracking prospects
-                    </p>
-                    <Button variant="outline" onClick={() => setLeadDialogOpen(true)}>
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Capture Lead
-                    </Button>
-                  </div>
-                ) : (
-                  <LeadsTable
-                    leads={filteredLeads}
-                    onDelete={handleDeleteLead}
-                    onConvertToProposal={handleConvertLeadToProposal}
-                    onUpdateLead={async (id, updates) => {
-                      try {
-                        await updateLead.mutateAsync({ id, ...updates });
-                        toast({ title: "Lead updated" });
-                      } catch (error: any) {
-                        toast({ title: "Error", description: error.message, variant: "destructive" });
-                      }
-                    }}
-                    isDeleting={deleteLead.isPending}
-                  />
-                )}
+              <CardContent className="py-12 text-center space-y-3">
+                <UserPlus className="h-10 w-10 mx-auto text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">
+                  Leads now live in the BD module. Redirecting…
+                </p>
+                <Button variant="outline" size="sm" onClick={() => navigate("/bd/leads")}>
+                  Go to Leads
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>
+
         </Tabs>
       </div>
 
