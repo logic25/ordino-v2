@@ -46,7 +46,7 @@ export default function BdMarketSignals() {
         .order("signal_date", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data || []) as MarketSignal[];
+      return ((data as unknown) as MarketSignal[]) || [];
     },
   });
 
