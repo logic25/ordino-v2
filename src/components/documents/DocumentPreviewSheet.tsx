@@ -3,13 +3,15 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Download, X, Pencil, Eye, Save, Loader2, Brain, RefreshCw } from "lucide-react";
+import { Download, X, Pencil, Eye, Save, Loader2, Brain, RefreshCw, History, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import ReactMarkdown from "react-markdown";
 import type { UniversalDocument } from "@/hooks/useUniversalDocuments";
+import { useDocumentVersions, versionChangerName, type DocumentVersion } from "@/hooks/useDocumentVersions";
+import { useAuth } from "@/hooks/useAuth";
 import { syncDocumentToBeacon } from "@/services/beaconApi";
 
 interface Props {
@@ -43,12 +45,16 @@ function getBucketForPath(storagePath: string): string {
 export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFolder, folderName, isAdmin }: Props) {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { profile } = useAuth();
   const [mode, setMode] = useState<ViewMode>("preview");
+  const [panel, setPanel] = useState<"doc" | "history">("doc");
   const [content, setContent] = useState("");
   const [originalContent, setOriginalContent] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const versions = useDocumentVersions(doc?.id);
+  const versionCount = versions.data?.length || 0;
 
   const previewType = doc ? getPreviewType(doc.mime_type, doc.filename) : "unsupported";
   const isEditable = previewType === "text" || previewType === "markdown";
@@ -57,6 +63,7 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
   useEffect(() => {
     if (!doc || !open) return;
     setMode("preview");
+    setPanel("doc");
     setContent("");
     setOriginalContent("");
     setSignedUrl(null);
@@ -105,6 +112,38 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
     if (!doc) return;
     setSaving(true);
     try {
+      // Snapshot the PRIOR content to a versioned path before overwriting in place,
+      // so file-content history is preserved (the live file is upserted below).
+      // Non-fatal: a snapshot failure must not block the save.
+      try {
+        if (originalContent && originalContent !== content) {
+          const { data: maxV } = await (supabase as any)
+            .from("document_versions")
+            .select("version")
+            .eq("document_id", doc.id)
+            .order("version", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          const nextVersion = ((maxV?.version as number) || 0) + 1;
+          const versionPath = `versions/${doc.id}/v${nextVersion}-${doc.filename}`;
+          const oldBlob = new Blob([originalContent], { type: doc.mime_type || "text/plain" });
+          await supabase.storage.from(bucket).upload(versionPath, oldBlob, { upsert: true });
+          await (supabase as any).from("document_versions").insert({
+            document_id: doc.id,
+            company_id: doc.company_id,
+            version: nextVersion,
+            title: doc.title,
+            description: doc.description,
+            category: doc.category,
+            jurisdiction: (doc as any).jurisdiction,
+            storage_path: versionPath,
+            changed_by: profile?.id || null,
+          });
+        }
+      } catch (e) {
+        console.warn("[DocumentVersion] content snapshot failed", e);
+      }
+
       const blob = new Blob([content], { type: doc.mime_type || "text/plain" });
       const { error } = await supabase.storage.from(bucket)
         .update(doc.storage_path, blob, { upsert: true });
@@ -135,11 +174,33 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
       setOriginalContent(content);
       setMode("preview");
       qc.invalidateQueries({ queryKey: ["universal-documents"] });
+      qc.invalidateQueries({ queryKey: ["document-versions", doc.id] });
     } catch (err: any) {
       toast({ title: "Save failed", description: err.message, variant: "destructive" });
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleDownloadVersion = async (v: DocumentVersion) => {
+    if (!v.storage_path) return;
+    const { data, error } = await supabase.storage.from(bucket).download(v.storage_path);
+    if (error || !data) { toast({ title: "Couldn't load that version", variant: "destructive" }); return; }
+    const url = URL.createObjectURL(data);
+    const a = window.document.createElement("a");
+    a.href = url; a.download = `v${v.version}-${doc?.filename || "document"}`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleRestoreVersion = async (v: DocumentVersion) => {
+    if (!doc || !v.storage_path) return;
+    const { data, error } = await supabase.storage.from(bucket).download(v.storage_path);
+    if (error || !data) { toast({ title: "Couldn't load that version", variant: "destructive" }); return; }
+    const text = await data.text();
+    setContent(text);
+    setMode("edit");
+    setPanel("doc");
+    toast({ title: `Loaded version ${v.version}`, description: "Review, then Save to restore it as the current version." });
   };
 
   const uploaderName = doc?.uploader?.display_name ||
@@ -154,11 +215,18 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
               <div className="flex items-start justify-between gap-2">
                 <SheetTitle className="text-lg">{doc.title}</SheetTitle>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  {isEditable && (!isBeaconFolder || isAdmin) && mode === "preview" && (
+                  {isEditable && (!isBeaconFolder || isAdmin) && mode === "preview" && panel === "doc" && (
                     <Button variant="outline" size="sm" onClick={() => setMode("edit")}>
                       <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
                     </Button>
                   )}
+                  <Button variant="outline" size="sm" onClick={() => setPanel(panel === "history" ? "doc" : "history")}>
+                    <History className="h-3.5 w-3.5 mr-1" />
+                    {panel === "history" ? "Back" : "History"}
+                    {panel === "doc" && versionCount > 0 && (
+                      <Badge variant="secondary" className="ml-1.5 text-[10px] px-1">{versionCount}</Badge>
+                    )}
+                  </Button>
                   <Button variant="outline" size="sm" onClick={handleDownload}>
                     <Download className="h-3.5 w-3.5 mr-1" /> Download
                   </Button>
@@ -179,7 +247,52 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
             </SheetHeader>
 
             <div className="p-4">
-              {isEditable && mode === "edit" ? (
+              {panel === "history" ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Every saved edit snapshots the prior version here — what changed, who, and when.
+                  </p>
+                  {versions.isLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : versionCount === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-10">
+                      No earlier versions yet. Future edits will appear here.
+                    </p>
+                  ) : (
+                    versions.data!.map((v) => {
+                      const isFileSnap = !!v.storage_path?.includes("versions/");
+                      return (
+                        <div key={v.id} className="flex items-start justify-between gap-3 border rounded-md p-3">
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium">Version {v.version}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {versionChangerName(v)} · {format(new Date(v.created_at), "MMM d, yyyy 'at' h:mm a")}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                              {[v.title, v.category, v.jurisdiction].filter(Boolean).join(" · ")}
+                              {!isFileSnap && " · metadata change"}
+                            </div>
+                          </div>
+                          {isFileSnap && (
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Button variant="ghost" size="sm" onClick={() => handleDownloadVersion(v)} title="Download this version">
+                                <Download className="h-3.5 w-3.5" />
+                              </Button>
+                              {isEditable && (!isBeaconFolder || isAdmin) && (
+                                <Button variant="outline" size="sm" onClick={() => handleRestoreVersion(v)}>
+                                  <RotateCcw className="h-3.5 w-3.5 mr-1" /> Restore
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              ) : isEditable && mode === "edit" ? (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <Button variant="ghost" size="sm" onClick={() => setMode("preview")} className="text-xs">
