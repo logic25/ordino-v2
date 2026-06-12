@@ -796,6 +796,7 @@ export default function Proposals() {
           proposal={editingProposal}
           isLoading={createProposal.isPending || updateProposal.isPending}
           defaultPropertyId={!editingProposal ? defaultPropertyId : undefined}
+          initialPropertyAddress={!editingProposal ? initialPropertyAddress : undefined}
         />
       </Suspense>
 
