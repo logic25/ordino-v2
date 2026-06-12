@@ -157,6 +157,8 @@ export function ClientDialog({
         specialty_tags: data.specialty_tags || [],
         licensed_jurisdictions: (data.licensed_jurisdictions || []).map((s) => s.toUpperCase().trim()).filter(Boolean),
         internal_notes: data.internal_notes || null,
+        expected_projects_per_year: data.expected_projects_per_year ?? null,
+        expected_annual_value: data.expected_annual_value ?? null,
       });
       form.reset();
       onOpenChange(false);
