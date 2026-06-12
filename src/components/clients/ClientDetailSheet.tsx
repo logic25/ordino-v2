@@ -63,6 +63,9 @@ export function ClientDetailSheet({ client, open, onOpenChange, onEdit }: Client
               <SheetDescription>
                 Client since {client.created_at ? format(new Date(client.created_at), "MMM yyyy") : "—"}
               </SheetDescription>
+              {originLead && (
+                <LineageBreadcrumb prefix="Originated from" lead={originLead} className="mt-1" />
+              )}
             </div>
             <Button variant="outline" size="sm" onClick={() => { onOpenChange(false); onEdit(client); }}>
               <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
