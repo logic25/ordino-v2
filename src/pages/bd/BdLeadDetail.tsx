@@ -112,23 +112,13 @@ export default function BdLeadDetail() {
   const canCreateProposal = stageRank(lead.stage) >= stageRank("QUALIFIED");
   const showWonLost = lead.stage === "PROPOSAL";
 
-  const handleCreateProposal = async () => {
-    setCreatingProposal(true);
-    try {
-      const proposalId = await convert.mutateAsync({ lead });
-      await createActivity.mutateAsync({
-        filter: { leadId: lead.id },
-        type: "PROPOSAL_CREATED",
-        content: "Proposal created from lead",
-        metadata: { proposal_id: proposalId },
-      });
-      toast({ title: "Proposal created", description: "Opening Proposals…" });
-      navigate("/proposals");
-    } catch (e: any) {
-      toast({ title: "Could not create proposal", description: e?.message ?? "Unknown error", variant: "destructive" });
-    } finally {
-      setCreatingProposal(false);
-    }
+  const handleCreateProposal = () => {
+    // Non-blocking prefill: open ProposalDialog with lead's free-text address.
+    // The dialog resolves it via useNYCPropertyLookup in the background.
+    const params = new URLSearchParams();
+    if (lead.property_address) params.set("address", lead.property_address);
+    params.set("leadId", lead.id);
+    navigate(`/proposals?${params.toString()}`);
   };
 
   return (
@@ -161,8 +151,8 @@ export default function BdLeadDetail() {
                 {editAll ? "Done editing" : "Edit details"}
               </Button>
               {canCreateProposal && (
-                <Button size="sm" onClick={handleCreateProposal} disabled={creatingProposal}>
-                  {creatingProposal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FilePlus2 className="mr-2 h-4 w-4" />}
+                <Button size="sm" onClick={handleCreateProposal}>
+                  <FilePlus2 className="mr-2 h-4 w-4" />
                   Create Proposal
                 </Button>
               )}

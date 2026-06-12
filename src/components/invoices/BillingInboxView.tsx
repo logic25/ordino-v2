@@ -47,7 +47,7 @@ const KIND_LABELS: Record<RowKind, string> = {
   submission: "Submission",
   draft: "Draft",
   ready: "Ready",
-  needs_review: "Needs Review",
+  needs_review: "Review",
 };
 
 const KIND_CHIP: Record<RowKind, string> = {
@@ -202,7 +202,7 @@ export function BillingInboxView() {
     { key: "submission", label: "Submissions" },
     { key: "ready", label: "Ready" },
     { key: "draft", label: "Drafts" },
-    { key: "needs_review", label: "Needs Review" },
+    { key: "needs_review", label: "Review" },
   ];
 
   return (
