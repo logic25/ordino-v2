@@ -56,6 +56,7 @@ export function useUploadDocument() {
       project_id?: string;
       property_id?: string;
       proposal_id?: string;
+      jurisdiction?: string;
     }) => {
       if (!profile?.company_id) throw new Error("No company");
       const ext = input.file.name.split(".").pop();
