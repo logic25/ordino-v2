@@ -53,6 +53,8 @@ import { useIsAdmin } from "@/hooks/useUserRoles";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
+import { isInvested, isConsidering, eventCost, fmtMoney0, scopeToYear } from "@/lib/eventBudget";
+
 
 const STATUS_META: Record<EventStatus, { label: string; className: string }> = {
   SUGGESTED: { label: "AI Suggested", className: "bg-amber-50 text-amber-800 border-amber-200" },
