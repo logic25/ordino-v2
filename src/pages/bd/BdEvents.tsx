@@ -113,6 +113,8 @@ export default function BdEvents() {
   const filtered = useMemo(() => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     return (events.data ?? []).filter((e) => {
+      // Hide AI suggestions + dismissed from default views unless explicitly selected
+      if (filterStatus === "ALL" && (e.status === "SUGGESTED" || e.status === "DISMISSED")) return false;
       if (filterStatus !== "ALL" && e.status !== filterStatus) return false;
       if (search) {
         const q = search.toLowerCase();
@@ -187,15 +189,27 @@ export default function BdEvents() {
               </Select>
               {(() => {
                 const pendingCount = (events.data ?? []).filter((e) => e.status === "PENDING_APPROVAL").length;
-                const active = filterStatus === "PENDING_APPROVAL";
+                const suggestedCount = (events.data ?? []).filter((e) => e.status === "SUGGESTED").length;
+                const pendingActive = filterStatus === "PENDING_APPROVAL";
+                const suggestedActive = filterStatus === "SUGGESTED";
                 return (
-                  <Button size="sm" variant={active ? "default" : "outline"}
-                    onClick={() => setFilterStatus(active ? "ALL" : "PENDING_APPROVAL")}>
-                    Proposed
-                    {pendingCount > 0 && (
-                      <Badge variant="secondary" className="ml-1.5 h-5 px-1.5">{pendingCount}</Badge>
-                    )}
-                  </Button>
+                  <>
+                    <Button size="sm" variant={pendingActive ? "default" : "outline"}
+                      onClick={() => setFilterStatus(pendingActive ? "ALL" : "PENDING_APPROVAL")}>
+                      Proposed
+                      {pendingCount > 0 && (
+                        <Badge variant="secondary" className="ml-1.5 h-5 px-1.5">{pendingCount}</Badge>
+                      )}
+                    </Button>
+                    <Button size="sm" variant={suggestedActive ? "default" : "outline"}
+                      className={suggestedActive ? "" : "border-amber-300 text-amber-800 hover:bg-amber-50"}
+                      onClick={() => setFilterStatus(suggestedActive ? "ALL" : "SUGGESTED")}>
+                      ✨ Suggestions
+                      {suggestedCount > 0 && (
+                        <Badge variant="secondary" className="ml-1.5 h-5 px-1.5">{suggestedCount}</Badge>
+                      )}
+                    </Button>
+                  </>
                 );
               })()}
               <div className="ml-auto flex items-center gap-2">
