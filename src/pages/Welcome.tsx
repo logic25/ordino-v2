@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/layout/AppLayout";
+import { GmailConnectPrompt } from "@/components/emails/GmailConnectPrompt";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -150,6 +151,9 @@ export default function Welcome() {
             proposals, billing, communications, and more — purpose-built for NYC construction expediting.
           </p>
         </div>
+
+        {/* Connect email — first-run prompt (hidden once Gmail is connected) */}
+        <GmailConnectPrompt variant="card" />
 
         {/* Platform highlights */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
