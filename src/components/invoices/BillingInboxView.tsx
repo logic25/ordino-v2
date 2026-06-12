@@ -233,7 +233,13 @@ export function BillingInboxView() {
         {filterChips.map((chip) => {
           const isActive = filter === chip.key;
           const c = counts[chip.key];
-          return (
+          const tip = chip.key === "needs_review"
+            ? "Invoices flagged by accounting or where QBO sync failed. Open one to review and resolve."
+            : chip.key === "submission" ? "Billing requests submitted by PMs that haven't been turned into invoices yet."
+            : chip.key === "ready" ? "Invoices ready to send to the client."
+            : chip.key === "draft" ? "In-progress invoice drafts that haven't been finalized."
+            : null;
+          const button = (
             <button
               key={chip.key}
               type="button"
@@ -248,8 +254,18 @@ export function BillingInboxView() {
               <span className={`tabular-nums ${isActive ? "opacity-80" : "opacity-60"}`}>{c}</span>
             </button>
           );
+          if (!tip) return button;
+          return (
+            <TooltipProvider key={chip.key}>
+              <Tooltip delayDuration={200}>
+                <TooltipTrigger asChild>{button}</TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs text-xs">{tip}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          );
         })}
       </div>
+
 
       {/* Table */}
       <Table>
