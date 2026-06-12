@@ -422,10 +422,9 @@ Deno.serve(async (req) => {
         if (isUnread) unreadGmailIds.push(msg.id);
         else readGmailIds.push(msg.id);
 
-        // inserted === null => row already existed (skipped by ignoreDuplicates)
-        if (!inserted) continue;
-
         // ── BD lead auto-association (exact, case-insensitive contact_email match) ──
+        // Runs BEFORE the dedupe-skip so existing emails also backfill on re-sync.
+        // The bd_activities unique index (lead_id, email_id) WHERE type='EMAIL' dedupes.
         try {
           if (leadEmailToId.size > 0) {
             const fromLower = (from_email || "").trim().toLowerCase();
@@ -433,17 +432,14 @@ Deno.serve(async (req) => {
             const matchedLeadIds = new Set<string>();
             const directionByLead = new Map<string, "inbound" | "outbound">();
 
-            // inbound: lead is the sender
             const inboundLead = leadEmailToId.get(fromLower);
             if (inboundLead) {
               matchedLeadIds.add(inboundLead);
               directionByLead.set(inboundLead, "inbound");
             }
-            // outbound: lead is among recipients (and not also sender)
             for (const t of toLower) {
               const lid = leadEmailToId.get(t);
               if (lid && !directionByLead.has(lid)) {
-                // skip if the "to" address is actually the connected mailbox itself
                 if (t === connectedMailbox) continue;
                 matchedLeadIds.add(lid);
                 directionByLead.set(lid, "outbound");
@@ -478,6 +474,10 @@ Deno.serve(async (req) => {
         } catch (e) {
           console.error("Lead auto-association failed:", e);
         }
+
+        // inserted === null => row already existed (skipped by ignoreDuplicates)
+        if (!inserted) continue;
+
 
 
 
