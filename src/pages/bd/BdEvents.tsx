@@ -45,6 +45,11 @@ import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useToast } from "@/hooks/use-toast";
 import { initials } from "@/components/bd/leadConstants";
 import { EventBudgetSummary } from "@/components/bd/EventBudgetSummary";
+import { ProposeEventDialog } from "@/components/bd/ProposeEventDialog";
+import { useIsAdmin } from "@/hooks/useUserRoles";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useQueryClient } from "@tanstack/react-query";
 
 const STATUS_META: Record<EventStatus, { label: string; className: string }> = {
   PENDING_APPROVAL: { label: "Pending", className: "bg-gray-100 text-gray-700 border-gray-200" },
@@ -71,6 +76,10 @@ export default function BdEvents() {
   const navigate = useNavigate();
   const [tab, setTab] = useState("events");
   const [createOpen, setCreateOpen] = useState(false);
+  const [proposeOpen, setProposeOpen] = useState(false);
+  const isAdmin = useIsAdmin();
+  const { profile } = useAuth();
+  const qc = useQueryClient();
   const [editEvent, setEditEvent] = useState<BdEvent | null>(null);
   const [detailEvent, setDetailEvent] = useState<BdEvent | null>(null);
   const [filterStatus, setFilterStatus] = useState<EventStatus | "ALL">("ALL");
@@ -124,7 +133,12 @@ export default function BdEvents() {
             <h1 className="text-2xl font-semibold">Events</h1>
             <p className="text-sm text-muted-foreground">Industry events, sources to monitor, and your memberships.</p>
           </div>
-          <Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-1.5" />New event</Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setProposeOpen(true)}>
+              <Plus className="h-4 w-4 mr-1.5" />Propose event
+            </Button>
+            <Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-1.5" />New event</Button>
+          </div>
         </div>
 
         <Tabs value={tab} onValueChange={setTab}>
@@ -159,6 +173,19 @@ export default function BdEvents() {
                   ))}
                 </SelectContent>
               </Select>
+              {(() => {
+                const pendingCount = (events.data ?? []).filter((e) => e.status === "PENDING_APPROVAL").length;
+                const active = filterStatus === "PENDING_APPROVAL";
+                return (
+                  <Button size="sm" variant={active ? "default" : "outline"}
+                    onClick={() => setFilterStatus(active ? "ALL" : "PENDING_APPROVAL")}>
+                    Proposed
+                    {pendingCount > 0 && (
+                      <Badge variant="secondary" className="ml-1.5 h-5 px-1.5">{pendingCount}</Badge>
+                    )}
+                  </Button>
+                );
+              })()}
               <div className="ml-auto flex items-center gap-2">
                 <div className="text-sm text-muted-foreground">{filtered.length} events</div>
                 <div className="inline-flex rounded-md border bg-background p-0.5">
@@ -288,6 +315,7 @@ export default function BdEvents() {
 
       <EventDialog open={createOpen || !!editEvent} event={editEvent}
         onOpenChange={(o) => { if (!o) { setCreateOpen(false); setEditEvent(null); } }} />
+      <ProposeEventDialog open={proposeOpen} onOpenChange={setProposeOpen} />
       <EventDetailSheet event={detailEvent} onOpenChange={(o) => { if (!o) setDetailEvent(null); }} />
     </AppLayout>
   );
