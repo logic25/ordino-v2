@@ -891,11 +891,15 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          is_active: boolean
           last_checked_at: string | null
           last_checked_by: string | null
+          last_scrape_error: string | null
+          last_scrape_events_found: number | null
           name: string
           notes: string | null
           priority: Database["public"]["Enums"]["bd_source_priority"]
+          source_type: string
           updated_at: string
           url: string
         }
@@ -905,11 +909,15 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_active?: boolean
           last_checked_at?: string | null
           last_checked_by?: string | null
+          last_scrape_error?: string | null
+          last_scrape_events_found?: number | null
           name: string
           notes?: string | null
           priority?: Database["public"]["Enums"]["bd_source_priority"]
+          source_type?: string
           updated_at?: string
           url: string
         }
@@ -919,11 +927,15 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_active?: boolean
           last_checked_at?: string | null
           last_checked_by?: string | null
+          last_scrape_error?: string | null
+          last_scrape_events_found?: number | null
           name?: string
           notes?: string | null
           priority?: Database["public"]["Enums"]["bd_source_priority"]
+          source_type?: string
           updated_at?: string
           url?: string
         }
