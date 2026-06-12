@@ -766,8 +766,12 @@ export function useMonthGoalKpi() {
     queryFn: async () => {
       const companyId = profile!.company_id!;
       const { start, end } = monthBounds();
+      const now = new Date();
+      // Same-day-of-month cutoff for last month so the comparison is apples-to-apples
+      const prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const prevCutoff = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate(), now.getHours(), now.getMinutes());
 
-      const [companyRow, pmGoals, brRows] = await Promise.all([
+      const [companyRow, pmGoals, brRows, prevBrRows] = await Promise.all([
         supabase
           .from("companies")
           .select("monthly_billing_goal_override")
@@ -785,6 +789,13 @@ export function useMonthGoalKpi() {
           .neq("status", "cancelled")
           .gte("created_at", start.toISOString())
           .lt("created_at", end.toISOString()),
+        supabase
+          .from("billing_requests")
+          .select("total_amount, created_at, status")
+          .eq("company_id", companyId)
+          .neq("status", "cancelled")
+          .gte("created_at", prevStart.toISOString())
+          .lte("created_at", prevCutoff.toISOString()),
       ]);
 
       const monthGoal =
@@ -797,9 +808,14 @@ export function useMonthGoalKpi() {
         (s: number, b: any) => s + (Number(b.total_amount) || 0),
         0
       );
+      const priorBilled = (prevBrRows.data || []).reduce(
+        (s: number, b: any) => s + (Number(b.total_amount) || 0),
+        0
+      );
 
       const pct = monthGoal > 0 ? billed / monthGoal : 0;
-      return { billed, monthGoal, pct };
+      const priorPct = monthGoal > 0 ? priorBilled / monthGoal : 0;
+      return { billed, monthGoal, pct, deltaPct: pct - priorPct, priorBilled };
     },
   });
 }
