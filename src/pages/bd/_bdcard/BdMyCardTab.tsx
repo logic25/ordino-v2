@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Download, Printer, Save, Loader2 } from "lucide-react";
+import { Download, Printer, Save, Loader2, Mail, Phone, Smartphone, MapPin, Linkedin, QrCode } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -67,6 +67,24 @@ function vCard(p: Fields) {
 }
 
 const LS_KEY = "qr-card-fields";
+
+function ContactRow({ icon, label, href }: { icon: React.ReactNode; label: string; href?: string }) {
+  const content = (
+    <div className="flex items-center gap-3 text-sm">
+      <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-foreground/70 shrink-0">
+        {icon}
+      </span>
+      <span className="truncate">{label}</span>
+    </div>
+  );
+  return href ? (
+    <a href={href} target="_blank" rel="noreferrer" className="block hover:opacity-80 transition-opacity">
+      {content}
+    </a>
+  ) : (
+    content
+  );
+}
 
 export function BdMyCardTab() {
   const { user, profile, refreshProfile } = useAuth() as any;
@@ -158,30 +176,75 @@ export function BdMyCardTab() {
   const initials = `${(fields.first[0] ?? "").toUpperCase()}${(fields.last[0] ?? "").toUpperCase()}` || "GLE";
 
   return (
-    <div className="space-y-4">
-      <Card className="print:shadow-none print:border-2">
-        <CardContent className="p-6 flex flex-col items-center gap-3">
-          <Avatar className="h-20 w-20 ring-2 ring-white shadow">
+    <div className="mx-auto w-full max-w-[400px] space-y-4">
+      {/* Card */}
+      <Card className="overflow-hidden print:shadow-none print:border-2 shadow-lg">
+        {/* Banner */}
+        <div
+          className="relative h-28"
+          style={{
+            background:
+              "linear-gradient(135deg, #1a2e1a 0%, #2d4a2d 40%, #6aa84f 100%)",
+          }}
+        >
+          <div className="absolute top-3 right-3 text-[10px] font-bold tracking-widest text-white/80">
+            GREEN LIGHT EXPEDITING
+          </div>
+          <Avatar className="absolute -bottom-10 left-5 h-24 w-24 ring-4 ring-background shadow-md">
             {avatarUrl && <AvatarImage src={avatarUrl} alt={`${fields.first} ${fields.last}`} />}
-            <AvatarFallback className="text-lg font-semibold" style={{ backgroundColor: "#6aa84f", color: "white" }}>
+            <AvatarFallback className="text-xl font-semibold" style={{ backgroundColor: "#6aa84f", color: "white" }}>
               {initials}
             </AvatarFallback>
           </Avatar>
-          <div className="relative bg-white p-4 rounded-lg">
-            <QRCode value={card} size={220} level="H" />
+        </div>
+
+        {/* Identity */}
+        <CardContent className="pt-12 pb-4 px-5">
+          <h2 className="text-xl font-bold leading-tight">
+            {fields.first} {fields.last}
+          </h2>
+          {fields.title && (
+            <p className="text-sm text-muted-foreground">{fields.title}</p>
+          )}
+
+          {/* Contact rows */}
+          <div className="mt-4 space-y-2">
+            {fields.email && (
+              <ContactRow icon={<Mail className="h-4 w-4" />} label={fields.email} href={`mailto:${fields.email}`} />
+            )}
+            {phoneDisplay && (
+              <ContactRow
+                icon={<Phone className="h-4 w-4" />}
+                label={`${phoneDisplay}${fields.extension ? ` · ext ${fields.extension}` : ""}`}
+                href={`tel:${telValue(fields.phone, fields.extension)}`}
+              />
+            )}
+            {mobileDisplay && (
+              <ContactRow icon={<Smartphone className="h-4 w-4" />} label={mobileDisplay} href={`tel:${telValue(fields.mobile, "")}`} />
+            )}
+            {fields.linkedin && (
+              <ContactRow icon={<Linkedin className="h-4 w-4" />} label="LinkedIn" href={fields.linkedin} />
+            )}
+            <ContactRow
+              icon={<MapPin className="h-4 w-4" />}
+              label={addressDisplay.split("\n").join(" · ")}
+            />
+          </div>
+        </CardContent>
+
+        {/* QR section */}
+        <div className="border-t bg-muted/30 px-5 py-4 flex items-center gap-4">
+          <div className="relative bg-white p-2 rounded-md shrink-0 border">
+            <QRCode value={card} size={96} level="H" />
             <div
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white p-1 shadow"
-              style={{ width: 56, height: 56 }}
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white p-0.5 shadow-sm"
+              style={{ width: 26, height: 26 }}
             >
               {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt=""
-                  className="w-full h-full rounded-full object-cover"
-                />
+                <img src={avatarUrl} alt="" className="w-full h-full rounded-full object-cover" />
               ) : (
                 <div
-                  className="w-full h-full rounded-full flex items-center justify-center text-xs font-bold text-white"
+                  className="w-full h-full rounded-full flex items-center justify-center text-[8px] font-bold text-white"
                   style={{ backgroundColor: "#6aa84f" }}
                 >
                   {initials}
@@ -189,32 +252,22 @@ export function BdMyCardTab() {
               )}
             </div>
           </div>
-          <div className="text-center space-y-1">
-            <p className="font-semibold text-lg">{fields.first} {fields.last}</p>
-            {fields.title && <p className="text-sm text-muted-foreground">{fields.title}</p>}
-            <p className="text-sm">
-              <span className="font-medium" style={{ color: "#6aa84f" }}>GREEN LIGHT</span> EXPEDITING
-            </p>
-            <div className="text-xs text-muted-foreground pt-2 space-y-0.5">
-              {phoneDisplay && (
-                <p>
-                  {phoneDisplay}
-                  {fields.extension && <span> · ext {fields.extension}</span>}
-                </p>
-              )}
-              {mobileDisplay && <p>Cell {mobileDisplay}</p>}
-              {fields.email && <p>{fields.email}</p>}
-              <p className="whitespace-pre-line">{addressDisplay}</p>
+          <div className="text-xs">
+            <div className="flex items-center gap-1 font-semibold text-foreground">
+              <QrCode className="h-3.5 w-3.5" /> Scan to save contact
             </div>
+            <p className="text-muted-foreground mt-1 leading-snug">
+              Opens directly in their phone's contacts app — no app required.
+            </p>
           </div>
-        </CardContent>
+        </div>
       </Card>
-
 
       <div className="flex gap-2 print:hidden">
         <Button className="flex-1" onClick={downloadVcf}><Download className="mr-2 h-4 w-4" />Download .vcf</Button>
         <Button variant="outline" className="flex-1" onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" />Print</Button>
       </div>
+
 
       <Card className="print:hidden">
         <CardContent className="p-4 grid grid-cols-2 gap-3">
