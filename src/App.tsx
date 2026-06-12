@@ -139,7 +139,7 @@ function AppRoutes() {
       <Route path="/bd/events" element={<ProtectedRoute><BdEvents /></ProtectedRoute>} />
       <Route path="/bd/events/:id" element={<ProtectedRoute><BdEventDetail /></ProtectedRoute>} />
       <Route path="/bd/sequences" element={<ProtectedRoute><BdSequences /></ProtectedRoute>} />
-      <Route path="/bd/markets" element={<ProtectedRoute><BdMarkets /></ProtectedRoute>} />
+      <Route path="/markets" element={<ProtectedRoute><Markets /></ProtectedRoute>} />
       <Route path="/bd/event-card" element={<ProtectedRoute><BdEventCard /></ProtectedRoute>} />
       <Route path="/bd/capture" element={<Navigate to="/bd/event-card?tab=scan" replace />} />
       <Route path="/bd/my-card" element={<Navigate to="/bd/event-card?tab=mycard" replace />} />
