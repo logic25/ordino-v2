@@ -183,8 +183,9 @@ export default function BdReports() {
               {sourceRows.length === 0 ? (
                 <tr><td colSpan={5} className="py-6 text-center text-muted-foreground">No leads yet.</td></tr>
               ) : sourceRows.map((r) => (
-                <tr key={r.source} className="border-b">
-                  <td className="py-2 font-medium">{r.source}</td>
+                <tr key={r.source} className="border-b cursor-pointer hover:bg-muted/40"
+                  onClick={() => navigate(`/bd/leads?source=${encodeURIComponent(r.source)}`)}>
+                  <td className="py-2 font-medium text-primary underline-offset-2 hover:underline">{r.source}</td>
                   <td className="py-2 text-right tabular-nums">{r.total}</td>
                   <td className="py-2 text-right tabular-nums">{r.converted}</td>
                   <td className="py-2 text-right tabular-nums">{r.rate}%</td>
