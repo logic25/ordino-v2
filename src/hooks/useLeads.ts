@@ -40,6 +40,8 @@ export interface Lead {
   event_id: string | null;
   hot_opportunity: boolean;
   expected_value: number | null;
+  next_follow_up_at: string | null;
+  follow_up_note: string | null;
   project_timeline: LeadTimeline | null;
   assigned_to: string | null;
   proposal_id: string | null;
