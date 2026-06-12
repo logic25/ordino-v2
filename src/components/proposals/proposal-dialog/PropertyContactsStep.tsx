@@ -137,6 +137,11 @@ export function PropertyContactsStep({
                       </span>
                     )}
                   </span>
+                ) : resolvingPrefill ? (
+                  <span className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Looking up "{initialAddress}"…
+                  </span>
                 ) : "Search or enter a property address…"}
                 <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
               </Button>
