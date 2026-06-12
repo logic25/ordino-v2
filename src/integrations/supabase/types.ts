@@ -9930,6 +9930,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      internal_get_cron_secret: { Args: never; Returns: string }
       is_admin_or_manager: {
         Args: { target_company_id: string }
         Returns: boolean
