@@ -433,11 +433,12 @@ function ExpensesSection({ projectId, clientId }: { projectId: string; clientId:
                   <Badge variant="outline" className={cn("text-xs", statusStyles[e.status] || "")}>{e.status.replace(/_/g, " ")}</Badge>
                 )}
                 <span className="font-semibold tabular-nums">{formatCurrency(Number(e.billable_amount) || 0)}</span>
-                {canRelease && (
+                {canRelease && e.status === "on_hold" && (
                   <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => handleRelease(e.id)} disabled={release.isPending}>
-                    {e.status === "approved" ? "Mark Paid → Bill" : "Release to billing"}
+                    Release to billing
                   </Button>
                 )}
+
               </div>
             </div>
           );

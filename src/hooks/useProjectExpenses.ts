@@ -209,11 +209,14 @@ export function useApproveExpense() {
   return useMutation({
     mutationFn: async ({ expenseId }: { expenseId: string }) => {
       const { profile } = await getCurrentProfile();
+      // Auto-flow: approve → pending_billing in one step. The DB trigger
+      // (expense_create_billing_request) creates a billing_requests row so Sai
+      // sees it in the Billing inbox without the PM needing a second click.
       const { data, error } = await supabase
         .from("project_expenses" as any)
         .update({
           approval_status: "approved",
-          status: "approved",
+          status: "pending_billing",
           approved_by: profile.id,
           approved_at: new Date().toISOString(),
         } as any)
@@ -222,27 +225,39 @@ export function useApproveExpense() {
         .single();
       if (error) throw error;
       const exp = data as unknown as ProjectExpense;
-      // Notify requester
+
+      // Fire the Sai-facing billing notification (best-effort)
+      if (exp.billing_request_id) {
+        await fireBillingNotificationsForExpense(exp.billing_request_id);
+      }
+
+      // Notify the PM who submitted the expense
       if (exp.created_by) {
-        await supabase.from("notifications").insert({
-          company_id: exp.company_id,
-          user_id: (await supabase.from("profiles").select("user_id").eq("id", exp.created_by).maybeSingle()).data?.user_id,
-          type: "expense_approved",
-          title: "Expense Approved",
-          body: `Your $${exp.amount} expense (${exp.description}) was approved — go ahead and pay it.`,
-          link: `/projects/${exp.project_id}`,
-          project_id: exp.project_id,
-        } as any);
+        const userId = (await supabase.from("profiles").select("user_id").eq("id", exp.created_by).maybeSingle()).data?.user_id;
+        if (userId) {
+          await supabase.from("notifications").insert({
+            company_id: exp.company_id,
+            user_id: userId,
+            type: "expense_approved",
+            title: "Expense Approved",
+            body: `Your $${exp.amount} expense (${exp.description}) was approved and sent to accounting for billing — nothing more for you to do.`,
+            link: `/projects/${exp.project_id}`,
+            project_id: exp.project_id,
+          } as any);
+        }
       }
       return exp;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["project-expenses"] });
       queryClient.invalidateQueries({ queryKey: ["pending-expense-approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-pending-count"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 }
+
 
 export function useDenyExpense() {
   const queryClient = useQueryClient();

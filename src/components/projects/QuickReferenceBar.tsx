@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { Copy, Send, FileText } from "lucide-react";
 import { ESignInstructionDialog } from "./ESignInstructionDialog";
@@ -21,6 +22,12 @@ interface QuickReferenceBarProps {
   ownerEmail?: string | null;
 }
 
+const FILING_TYPE_DESCRIPTIONS: Record<string, string> = {
+  "Pro-Cert": "Professional Certification — the architect/engineer self-certifies the filing. No DOB plan exam required, faster turnaround. Set on the PIS.",
+  "Plan Exam": "Standard DOB plan examination. A DOB plan examiner reviews the filing before approval. Set on the PIS.",
+  TBD: "Filing type not yet decided. Update on the PIS once the architect/engineer confirms.",
+};
+
 export function QuickReferenceBar({ applications, filingType, projectId, projectName, ownerName, ownerEmail }: QuickReferenceBarProps) {
   const { toast } = useToast();
   const [eSignOpen, setESignOpen] = useState(false);
@@ -35,6 +42,8 @@ export function QuickReferenceBar({ applications, filingType, projectId, project
     navigator.clipboard.writeText(jobNumbers.join(", "));
     toast({ title: "Copied", description: `${jobNumbers.length} job number(s) copied to clipboard.` });
   };
+
+  const filingTip = filingType ? (FILING_TYPE_DESCRIPTIONS[filingType] || `Filing type set on the PIS: ${filingType}.`) : null;
 
   return (
     <>
@@ -53,7 +62,16 @@ export function QuickReferenceBar({ applications, filingType, projectId, project
             </div>
           )}
           {filingType && (
-            <Badge variant="outline" className="text-xs">{filingType}</Badge>
+            <TooltipProvider>
+              <Tooltip delayDuration={150}>
+                <TooltipTrigger asChild>
+                  <Badge variant="outline" className="text-xs cursor-help">{filingType}</Badge>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs text-xs leading-relaxed">
+                  {filingTip}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
         </div>
         <Button variant="outline" size="sm" className="gap-1.5 h-7 text-xs shrink-0" onClick={() => setESignOpen(true)}>
@@ -72,3 +90,4 @@ export function QuickReferenceBar({ applications, filingType, projectId, project
     </>
   );
 }
+
