@@ -344,13 +344,20 @@ function KpiStrip() {
       label: "AR Outstanding",
       icon: DollarSign,
       loading: l3,
-      tooltip: "Open invoice balances (sent + overdue).",
+      tooltip: "Open invoice balances (sent + overdue). Δ compares to outstanding AR at the start of this month — down is good.",
       kind: "ar-outstanding" as DrilldownKind,
       body: ar ? (
         <>
           <p className="text-2xl font-bold tabular-nums">{formatCurrency(ar.total)}</p>
-          <p className="text-xs text-muted-foreground tabular-nums">
-            <span className="text-foreground">{formatCurrency(ar.sent)}</span> sent ·{" "}
+          <p className="text-xs text-muted-foreground tabular-nums flex items-center gap-1 flex-wrap">
+            {ar.delta < 0 ? (
+              <><ArrowDown className="h-3 w-3 text-emerald-500" /> <span className="text-emerald-600">{formatCurrency(ar.delta)}</span> vs month start</>
+            ) : ar.delta > 0 ? (
+              <><ArrowUp className="h-3 w-3 text-red-500" /> <span className="text-red-600">+{formatCurrency(ar.delta)}</span> vs month start</>
+            ) : (
+              <>No change vs month start</>
+            )}
+            <span className="opacity-50">·</span>
             <span className={ar.overdue > 0 ? "text-red-500 font-medium" : ""}>
               {formatCurrency(ar.overdue)} overdue
             </span>
@@ -362,7 +369,7 @@ function KpiStrip() {
       label: "Month-to-Goal",
       icon: Target,
       loading: l4,
-      tooltip: "Billed month-to-date ÷ the company monthly billing goal (override or sum of PM goals).",
+      tooltip: "Billed month-to-date ÷ the company monthly billing goal. Δ compares pace to the same day last month.",
       kind: null as DrilldownKind | null,
       body: goal ? (
         <>
@@ -373,8 +380,16 @@ function KpiStrip() {
           }`}>
             {Math.round(goal.pct * 100)}%
           </p>
-          <p className="text-xs text-muted-foreground tabular-nums">
-            {formatCurrency(goal.billed)} / {formatCurrency(goal.monthGoal)}
+          <p className="text-xs text-muted-foreground tabular-nums flex items-center gap-1 flex-wrap">
+            {goal.deltaPct > 0.005 ? (
+              <><ArrowUp className="h-3 w-3 text-emerald-500" /> <span className="text-emerald-600">+{Math.round(goal.deltaPct * 100)}pp</span> vs last month</>
+            ) : goal.deltaPct < -0.005 ? (
+              <><ArrowDown className="h-3 w-3 text-red-500" /> <span className="text-red-600">{Math.round(goal.deltaPct * 100)}pp</span> vs last month</>
+            ) : (
+              <>On pace vs last month</>
+            )}
+            <span className="opacity-50">·</span>
+            <span>{formatCurrency(goal.billed)} / {formatCurrency(goal.monthGoal)}</span>
           </p>
         </>
       ) : null,
