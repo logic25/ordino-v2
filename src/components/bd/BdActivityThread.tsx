@@ -164,16 +164,15 @@ function MessageBubble({
   onTogglePin: () => void;
 }) {
   const author = a.author ? profileLabel(a.author) : "System";
+  const displayName = isOwn ? "You" : author;
   return (
     <div className={`flex gap-2 group ${isOwn ? "flex-row-reverse" : ""}`}>
-      {!isOwn && (
-        <Avatar className="h-7 w-7 shrink-0 mt-4">
-          <AvatarFallback className="text-[10px]">{initials(author)}</AvatarFallback>
-        </Avatar>
-      )}
+      <Avatar className="h-7 w-7 shrink-0 mt-4">
+        <AvatarFallback className={`text-[10px] ${isOwn ? "bg-primary/15 text-primary" : ""}`}>{initials(author)}</AvatarFallback>
+      </Avatar>
       <div className={`flex flex-col max-w-[80%] ${isOwn ? "items-end" : "items-start"}`}>
         <div className="text-[10px] text-muted-foreground mb-0.5 px-1 flex items-center gap-1.5">
-          {!isOwn && <span className="font-medium text-foreground">{author}</span>}
+          <span className="font-medium text-foreground">{displayName}</span>
           <span>{formatDistanceToNow(new Date(a.created_at), { addSuffix: true })}</span>
           {a.is_pinned && <Pin className="h-2.5 w-2.5" />}
         </div>

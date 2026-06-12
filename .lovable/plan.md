@@ -1,151 +1,53 @@
-# BD Events overhaul + Chat-style discussion + Lead editing affordance
+## Batch: BD Card cleanup + Event simplification + Chat identity/mentions + AI-event flow
 
-Approved scope from your three answers: **Y / Y / (b) split sections**. This is the final plan I'll execute on switch to build.
+### 1. My Card tab (`src/pages/bd/_bdcard/BdMyCardTab.tsx`)
+- Remove the "Print" button entirely (line 268) and the `Printer` import.
+- Demote "Download .vcf" to a small, secondary control: `variant="ghost"`, `size="sm"`, icon + short label "Save contact (.vcf)", aligned right under the card preview instead of a full-width button row.
+- Result: the action bar stops competing with the card itself; vCard download is still one click but no longer shouts.
 
----
+### 2. Event detail simplification (`src/pages/bd/BdEventDetail.tsx`)
+- Collapse `start_time` / `end_time` / "All day" toggle into a single **Date** field (`event_date`, all-day implied). Header reads "Jun 16" — no more "9:00 AM" formatting.
+- iCal export keeps working: `DTSTART;VALUE=DATE` + next-day `DTEND;VALUE=DATE` (Google all-day convention).
+- Remove the "Next action" `EditableText` block (lines ~336–337) and stop reading/writing `next_action` from this page. Column stays in DB (no migration needed) — just not surfaced.
+- Events table: drop the time-of-day display from any list cells; show date only.
 
-## Step 0 — verify schema live (before any code)
+### 3. Attendee saving — diagnose + harden (`src/components/bd/AttendeesPicker.tsx`)
+The schema, RLS, and mutation all look correct (unique key on `event_id,user_id`, upsert wired). Most likely the call is failing silently or you're looking at a stale cache. Fix in one pass:
+- Add an `onError` toast to `useAddEventAttendee` / Update / Remove so any RLS or constraint failure becomes visible instead of swallowing.
+- After `addAtt.mutate(...)`, await `mutateAsync` and force `qc.invalidateQueries` + refetch before clearing the picker (doctrine: await invalidation before UI transition).
+- Verify the picker is actually mounted inside the **Edit dialog** in `BdEvents.tsx` (you said attendee section was wired there) — if it's still using a stub Select, swap to `<AttendeesPicker eventId={...} />`.
 
-Run via read_query:
-```sql
-SELECT column_name, data_type, is_nullable
-FROM information_schema.columns
-WHERE table_name IN ('bd_events','bd_event_attendees','bd_event_tasks',
-                     'project_action_items','leads','bd_activities')
-ORDER BY table_name, ordinal_position;
+If after these changes saving still fails, the toast will tell us why (RLS vs FK vs network) and I'll patch from there.
 
-SELECT enum_range(NULL::bd_activity_type);
+### 4. Chat thread identity + @mentions (`src/components/bd/BdActivityThread.tsx`)
+Two problems to fix together:
+- **"Can't tell it was me"**: bubbles already split by author, but the author name only shows for others. Always show a small name + timestamp header on every bubble (yours and theirs), and label your own bubble "You" so the audit trail reads cleanly in screenshots.
+- **Can't tag teammates**: add `@` autocomplete in the composer.
+  - Trigger on `@`, query `useCompanyProfiles()`, render a popover with name list, insert as `@[Name](profile_id)` token.
+  - Store mentions in a new `mentioned_user_ids uuid[]` column on `bd_activities` (migration).
+  - On insert, create a row in `notifications` for each mentioned user (type `bd_mention`, link back to the lead/event). They get the existing notification bell ping + an entry in their notification panel — that's how "they know to look."
+  - Render mentions as a styled chip inline; clicking jumps to that teammate's profile.
 
--- Confirm RLS helper exists:
-SELECT proname FROM pg_proc WHERE proname = 'is_company_member';
-```
-Paste results in the first build response. If `is_company_member` doesn't exist, swap the RLS policy for an inline `EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND company_id = bd_event_tasks.company_id)` check.
+### 5. AI-suggested new-event flow (proposed UX)
+When the "scout-events" pipeline finds a relevant event:
+1. Insert it into `bd_events` with `status='SUGGESTED'` and `suggested_by_ai=true` (boolean column).
+2. Fire a notification to all BD-role users: "AI found a new event — NYC Real Estate Summit (Jun 24). Worth attending?" deep-linking to the event detail.
+3. On the event detail, if `status='SUGGESTED'`, show a banner at the top with **Why AI flagged this** (already populated via `why_it_matters`) + two buttons: **Add to pipeline** (flips status to `PLANNED`) and **Dismiss** (status `DISMISSED`, hides from default list).
+4. The existing `BdActivityThread` on the event becomes the discussion surface — the AI auto-posts a system `NOTE` with its reasoning as the first message, teammates can `@mention` each other in-thread to weigh in, and once someone Adds-to-pipeline the thread carries forward.
 
-Known facts already confirmed: `bd_events.name` (not event_name), `bd_events.start_time` + `end_time` already exist, `project_action_items.project_id` is NOT NULL (so we do NOT add `event_id` to it).
+No separate "AI inbox" needed — reuses existing notification + event-detail surfaces.
 
----
+### Files touched
+- `src/pages/bd/_bdcard/BdMyCardTab.tsx` (remove Print, shrink vCard)
+- `src/pages/bd/BdEventDetail.tsx` (single date, drop next_action)
+- `src/pages/bd/BdEvents.tsx` (date-only cells, verify AttendeesPicker in dialog)
+- `src/hooks/useBdEvents.ts` (error toasts on attendee mutations)
+- `src/components/bd/BdActivityThread.tsx` (always-on author header, @mention composer + chip render)
+- New: `@mentions` popover component
+- Migration: `bd_activities.mentioned_user_ids uuid[]`, `bd_events.status` enum extend with `SUGGESTED`/`DISMISSED`, `bd_events.suggested_by_ai bool`
+- Edge function `scout-events` (if exists) updated to insert with new flags + dispatch notifications
 
-## Migration: `supabase/migrations/<ts>_bd_events_form_overhaul.sql`
-
-New table only — `bd_event_tasks` exactly as you spec'd:
-- columns: `id, company_id, event_id, title, assigned_to, due_date, status (open|in_progress|done), created_by, created_at, updated_at`
-- indexes on `event_id`, partial on `assigned_to`
-- GRANTs to `authenticated` (CRUD) + `service_role` (ALL)
-- RLS via `is_company_member(company_id)` (with fallback if helper missing)
-- `update_updated_at_column()` trigger
-
----
-
-## A. Events fixes (your 7 + iCal)
-
-### A1. "Going" column on Events table
-- New column in `BdEvents.tsx` table: avatar stack (max 3 + `+N`).
-- One batched query: `bd_event_attendees` filtered by current page's event IDs, joined to `profiles` for name/initials.
-- Empty → dash.
-
-### A2. Attendees picker in edit dialog
-- Extract `AttendeesPicker` out of `BdEventDetail.tsx` into `src/components/bd/AttendeesPicker.tsx`.
-- Use it in both the edit dialog and the detail page (one implementation per concept).
-- Existing `useAddEventAttendee` / `useRemoveEventAttendee` unchanged.
-
-### A3. Prep panel scoped to event attendees
-- "Who you know going": after fetching this event's attendees, query leads where `assigned_to IN (attendees) OR created_by IN (attendees)`, derive the brokerages/companies, then show TIMS leads + contacts at those companies only.
-- No attendees → exact copy: **"Add team members going to this event to see warm paths."**
-- "Others in this market": render only when BOTH `target_audience` AND `category` are set. Otherwise hide the whole subsection.
-
-### A4. Start / end times
-- Add `<Input type="time">` for Start time and End time under Schedule on both detail page and edit dialog.
-- **All-day** checkbox → clears + hides time inputs when checked.
-- On save: if `start_date` set and `end_date` empty → default `end_date = start_date`.
-- Header + table format: `Jun 16, 8:00–9:30 AM` (omit time if all-day or null).
-
-### A5. Draft strategy with AI
-- New edge function `supabase/functions/draft-event-strategy/index.ts`:
-  - JWT auth (user, not cron-secret).
-  - Input: `{ event_name, source_url, category, target_audience, why_it_matters? }`.
-  - Model: `google/gemini-2.5-flash` via Lovable AI gateway (`LOVABLE_API_KEY`), same pattern as `parse-event-url`.
-  - Returns JSON: `{ why_it_matters, recent_news, key_attendees, competitive_landscape }`, each 2–4 sentences with GLE-specific framing (NYC permit expediting, DOB filings).
-  - 402/429 surfaced as toast.
-- **Draft strategy with AI** button at top of Strategy card on detail page; pre-fills the 4 fields as editable drafts. Notes stays human-only.
-
-### A6. Cost section cleanup
-- Remove `price_verified` field/dropdown from UI. Replace with inline **"✓ Verified"** badge that auto-shows when `cost_actual` is set. (DB column stays for back-compat.)
-- Collapse `included_in_membership` checkbox + `membership_id` picker → single membership picker; when set, auto-sets member price to `$0`.
-- Member / Non-member / Actual paid render in one compact row.
-- Keep `paid_by`.
-
-### A7. Event tasks — split section pattern (per your answer b)
-- New `EventTasksCard` component below Strategy on event detail page.
-- New `useEventTasks(eventId)` hook reading/writing `bd_event_tasks`.
-- Inline add row: title (required) + assignee dropdown (company profiles) + due date.
-- Checkbox toggles `status='done'`.
-- **Action Items page** stays exactly as-is at the top (`project_action_items`). Add a **second section underneath** titled "Event prep tasks" using a separate lightweight component + `useMyEventTasks()` hook (scoped to `assigned_to = auth.uid()`). Each row shows title, due date, an "Event: <name>" chip linking `/bd/events/:id`. No fake columns, no shared interface.
-
-### A8. iCal export
-- "Add to Calendar" button on detail header (shown when `start_date` is set).
-- Client-side `.ics` generation: VEVENT with `DTSTART` / `DTEND` (DATE-only if all-day, DATE-TIME otherwise), `SUMMARY=name`, `LOCATION`, `URL=source_url`. Download via Blob + anchor click.
-- No edge function.
-
----
-
-## B. Chat-style discussion (rewrite `BdActivityThread.tsx`)
-
-No schema change — same `bd_activities` table, type `NOTE`. Used on both Lead and Event detail pages (fixes both at once).
-
-- **Persistent composer** pinned at the bottom: Textarea + Send button. Enter sends, Shift+Enter newline. No "Add Note" toggle.
-- **Bubble layout**: own messages right-aligned with `bg-primary text-primary-foreground`, others left-aligned with avatar + name. Timestamp above bubble.
-- **System rows** (STAGE_CHANGE, STATUS_CHANGE, APPROVAL, PROPOSAL_CREATED, EMAIL, SYSTEM) → centered inline dividers ("Manny advanced stage to Qualified · 2h"), not bubbles.
-- **Pinned** messages render above with a small "📌 Pinned" tag instead of hover-only icon.
-- **Auto-scroll to bottom** on mount and on new message; preserve scroll on older renders.
-- **@mention autocomplete** from company profiles → writes user ids into the existing `mentions` array column → triggers notifications via existing trigger pattern (verify trigger exists in step 0; if not, skip mention notifications this batch and log a follow-up).
-- Public props (`filter`, `extraActions`, `emptyText`) remain backward-compatible — no changes needed at call sites in `BdLeadDetail.tsx` or `BdEventDetail.tsx`.
-- Note: AI Elements chat primitives don't apply here — this is human-to-human discussion, not an AI agent surface. (Documented exception to the chat-ui-composition gate.)
-
----
-
-## C. Lead editing affordance (CSS + copy only — zero backend)
-
-The fields in `BdLeadDetail.tsx` already save on blur via `EditableText`. The problem is discoverability.
-
-- Update `EditableText` + `Field` row:
-  - Hover background `hover:bg-muted/40` + a small pencil icon on the right (`opacity-0 group-hover:opacity-60`).
-  - Empty value → muted "Add role" / "Add email" / "Add phone" / "Add property" / etc., not "—". Wire the label from a `placeholder` prop already accepted.
-  - Focus ring + visible border when input opens.
-- **Edit details** button in header (sibling to Advance stage / Add Note / Log Call) → scrolls to and focus-opens the first empty `EditableText`. Pure UX hook, no new state.
-
----
-
-## Technical details
-
-- **Files created (5):**
-  - `supabase/migrations/<ts>_bd_events_form_overhaul.sql`
-  - `supabase/functions/draft-event-strategy/index.ts`
-  - `src/components/bd/AttendeesPicker.tsx`
-  - `src/components/bd/EventTasksCard.tsx`
-  - `src/hooks/useEventTasks.ts`
-- **Files edited (6):**
-  - `src/pages/bd/BdEventDetail.tsx` — times, AI button, cost cleanup, tasks card, iCal button, use shared AttendeesPicker.
-  - `src/pages/bd/BdEvents.tsx` — Going column, attendees in edit dialog, time display.
-  - `src/components/bd/EventPrepPanel.tsx` — attendee-scoped warm paths, hide market section when criteria missing.
-  - `src/components/bd/BdActivityThread.tsx` — chat-style rewrite.
-  - `src/pages/bd/BdLeadDetail.tsx` — Edit details button, scroll/focus helper. Reuses updated `EditableText`.
-  - `src/pages/ActionItems.tsx` (or equivalent) — append "Event prep tasks" section.
-- **Hooks edited:** extend `BdEvent` type in `useBdEvents.ts` with `start_time` / `end_time` (already in DB).
-- **Changelog:** insert one `changelog_entries` row covering all of A+B+C.
-- **Memory:** no new memories — this is a feature build, not a doctrine change.
-
----
-
-## Doctrine verification — pastes required after build
-
-1. `SELECT id, title, assigned_to, status FROM bd_event_tasks WHERE event_id = '<event id>' LIMIT 5;` — confirms insert works with no `project_id`.
-2. Open an event with **0 attendees** → screenshot shows "Add team members going to this event to see warm paths." (not a global TIMS firm list).
-3. Set a `start_time` on an event, save → screenshot header showing `Jun 16, 8:00 AM` format.
-4. Click "Draft strategy with AI" → paste the 4 returned fields verbatim.
-5. Click "Add to Calendar" → confirm `.ics` downloads with correct `DTSTART`.
-6. Open `BdLeadDetail` → screenshot a hover row showing pencil icon + "Add role" empty state.
-7. Open Discussion on any lead → screenshot showing bubble layout + persistent bottom composer.
-
-I won't mark complete until all 7 pastes are in.
-
-Switch to build and I'll execute.
+### Questions before I build
+1. **AI-suggested events** — is the proposed flow above what you want, or would you rather see a dedicated "Suggestions" inbox separate from the events list?
+2. **@mentions notification channel** — in-app bell only, or also email the tagged person?
+3. **Attendees bug** — when you try to add a teammate now, what happens exactly? Dropdown empty? Click does nothing? Row appears then vanishes on refresh? (helps me confirm the toast-driven diagnosis above will catch it)
