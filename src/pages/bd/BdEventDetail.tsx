@@ -299,8 +299,14 @@ export default function BdEventDetail() {
               </p>
               <Field label="Date">
                 <Input type="date" className="h-8" value={event.start_date ?? ""}
-                  onChange={(e) => set({ start_date: e.target.value || null, end_date: e.target.value || null, start_time: null, end_time: null } as any)} />
+                  onChange={(e) => set({ start_date: e.target.value || null, end_date: e.target.value || null } as any)} />
               </Field>
+              <Field label="Time">
+                <Input type="time" className="h-8" value={event.start_time ?? ""}
+                  placeholder="Optional"
+                  onChange={(e) => set({ start_time: e.target.value || null, end_time: null } as any)} />
+              </Field>
+
               <Field label="Location">
                 <EditableText value={event.location} onSave={(v) => set({ location: v })} />
               </Field>
