@@ -33,17 +33,22 @@ import { supabase } from "@/integrations/supabase/client";
 function icsEscape(v: string) {
   return v.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;");
 }
-function toIcsDateTime(date: string, time: string | null, fallback: string) {
-  const t = (time && /^\d{2}:\d{2}/.test(time) ? time.slice(0, 5) : fallback).replace(":", "") + "00";
-  return `${date.replace(/-/g, "")}T${t}`;
+function toIcsDate(date: string) {
+  return date.replace(/-/g, "");
+}
+function addOneDay(date: string) {
+  const d = new Date(date + "T12:00:00");
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0, 10);
 }
 function downloadEventIcs(event: BdEvent) {
   if (!event.start_date) {
-    alert("Add a start date before exporting to calendar.");
+    alert("Add a date before exporting to calendar.");
     return;
   }
-  const dtStart = toIcsDateTime(event.start_date, event.start_time, "0900");
-  const dtEnd = toIcsDateTime(event.end_date || event.start_date, event.end_time, "1700");
+  // All-day event: DTSTART;VALUE=DATE + DTEND exclusive (next day)
+  const dtStart = toIcsDate(event.start_date);
+  const dtEnd = toIcsDate(addOneDay(event.end_date || event.start_date));
   const uid = `${event.id}@ordino`;
   const now = new Date().toISOString().replace(/[-:.]/g, "").slice(0, 15) + "Z";
   const lines = [
@@ -53,8 +58,8 @@ function downloadEventIcs(event: BdEvent) {
     "BEGIN:VEVENT",
     `UID:${uid}`,
     `DTSTAMP:${now}`,
-    `DTSTART:${dtStart}`,
-    `DTEND:${dtEnd}`,
+    `DTSTART;VALUE=DATE:${dtStart}`,
+    `DTEND;VALUE=DATE:${dtEnd}`,
     `SUMMARY:${icsEscape(event.name)}`,
     event.location ? `LOCATION:${icsEscape(event.location)}` : "",
     event.notes ? `DESCRIPTION:${icsEscape(event.notes)}` : "",
@@ -224,8 +229,7 @@ export default function BdEventDetail() {
           <div className="flex items-center gap-2 mt-2 flex-wrap text-sm text-muted-foreground">
             {event.start_date && (
               <span>
-                {format(new Date(event.start_date + "T12:00:00"), "MMM d, yyyy")}
-                {event.start_time && `, ${format(new Date(`2000-01-01T${event.start_time}`), "h:mm a")}`}
+                {format(new Date(event.start_date + "T12:00:00"), "EEE, MMM d, yyyy")}
               </span>
             )}
             {event.location && (
@@ -263,39 +267,10 @@ export default function BdEventDetail() {
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
                 Schedule & Logistics
               </p>
-              <Field label="All day">
-                <div className="flex items-center gap-2 pt-1.5">
-                  <input
-                    type="checkbox"
-                    checked={!event.start_time && !event.end_time}
-                    onChange={(e) => {
-                      if (e.target.checked) set({ start_time: null, end_time: null } as any);
-                      else set({ start_time: "09:00", end_time: "17:00" } as any);
-                    }}
-                  />
-                  <span className="text-xs text-muted-foreground">No specific time</span>
-                </div>
-              </Field>
-              <Field label="Start date">
+              <Field label="Date">
                 <Input type="date" className="h-8" value={event.start_date ?? ""}
-                  onChange={(e) => set({ start_date: e.target.value || null })} />
+                  onChange={(e) => set({ start_date: e.target.value || null, end_date: e.target.value || null, start_time: null, end_time: null } as any)} />
               </Field>
-              {(event.start_time || event.end_time) && (
-                <Field label="Start time">
-                  <Input type="time" className="h-8" value={(event.start_time ?? "").slice(0, 5)}
-                    onChange={(e) => set({ start_time: e.target.value || null } as any)} />
-                </Field>
-              )}
-              <Field label="End date">
-                <Input type="date" className="h-8" value={event.end_date ?? ""}
-                  onChange={(e) => set({ end_date: e.target.value || null })} />
-              </Field>
-              {(event.start_time || event.end_time) && (
-                <Field label="End time">
-                  <Input type="time" className="h-8" value={(event.end_time ?? "").slice(0, 5)}
-                    onChange={(e) => set({ end_time: e.target.value || null } as any)} />
-                </Field>
-              )}
               <Field label="Location">
                 <EditableText value={event.location} onSave={(v) => set({ location: v })} />
               </Field>
@@ -303,6 +278,7 @@ export default function BdEventDetail() {
                 <EditableText value={event.source_url} onSave={(v) => set({ source_url: v })} placeholder="https://…" />
               </Field>
             </Card>
+
 
             <Card className="p-4 space-y-1">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
@@ -331,11 +307,6 @@ export default function BdEventDetail() {
                       <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
-              </Field>
-              <Field label="Next action">
-                <EditableText value={event.next_action}
-                  onSave={(v) => set({ next_action: v })}
-                  placeholder="What's the next step?" />
               </Field>
             </Card>
 

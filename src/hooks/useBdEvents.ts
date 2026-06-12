@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
+import { toast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 
 export type EventStatus = Database["public"]["Enums"]["bd_event_status"];
@@ -181,7 +182,10 @@ export function useAddEventAttendee() {
       } as any, { onConflict: "event_id,user_id" });
       if (error) throw error;
     },
-    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ["bd-event-attendees", v.event_id] }),
+    onSuccess: async (_d, v) => {
+      await qc.invalidateQueries({ queryKey: ["bd-event-attendees", v.event_id] });
+    },
+    onError: (e: any) => toast({ title: "Couldn't add attendee", description: e?.message ?? String(e), variant: "destructive" }),
   });
 }
 
@@ -192,7 +196,10 @@ export function useUpdateEventAttendee() {
       const { error } = await supabase.from("bd_event_attendees").update(updates as any).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ["bd-event-attendees", v.event_id] }),
+    onSuccess: async (_d, v) => {
+      await qc.invalidateQueries({ queryKey: ["bd-event-attendees", v.event_id] });
+    },
+    onError: (e: any) => toast({ title: "Couldn't update attendee", description: e?.message ?? String(e), variant: "destructive" }),
   });
 }
 
@@ -203,7 +210,10 @@ export function useRemoveEventAttendee() {
       const { error } = await supabase.from("bd_event_attendees").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ["bd-event-attendees", v.event_id] }),
+    onSuccess: async (_d, v) => {
+      await qc.invalidateQueries({ queryKey: ["bd-event-attendees", v.event_id] });
+    },
+    onError: (e: any) => toast({ title: "Couldn't remove attendee", description: e?.message ?? String(e), variant: "destructive" }),
   });
 }
 

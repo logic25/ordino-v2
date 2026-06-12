@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Download, Printer, Save, Loader2, Mail, Phone, Smartphone, MapPin, Linkedin, QrCode } from "lucide-react";
+import { Download, Save, Loader2, Mail, Phone, Smartphone, MapPin, Linkedin, QrCode } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -263,10 +263,12 @@ export function BdMyCardTab() {
         </div>
       </Card>
 
-      <div className="flex gap-2 print:hidden">
-        <Button className="flex-1" onClick={downloadVcf}><Download className="mr-2 h-4 w-4" />Download .vcf</Button>
-        <Button variant="outline" className="flex-1" onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" />Print</Button>
+      <div className="flex justify-end print:hidden">
+        <Button variant="ghost" size="sm" onClick={downloadVcf} className="text-xs text-muted-foreground hover:text-foreground h-7">
+          <Download className="mr-1.5 h-3.5 w-3.5" />Save contact (.vcf)
+        </Button>
       </div>
+
 
 
       <Card className="print:hidden">
