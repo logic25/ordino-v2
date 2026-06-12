@@ -9,7 +9,7 @@ import { format } from "date-fns";
 import type { ProjectWithRelations } from "@/hooks/useProjects";
 import type { ChangeOrder } from "@/hooks/useChangeOrders";
 
-export function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWithRelations; changeOrders: ChangeOrder[] }) {
+export function ProposalExecutionBanner({ project, changeOrders, onViewSignedProposal }: { project: ProjectWithRelations; changeOrders: ChangeOrder[]; onViewSignedProposal?: () => void }) {
   const unsignedCOs = changeOrders.filter(co => (!co.internal_signed_at || !co.client_signed_at) && co.status !== "draft");
   const proposal = project.proposals;
   const resendProposal = useSendProposal();
