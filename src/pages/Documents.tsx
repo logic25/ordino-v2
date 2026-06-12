@@ -51,9 +51,12 @@ const CATEGORIES = [
   { value: "other", label: "Other" },
 ];
 
-// Today NYC is the only jurisdiction. Adding more here automatically lights them up in selectors.
+// Extensible jurisdiction list. Add new markets here (e.g. "Charleston, SC", "Nassau")
+// and they will automatically appear in selectors and filters.
+// 'universal' = cross-jurisdiction (Company SOPs, Platform SOPs, etc.)
 const JURISDICTIONS: { value: string; label: string }[] = [
   { value: "NYC", label: "NYC" },
+  { value: "universal", label: "Universal" },
 ];
 
 function getFileIcon(mimeType: string | null) {
@@ -94,6 +97,7 @@ export default function Documents() {
 
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [jurisdictionFilter, setJurisdictionFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 15;
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -155,13 +159,14 @@ export default function Documents() {
         doc.filename.toLowerCase().includes(searchQuery.toLowerCase()) ||
         doc.description?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchCategory = categoryFilter === "all" || doc.category === categoryFilter;
+      const matchJurisdiction = jurisdictionFilter === "all" || (doc.jurisdiction || "NYC") === jurisdictionFilter;
       const matchFolder = folderIds === null || folderIds.includes((doc as any).folder_id);
-      return matchSearch && matchCategory && matchFolder;
+      return matchSearch && matchCategory && matchJurisdiction && matchFolder;
     });
-  }, [documents, searchQuery, categoryFilter, selectedFolderId, folders]);
+  }, [documents, searchQuery, categoryFilter, jurisdictionFilter, selectedFolderId, folders]);
 
   // Reset page when filters change
-  useEffect(() => { setCurrentPage(1); }, [searchQuery, categoryFilter, selectedFolderId]);
+  useEffect(() => { setCurrentPage(1); }, [searchQuery, categoryFilter, jurisdictionFilter, selectedFolderId]);
 
   const totalPages = Math.max(1, Math.ceil(filteredDocs.length / PAGE_SIZE));
   const paginatedDocs = filteredDocs.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -405,6 +410,13 @@ export default function Documents() {
                     <SelectContent>
                       <SelectItem value="all">All Categories</SelectItem>
                       {CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Select value={jurisdictionFilter} onValueChange={setJurisdictionFilter}>
+                    <SelectTrigger className="w-[160px]"><SelectValue placeholder="All jurisdictions" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Jurisdictions</SelectItem>
+                      {JURISDICTIONS.map((j) => <SelectItem key={j.value} value={j.value}>{j.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
