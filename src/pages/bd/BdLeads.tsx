@@ -133,6 +133,26 @@ export default function BdLeads() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [views.length]);
 
+  // URL params override active view filters (deep-link from reports, etc.).
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const event_id = searchParams.get("event") || undefined;
+    const source = searchParams.get("source") || undefined;
+    const stage = searchParams.get("stage") || undefined;
+    const source_type = searchParams.get("source_type") || undefined;
+    if (event_id || source || stage || source_type) {
+      setActiveViewId(null);
+      setFilters((f) => ({
+        ...f,
+        ...(event_id ? { event_id } : {}),
+        ...(source ? { source } as any : {}),
+        ...(stage ? { stage: [stage] } : {}),
+        ...(source_type ? { source_type: [source_type] } : {}),
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   const profileById = useMemo(
     () => Object.fromEntries(profiles.map((p: any) => [p.id, p])),
     [profiles],
