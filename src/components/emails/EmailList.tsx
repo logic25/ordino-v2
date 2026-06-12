@@ -1,5 +1,5 @@
 import { format, isToday, isThisYear } from "date-fns";
-import { Paperclip, Tag, Mail, Reply, FolderOpen, Bell } from "lucide-react";
+import { Paperclip, Tag, Mail, Reply, FolderOpen, Bell, MessagesSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -25,9 +25,38 @@ function isUrgent(email: EmailWithTags): boolean {
   return URGENT_KEYWORDS.some((kw) => text.includes(kw));
 }
 
+// Group emails by thread_id and pick the newest message as the visible row.
+// Returns a list of [representativeEmail, threadCount, anyUnread] tuples preserving the original order.
+function collapseThreads(emails: EmailWithTags[]): Array<{ email: EmailWithTags; count: number; anyUnread: boolean }> {
+  const seen = new Set<string>();
+  const byThread = new Map<string, EmailWithTags[]>();
+  emails.forEach((e) => {
+    const key = e.thread_id || e.id;
+    const arr = byThread.get(key) || [];
+    arr.push(e);
+    byThread.set(key, arr);
+  });
+  const out: Array<{ email: EmailWithTags; count: number; anyUnread: boolean }> = [];
+  for (const e of emails) {
+    const key = e.thread_id || e.id;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const group = byThread.get(key) || [e];
+    // Pick newest message in the thread as the representative
+    const sorted = [...group].sort((a, b) => {
+      const da = a.date ? new Date(a.date).getTime() : 0;
+      const db = b.date ? new Date(b.date).getTime() : 0;
+      return db - da;
+    });
+    out.push({ email: sorted[0], count: group.length, anyUnread: group.some((g) => !g.is_read) });
+  }
+  return out;
+}
+
 export function EmailList({ emails, selectedId, highlightedIndex, onSelect }: EmailListProps) {
   const { data: allReminders = [] } = useAllPendingReminders();
   const reminderEmailIds = new Set(allReminders.map((r) => r.email_id));
+  const threads = collapseThreads(emails);
 
   if (emails.length === 0) {
     return (
@@ -41,7 +70,7 @@ export function EmailList({ emails, selectedId, highlightedIndex, onSelect }: Em
 
   return (
     <div className="divide-y divide-border">
-      {emails.map((email, index) => {
+      {threads.map(({ email, count, anyUnread }, index) => {
         const isSelected = selectedId === email.id;
         const isHighlighted = highlightedIndex === index;
         const tags = email.email_project_tags || [];
@@ -50,6 +79,8 @@ export function EmailList({ emails, selectedId, highlightedIndex, onSelect }: Em
         const urgent = isUrgent(email);
         const replied = !!(email as any).replied_at;
         const hasReminder = reminderEmailIds.has(email.id);
+        const isThread = count > 1;
+        const unread = anyUnread;
 
         return (
           <button
@@ -61,20 +92,32 @@ export function EmailList({ emails, selectedId, highlightedIndex, onSelect }: Em
               isSelected && "bg-muted",
               isHighlighted && !isSelected && "bg-accent/10 border-l-4 border-l-primary",
               !isHighlighted && "border-l-4 border-l-transparent",
-              !email.is_read && "bg-accent/5"
+              !email.is_read && "bg-accent/5",
+              unread && email.is_read && "bg-accent/[0.03]"
             )}
           >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-0.5">
-                  <span className={cn("text-sm truncate", !email.is_read && "font-semibold")}>
+                  <span className={cn("text-sm truncate", (unread || !email.is_read) && "font-semibold")}>
                     {email.from_name || email.from_email || "Unknown"}
                   </span>
+                  {isThread && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-muted-foreground bg-muted/60 rounded px-1.5 py-0.5">
+                          <MessagesSquare className="h-3 w-3" />
+                          {count}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top"><p>{count} messages in this thread</p></TooltipContent>
+                    </Tooltip>
+                  )}
                   {email.has_attachments && (
                     <Paperclip className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
                   )}
                 </div>
-                <p className={cn("text-sm truncate", !email.is_read ? "font-medium text-foreground" : "text-foreground/80")}>
+                <p className={cn("text-sm truncate", (unread || !email.is_read) ? "font-medium text-foreground" : "text-foreground/80")}>
                   {email.subject || "(no subject)"}
                 </p>
                 <p className="text-xs text-muted-foreground truncate mt-0.5">

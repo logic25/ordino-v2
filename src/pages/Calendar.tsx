@@ -53,10 +53,12 @@ import {
 import { useCalendarDragDrop } from "@/hooks/useCalendarDragDrop";
 import { useGmailConnection } from "@/hooks/useGmailConnection";
 import { useCanAccessBilling } from "@/hooks/useUserRoles";
+import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Calendar() {
@@ -75,6 +77,21 @@ export default function Calendar() {
       return saved ? new Set(JSON.parse(saved)) : new Set();
     } catch { return new Set(); }
   });
+  const [hiddenUsers, setHiddenUsers] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem("calendar_hidden_users");
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch { return new Set(); }
+  });
+  const { data: teamProfiles } = useCompanyProfiles();
+  const toggleUser = (id: string) => {
+    setHiddenUsers(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      localStorage.setItem("calendar_hidden_users", JSON.stringify([...next]));
+      return next;
+    });
+  };
 
   const { moveEventToDate, moveEventToTime } = useCalendarDragDrop();
   const [dragOverCell, setDragOverCell] = useState<string | null>(null);
@@ -130,8 +147,10 @@ export default function Calendar() {
   const allEvents: UnifiedEvent[] = useMemo(() => {
     const combined: UnifiedEvent[] = [...(events || [])];
     if (showBilling && billingItems) combined.push(...billingItems);
-    return combined.filter(ev => !hiddenTypes.has(ev.event_type || "general"));
-  }, [events, billingItems, showBilling, hiddenTypes]);
+    return combined
+      .filter(ev => !hiddenTypes.has(ev.event_type || "general"))
+      .filter(ev => !(ev as any).user_id || !hiddenUsers.has((ev as any).user_id));
+  }, [events, billingItems, showBilling, hiddenTypes, hiddenUsers]);
 
   const toDateKey = useCallback((isoString: string, allDay: boolean | null | undefined): string => {
     if (allDay && isoString.length >= 10) {
@@ -173,7 +192,9 @@ export default function Calendar() {
 
       const { startKey, endKey } = getAllDayRange(ev);
 
-      if (ev.all_day && startKey !== endKey) {
+      // For both all-day and timed events: if the event spans multiple days,
+      // surface it on each day in the range so multi-day events aren't hidden.
+      if (startKey !== endKey) {
         const startD = new Date(`${startKey}T00:00:00`);
         const endD = new Date(`${endKey}T00:00:00`);
         const evDays = eachDayOfInterval({ start: startD, end: endD });
@@ -349,6 +370,41 @@ export default function Calendar() {
                 )}
               </PopoverContent>
             </Popover>
+            {teamProfiles && teamProfiles.length > 1 && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="rounded-xl border-border/40 bg-card/50 backdrop-blur-sm hover:bg-card/80">
+                    <Users className="h-4 w-4 mr-1" />
+                    Team
+                    {hiddenUsers.size > 0 && (
+                      <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">{hiddenUsers.size} hidden</Badge>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-3 cal-glass-strong cal-depth-md rounded-xl border-border/30 max-h-[400px] overflow-y-auto" align="end">
+                  <p className="text-[9px] font-bold text-muted-foreground/50 mb-2 uppercase tracking-widest">Show teammate calendars</p>
+                  <div className="space-y-1.5">
+                    {teamProfiles.map((p, i) => {
+                      const palette = ["bg-blue-500", "bg-emerald-500", "bg-amber-500", "bg-violet-500", "bg-rose-500", "bg-cyan-500", "bg-orange-500", "bg-pink-500"];
+                      const dot = palette[i % palette.length];
+                      const name = [p.first_name, p.last_name].filter(Boolean).join(" ") || "Unnamed";
+                      return (
+                        <label key={p.id} className="flex items-center gap-2 cursor-pointer rounded-lg px-1.5 py-1 hover:bg-accent/10 transition-colors">
+                          <Checkbox checked={!hiddenUsers.has(p.id)} onCheckedChange={() => toggleUser(p.id)} />
+                          <span className={cn("w-2 h-2 rounded-full shrink-0", dot)} />
+                          <span className="text-sm text-foreground/80 truncate">{name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {hiddenUsers.size > 0 && (
+                    <Button variant="ghost" size="sm" className="w-full mt-2 text-xs" onClick={() => { setHiddenUsers(new Set()); localStorage.removeItem("calendar_hidden_users"); }}>
+                      Show All
+                    </Button>
+                  )}
+                </PopoverContent>
+              </Popover>
+            )}
             {canAccessBilling && (
               <Button variant={showBilling ? "default" : "outline"} size="sm" className="rounded-xl" onClick={() => setShowBilling(!showBilling)}>
                 <DollarSign className="h-4 w-4 mr-1" />
