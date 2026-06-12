@@ -152,16 +152,11 @@ export default function Proposals() {
       })
     : displayProposals;
 
-  const filteredLeads = displayLeads.filter((l) => {
-    const query = searchQuery.toLowerCase();
-    if (!query) return true;
-    return (
-      l.full_name?.toLowerCase().includes(query) ||
-      l.contact_email?.toLowerCase().includes(query) ||
-      l.property_address?.toLowerCase().includes(query) ||
-      l.subject?.toLowerCase().includes(query)
-    );
-  });
+  // Leads tab now redirects to /bd/leads (the BD module owns leads).
+  useEffect(() => {
+    if (activeTab === "leads") navigate("/bd/leads");
+  }, [activeTab, navigate]);
+
 
   // Month-over-month analytics from lightweight stats query
   const allStats = statsData || [];
@@ -511,63 +506,9 @@ export default function Proposals() {
     }
   };
 
-  const handleDraftFollowUp = async (proposal: ProposalWithRelations) => {
-    setIsDraftingFollowUp(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("draft-proposal-followup", {
-        body: { proposal_id: proposal.id },
-      });
-      if (error) throw error;
-      if (data?.error) {
-        toast({ title: "AI Error", description: data.error, variant: "destructive" });
-        return;
-      }
-      setComposeTo(data.client_email || proposal.client_email || "");
-      setComposeSubject(data.subject || "");
-      setComposeBody(data.html_body || "");
-      setComposeOpen(true);
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Failed to draft follow-up", variant: "destructive" });
-    } finally {
-      setIsDraftingFollowUp(false);
-    }
-  };
+  // Lead capture is handled by the shared <CaptureLeadModal/> (BD module);
+  // lead → proposal conversion lives in BD lead detail (atomic RPC).
 
-  // Lead capture is handled by the shared <CaptureLeadModal/> (BD module), which
-  // dual-writes + seeds the activity thread. Phantom draft proposals were removed.
-
-  const handleDeleteLead = async (id: string) => {
-    try {
-      await deleteLead.mutateAsync(id);
-      toast({ title: "Lead deleted" });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    }
-  };
-
-  const handleConvertLeadToProposal = async (lead: Lead) => {
-    try {
-      const newProposal = await createProposal.mutateAsync({
-        property_id: null as any,
-        title: `Lead: ${lead.full_name}${lead.property_address ? ` – ${lead.property_address}` : ""}`,
-        client_name: lead.full_name,
-        client_email: lead.contact_email || null,
-        lead_source: lead.source,
-        notes: [
-          lead.contact_phone ? `Phone: ${lead.contact_phone}` : "",
-          lead.subject ? `Subject: ${lead.subject}` : "",
-          lead.client_type ? `Type: ${lead.client_type}` : "",
-          lead.notes || "",
-        ].filter(Boolean).join("\n"),
-      } as any);
-
-      await updateLead.mutateAsync({ id: lead.id, status: "converted", proposal_id: newProposal.id });
-      toast({ title: "Proposal created!", description: `Draft proposal created from lead ${lead.full_name}.` });
-      setActiveTab("proposals");
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    }
-  };
 
   return (
     <AppLayout>
