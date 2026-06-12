@@ -237,6 +237,24 @@ Deno.serve(async (req) => {
       console.error("Failed to build sender->profile map:", e);
     }
 
+    // Pre-fetch BD leads (id, contact_email) for this company — exact email match only.
+    const leadEmailToId = new Map<string, string>();
+    try {
+      const { data: leadRows } = await supabaseAdmin
+        .from("leads")
+        .select("id, contact_email")
+        .eq("company_id", profile.company_id)
+        .not("contact_email", "is", null);
+      for (const l of leadRows || []) {
+        const em = (l.contact_email || "").trim().toLowerCase();
+        if (em) leadEmailToId.set(em, l.id);
+      }
+    } catch (e) {
+      console.error("Failed to build lead email map:", e);
+    }
+    const connectedMailbox = (connection.email_address || "").trim().toLowerCase();
+
+
     let syncedCount = 0;
     let totalChecked = 0;
     let pageToken: string | undefined = undefined;
