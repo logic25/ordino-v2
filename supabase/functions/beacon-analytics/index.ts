@@ -691,7 +691,32 @@ async function persistWidgetMessages(sb: any, d: any) {
     throw new Error("user_email, user_message, and ai_response are required");
   }
 
+  // Derive company_id: prefer payload, else look up via auth.users → profiles
+  let companyId: string | null = d.company_id || null;
+  if (!companyId) {
+    try {
+      const { data: authUsers } = await sb.auth.admin.listUsers();
+      const matched = (authUsers?.users || []).find(
+        (u: any) => u.email?.toLowerCase() === String(d.user_email).toLowerCase()
+      );
+      if (matched) {
+        const { data: prof } = await sb
+          .from("profiles")
+          .select("company_id")
+          .eq("user_id", matched.id)
+          .maybeSingle();
+        companyId = prof?.company_id || null;
+      }
+    } catch (_) { /* swallow */ }
+  }
+  if (!companyId) {
+    const { data: companyRow } = await sb.from("companies").select("id").limit(1).maybeSingle();
+    companyId = companyRow?.id || null;
+  }
+  if (!companyId) throw new Error("Unable to resolve company_id for widget message persistence");
+
   const now = new Date().toISOString();
+  const sessionId = d.session_id || null;
   const { error } = await sb.from("widget_messages").insert([
     {
       user_email: d.user_email,
@@ -699,6 +724,8 @@ async function persistWidgetMessages(sb: any, d: any) {
       content: d.user_message,
       metadata: {},
       created_at: now,
+      company_id: companyId,
+      session_id: sessionId,
     },
     {
       user_email: d.user_email,
@@ -706,8 +733,10 @@ async function persistWidgetMessages(sb: any, d: any) {
       content: d.ai_response,
       metadata: d.metadata || {},
       created_at: now,
+      company_id: companyId,
+      session_id: sessionId,
     },
   ]);
   if (error) throw error;
-  return jsonResponse({ success: true });
+  return jsonResponse({ success: true, company_id: companyId });
 }
