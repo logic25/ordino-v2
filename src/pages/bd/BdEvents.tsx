@@ -207,10 +207,29 @@ export default function BdEvents() {
                           )}
                         </TableCell>
                         <TableCell className="text-sm">{fmtDate(e.start_date)}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={STATUS_META[e.status].className}>
-                            {STATUS_META[e.status].label}
-                          </Badge>
+                        <TableCell onClick={(ev) => ev.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button type="button"
+                                title="Change status"
+                                className="focus:outline-none">
+                                <Badge variant="outline"
+                                  className={`${STATUS_META[e.status].className} cursor-pointer hover:opacity-80`}>
+                                  {STATUS_META[e.status].label}
+                                  <ChevronDown className="h-3 w-3 ml-1 opacity-60" />
+                                </Badge>
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              {(Object.keys(STATUS_META) as EventStatus[]).map((s) => (
+                                <DropdownMenuItem key={s} onClick={() => setStatus(e.id, s)}>
+                                  <Badge variant="outline" className={`${STATUS_META[s].className} mr-2`}>
+                                    {STATUS_META[s].label}
+                                  </Badge>
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                         <TableCell className="text-sm">
                           {e.included_in_membership ? (
