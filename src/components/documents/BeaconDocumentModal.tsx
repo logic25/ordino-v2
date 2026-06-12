@@ -136,7 +136,7 @@ export function BeaconDocumentModal({
       .then((data) => {
         const parsed = parseFrontmatter(data.content);
         setMetadata(parsed.metadata);
-        setBody(parsed.body);
+        setBody(normalizeMarkdown(parsed.body));
       })
       .catch((err) => {
         toast({
