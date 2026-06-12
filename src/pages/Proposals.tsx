@@ -160,7 +160,7 @@ export default function Proposals() {
       })
     : displayProposals;
 
-  // Leads tab now redirects to /bd/leads (the BD module owns leads).
+  // Legacy leads-tab redirect — kept harmless; the tab itself was removed in Batch C.
   useEffect(() => {
     if (activeTab === "leads") navigate("/bd/leads");
   }, [activeTab, navigate]);
