@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { lazy, Suspense } from "react";
 const ProposalDialog = lazy(() => import("@/components/proposals/ProposalDialog").then(m => ({ default: m.ProposalDialog })));
 import { ProposalTable } from "@/components/proposals/ProposalTable";
-import { LeadsTable } from "@/components/proposals/LeadsTable";
+import { useNavigate } from "react-router-dom";
 import { SignatureDialog, type SignatureRecipient } from "@/components/proposals/SignatureDialog";
 import { ProposalApprovalDialog } from "@/components/proposals/ProposalApprovalDialog";
 import { ProposalPreviewModal } from "@/components/proposals/ProposalPreviewModal";
@@ -39,7 +39,7 @@ import {
   useLogFollowUp,
   useSnoozeFollowUp,
 } from "@/hooks/useProposalFollowUps";
-import { useLeads, useCreateLead, useDeleteLead, useUpdateLead, type Lead } from "@/hooks/useLeads";
+import { useCreateLead, type Lead } from "@/hooks/useLeads";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
