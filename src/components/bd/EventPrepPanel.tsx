@@ -163,27 +163,30 @@ export function EventPrepPanel({
     }).slice(0, 12);
   }, [contacts, marketKey]);
 
+  // Hide "Others in this market" entirely unless BOTH category and targetAudience
+  // are set — avoids dumping the global firm list on every event.
+  const showMarketSection = !!(category && targetAudience);
+
   return (
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-2">
           <Users className="h-4 w-4" />Prep — Conversation Card
         </CardTitle>
-        {attendees.length === 0 && (
-          <p className="text-xs text-muted-foreground">
-            No attendees yet — add teammates below to scope warm paths to who's going.
-          </p>
-        )}
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Section 1 — warm paths from TIMS brokerages */}
+        {/* Section 1 — warm paths scoped to attendees */}
         <div>
           <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
             Who you know going
           </div>
-          {warmPaths.length === 0 ? (
+          {attendees.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No brokerage matches in TIMS yet. Capture more contacts (each one unlocks the firms they belong to).
+              Add team members going to this event to see warm paths.
+            </p>
+          ) : warmPaths.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No brokerage matches from this team's TIMS leads yet.
             </p>
           ) : (
             <div className="space-y-2">
@@ -214,39 +217,35 @@ export function EventPrepPanel({
           )}
         </div>
 
-        {/* Section 2 — others in this market */}
-        <div>
-          <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-            Others in this market
-            {targetAudience && (
+        {/* Section 2 — others in this market (only when both fields set) */}
+        {showMarketSection && (
+          <div>
+            <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+              Others in this market
               <Badge variant="outline" className="ml-1 text-[10px] font-normal">
                 {targetAudience}
               </Badge>
+            </div>
+            {marketContacts.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No contacts match "{targetAudience}" yet.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {marketContacts.map((c: any) => (
+                  <Link key={c.id}
+                    to={c.client?.id ? `/clients/${c.client.id}` : "/clients"}
+                    className="text-xs rounded-full border px-2 py-0.5 hover:bg-muted">
+                    <span className="font-medium">{c.name}</span>
+                    <span className="text-muted-foreground">
+                      {c.title ? ` — ${c.title}` : ""}{c.client?.name ? ` · ${c.client.name}` : ""}
+                    </span>
+                  </Link>
+                ))}
+              </div>
             )}
           </div>
-          {!marketKey ? (
-            <p className="text-sm text-muted-foreground">
-              Set <span className="font-medium">target audience</span> or <span className="font-medium">category</span> above to surface relevant market contacts.
-            </p>
-          ) : marketContacts.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No contacts match "{targetAudience || category}" yet.
-            </p>
-          ) : (
-            <div className="flex flex-wrap gap-1.5">
-              {marketContacts.map((c: any) => (
-                <Link key={c.id}
-                  to={c.client?.id ? `/clients/${c.client.id}` : "/clients"}
-                  className="text-xs rounded-full border px-2 py-0.5 hover:bg-muted">
-                  <span className="font-medium">{c.name}</span>
-                  <span className="text-muted-foreground">
-                    {c.title ? ` — ${c.title}` : ""}{c.client?.name ? ` · ${c.client.name}` : ""}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
+        )}
       </CardContent>
     </Card>
   );
