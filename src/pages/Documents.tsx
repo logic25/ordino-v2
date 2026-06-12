@@ -409,6 +409,18 @@ export default function Documents() {
                   </Select>
                 </div>
 
+                {selectedDocIds.size > 0 && (
+                  <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-md border bg-muted/40">
+                    <span className="text-sm">{selectedDocIds.size} selected</span>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={() => { setBulkJurisdiction("NYC"); setBulkTagOpen(true); }}>
+                        <Tag className="h-3.5 w-3.5 mr-1.5" /> Tag jurisdiction
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setSelectedDocIds(new Set())}>Clear</Button>
+                    </div>
+                  </div>
+                )}
+
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="flex items-center gap-2 text-base">
