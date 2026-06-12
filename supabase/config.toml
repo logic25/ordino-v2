@@ -131,3 +131,6 @@ verify_jwt = false
 
 [functions.process-bd-sequences]
 verify_jwt = false
+
+[functions.bd-email-ingest]
+verify_jwt = false
