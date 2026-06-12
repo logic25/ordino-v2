@@ -40,6 +40,7 @@ export interface BdEvent {
   created_by: string | null;
   attendee_count?: number;
   lead_count?: number;
+  pipeline_generated?: number;
   membership?: { id: string; organization: string } | null;
 }
 
