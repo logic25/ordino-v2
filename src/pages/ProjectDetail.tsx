@@ -352,6 +352,13 @@ export default function ProjectDetail() {
                   })()}
                 </div>
               </div>
+              {(originLead || project.proposals) && (
+                <LineageBreadcrumb
+                  className="mt-1"
+                  lead={originLead}
+                  proposal={project.proposals ? { id: project.proposals.id, proposal_number: project.proposals.proposal_number, title: project.proposals.title } : null}
+                />
+              )}
               <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground flex-wrap">
                 {(project as any).tenant_name && (
                   <span className="flex items-center gap-1 text-xs">Tenant: {(project as any).tenant_name}</span>
