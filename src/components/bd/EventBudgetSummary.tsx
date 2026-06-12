@@ -22,7 +22,7 @@ export function EventBudgetSummary() {
     const m = new Map<string, string>();
     profiles.forEach((p) => {
       const full = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
-      if (p.user_id) m.set(p.user_id, full || p.email || "Unknown");
+      if (p.user_id) m.set(p.user_id, full || (p as any).email || "Unknown");
     });
     return m;
   }, [profiles]);
