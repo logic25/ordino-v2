@@ -7,6 +7,13 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+type Ctx = {
+  sb: any;
+  companyId: string | null;
+  userId: string | null;
+  authMode: "jwt" | "shared_secret_only";
+};
+
 function ok(data: unknown) {
   return new Response(JSON.stringify({ data, error: null }), {
     status: 200,
@@ -21,6 +28,44 @@ function fail(message: string, status = 400) {
   });
 }
 
+// Tables in the allowlist that carry a company_id column. ALL allowed tables
+// currently have company_id, so we scope every query_ordino call by company.
+const COMPANY_SCOPED_TABLES = new Set([
+  "projects", "properties", "proposals", "invoices", "services",
+  "clients", "client_contacts", "project_action_items",
+  "project_checklist_items", "rfi_requests", "signal_violations",
+  "signal_applications", "profiles", "company_reviews",
+]);
+
+async function logAudit(
+  sb: any,
+  ctx: Ctx,
+  action: string,
+  params: any,
+  rowCount: number | null,
+  success: boolean,
+  errorMessage: string | null,
+  durationMs: number,
+) {
+  try {
+    await sb.from("beacon_tool_log").insert({
+      user_id: ctx.userId,
+      company_id: ctx.companyId,
+      project_id: params?.project_id ?? null,
+      question_id: null,
+      question_text: null,
+      tool_name: action,
+      parameters: params ?? {},
+      row_count: rowCount,
+      duration_ms: durationMs,
+      success,
+      error_message: errorMessage,
+    });
+  } catch (e) {
+    console.error("beacon_tool_log insert failed:", e);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -30,11 +75,22 @@ Deno.serve(async (req) => {
     return fail("Method not allowed", 405);
   }
 
+  const startedAt = Date.now();
+
   try {
-    // Auth: shared secret
-    const beaconKey = req.headers.get("x-beacon-key") ?? "";
+    // ── Auth layer ───────────────────────────────────────
+    // Primary: forwarded end-user JWT in Authorization header (verified, then
+    //   profiles.company_id derived). This is the only mode that yields a
+    //   verified companyId and is REQUIRED by default.
+    // Secondary: shared secret (x-beacon-key) — only honored when JWT is
+    //   missing AND BEACON_PROXY_ALLOW_SHARED_SECRET_ONLY=1. Default OFF.
     const expectedKey = Deno.env.get("BEACON_ANALYTICS_KEY") ?? "";
-    if (!expectedKey || beaconKey !== expectedKey) {
+    const beaconKey = req.headers.get("x-beacon-key") ?? "";
+    const sharedSecretOk = !!expectedKey && beaconKey === expectedKey;
+    const allowSharedOnly =
+      (Deno.env.get("BEACON_PROXY_ALLOW_SHARED_SECRET_ONLY") ?? "0") === "1";
+
+    if (!sharedSecretOk) {
       return fail("Unauthorized", 401);
     }
 
@@ -43,43 +99,126 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // Try to verify JWT
+    let userId: string | null = null;
+    let companyId: string | null = null;
+    let authMode: "jwt" | "shared_secret_only" = "shared_secret_only";
+
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const bearer = authHeader.toLowerCase().startsWith("bearer ")
+      ? authHeader.slice(7).trim()
+      : "";
+
+    if (bearer) {
+      const userClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: `Bearer ${bearer}` } } },
+      );
+      const { data: { user }, error: userErr } = await userClient.auth.getUser(bearer);
+      if (userErr || !user) {
+        return fail("Invalid JWT", 401);
+      }
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("id, company_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!prof?.company_id) {
+        return fail("No company for user", 403);
+      }
+      userId = prof.id;
+      companyId = prof.company_id;
+      authMode = "jwt";
+    } else if (!allowSharedOnly) {
+      return fail(
+        "JWT required (set BEACON_PROXY_ALLOW_SHARED_SECRET_ONLY=1 only for legacy callers)",
+        401,
+      );
+    }
+
+    const ctx: Ctx = { sb: supabase, companyId, userId, authMode };
+
     const { action, params = {} } = await req.json();
 
-    switch (action) {
-      case "query_projects":
-        return await queryProjects(supabase, params);
-      case "query_project_detail":
-        return await queryProjectDetail(supabase, params);
-      case "query_property_violations":
-        return await queryPropertyViolations(supabase, params);
-      case "query_pm_workload":
-        return await queryPmWorkload(supabase, params);
-      case "check_filing_readiness":
-        return await checkFilingReadiness(supabase, params);
-      case "query_proposals":
-        return await queryProposals(supabase, params);
-      case "query_invoices":
-        return await queryInvoices(supabase, params);
-      case "query_ordino":
-        return await queryOrdino(supabase, params);
-      case "query_bug_patterns":
-        return await queryBugPatterns(supabase, params);
-      case "create_bug_from_conversation":
-        return await createBugFromConversation(supabase, params);
-      case "vendor_lookup":
-        return await vendorLookup(supabase, params);
-      case "list_schema":
-        return await listSchema(supabase);
-      case "describe_table":
-        return await describeTable(params);
-      default:
-        return fail(`Unknown action: ${action}`);
+    let response: Response;
+    let rowCount: number | null = null;
+    let success = true;
+    let errorMessage: string | null = null;
+
+    try {
+      switch (action) {
+        case "query_projects":
+          response = await queryProjects(ctx, params);
+          break;
+        case "query_project_detail":
+          response = await queryProjectDetail(ctx, params);
+          break;
+        case "query_property_violations":
+          response = await queryPropertyViolations(ctx, params);
+          break;
+        case "query_pm_workload":
+          response = await queryPmWorkload(ctx, params);
+          break;
+        case "check_filing_readiness":
+          response = await checkFilingReadiness(ctx, params);
+          break;
+        case "query_proposals":
+          response = await queryProposals(ctx, params);
+          break;
+        case "query_invoices":
+          response = await queryInvoices(ctx, params);
+          break;
+        case "query_ordino":
+          response = await queryOrdino(ctx, params);
+          break;
+        case "query_bug_patterns":
+          response = await queryBugPatterns(ctx, params);
+          break;
+        case "create_bug_from_conversation":
+          response = await createBugFromConversation(ctx, params);
+          break;
+        case "vendor_lookup":
+          response = await vendorLookup(ctx, params);
+          break;
+        case "list_schema":
+          response = await listSchema(ctx);
+          break;
+        case "describe_table":
+          response = await describeTable(params);
+          break;
+        default:
+          response = fail(`Unknown action: ${action}`);
+      }
+      success = response.status < 400;
+      if (!success) {
+        try {
+          const cloned = response.clone();
+          const body = await cloned.json();
+          errorMessage = body?.error ?? null;
+        } catch { /* ignore */ }
+      }
+    } catch (e: any) {
+      success = false;
+      errorMessage = e?.message ?? String(e);
+      response = fail(errorMessage ?? "Internal server error", 500);
     }
+
+    // Fire-and-forget audit log
+    logAudit(supabase, ctx, action, params, rowCount, success, errorMessage, Date.now() - startedAt);
+
+    return response;
   } catch (err) {
     console.error("beacon-data-proxy error:", err);
     return fail("Internal server error", 500);
   }
 });
+
+// Force a company_id filter on a query when we have a verified company.
+// When companyId is null (shared-secret legacy mode) this is a no-op.
+function scopeByCompany(q: any, ctx: Ctx) {
+  return ctx.companyId ? q.eq("company_id", ctx.companyId) : q;
+}
 
 // ── Actions ──────────────────────────────────────────────
 
@@ -103,12 +242,14 @@ function resolveStatus(raw: string): string {
   return STATUS_ALIASES[raw.toLowerCase()] ?? raw;
 }
 
-async function queryProjects(sb: any, params: any) {
-  let q = sb
-    .from("projects")
-    .select(
+async function queryProjects(ctx: Ctx, params: any) {
+  const sb = ctx.sb;
+  let q = scopeByCompany(
+    sb.from("projects").select(
       "id, name, project_number, status, filing_type, created_at, properties(address, borough, bin), profiles!projects_assigned_pm_id_fkey(display_name)"
-    )
+    ),
+    ctx,
+  )
     .order("created_at", { ascending: false })
     .limit(200);
 
@@ -124,50 +265,42 @@ async function queryProjects(sb: any, params: any) {
   return ok(data);
 }
 
-async function queryProjectDetail(sb: any, params: any) {
+async function queryProjectDetail(ctx: Ctx, params: any) {
+  const sb = ctx.sb;
   let projectId = params.project_id;
 
   if (!projectId && params.address) {
-    const { data: prop } = await sb
-      .from("properties")
-      .select("id")
-      .ilike("address", `%${params.address}%`)
-      .limit(1)
-      .maybeSingle();
+    const { data: prop } = await scopeByCompany(
+      sb.from("properties").select("id").ilike("address", `%${params.address}%`),
+      ctx,
+    ).limit(1).maybeSingle();
     if (prop) {
-      const { data: proj } = await sb
-        .from("projects")
-        .select("id")
-        .eq("property_id", prop.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const { data: proj } = await scopeByCompany(
+        sb.from("projects").select("id").eq("property_id", prop.id),
+        ctx,
+      ).order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (proj) projectId = proj.id;
     }
   }
 
   if (!projectId) return fail("Project not found", 404);
 
-  const { data: project, error } = await sb
-    .from("projects")
-    .select(
+  const { data: project, error } = await scopeByCompany(
+    sb.from("projects").select(
       "*, properties(*), services(*), project_contacts(*, client_contacts(*))"
-    )
-    .eq("id", projectId)
-    .maybeSingle();
+    ).eq("id", projectId),
+    ctx,
+  ).maybeSingle();
   if (error) {
     console.error("query_project_detail error:", error.message, error.details, error.hint);
     return fail(error.message, 500);
   }
   if (!project) return fail("Project not found", 404);
 
-  const { data: rfi } = await sb
-    .from("rfi_requests")
-    .select("responses, status")
-    .eq("project_id", projectId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const { data: rfi } = await scopeByCompany(
+    sb.from("rfi_requests").select("responses, status").eq("project_id", projectId),
+    ctx,
+  ).order("created_at", { ascending: false }).limit(1).maybeSingle();
 
   let pisFieldCount = 0;
   if (rfi?.responses) {
@@ -186,35 +319,30 @@ async function queryProjectDetail(sb: any, params: any) {
   });
 }
 
-async function queryPropertyViolations(sb: any, params: any) {
+async function queryPropertyViolations(ctx: Ctx, params: any) {
+  const sb = ctx.sb;
   let propertyId: string | null = null;
 
   if (params.bin) {
-    const { data: prop } = await sb
-      .from("properties")
-      .select("id")
-      .eq("bin", params.bin)
-      .limit(1)
-      .maybeSingle();
+    const { data: prop } = await scopeByCompany(
+      sb.from("properties").select("id").eq("bin", params.bin),
+      ctx,
+    ).limit(1).maybeSingle();
     if (prop) propertyId = prop.id;
   } else if (params.address) {
-    const { data: prop } = await sb
-      .from("properties")
-      .select("id")
-      .ilike("address", `%${params.address}%`)
-      .limit(1)
-      .maybeSingle();
+    const { data: prop } = await scopeByCompany(
+      sb.from("properties").select("id").ilike("address", `%${params.address}%`),
+      ctx,
+    ).limit(1).maybeSingle();
     if (prop) propertyId = prop.id;
   }
 
   if (!propertyId) return fail("Property not found", 404);
 
-  let q = sb
-    .from("signal_violations")
-    .select("*")
-    .eq("property_id", propertyId)
-    .order("issue_date", { ascending: false })
-    .limit(500);
+  let q = scopeByCompany(
+    sb.from("signal_violations").select("*").eq("property_id", propertyId),
+    ctx,
+  ).order("issue_date", { ascending: false }).limit(500);
 
   if (params.status) q = q.eq("status", params.status);
 
@@ -232,11 +360,12 @@ async function queryPropertyViolations(sb: any, params: any) {
   return ok({ violations: data, total_penalty: totalPenalty, count: data?.length ?? 0 });
 }
 
-async function queryPmWorkload(sb: any, params: any) {
-  let q = sb
-    .from("profiles")
-    .select("id, display_name, role")
-    .eq("is_active", true);
+async function queryPmWorkload(ctx: Ctx, params: any) {
+  const sb = ctx.sb;
+  let q = scopeByCompany(
+    sb.from("profiles").select("id, display_name, role").eq("is_active", true),
+    ctx,
+  );
 
   if (params.pm_name) q = q.ilike("display_name", `%${params.pm_name}%`);
 
@@ -248,11 +377,12 @@ async function queryPmWorkload(sb: any, params: any) {
 
   const results = [];
   for (const p of profiles || []) {
-    const { count } = await sb
-      .from("projects")
-      .select("id", { count: "exact", head: true })
-      .eq("assigned_pm_id", p.id)
-      .eq("status", "open");
+    const { count } = await scopeByCompany(
+      sb.from("projects").select("id", { count: "exact", head: true })
+        .eq("assigned_pm_id", p.id)
+        .eq("status", "open"),
+      ctx,
+    );
     results.push({
       id: p.id,
       name: p.display_name,
@@ -265,13 +395,14 @@ async function queryPmWorkload(sb: any, params: any) {
   return ok(results);
 }
 
-async function checkFilingReadiness(sb: any, params: any) {
+async function checkFilingReadiness(ctx: Ctx, params: any) {
+  const sb = ctx.sb;
   const TOTAL_FIELDS = 23;
 
-  let q = sb
-    .from("projects")
-    .select("id, name, project_number")
-    .eq("status", "open");
+  let q = scopeByCompany(
+    sb.from("projects").select("id, name, project_number").eq("status", "open"),
+    ctx,
+  );
 
   if (params.project_id) q = q.eq("id", params.project_id);
 
@@ -283,13 +414,10 @@ async function checkFilingReadiness(sb: any, params: any) {
 
   const results = [];
   for (const p of projects || []) {
-    const { data: rfi } = await sb
-      .from("rfi_requests")
-      .select("responses")
-      .eq("project_id", p.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const { data: rfi } = await scopeByCompany(
+      sb.from("rfi_requests").select("responses").eq("project_id", p.id),
+      ctx,
+    ).order("created_at", { ascending: false }).limit(1).maybeSingle();
 
     let filled = 0;
     if (rfi?.responses) {
@@ -319,14 +447,14 @@ async function checkFilingReadiness(sb: any, params: any) {
   return ok(results);
 }
 
-async function queryProposals(sb: any, params: any) {
-  let q = sb
-    .from("proposals")
-    .select(
+async function queryProposals(ctx: Ctx, params: any) {
+  const sb = ctx.sb;
+  let q = scopeByCompany(
+    sb.from("proposals").select(
       "id, proposal_number, status, total_amount, client_name, created_at, properties(address)"
-    )
-    .order("created_at", { ascending: false })
-    .limit(200);
+    ),
+    ctx,
+  ).order("created_at", { ascending: false }).limit(200);
 
   if (params.status) q = q.eq("status", params.status);
   if (params.search)
@@ -346,14 +474,14 @@ async function queryProposals(sb: any, params: any) {
   return ok({ proposals: data, total_pipeline_value: totalPipeline });
 }
 
-async function queryInvoices(sb: any, params: any) {
-  let q = sb
-    .from("invoices")
-    .select(
+async function queryInvoices(ctx: Ctx, params: any) {
+  const sb = ctx.sb;
+  let q = scopeByCompany(
+    sb.from("invoices").select(
       "id, invoice_number, status, total_due, payment_amount, paid_at, created_at"
-    )
-    .order("created_at", { ascending: false })
-    .limit(500);
+    ),
+    ctx,
+  ).order("created_at", { ascending: false }).limit(500);
 
   if (params.status) q = q.eq("status", params.status);
 
@@ -373,6 +501,7 @@ async function queryInvoices(sb: any, params: any) {
 
   return ok({ invoices: data, outstanding_total: outstanding, paid_total: paid });
 }
+
 
 // ── General-purpose query ────────────────────────────────
 
@@ -442,8 +571,8 @@ function isTableBlocked(table: string): boolean {
   return false;
 }
 
-async function queryOrdino(sb: any, params: any) {
-  // TODO: company_id scoping + JWT verification — planned follow-up tied to Beacon /api/chat merge
+async function queryOrdino(ctx: Ctx, params: any) {
+  const sb = ctx.sb;
   const { table, select, filters, order, limit } = params || {};
 
   if (!table || typeof table !== "string") {
@@ -463,11 +592,21 @@ async function queryOrdino(sb: any, params: any) {
 
   let q = sb.from(table).select(safeSelect).limit(safeLimit);
 
+  // Force company scoping for every allowlisted table that has company_id.
+  // The caller cannot override this filter even if they pass one in `filters`.
+  if (ctx.companyId && COMPANY_SCOPED_TABLES.has(table)) {
+    q = q.eq("company_id", ctx.companyId);
+  }
+
+
   if (Array.isArray(filters)) {
     for (const f of filters) {
       if (!f.column) continue;
       const col = resolveAlias(table, f.column);
+      // Reject caller-supplied company_id filters — only the JWT-derived one counts.
+      if (col === "company_id") continue;
       const val = resolveValue(table, col, f.value);
+
       const op = f.operator || "eq";
       switch (op) {
         case "eq":    q = q.eq(col, val); break;
@@ -519,15 +658,18 @@ async function queryOrdino(sb: any, params: any) {
 
 // ── Bug pattern intelligence ─────────────────────────────
 
-async function queryBugPatterns(sb: any, params: any) {
+async function queryBugPatterns(ctx: Ctx, params: any) {
+  const sb = ctx.sb;
   const { search, file_path, limit: rawLimit } = params || {};
   const safeLimit = Math.min(Math.max(Number(rawLimit) || 20, 1), 100);
 
-  let q = sb
-    .from("bug_patterns")
-    .select("*")
+  let q = scopeByCompany(
+    sb.from("bug_patterns").select("*"),
+    ctx,
+  )
     .order("occurrences", { ascending: false })
     .limit(safeLimit);
+
 
   const { data, error } = await q;
   if (error) {
@@ -564,12 +706,19 @@ async function queryBugPatterns(sb: any, params: any) {
 
 // ── Conversational bug creation ──────────────────────────
 
-async function createBugFromConversation(sb: any, params: any) {
-  const { title, description, page, ai_diagnosis, reporter_id, company_id } = params || {};
+async function createBugFromConversation(ctx: Ctx, params: any) {
+  const sb = ctx.sb;
+  // SECURITY: company_id + reporter_id are always derived from the verified
+  // JWT (Ctx), never from the request body. Any caller-supplied values are
+  // ignored.
+  const { title, description, page, ai_diagnosis } = params || {};
+  const company_id = ctx.companyId;
+  const reporter_id = ctx.userId;
 
   if (!title || !company_id || !reporter_id) {
-    return fail("Missing required fields: title, company_id, reporter_id");
+    return fail("Missing title or not authenticated (JWT required)");
   }
+
 
   // Insert into feature_requests as a bug_report
   const { data: bug, error } = await sb
@@ -686,7 +835,8 @@ function resolveTradeKey(raw?: string | null): string | null {
   return null;
 }
 
-async function vendorLookup(sb: any, params: any) {
+async function vendorLookup(ctx: Ctx, params: any) {
+  const sb = ctx.sb;
   const { type, search, limit: rawLimit, jurisdiction: rawJur } = params || {};
   const safeLimit = Math.min(Math.max(Number(rawLimit) || 10, 1), 50);
   const tradeKey = resolveTradeKey(type);
@@ -694,17 +844,20 @@ async function vendorLookup(sb: any, params: any) {
   const jurisdiction = rawJur ? String(rawJur).toUpperCase().trim() : null;
 
   // 1) Pull firms: RFP partners whose client_type matches any synonym for the trade.
-  let firmQ = sb
-    .from("clients")
-    .select("id, name, email, client_type, is_rfp_partner, address, specialty_tags, internal_notes, licensed_jurisdictions")
-    .limit(500);
+  let firmQ = scopeByCompany(
+    sb.from("clients")
+      .select("id, name, email, client_type, is_rfp_partner, address, specialty_tags, internal_notes, licensed_jurisdictions"),
+    ctx,
+  ).limit(500);
   if (search) firmQ = firmQ.ilike("name", `%${search}%`);
 
   // 2) Pull candidate contacts (across ALL firms) whose title or license matches the trade.
-  let contactQ = sb
-    .from("client_contacts")
-    .select("client_id, name, first_name, last_name, email, phone, mobile, title, license_type, license_number, is_primary, licensed_jurisdictions, clients!inner(id, name, client_type, is_rfp_partner, address, specialty_tags, internal_notes, email, licensed_jurisdictions)")
-    .limit(500);
+  let contactQ = scopeByCompany(
+    sb.from("client_contacts")
+      .select("client_id, name, first_name, last_name, email, phone, mobile, title, license_type, license_number, is_primary, licensed_jurisdictions, clients!inner(id, name, client_type, is_rfp_partner, address, specialty_tags, internal_notes, email, licensed_jurisdictions)"),
+    ctx,
+  ).limit(500);
+
 
   const [firmRes, contactRes] = await Promise.all([firmQ, contactQ]);
   if (firmRes.error) return fail(firmRes.error.message, 500);
@@ -790,20 +943,23 @@ async function vendorLookup(sb: any, params: any) {
   }).join(",");
 
   const [reviewsRes, primaryContactsRes, projectsRes] = await Promise.all([
-    sb.from("company_reviews")
-      .select("client_id, rating, review_text, reviewer_name, created_at")
-      .in("client_id", firmIds),
-    sb.from("client_contacts")
-      .select("client_id, name, email, phone, title, is_primary")
-      .in("client_id", firmIds)
-      .order("is_primary", { ascending: false }),
+    scopeByCompany(
+      sb.from("company_reviews").select("client_id, rating, review_text, reviewer_name, created_at"),
+      ctx,
+    ).in("client_id", firmIds),
+    scopeByCompany(
+      sb.from("client_contacts").select("client_id, name, email, phone, title, is_primary"),
+      ctx,
+    ).in("client_id", firmIds).order("is_primary", { ascending: false }),
     projectsFilter
-      ? sb.from("projects")
-          .select("id, architect_company_name, gc_company_name, created_at, properties(address)")
-          .or(projectsFilter)
-          .limit(500)
+      ? scopeByCompany(
+          sb.from("projects")
+            .select("id, architect_company_name, gc_company_name, created_at, properties(address)"),
+          ctx,
+        ).or(projectsFilter).limit(500)
       : Promise.resolve({ data: [] }),
   ]);
+
 
   const reviews = reviewsRes.data || [];
   const allFirmContacts = primaryContactsRes.data || [];
@@ -866,9 +1022,10 @@ async function vendorLookup(sb: any, params: any) {
   if (allPartnerEmails.length > 0) {
     const orFromFilter = allPartnerEmails.map(e => `from_email.ilike.${e}`).join(",");
     const [inboundRes, outboundRes] = await Promise.all([
-      sb.from("emails").select("thread_id, from_email, to_emails, date").gte("date", ninetyDaysAgo).or(orFromFilter).limit(5000),
-      sb.from("emails").select("thread_id, from_email, to_emails, date").gte("date", ninetyDaysAgo).overlaps("to_emails", allPartnerEmails).limit(5000),
+      scopeByCompany(sb.from("emails").select("thread_id, from_email, to_emails, date"), ctx).gte("date", ninetyDaysAgo).or(orFromFilter).limit(5000),
+      scopeByCompany(sb.from("emails").select("thread_id, from_email, to_emails, date"), ctx).gte("date", ninetyDaysAgo).overlaps("to_emails", allPartnerEmails).limit(5000),
     ]);
+
     const allEmails = [...(inboundRes.data || []), ...(outboundRes.data || [])];
     const threads: Record<string, any[]> = {};
     for (const e of allEmails) {

@@ -502,44 +502,11 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
           }
         }
 
-        // ---- Project Q&A intercept ----
-        // When a project is in active context, route factual project questions to
-        // beacon-qa (tool-calling over allowlisted Ordino tables). Skip generic
-        // greetings and very short utterances.
-        if (activeContext?.projectId && q.trim().length >= 6 && !/^(hi|hello|hey|thanks|thank you)\b/i.test(q.trim())) {
-          try {
-            const qa = await askBeaconProjectQA(q, activeContext.projectId);
-            if (qa?.answer) {
-              setMessages((prev) => [
-                ...prev,
-                {
-                  role: "beacon",
-                  text: qa.answer + (qa.truncated ? "\n\n_(Hit my exploration budget — narrow the question for more detail.)_" : ""),
-                  confidence: 1,
-                  sources: [],
-                  responseTime: qa.duration_ms,
-                  flowType: "project_qa",
-                  timestamp: new Date().toISOString(),
-                },
-              ]);
-              const emailForSave = user?.email;
-              if (emailForSave) {
-                await supabase.from("widget_messages" as any).insert({
-                  user_email: emailForSave,
-                  role: "assistant",
-                  content: qa.answer,
-                  metadata: { flow_type: "project_qa", project_id: activeContext.projectId },
-                  session_id: sessionId,
-                  company_id: profile?.company_id || null,
-                });
-              }
-              continue;
-            }
-          } catch (e: any) {
-            console.warn("beacon-qa failed, falling back to doc-RAG", e?.message);
-            // fall through to doc-RAG below
-          }
-        }
+        // NOTE: project Q&A intercept removed — all questions now route to
+        // /api/chat (Railway Beacon) for one unified brain. beacon-qa function
+        // remains deployed but is no longer referenced from the widget.
+
+
 
 
 

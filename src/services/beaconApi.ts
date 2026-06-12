@@ -66,7 +66,8 @@ export async function askBeacon(
   userId: string,
   userName: string,
   projectContext?: BeaconProjectContext,
-  conversationHistory?: { role: string; content: string }[]
+  conversationHistory?: { role: string; content: string }[],
+  opts?: { companyId?: string | null; jurisdiction?: string },
 ): Promise<BeaconChatResponse> {
   const { data, error } = await supabase.functions.invoke("beacon-proxy?action=chat", {
     body: {
@@ -74,6 +75,8 @@ export async function askBeacon(
       user_id: userId,
       user_name: userName,
       space_id: "ordino-web",
+      company_id: opts?.companyId ?? null,
+      jurisdiction: opts?.jurisdiction ?? "NYC",
       ...(projectContext && { project_context: projectContext }),
       ...(conversationHistory && conversationHistory.length > 0 && { conversation_history: conversationHistory }),
     },
@@ -81,6 +84,7 @@ export async function askBeacon(
   if (error) throw new Error(`Beacon API error: ${error.message}`);
   return data as BeaconChatResponse;
 }
+
 
 export interface BeaconProjectQAResponse {
   answer: string;
