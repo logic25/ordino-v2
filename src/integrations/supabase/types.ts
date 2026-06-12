@@ -5703,6 +5703,7 @@ export type Database = {
           company_id: string
           created_at: string
           dismissed_at: string | null
+          event_id: string | null
           id: string
           link: string | null
           project_id: string | null
@@ -5716,6 +5717,7 @@ export type Database = {
           company_id: string
           created_at?: string
           dismissed_at?: string | null
+          event_id?: string | null
           id?: string
           link?: string | null
           project_id?: string | null
@@ -5729,6 +5731,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           dismissed_at?: string | null
+          event_id?: string | null
           id?: string
           link?: string | null
           project_id?: string | null
@@ -5743,6 +5746,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "bd_events"
             referencedColumns: ["id"]
           },
           {
