@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { FileText, DollarSign, Briefcase, TrendingUp } from "lucide-react";
 import { startOfYear } from "date-fns";
+import { useNavigate } from "react-router-dom";
 
 function useReportsKPIs() {
   const { session } = useAuth();
