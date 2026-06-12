@@ -381,10 +381,47 @@ export function ClientDialog({
             </>
           )}
 
+          <div className="grid grid-cols-2 gap-4 rounded-md border border-dashed p-3">
+            <div className="space-y-2">
+              <Label htmlFor="expected_projects_per_year">Expected projects / year</Label>
+              <Input
+                id="expected_projects_per_year"
+                type="number"
+                min={0}
+                placeholder="e.g. 4"
+                value={form.watch("expected_projects_per_year") ?? ""}
+                onChange={(e) => form.setValue(
+                  "expected_projects_per_year",
+                  e.target.value === "" ? null : Math.max(0, parseInt(e.target.value, 10) || 0)
+                )}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="expected_annual_value">Expected annual value ($)</Label>
+              <Input
+                id="expected_annual_value"
+                type="number"
+                min={0}
+                step="1000"
+                placeholder="e.g. 250000"
+                value={form.watch("expected_annual_value") ?? ""}
+                onChange={(e) => form.setValue(
+                  "expected_annual_value",
+                  e.target.value === "" ? null : Math.max(0, parseFloat(e.target.value) || 0)
+                )}
+              />
+              <p className="text-xs text-muted-foreground">
+                Used by the BD report as “Relationship pipeline.” Auto-seeded from a lead's expected value on conversion.
+              </p>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>
             <Textarea id="notes" placeholder="Any additional notes..." rows={3} {...form.register("notes")} />
           </div>
+
+
 
 
           <DialogFooter>
