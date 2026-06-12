@@ -423,7 +423,7 @@ export default function ProjectDetail() {
         </div>
 
         {/* Proposal Execution Status + Quick Reference + Readiness Checklist */}
-        <ProposalExecutionBanner project={project} changeOrders={changeOrders} />
+        <ProposalExecutionBanner project={project} changeOrders={changeOrders} onViewSignedProposal={() => setActiveTab("documents")} />
         {dobApplications.length > 0 && (
           <QuickReferenceBar
             applications={dobApplications}
