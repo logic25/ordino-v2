@@ -996,7 +996,7 @@ export function ServicesFull({ services: initialServices, project, contacts, all
               .map((svc, i) => renderServiceRow(svc, i, false));
           })()}
         </TableBody>
-        {billedServices.length > 0 && (
+        {(billedServices.length > 0 || projectExpenses.length > 0) && (
           <>
             <TableBody>
               <TableRow className="hover:bg-transparent border-b-0">
@@ -1005,7 +1005,12 @@ export function ServicesFull({ services: initialServices, project, contacts, all
                     <CollapsibleTrigger asChild>
                       <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground h-8 px-6 w-full justify-start rounded-none bg-amber-50/60 dark:bg-amber-950/20">
                         {showBilled ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                        Billed Services ({billedServices.length})
+                        Billed &amp; Expenses ({billedServices.length + projectExpenses.length})
+                        {projectExpenses.length > 0 && (
+                          <span className="ml-auto text-muted-foreground/70">
+                            {billedServices.length} service · {projectExpenses.length} expense · {formatCurrency(totalBilledExpense)} exp
+                          </span>
+                        )}
                       </Button>
                     </CollapsibleTrigger>
                   </Collapsible>
@@ -1028,7 +1033,12 @@ export function ServicesFull({ services: initialServices, project, contacts, all
                       {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                     </TableCell>
                     <TableCell className="w-[28px]" />
-                    <TableCell><span className="font-medium">{svc.name}</span></TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-900/20 dark:text-sky-300 dark:border-sky-800">SERVICE</Badge>
+                        <span className="font-medium">{svc.name}</span>
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <Badge className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0">
                         Billed{(svc.billedAt || svc.sentDate) ? ` · ${svc.billedAt || svc.sentDate}` : ""}
@@ -1054,6 +1064,60 @@ export function ServicesFull({ services: initialServices, project, contacts, all
                     </TableRow>
                   )}
                   </Fragment>
+                  );
+                })}
+                {projectExpenses.map((e: any) => {
+                  const amt = Number(e.billable_amount) || 0;
+                  const isPending = e.status === "pending_approval";
+                  const canRelease = e.status === "on_hold";
+                  return (
+                    <TableRow key={`exp-${e.id}`} className="hover:bg-muted/20">
+                      <TableCell className="pl-6 w-[44px]" />
+                      <TableCell className="pr-0" />
+                      <TableCell className="w-[28px]" />
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-900/20 dark:text-violet-300 dark:border-violet-800">EXPENSE</Badge>
+                          <span className="font-medium">{e.description}</span>
+                          {e.vendor && <span className="text-xs text-muted-foreground">· {e.vendor}</span>}
+                          {e.receipt_url && (
+                            <button onClick={(ev) => { ev.stopPropagation(); openExpenseReceipt(e.receipt_url); }} className="text-xs text-primary hover:underline inline-flex items-center gap-0.5">
+                              <FileText className="h-3 w-3" /> receipt
+                            </button>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {isPending ? (
+                          <button
+                            type="button"
+                            onClick={(ev) => { ev.stopPropagation(); setApproveExpenseId(e.id); }}
+                            className={cn("text-[10px] px-2 py-0.5 rounded-md border", expenseStatusStyles[e.status])}
+                          >
+                            pending approval
+                          </button>
+                        ) : (
+                          <Badge variant="outline" className={cn("text-[10px]", expenseStatusStyles[e.status] || "")}>{(e.status || "").replace(/_/g, " ")}</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">—</TableCell>
+                      <TableCell />
+                      <TableCell className="text-right tabular-nums font-medium">{formatCurrency(amt)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">—</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {e.status === "billed" || e.status === "paid"
+                          ? <span className="text-emerald-600 dark:text-emerald-400 font-medium">{formatCurrency(amt)}</span>
+                          : "—"}
+                      </TableCell>
+                      <TableCell />
+                      <TableCell>
+                        {canRelease && (
+                          <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={(ev) => { ev.stopPropagation(); releaseExpense.mutate({ expenseId: e.id }); }} disabled={releaseExpense.isPending}>
+                            Release
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
               </TableBody>
