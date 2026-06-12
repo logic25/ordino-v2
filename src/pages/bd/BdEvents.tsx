@@ -207,10 +207,29 @@ export default function BdEvents() {
                           )}
                         </TableCell>
                         <TableCell className="text-sm">{fmtDate(e.start_date)}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={STATUS_META[e.status].className}>
-                            {STATUS_META[e.status].label}
-                          </Badge>
+                        <TableCell onClick={(ev) => ev.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button type="button"
+                                title="Change status"
+                                className="focus:outline-none">
+                                <Badge variant="outline"
+                                  className={`${STATUS_META[e.status].className} cursor-pointer hover:opacity-80`}>
+                                  {STATUS_META[e.status].label}
+                                  <ChevronDown className="h-3 w-3 ml-1 opacity-60" />
+                                </Badge>
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              {(Object.keys(STATUS_META) as EventStatus[]).map((s) => (
+                                <DropdownMenuItem key={s} onClick={() => setStatus(e.id, s)}>
+                                  <Badge variant="outline" className={`${STATUS_META[s].className} mr-2`}>
+                                    {STATUS_META[s].label}
+                                  </Badge>
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                         <TableCell className="text-sm">
                           {e.included_in_membership ? (
@@ -356,6 +375,7 @@ function EventDialog({ open, event, onOpenChange }: { open: boolean; event: BdEv
   const create = useCreateBdEvent();
   const update = useUpdateBdEvent();
   const memberships = useMemberships();
+  const profiles = useCompanyProfiles();
   const { toast } = useToast();
 
   const [form, setForm] = useState<Partial<BdEvent>>({});
@@ -443,36 +463,77 @@ function EventDialog({ open, event, onOpenChange }: { open: boolean; event: BdEv
               </Select>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <Label>Cost low</Label>
-              <Input type="number" value={form.cost_low ?? ""}
-                onChange={(e) => setForm({ ...form, cost_low: e.target.value ? Number(e.target.value) : null })} />
+          <div className="rounded-md border p-3 space-y-3 bg-muted/20">
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cost</div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Member price</Label>
+                <Input type="number" value={form.cost_member ?? ""}
+                  onChange={(e) => setForm({ ...form, cost_member: e.target.value ? Number(e.target.value) : null })} />
+              </div>
+              <div>
+                <Label className="text-xs">Non-member price</Label>
+                <Input type="number" value={form.cost_nonmember ?? ""}
+                  onChange={(e) => setForm({ ...form, cost_nonmember: e.target.value ? Number(e.target.value) : null })} />
+              </div>
+              <div>
+                <Label className="text-xs">Range low</Label>
+                <Input type="number" value={form.cost_low ?? ""}
+                  onChange={(e) => setForm({ ...form, cost_low: e.target.value ? Number(e.target.value) : null })} />
+              </div>
+              <div>
+                <Label className="text-xs">Range high</Label>
+                <Input type="number" value={form.cost_high ?? ""}
+                  onChange={(e) => setForm({ ...form, cost_high: e.target.value ? Number(e.target.value) : null })} />
+              </div>
+            </div>
+            <div className="flex items-start gap-2 pt-1">
+              <input id="incl-mem" type="checkbox" className="mt-1"
+                checked={!!form.included_in_membership}
+                onChange={(e) => setForm({ ...form, included_in_membership: e.target.checked, ...(e.target.checked ? {} : { membership_id: null }) })} />
+              <Label htmlFor="incl-mem" className="text-sm font-normal cursor-pointer">
+                Included free as part of a membership (no cost to attend)
+              </Label>
             </div>
             <div>
-              <Label>Cost high</Label>
-              <Input type="number" value={form.cost_high ?? ""}
-                onChange={(e) => setForm({ ...form, cost_high: e.target.value ? Number(e.target.value) : null })} />
+              <Label className="text-xs">Linked membership {form.included_in_membership ? "*" : "(optional)"}</Label>
+              <Select
+                value={form.membership_id ?? "__none"}
+                onValueChange={(v) => setForm({ ...form, membership_id: v === "__none" ? null : v })}>
+                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">None</SelectItem>
+                  {(memberships.data ?? []).map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.organization}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Tie this event to an org membership you have on the Memberships tab (e.g. REBNY, NAIOP, BOMA) — used to flag dues-included events and show the right price.
+              </p>
             </div>
-            <div>
-              <Label>Actual paid</Label>
-              <Input type="number" value={form.cost_actual ?? ""}
-                onChange={(e) => setForm({ ...form, cost_actual: e.target.value ? Number(e.target.value) : null })} />
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <div>
+                <Label className="text-xs">Actual paid ($)</Label>
+                <Input type="number" placeholder="0 if free"
+                  value={form.cost_actual ?? ""}
+                  onChange={(e) => setForm({ ...form, cost_actual: e.target.value === "" ? null : Number(e.target.value) })} />
+              </div>
+              <div>
+                <Label className="text-xs">Paid by</Label>
+                <Select
+                  value={form.paid_by_user_id ?? "__none"}
+                  onValueChange={(v) => setForm({ ...form, paid_by_user_id: v === "__none" ? null : v })}>
+                  <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">—</SelectItem>
+                    {(profiles.data ?? []).map((p: any) => (
+                      <SelectItem key={p.id} value={p.id}>{p.full_name ?? p.email}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </div>
-          <div>
-            <Label>Linked membership (if included)</Label>
-            <Select
-              value={form.membership_id ?? "__none"}
-              onValueChange={(v) => setForm({ ...form, membership_id: v === "__none" ? null : v, included_in_membership: v !== "__none" })}>
-              <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none">None</SelectItem>
-                {(memberships.data ?? []).map((m) => (
-                  <SelectItem key={m.id} value={m.id}>{m.organization}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
           <div>
             <Label>Notes</Label>
