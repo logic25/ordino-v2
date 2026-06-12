@@ -53,12 +53,14 @@ Deno.serve(async (req) => {
           content:
             "You extract contact info from photos of business cards or event badges. " +
             "Return ONLY what is visibly printed — never invent or guess missing fields. " +
+            "Distinguish office/direct/main numbers (phone) from cell/mobile/M numbers (mobile). " +
+            "Include the full mailing address as one string. " +
             "If the image is not a business card/badge or is unreadable, set readable=false.",
         },
         {
           role: "user",
           content: [
-            { type: "text", text: "Extract the contact details from this card." },
+            { type: "text", text: "Extract every visible contact detail from this card." },
             { type: "image_url", image_url: { url: `data:${mime};base64,${image}` } },
           ],
         },
@@ -77,9 +79,10 @@ Deno.serve(async (req) => {
               company: { type: "string" },
               role: { type: "string", description: "Job title as printed" },
               email: { type: "string" },
-              phone: { type: "string" },
+              phone: { type: "string", description: "Office/direct/main number" },
+              mobile: { type: "string", description: "Cell/mobile number if separately printed" },
               website: { type: "string" },
-              address: { type: "string" },
+              address: { type: "string", description: "Full mailing address as one line" },
             },
           },
         },

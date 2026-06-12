@@ -16,7 +16,17 @@ import { useCreateLead } from "@/hooks/useLeads";
 
 interface ScannedContact {
   readable?: boolean;
-  full_name?: string; company?: string; role?: string; email?: string; phone?: string;
+  full_name?: string; company?: string; role?: string; email?: string;
+  phone?: string; mobile?: string; website?: string; address?: string;
+}
+
+// Format US-ish number to (xxx) xxx-xxxx.
+function fmtPhone(raw: string): string {
+  const d = (raw || "").replace(/\D/g, "");
+  if (d.length === 10) return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+  if (d.length === 11 && d.startsWith("1"))
+    return `(${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7)}`;
+  return raw || "";
 }
 
 async function compressImage(file: File, maxDim = 1600, quality = 0.8): Promise<string> {
@@ -46,6 +56,9 @@ export function BdScanTab() {
   const [role, setRole] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [mobile, setMobile] = useState("");
+  const [website, setWebsite] = useState("");
+  const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
   const [hot, setHot] = useState(false);
 
@@ -74,6 +87,7 @@ export function BdScanTab() {
 
   const resetForm = () => {
     setFullName(""); setCompany(""); setRole(""); setEmail(""); setPhone("");
+    setMobile(""); setWebsite(""); setAddress("");
     setNotes(""); setHot(false); setPreview(null);
   };
 
@@ -91,7 +105,10 @@ export function BdScanTab() {
         toast({ title: "Couldn't read the card", description: "Try again — closer, flat, good light. Or type it in below." });
       } else {
         setFullName(c.full_name ?? ""); setCompany(c.company ?? "");
-        setRole(c.role ?? ""); setEmail(c.email ?? ""); setPhone(c.phone ?? "");
+        setRole(c.role ?? ""); setEmail(c.email ?? "");
+        setPhone(fmtPhone(c.phone ?? ""));
+        setMobile(fmtPhone(c.mobile ?? ""));
+        setWebsite(c.website ?? ""); setAddress(c.address ?? "");
         toast({ title: "Card scanned", description: c.full_name ?? "Review the fields below" });
       }
     } catch (e: any) {
@@ -103,6 +120,14 @@ export function BdScanTab() {
 
   const handleSave = async () => {
     if (!fullName.trim()) return;
+    // Roll address/website/cell into notes since the leads table doesn't have
+    // dedicated columns — keeps the data with the lead instead of dropping it.
+    const extras = [
+      mobile.trim() && `Cell: ${mobile.trim()}`,
+      website.trim() && `Web: ${website.trim()}`,
+      address.trim() && `Address: ${address.trim()}`,
+    ].filter(Boolean).join("\n");
+    const combinedNotes = [notes.trim(), extras].filter(Boolean).join("\n\n") || null;
     try {
       await createLead.mutateAsync({
         full_name: fullName.trim(),
@@ -114,7 +139,7 @@ export function BdScanTab() {
         contact_phone: phone.trim() || null,
         hot_opportunity: hot,
         assigned_to: profile?.id ?? null,
-        notes: notes.trim() || null,
+        notes: combinedNotes,
       });
       setCapturedCount((n) => n + 1);
       toast({ title: `Lead captured (${capturedCount + 1} this session)`, description: fullName.trim() });
@@ -169,10 +194,27 @@ export function BdScanTab() {
           </div>
           <div className="space-y-1.5"><Label>Email</Label>
             <Input className="h-11" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-          <div className="space-y-1.5"><Label>Phone</Label>
-            <Input className="h-11" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5"><Label>Office phone</Label>
+              <Input className="h-11" type="tel" placeholder="(212) 555-1212"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                onBlur={(e) => setPhone(fmtPhone(e.target.value))} /></div>
+            <div className="space-y-1.5"><Label>Cell</Label>
+              <Input className="h-11" type="tel" placeholder="(347) 555-1212"
+                value={mobile}
+                onChange={(e) => setMobile(e.target.value)}
+                onBlur={(e) => setMobile(fmtPhone(e.target.value))} /></div>
+          </div>
+          <div className="space-y-1.5"><Label>Website</Label>
+            <Input className="h-11" type="url" placeholder="acme.com"
+              value={website} onChange={(e) => setWebsite(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label>Address</Label>
+            <Textarea rows={2} placeholder="Street, City, State ZIP"
+              value={address} onChange={(e) => setAddress(e.target.value)} /></div>
           <div className="space-y-1.5"><Label>Context</Label>
-            <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+            <Textarea rows={2} placeholder="Where you met, what they cared about…"
+              value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
           <label className="flex items-center gap-2 py-1">
             <Checkbox checked={hot} onCheckedChange={(c) => setHot(!!c)} />
             <span className="text-sm">🔥 Hot — follow up first</span>

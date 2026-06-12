@@ -18,12 +18,12 @@ const COMPANY = {
   addressDisplay: "26 Broadway, 3rd Floor\nNew York, NY 10004",
 };
 
-// Format any US-ish number to ###-###-#### for display.
+// Format any US-ish number to (xxx) xxx-xxxx for display.
 function fmtPhone(raw: string): string {
   const d = (raw || "").replace(/\D/g, "");
-  if (d.length === 10) return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
+  if (d.length === 10) return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
   if (d.length === 11 && d.startsWith("1"))
-    return `${d.slice(1, 4)}-${d.slice(4, 7)}-${d.slice(7)}`;
+    return `(${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7)}`;
   return raw || "";
 }
 
@@ -192,9 +192,9 @@ export function BdMyCardTab() {
           <div className="space-y-1.5"><Label>Last name</Label><Input value={fields.last} onChange={set("last")} /></div>
           <div className="space-y-1.5 col-span-2"><Label>Title</Label><Input value={fields.title} onChange={set("title")} placeholder="e.g. Senior Project Manager" /></div>
           <div className="space-y-1.5 col-span-2"><Label>Email</Label><Input value={fields.email} onChange={set("email")} /></div>
-          <div className="space-y-1.5"><Label>Office phone</Label><Input placeholder="718-392-1969" value={fields.phone} onChange={set("phone")} /></div>
+          <div className="space-y-1.5"><Label>Office phone</Label><Input placeholder="(718) 392-1969" value={fields.phone} onChange={set("phone")} /></div>
           <div className="space-y-1.5"><Label>Extension</Label><Input placeholder="12" value={fields.extension} onChange={set("extension")} /></div>
-          <div className="space-y-1.5 col-span-2"><Label>Cell</Label><Input placeholder="347-555-1234" value={fields.mobile} onChange={set("mobile")} /></div>
+          <div className="space-y-1.5 col-span-2"><Label>Cell</Label><Input placeholder="(347) 555-1234" value={fields.mobile} onChange={set("mobile")} /></div>
           <div className="space-y-1.5 col-span-2"><Label>LinkedIn URL</Label>
             <Input placeholder="https://linkedin.com/in/…" value={fields.linkedin} onChange={set("linkedin")} /></div>
           <div className="space-y-1.5 col-span-2">
