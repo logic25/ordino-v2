@@ -1,5 +1,10 @@
 import { useMemo, useState } from "react";
-import { format } from "date-fns";
+import {
+  format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
+  eachDayOfInterval, addMonths, subMonths, isSameMonth, isSameDay, isToday,
+  parseISO, isWithinInterval,
+} from "date-fns";
+import { ChevronLeft, ChevronRight, List as ListIcon, CalendarDays } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,22 +72,43 @@ export default function BdEvents() {
   const [detailEvent, setDetailEvent] = useState<BdEvent | null>(null);
   const [filterStatus, setFilterStatus] = useState<EventStatus | "ALL">("ALL");
   const [search, setSearch] = useState("");
+  const [timeRange, setTimeRange] = useState<"UPCOMING" | "PAST" | "THIS_MONTH" | "ALL">("UPCOMING");
+  const [view, setView] = useState<"list" | "calendar">("list");
+  const [calMonth, setCalMonth] = useState<Date>(new Date());
 
   const events = useBdEvents();
   const updateEvent = useUpdateBdEvent();
   const deleteEvent = useDeleteBdEvent();
   const { toast } = useToast();
 
+  const parseEventDate = (s: string | null) => {
+    if (!s) return null;
+    try { return parseISO(s.length <= 10 ? s : s.slice(0, 10)); } catch { return null; }
+  };
+
   const filtered = useMemo(() => {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
     return (events.data ?? []).filter((e) => {
       if (filterStatus !== "ALL" && e.status !== filterStatus) return false;
       if (search) {
         const q = search.toLowerCase();
         if (!(`${e.name} ${e.location ?? ""} ${e.category ?? ""}`.toLowerCase().includes(q))) return false;
       }
+      if (timeRange !== "ALL") {
+        const start = parseEventDate(e.start_date);
+        const end = parseEventDate(e.end_date) ?? start;
+        if (!start) return timeRange === "UPCOMING"; // undated → treat as upcoming
+        if (timeRange === "UPCOMING" && (end as Date) < today) return false;
+        if (timeRange === "PAST" && (end as Date) >= today) return false;
+        if (timeRange === "THIS_MONTH" && !isSameMonth(start, today)) return false;
+      }
       return true;
+    }).sort((a, b) => {
+      const da = parseEventDate(a.start_date)?.getTime() ?? Infinity;
+      const db = parseEventDate(b.start_date)?.getTime() ?? Infinity;
+      return timeRange === "PAST" ? db - da : da - db;
     });
-  }, [events.data, filterStatus, search]);
+  }, [events.data, filterStatus, search, timeRange]);
 
   const setStatus = (id: string, status: EventStatus) =>
     updateEvent.mutate({ id, status }, { onSuccess: () => toast({ title: `Marked ${STATUS_META[status].label.toLowerCase()}` }) });
@@ -106,13 +132,22 @@ export default function BdEvents() {
           </TabsList>
 
           <TabsContent value="events" className="space-y-4">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Input
                 placeholder="Search events…" className="max-w-sm"
                 value={search} onChange={(e) => setSearch(e.target.value)}
               />
+              <Select value={timeRange} onValueChange={(v) => setTimeRange(v as any)}>
+                <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="UPCOMING">Upcoming</SelectItem>
+                  <SelectItem value="THIS_MONTH">This month</SelectItem>
+                  <SelectItem value="PAST">Past</SelectItem>
+                  <SelectItem value="ALL">All time</SelectItem>
+                </SelectContent>
+              </Select>
               <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
-                <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">All statuses</SelectItem>
                   {Object.entries(STATUS_META).map(([k, v]) => (
@@ -120,9 +155,30 @@ export default function BdEvents() {
                   ))}
                 </SelectContent>
               </Select>
-              <div className="ml-auto text-sm text-muted-foreground">{filtered.length} events</div>
+              <div className="ml-auto flex items-center gap-2">
+                <div className="text-sm text-muted-foreground">{filtered.length} events</div>
+                <div className="inline-flex rounded-md border bg-background p-0.5">
+                  <Button size="sm" variant={view === "list" ? "secondary" : "ghost"}
+                    className="h-7 px-2" onClick={() => setView("list")}>
+                    <ListIcon className="h-3.5 w-3.5 mr-1" />List
+                  </Button>
+                  <Button size="sm" variant={view === "calendar" ? "secondary" : "ghost"}
+                    className="h-7 px-2" onClick={() => setView("calendar")}>
+                    <CalendarDays className="h-3.5 w-3.5 mr-1" />Calendar
+                  </Button>
+                </div>
+              </div>
             </div>
 
+            {view === "calendar" ? (
+              <EventCalendar
+                month={calMonth}
+                onMonthChange={setCalMonth}
+                events={filtered}
+                onSelect={(e) => setDetailEvent(e)}
+                parseDate={parseEventDate}
+              />
+            ) : (
             <Card>
               <CardContent className="p-0">
                 <Table>
@@ -191,13 +247,14 @@ export default function BdEvents() {
                     ))}
                     {filtered.length === 0 && (
                       <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground text-sm">
-                        {events.isLoading ? "Loading…" : "No events yet. Click New event to add one."}
+                        {events.isLoading ? "Loading…" : "No events match these filters."}
                       </TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
               </CardContent>
             </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="sources"><SourcesTab /></TabsContent>
@@ -209,6 +266,88 @@ export default function BdEvents() {
         onOpenChange={(o) => { if (!o) { setCreateOpen(false); setEditEvent(null); } }} />
       <EventDetailSheet event={detailEvent} onOpenChange={(o) => { if (!o) setDetailEvent(null); }} />
     </AppLayout>
+  );
+}
+
+// ====== Event Calendar (month grid) ======
+function EventCalendar({
+  month, onMonthChange, events, onSelect, parseDate,
+}: {
+  month: Date;
+  onMonthChange: (d: Date) => void;
+  events: BdEvent[];
+  onSelect: (e: BdEvent) => void;
+  parseDate: (s: string | null) => Date | null;
+}) {
+  const gridStart = startOfWeek(startOfMonth(month), { weekStartsOn: 0 });
+  const gridEnd = endOfWeek(endOfMonth(month), { weekStartsOn: 0 });
+  const days = eachDayOfInterval({ start: gridStart, end: gridEnd });
+
+  const eventsOnDay = (day: Date) =>
+    events.filter((e) => {
+      const s = parseDate(e.start_date);
+      if (!s) return false;
+      const en = parseDate(e.end_date) ?? s;
+      return isWithinInterval(day, { start: s, end: en });
+    });
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 py-3">
+        <CardTitle className="text-base">{format(month, "MMMM yyyy")}</CardTitle>
+        <div className="flex items-center gap-1">
+          <Button variant="outline" size="sm" onClick={() => onMonthChange(subMonths(month, 1))}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => onMonthChange(new Date())}>Today</Button>
+          <Button variant="outline" size="sm" onClick={() => onMonthChange(addMonths(month, 1))}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0 border-t">
+        <div className="grid grid-cols-7 text-xs font-medium text-muted-foreground border-b">
+          {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((d) => (
+            <div key={d} className="px-2 py-2 text-center">{d}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7">
+          {days.map((day) => {
+            const dayEvents = eventsOnDay(day);
+            const muted = !isSameMonth(day, month);
+            return (
+              <div key={day.toISOString()}
+                className={`min-h-[110px] border-r border-b p-1.5 ${muted ? "bg-muted/30" : ""}`}>
+                <div className={`text-xs mb-1 flex items-center justify-end ${
+                  isToday(day) ? "font-semibold" : ""
+                }`}>
+                  <span className={isToday(day)
+                    ? "inline-flex items-center justify-center h-5 w-5 rounded-full bg-primary text-primary-foreground"
+                    : (muted ? "text-muted-foreground" : "")}>
+                    {format(day, "d")}
+                  </span>
+                </div>
+                <div className="space-y-0.5">
+                  {dayEvents.slice(0, 3).map((e) => (
+                    <button key={e.id}
+                      onClick={() => onSelect(e)}
+                      title={e.name}
+                      className={`w-full text-left text-[11px] px-1.5 py-0.5 rounded border truncate hover:opacity-80 ${STATUS_META[e.status].className}`}>
+                      {e.name}
+                    </button>
+                  ))}
+                  {dayEvents.length > 3 && (
+                    <div className="text-[10px] text-muted-foreground px-1.5">
+                      +{dayEvents.length - 3} more
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
