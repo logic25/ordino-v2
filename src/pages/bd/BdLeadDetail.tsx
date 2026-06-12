@@ -386,3 +386,43 @@ function LogMeetingDialog({ open, onOpenChange, leadId, createActivity, profiles
     </Dialog>
   );
 }
+
+function LeadLineageCard({ leadId, clientId }: { leadId: string; clientId: string | null }) {
+  const { data } = useQuery({
+    queryKey: ["lead-lineage", leadId],
+    queryFn: async () => {
+      const { data: prop } = await supabase
+        .from("proposals")
+        .select("id, proposal_number, title, converted_project_id, client_id, clients:client_id (id, name)")
+        .eq("lead_id", leadId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      let project: { id: string; project_number: string | null; name: string | null } | null = null;
+      if ((prop as any)?.converted_project_id) {
+        const { data: pr } = await supabase
+          .from("projects")
+          .select("id, project_number, name")
+          .eq("id", (prop as any).converted_project_id)
+          .maybeSingle();
+        project = pr as any;
+      }
+      return { proposal: prop as any, project };
+    },
+  });
+
+  const client = (data?.proposal?.clients as any) || (clientId ? { id: clientId, name: null } : null);
+  if (!client && !data?.proposal && !data?.project) return null;
+
+  return (
+    <Card className="p-4 space-y-2">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Lineage</p>
+      <LineageBreadcrumb
+        prefix="Linked"
+        client={client}
+        proposal={data?.proposal ? { id: data.proposal.id, proposal_number: data.proposal.proposal_number, title: data.proposal.title } : null}
+        project={data?.project}
+      />
+    </Card>
+  );
+}
