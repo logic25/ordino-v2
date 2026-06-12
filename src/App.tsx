@@ -70,6 +70,7 @@ const RfpDiscovery = lazyWithRetry(() => import("./pages/RfpDiscovery"), "rfp-di
 const ClientProposal = lazyWithRetry(() => import("./pages/ClientProposal"), "client-proposal");
 const ClientChangeOrder = lazyWithRetry(() => import("./pages/ClientChangeOrder"), "client-change-order");
 const Reports = lazyWithRetry(() => import("./pages/Reports"), "reports");
+const Content = lazyWithRetry(() => import("./pages/Content"), "content");
 const HelpDesk = lazyWithRetry(() => import("./pages/HelpDesk"), "help-desk");
 const Chat = lazyWithRetry(() => import("./pages/Chat"), "chat");
 const Privacy = lazyWithRetry(() => import("./pages/Privacy"), "privacy");
@@ -161,6 +162,7 @@ function AppRoutes() {
       <Route path="/rfps/library" element={<ProtectedRoute><RfpLibrary /></ProtectedRoute>} />
       <Route path="/rfps/discover" element={<ProtectedRoute><RfpDiscovery /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+      <Route path="/content" element={<ProtectedRoute><Content /></ProtectedRoute>} />
       <Route path="/help" element={<ProtectedRoute><HelpDesk /></ProtectedRoute>} />
       <Route path="/welcome" element={<ProtectedRoute><Welcome /></ProtectedRoute>} />
       <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
