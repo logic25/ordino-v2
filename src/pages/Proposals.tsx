@@ -782,19 +782,6 @@ export default function Proposals() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="leads">
-            <Card>
-              <CardContent className="py-12 text-center space-y-3">
-                <UserPlus className="h-10 w-10 mx-auto text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">
-                  Leads now live in the BD module. Redirecting…
-                </p>
-                <Button variant="outline" size="sm" onClick={() => navigate("/bd/leads")}>
-                  Go to Leads
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
         </Tabs>
       </div>
