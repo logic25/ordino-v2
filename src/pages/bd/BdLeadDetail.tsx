@@ -255,7 +255,7 @@ export default function BdLeadDetail() {
                   : <span className="text-sm">{lead.referred_by}</span>}
               </Card>
             )}
-            <LeadConnectionsCard leadId={lead.id} />
+            <LeadConnectionsCard leadId={lead.id} company={lead.company} propertyAddress={lead.property_address} />
             <LeadLineageCard leadId={lead.id} clientId={lead.client_id} />
 
           </div>
