@@ -21,6 +21,7 @@ export interface UniversalDocument {
   proposal_id: string | null;
   jurisdiction: string;
   folder_id?: string | null;
+  uploader?: { display_name: string | null; first_name: string | null; last_name: string | null };
 }
 
 export function useUniversalDocuments() {
