@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   useReactTable, getCoreRowModel, getSortedRowModel, flexRender,
   type ColumnDef, type SortingState, type VisibilityState, type RowSelectionState,
