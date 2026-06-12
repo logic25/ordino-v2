@@ -34,27 +34,22 @@ Deno.serve(async (req) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const admin = createClient(supabaseUrl, serviceKey);
 
-  // Auth: x-cron-secret header (pg_cron) OR a service-role Bearer (server-to-server / tests).
-  // No path accepts a user JWT — this is a privileged sender, not a public endpoint.
+  // Auth: x-cron-secret header. Value sourced from Vault `cron_secret` via the
+  // internal_get_cron_secret() helper — same secret pg_cron uses for every other job.
   const caller = req.headers.get("x-cron-secret") || "";
   let expected = "";
   try {
-    const { data: vaultRow } = await admin
-      .schema("vault" as any).from("decrypted_secrets")
-      .select("decrypted_secret").eq("name", "cron_secret").maybeSingle();
-    expected = (vaultRow as any)?.decrypted_secret || "";
-  } catch (_) { /* vault not readable via PostgREST in this project */ }
-  const envSecret = Deno.env.get("CRON_SECRET") || "";
-  const bearer = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
-  const ok =
-    (!!expected && caller === expected) ||
-    (!!envSecret && caller === envSecret) ||
-    (!!serviceKey && bearer === serviceKey);
-  if (!ok) {
+    const { data } = await admin.rpc("internal_get_cron_secret");
+    expected = (data as string) || "";
+  } catch (e) {
+    console.error("get cron secret failed:", (e as Error).message);
+  }
+  if (!expected || caller !== expected) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+
 
 
 
