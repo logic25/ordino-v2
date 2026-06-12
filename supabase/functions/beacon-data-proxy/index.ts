@@ -706,12 +706,19 @@ async function queryBugPatterns(ctx: Ctx, params: any) {
 
 // ── Conversational bug creation ──────────────────────────
 
-async function createBugFromConversation(sb: any, params: any) {
-  const { title, description, page, ai_diagnosis, reporter_id, company_id } = params || {};
+async function createBugFromConversation(ctx: Ctx, params: any) {
+  const sb = ctx.sb;
+  // SECURITY: company_id + reporter_id are always derived from the verified
+  // JWT (Ctx), never from the request body. Any caller-supplied values are
+  // ignored.
+  const { title, description, page, ai_diagnosis } = params || {};
+  const company_id = ctx.companyId;
+  const reporter_id = ctx.userId;
 
   if (!title || !company_id || !reporter_id) {
-    return fail("Missing required fields: title, company_id, reporter_id");
+    return fail("Missing title or not authenticated (JWT required)");
   }
+
 
   // Insert into feature_requests as a bug_report
   const { data: bug, error } = await sb
