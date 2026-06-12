@@ -61,6 +61,7 @@ export default function Proposals() {
   const [sendingProposal, setSendingProposal] = useState<ProposalWithRelations | null>(null);
   const [clockInProject, setClockInProject] = useState<{ id: string; name: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  // Status filter — string is single OR comma-list ("draft,sent"); UI chips compare single values.
   const [statusFilter, setStatusFilter] = useState<string | null>(searchParams.get("status"));
   const [activeTab, setActiveTab] = useState("proposals");
 

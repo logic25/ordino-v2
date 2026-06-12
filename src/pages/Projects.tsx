@@ -33,10 +33,14 @@ export default function Projects() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAllProjects, setShowAllProjects] = useState(true);
   const [groupBy, setGroupBy] = useState<"none" | "client" | "address">("none");
+  // statusFilter is "all", "stale", a single status, OR a comma-list ("open,on_hold")
   const [statusFilter, setStatusFilter] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get("status") || "all";
   });
+  const statusSet = statusFilter && !["all", "stale"].includes(statusFilter)
+    ? new Set(statusFilter.split(",").map((s) => s.trim()).filter(Boolean))
+    : null;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const { toast } = useToast();
@@ -98,7 +102,9 @@ export default function Projects() {
     // Status filter
     if (statusFilter === "stale") {
       if (!isStale(p)) return false;
-    } else if (statusFilter !== "all" && p.status !== statusFilter) return false;
+    } else if (statusSet) {
+      if (!statusSet.has(p.status as string)) return false;
+    }
     if (!matchesBucket(p)) return false;
     // Search filter
     const query = searchQuery.toLowerCase();
