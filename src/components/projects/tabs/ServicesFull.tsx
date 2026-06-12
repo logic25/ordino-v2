@@ -105,7 +105,95 @@ function AssignedToField({ service }: { service: MockService }) {
   );
 }
 
+function ServiceApplicationField({ service }: { service: MockService }) {
+  const [editing, setEditing] = useState(false);
+  const [jobNumber, setJobNumber] = useState<string>(service.application?.jobNumber || "");
+  const [type, setType] = useState<string>(service.application?.type || "");
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const payload = jobNumber.trim() || type.trim()
+        ? { jobNumber: jobNumber.trim(), type: type.trim() || "Other" }
+        : null;
+      const { error } = await supabase
+        .from("services")
+        .update({ application: payload } as any)
+        .eq("id", service.id);
+      if (error) throw error;
+      toast({ title: payload ? "Application saved" : "Application cleared" });
+      setEditing(false);
+      await queryClient.invalidateQueries({ queryKey: ["project-detail"] });
+      await queryClient.invalidateQueries({ queryKey: ["services"] });
+    } catch (e: any) {
+      toast({ title: "Save failed", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const clear = async () => {
+    setJobNumber("");
+    setType("");
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("services").update({ application: null } as any).eq("id", service.id);
+      if (error) throw error;
+      toast({ title: "Application cleared" });
+      setEditing(false);
+      await queryClient.invalidateQueries({ queryKey: ["project-detail"] });
+    } catch (e: any) {
+      toast({ title: "Clear failed", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (editing) {
+    return (
+      <div className="space-y-2 text-sm">
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] uppercase tracking-wide text-muted-foreground">Job #</label>
+          <Input value={jobNumber} onChange={(e) => setJobNumber(e.target.value)} placeholder="e.g. 123456789" className="h-7 text-sm font-mono" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] uppercase tracking-wide text-muted-foreground">Type</label>
+          <Input value={type} onChange={(e) => setType(e.target.value)} placeholder="ALT-1, ALT-2, NB, Pro-Cert…" className="h-7 text-sm" />
+        </div>
+        <div className="flex gap-2 pt-1">
+          <Button size="sm" className="h-7 text-xs" onClick={save} disabled={saving}>Save</Button>
+          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setEditing(false); setJobNumber(service.application?.jobNumber || ""); setType(service.application?.type || ""); }} disabled={saving}>Cancel</Button>
+          {service.application && <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={clear} disabled={saving}>Clear</Button>}
+        </div>
+      </div>
+    );
+  }
+
+  if (service.application) {
+    return (
+      <div className="space-y-1 text-sm">
+        <div>Job #: <span className="font-mono font-medium">{service.application.jobNumber}</span></div>
+        <div>Type: <span className="font-medium">{service.application.type}</span></div>
+        <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setEditing(true)}>Edit</Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <p className="text-sm text-muted-foreground italic">No application linked</p>
+      <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => setEditing(true)}>
+        <Building2 className="h-3 w-3" /> Add application
+      </Button>
+    </div>
+  );
+}
+
 function ServiceExpandedDetail({ service, projectName, projectId }: { service: MockService; projectName?: string; projectId?: string }) {
+
   const [showAddReq, setShowAddReq] = useState(false);
   const [newReqLabel, setNewReqLabel] = useState("");
   const [newReqFrom, setNewReqFrom] = useState("");
