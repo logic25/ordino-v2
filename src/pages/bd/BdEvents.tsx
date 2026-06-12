@@ -72,22 +72,43 @@ export default function BdEvents() {
   const [detailEvent, setDetailEvent] = useState<BdEvent | null>(null);
   const [filterStatus, setFilterStatus] = useState<EventStatus | "ALL">("ALL");
   const [search, setSearch] = useState("");
+  const [timeRange, setTimeRange] = useState<"UPCOMING" | "PAST" | "THIS_MONTH" | "ALL">("UPCOMING");
+  const [view, setView] = useState<"list" | "calendar">("list");
+  const [calMonth, setCalMonth] = useState<Date>(new Date());
 
   const events = useBdEvents();
   const updateEvent = useUpdateBdEvent();
   const deleteEvent = useDeleteBdEvent();
   const { toast } = useToast();
 
+  const parseEventDate = (s: string | null) => {
+    if (!s) return null;
+    try { return parseISO(s.length <= 10 ? s : s.slice(0, 10)); } catch { return null; }
+  };
+
   const filtered = useMemo(() => {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
     return (events.data ?? []).filter((e) => {
       if (filterStatus !== "ALL" && e.status !== filterStatus) return false;
       if (search) {
         const q = search.toLowerCase();
         if (!(`${e.name} ${e.location ?? ""} ${e.category ?? ""}`.toLowerCase().includes(q))) return false;
       }
+      if (timeRange !== "ALL") {
+        const start = parseEventDate(e.start_date);
+        const end = parseEventDate(e.end_date) ?? start;
+        if (!start) return timeRange === "UPCOMING"; // undated → treat as upcoming
+        if (timeRange === "UPCOMING" && (end as Date) < today) return false;
+        if (timeRange === "PAST" && (end as Date) >= today) return false;
+        if (timeRange === "THIS_MONTH" && !isSameMonth(start, today)) return false;
+      }
       return true;
+    }).sort((a, b) => {
+      const da = parseEventDate(a.start_date)?.getTime() ?? Infinity;
+      const db = parseEventDate(b.start_date)?.getTime() ?? Infinity;
+      return timeRange === "PAST" ? db - da : da - db;
     });
-  }, [events.data, filterStatus, search]);
+  }, [events.data, filterStatus, search, timeRange]);
 
   const setStatus = (id: string, status: EventStatus) =>
     updateEvent.mutate({ id, status }, { onSuccess: () => toast({ title: `Marked ${STATUS_META[status].label.toLowerCase()}` }) });
