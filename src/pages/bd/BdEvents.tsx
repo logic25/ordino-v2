@@ -269,6 +269,88 @@ export default function BdEvents() {
   );
 }
 
+// ====== Event Calendar (month grid) ======
+function EventCalendar({
+  month, onMonthChange, events, onSelect, parseDate,
+}: {
+  month: Date;
+  onMonthChange: (d: Date) => void;
+  events: BdEvent[];
+  onSelect: (e: BdEvent) => void;
+  parseDate: (s: string | null) => Date | null;
+}) {
+  const gridStart = startOfWeek(startOfMonth(month), { weekStartsOn: 0 });
+  const gridEnd = endOfWeek(endOfMonth(month), { weekStartsOn: 0 });
+  const days = eachDayOfInterval({ start: gridStart, end: gridEnd });
+
+  const eventsOnDay = (day: Date) =>
+    events.filter((e) => {
+      const s = parseDate(e.start_date);
+      if (!s) return false;
+      const en = parseDate(e.end_date) ?? s;
+      return isWithinInterval(day, { start: s, end: en });
+    });
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 py-3">
+        <CardTitle className="text-base">{format(month, "MMMM yyyy")}</CardTitle>
+        <div className="flex items-center gap-1">
+          <Button variant="outline" size="sm" onClick={() => onMonthChange(subMonths(month, 1))}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => onMonthChange(new Date())}>Today</Button>
+          <Button variant="outline" size="sm" onClick={() => onMonthChange(addMonths(month, 1))}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0 border-t">
+        <div className="grid grid-cols-7 text-xs font-medium text-muted-foreground border-b">
+          {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((d) => (
+            <div key={d} className="px-2 py-2 text-center">{d}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7">
+          {days.map((day) => {
+            const dayEvents = eventsOnDay(day);
+            const muted = !isSameMonth(day, month);
+            return (
+              <div key={day.toISOString()}
+                className={`min-h-[110px] border-r border-b p-1.5 ${muted ? "bg-muted/30" : ""}`}>
+                <div className={`text-xs mb-1 flex items-center justify-end ${
+                  isToday(day) ? "font-semibold" : ""
+                }`}>
+                  <span className={isToday(day)
+                    ? "inline-flex items-center justify-center h-5 w-5 rounded-full bg-primary text-primary-foreground"
+                    : (muted ? "text-muted-foreground" : "")}>
+                    {format(day, "d")}
+                  </span>
+                </div>
+                <div className="space-y-0.5">
+                  {dayEvents.slice(0, 3).map((e) => (
+                    <button key={e.id}
+                      onClick={() => onSelect(e)}
+                      title={e.name}
+                      className={`w-full text-left text-[11px] px-1.5 py-0.5 rounded border truncate hover:opacity-80 ${STATUS_META[e.status].className}`}>
+                      {e.name}
+                    </button>
+                  ))}
+                  {dayEvents.length > 3 && (
+                    <div className="text-[10px] text-muted-foreground px-1.5">
+                      +{dayEvents.length - 3} more
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ====== Event Dialog ======
 function EventDialog({ open, event, onOpenChange }: { open: boolean; event: BdEvent | null; onOpenChange: (o: boolean) => void }) {
   const create = useCreateBdEvent();
