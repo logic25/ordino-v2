@@ -26,8 +26,8 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 const TIER_META: Record<1 | 2 | 3, { label: string; sub: string }> = {
-  1: { label: "Tier 1", sub: "NYC Adjacent" },
-  2: { label: "Tier 2", sub: "NY / NJ" },
+  1: { label: "Tier 1", sub: "NYC (Five Boroughs)" },
+  2: { label: "Tier 2", sub: "NYC-Adjacent / NY & NJ" },
   3: { label: "Tier 3", sub: "Out of State" },
 };
 
