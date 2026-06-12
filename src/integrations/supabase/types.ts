@@ -758,6 +758,7 @@ export type Database = {
           id: string
           is_pinned: boolean
           lead_id: string | null
+          mentioned_user_ids: string[]
           metadata: Json
           type: Database["public"]["Enums"]["bd_activity_type"]
           updated_at: string
@@ -771,6 +772,7 @@ export type Database = {
           id?: string
           is_pinned?: boolean
           lead_id?: string | null
+          mentioned_user_ids?: string[]
           metadata?: Json
           type: Database["public"]["Enums"]["bd_activity_type"]
           updated_at?: string
@@ -784,6 +786,7 @@ export type Database = {
           id?: string
           is_pinned?: boolean
           lead_id?: string | null
+          mentioned_user_ids?: string[]
           metadata?: Json
           type?: Database["public"]["Enums"]["bd_activity_type"]
           updated_at?: string
@@ -1063,6 +1066,7 @@ export type Database = {
           start_date: string | null
           start_time: string | null
           status: Database["public"]["Enums"]["bd_event_status"]
+          suggested_by_ai: boolean
           target_audience: string | null
           updated_at: string
           why_it_matters: string | null
@@ -1098,6 +1102,7 @@ export type Database = {
           start_date?: string | null
           start_time?: string | null
           status?: Database["public"]["Enums"]["bd_event_status"]
+          suggested_by_ai?: boolean
           target_audience?: string | null
           updated_at?: string
           why_it_matters?: string | null
@@ -1133,6 +1138,7 @@ export type Database = {
           start_date?: string | null
           start_time?: string | null
           status?: Database["public"]["Enums"]["bd_event_status"]
+          suggested_by_ai?: boolean
           target_audience?: string | null
           updated_at?: string
           why_it_matters?: string | null
@@ -10154,6 +10160,8 @@ export type Database = {
         | "ATTENDED"
         | "SKIPPED"
         | "CANCELLED"
+        | "SUGGESTED"
+        | "DISMISSED"
       bd_lead_source_type:
         | "EVENT"
         | "REFERRAL"
@@ -10383,6 +10391,8 @@ export const Constants = {
         "ATTENDED",
         "SKIPPED",
         "CANCELLED",
+        "SUGGESTED",
+        "DISMISSED",
       ],
       bd_lead_source_type: [
         "EVENT",
