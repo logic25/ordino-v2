@@ -201,24 +201,59 @@ export default function BdEvents() {
                   <SelectItem value="ALL">All time</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
-                <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All statuses</SelectItem>
-                  {Object.entries(STATUS_META).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-44 justify-between font-normal">
+                    <span className="truncate">
+                      {statusFilter.size === 0
+                        ? "All statuses"
+                        : statusFilter.size === 1
+                          ? STATUS_META[[...statusFilter][0]].label
+                          : `${statusFilter.size} statuses`}
+                    </span>
+                    <ChevronDown className="h-3.5 w-3.5 opacity-60 ml-1" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-56 p-2">
+                  <div className="flex items-center justify-between px-1 pb-1.5 mb-1.5 border-b">
+                    <span className="text-xs font-medium">Filter by status</span>
+                    {statusFilter.size > 0 && (
+                      <button
+                        type="button"
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                        onClick={() => setStatusFilter(new Set())}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-0.5">
+                    {(Object.keys(STATUS_META) as EventStatus[]).map((k) => (
+                      <label
+                        key={k}
+                        className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-muted cursor-pointer"
+                      >
+                        <Checkbox
+                          checked={statusFilter.has(k)}
+                          onCheckedChange={() => toggleStatus(k)}
+                        />
+                        <Badge variant="outline" className={`${STATUS_META[k].className} text-[10px]`}>
+                          {STATUS_META[k].label}
+                        </Badge>
+                      </label>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
               {(() => {
                 const pendingCount = (events.data ?? []).filter((e) => e.status === "PENDING_APPROVAL").length;
                 const suggestedCount = (events.data ?? []).filter((e) => e.status === "SUGGESTED").length;
-                const pendingActive = filterStatus === "PENDING_APPROVAL";
-                const suggestedActive = filterStatus === "SUGGESTED";
+                const pendingActive = isOnlyStatus("PENDING_APPROVAL");
+                const suggestedActive = isOnlyStatus("SUGGESTED");
                 return (
                   <>
                     <Button size="sm" variant={pendingActive ? "default" : "outline"}
-                      onClick={() => setFilterStatus(pendingActive ? "ALL" : "PENDING_APPROVAL")}>
+                      onClick={() => setStatusFilter(pendingActive ? new Set() : new Set(["PENDING_APPROVAL"]))}>
                       Proposed
                       {pendingCount > 0 && (
                         <Badge variant="secondary" className="ml-1.5 h-5 px-1.5">{pendingCount}</Badge>
@@ -226,7 +261,7 @@ export default function BdEvents() {
                     </Button>
                     <Button size="sm" variant={suggestedActive ? "default" : "outline"}
                       className={suggestedActive ? "" : "border-amber-300 text-amber-800 hover:bg-amber-50"}
-                      onClick={() => setFilterStatus(suggestedActive ? "ALL" : "SUGGESTED")}>
+                      onClick={() => setStatusFilter(suggestedActive ? new Set() : new Set(["SUGGESTED"]))}>
                       ✨ Suggestions
                       {suggestedCount > 0 && (
                         <Badge variant="secondary" className="ml-1.5 h-5 px-1.5">{suggestedCount}</Badge>
