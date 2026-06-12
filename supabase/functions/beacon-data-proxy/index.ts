@@ -7,6 +7,13 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+type Ctx = {
+  sb: any;
+  companyId: string | null;
+  userId: string | null;
+  authMode: "jwt" | "shared_secret_only";
+};
+
 function ok(data: unknown) {
   return new Response(JSON.stringify({ data, error: null }), {
     status: 200,
@@ -21,6 +28,44 @@ function fail(message: string, status = 400) {
   });
 }
 
+// Tables in the allowlist that carry a company_id column. ALL allowed tables
+// currently have company_id, so we scope every query_ordino call by company.
+const COMPANY_SCOPED_TABLES = new Set([
+  "projects", "properties", "proposals", "invoices", "services",
+  "clients", "client_contacts", "project_action_items",
+  "project_checklist_items", "rfi_requests", "signal_violations",
+  "signal_applications", "profiles", "company_reviews",
+]);
+
+async function logAudit(
+  sb: any,
+  ctx: Ctx,
+  action: string,
+  params: any,
+  rowCount: number | null,
+  success: boolean,
+  errorMessage: string | null,
+  durationMs: number,
+) {
+  try {
+    await sb.from("beacon_tool_log").insert({
+      user_id: ctx.userId,
+      company_id: ctx.companyId,
+      project_id: params?.project_id ?? null,
+      question_id: null,
+      question_text: null,
+      tool_name: action,
+      parameters: params ?? {},
+      row_count: rowCount,
+      duration_ms: durationMs,
+      success,
+      error_message: errorMessage,
+    });
+  } catch (e) {
+    console.error("beacon_tool_log insert failed:", e);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -30,11 +75,22 @@ Deno.serve(async (req) => {
     return fail("Method not allowed", 405);
   }
 
+  const startedAt = Date.now();
+
   try {
-    // Auth: shared secret
-    const beaconKey = req.headers.get("x-beacon-key") ?? "";
+    // ── Auth layer ───────────────────────────────────────
+    // Primary: forwarded end-user JWT in Authorization header (verified, then
+    //   profiles.company_id derived). This is the only mode that yields a
+    //   verified companyId and is REQUIRED by default.
+    // Secondary: shared secret (x-beacon-key) — only honored when JWT is
+    //   missing AND BEACON_PROXY_ALLOW_SHARED_SECRET_ONLY=1. Default OFF.
     const expectedKey = Deno.env.get("BEACON_ANALYTICS_KEY") ?? "";
-    if (!expectedKey || beaconKey !== expectedKey) {
+    const beaconKey = req.headers.get("x-beacon-key") ?? "";
+    const sharedSecretOk = !!expectedKey && beaconKey === expectedKey;
+    const allowSharedOnly =
+      (Deno.env.get("BEACON_PROXY_ALLOW_SHARED_SECRET_ONLY") ?? "0") === "1";
+
+    if (!sharedSecretOk) {
       return fail("Unauthorized", 401);
     }
 
@@ -43,43 +99,126 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // Try to verify JWT
+    let userId: string | null = null;
+    let companyId: string | null = null;
+    let authMode: "jwt" | "shared_secret_only" = "shared_secret_only";
+
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const bearer = authHeader.toLowerCase().startsWith("bearer ")
+      ? authHeader.slice(7).trim()
+      : "";
+
+    if (bearer) {
+      const userClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: `Bearer ${bearer}` } } },
+      );
+      const { data: { user }, error: userErr } = await userClient.auth.getUser(bearer);
+      if (userErr || !user) {
+        return fail("Invalid JWT", 401);
+      }
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("id, company_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!prof?.company_id) {
+        return fail("No company for user", 403);
+      }
+      userId = prof.id;
+      companyId = prof.company_id;
+      authMode = "jwt";
+    } else if (!allowSharedOnly) {
+      return fail(
+        "JWT required (set BEACON_PROXY_ALLOW_SHARED_SECRET_ONLY=1 only for legacy callers)",
+        401,
+      );
+    }
+
+    const ctx: Ctx = { sb: supabase, companyId, userId, authMode };
+
     const { action, params = {} } = await req.json();
 
-    switch (action) {
-      case "query_projects":
-        return await queryProjects(supabase, params);
-      case "query_project_detail":
-        return await queryProjectDetail(supabase, params);
-      case "query_property_violations":
-        return await queryPropertyViolations(supabase, params);
-      case "query_pm_workload":
-        return await queryPmWorkload(supabase, params);
-      case "check_filing_readiness":
-        return await checkFilingReadiness(supabase, params);
-      case "query_proposals":
-        return await queryProposals(supabase, params);
-      case "query_invoices":
-        return await queryInvoices(supabase, params);
-      case "query_ordino":
-        return await queryOrdino(supabase, params);
-      case "query_bug_patterns":
-        return await queryBugPatterns(supabase, params);
-      case "create_bug_from_conversation":
-        return await createBugFromConversation(supabase, params);
-      case "vendor_lookup":
-        return await vendorLookup(supabase, params);
-      case "list_schema":
-        return await listSchema(supabase);
-      case "describe_table":
-        return await describeTable(params);
-      default:
-        return fail(`Unknown action: ${action}`);
+    let response: Response;
+    let rowCount: number | null = null;
+    let success = true;
+    let errorMessage: string | null = null;
+
+    try {
+      switch (action) {
+        case "query_projects":
+          response = await queryProjects(ctx, params);
+          break;
+        case "query_project_detail":
+          response = await queryProjectDetail(ctx, params);
+          break;
+        case "query_property_violations":
+          response = await queryPropertyViolations(ctx, params);
+          break;
+        case "query_pm_workload":
+          response = await queryPmWorkload(ctx, params);
+          break;
+        case "check_filing_readiness":
+          response = await checkFilingReadiness(ctx, params);
+          break;
+        case "query_proposals":
+          response = await queryProposals(ctx, params);
+          break;
+        case "query_invoices":
+          response = await queryInvoices(ctx, params);
+          break;
+        case "query_ordino":
+          response = await queryOrdino(ctx, params);
+          break;
+        case "query_bug_patterns":
+          response = await queryBugPatterns(ctx, params);
+          break;
+        case "create_bug_from_conversation":
+          response = await createBugFromConversation(ctx, params);
+          break;
+        case "vendor_lookup":
+          response = await vendorLookup(ctx, params);
+          break;
+        case "list_schema":
+          response = await listSchema(ctx);
+          break;
+        case "describe_table":
+          response = await describeTable(params);
+          break;
+        default:
+          response = fail(`Unknown action: ${action}`);
+      }
+      success = response.status < 400;
+      if (!success) {
+        try {
+          const cloned = response.clone();
+          const body = await cloned.json();
+          errorMessage = body?.error ?? null;
+        } catch { /* ignore */ }
+      }
+    } catch (e: any) {
+      success = false;
+      errorMessage = e?.message ?? String(e);
+      response = fail(errorMessage ?? "Internal server error", 500);
     }
+
+    // Fire-and-forget audit log
+    logAudit(supabase, ctx, action, params, rowCount, success, errorMessage, Date.now() - startedAt);
+
+    return response;
   } catch (err) {
     console.error("beacon-data-proxy error:", err);
     return fail("Internal server error", 500);
   }
 });
+
+// Force a company_id filter on a query when we have a verified company.
+// When companyId is null (shared-secret legacy mode) this is a no-op.
+function scopeByCompany(q: any, ctx: Ctx) {
+  return ctx.companyId ? q.eq("company_id", ctx.companyId) : q;
+}
 
 // ── Actions ──────────────────────────────────────────────
 
