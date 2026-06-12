@@ -87,6 +87,7 @@ export function BdScanTab() {
 
   const resetForm = () => {
     setFullName(""); setCompany(""); setRole(""); setEmail(""); setPhone("");
+    setMobile(""); setWebsite(""); setAddress("");
     setNotes(""); setHot(false); setPreview(null);
   };
 
@@ -104,7 +105,10 @@ export function BdScanTab() {
         toast({ title: "Couldn't read the card", description: "Try again — closer, flat, good light. Or type it in below." });
       } else {
         setFullName(c.full_name ?? ""); setCompany(c.company ?? "");
-        setRole(c.role ?? ""); setEmail(c.email ?? ""); setPhone(c.phone ?? "");
+        setRole(c.role ?? ""); setEmail(c.email ?? "");
+        setPhone(fmtPhone(c.phone ?? ""));
+        setMobile(fmtPhone(c.mobile ?? ""));
+        setWebsite(c.website ?? ""); setAddress(c.address ?? "");
         toast({ title: "Card scanned", description: c.full_name ?? "Review the fields below" });
       }
     } catch (e: any) {
@@ -116,6 +120,14 @@ export function BdScanTab() {
 
   const handleSave = async () => {
     if (!fullName.trim()) return;
+    // Roll address/website/cell into notes since the leads table doesn't have
+    // dedicated columns — keeps the data with the lead instead of dropping it.
+    const extras = [
+      mobile.trim() && `Cell: ${mobile.trim()}`,
+      website.trim() && `Web: ${website.trim()}`,
+      address.trim() && `Address: ${address.trim()}`,
+    ].filter(Boolean).join("\n");
+    const combinedNotes = [notes.trim(), extras].filter(Boolean).join("\n\n") || null;
     try {
       await createLead.mutateAsync({
         full_name: fullName.trim(),
@@ -127,7 +139,7 @@ export function BdScanTab() {
         contact_phone: phone.trim() || null,
         hot_opportunity: hot,
         assigned_to: profile?.id ?? null,
-        notes: notes.trim() || null,
+        notes: combinedNotes,
       });
       setCapturedCount((n) => n + 1);
       toast({ title: `Lead captured (${capturedCount + 1} this session)`, description: fullName.trim() });
