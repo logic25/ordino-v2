@@ -260,7 +260,32 @@ export default function BdEventDetail() {
           </div>
         </div>
 
+        {event.status === "SUGGESTED" && (
+          <Card className="p-4 border-amber-300 bg-amber-50/50">
+            <div className="flex items-start gap-3">
+              <Sparkles className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-amber-900">AI suggested this event</p>
+                <p className="text-xs text-amber-800/80 mt-0.5">
+                  {event.why_it_matters || "Review the strategy below and decide whether to add it to the pipeline."}
+                </p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <Button size="sm" variant="outline"
+                  onClick={() => set({ status: "DISMISSED" })}>
+                  Dismiss
+                </Button>
+                <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white"
+                  onClick={() => set({ status: "PENDING_APPROVAL" })}>
+                  Add to pipeline
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
         <EventApprovalActions event={event} />
+
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* LEFT */}

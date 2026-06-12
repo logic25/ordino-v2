@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { formatDistanceToNow, format } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   ArrowRight, FileText, Info, Mail, Pin, PinOff, Send,
@@ -12,6 +11,8 @@ import {
 } from "@/hooks/useBdActivities";
 import { useAuth } from "@/hooks/useAuth";
 import { profileLabel, initials } from "@/components/bd/leadConstants";
+import { MentionInput, type MentionInputHandle } from "@/components/bd/MentionInput";
+import { extractMentionedIds, renderWithMentions } from "@/components/bd/mentions";
 
 const SYSTEM_TYPES = new Set<BdActivityType>([
   "STAGE_CHANGE", "STATUS_CHANGE", "SYSTEM", "PROPOSAL_CREATED", "EMAIL", "APPROVAL",
@@ -51,7 +52,7 @@ export function BdActivityThread({
 
   const [draft, setDraft] = useState("");
   const scrollerRef = useRef<HTMLDivElement | null>(null);
-  const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const composerRef = useRef<MentionInputHandle | null>(null);
 
   // useBdActivities returns newest-first; we render oldest-first for chat.
   const ordered = [...activities].reverse();
@@ -67,7 +68,8 @@ export function BdActivityThread({
   const send = async () => {
     const text = draft.trim();
     if (!text || create.isPending) return;
-    await create.mutateAsync({ filter, type: "NOTE", content: text });
+    const mentioned_user_ids = extractMentionedIds(text);
+    await create.mutateAsync({ filter, type: "NOTE", content: text, mentioned_user_ids });
     setDraft("");
     composerRef.current?.focus();
   };
@@ -94,6 +96,7 @@ export function BdActivityThread({
                   key={a.id}
                   a={a}
                   isOwn={a.created_by === profile?.id}
+                  currentUserId={profile?.id}
                   onTogglePin={() =>
                     pin.mutate({ id: a.id, filter, is_pinned: false })
                   }
@@ -115,6 +118,7 @@ export function BdActivityThread({
               key={a.id}
               a={a}
               isOwn={a.created_by === profile?.id}
+              currentUserId={profile?.id}
               onTogglePin={() => pin.mutate({ id: a.id, filter, is_pinned: true })}
             />
           ),
@@ -123,17 +127,12 @@ export function BdActivityThread({
 
       <div className="pt-3 border-t mt-3">
         <div className="flex items-end gap-2">
-          <Textarea
+          <MentionInput
             ref={composerRef}
-            placeholder="Message the team…"
+            placeholder="Message the team… use @ to tag a teammate"
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send();
-              }
-            }}
+            onChange={setDraft}
+            onSubmit={send}
             rows={1}
             className="resize-none min-h-[36px] max-h-32"
           />
@@ -147,7 +146,7 @@ export function BdActivityThread({
           </Button>
         </div>
         <p className="text-[10px] text-muted-foreground mt-1">
-          Enter to send · Shift+Enter for a new line
+          Enter to send · Shift+Enter for newline · @ to mention
         </p>
       </div>
     </div>
@@ -158,10 +157,12 @@ function MessageBubble({
   a,
   isOwn,
   onTogglePin,
+  currentUserId,
 }: {
   a: BdActivity;
   isOwn: boolean;
   onTogglePin: () => void;
+  currentUserId?: string | null;
 }) {
   const author = a.author ? profileLabel(a.author) : "System";
   const displayName = isOwn ? "You" : author;
@@ -183,7 +184,9 @@ function MessageBubble({
               : "bg-muted rounded-bl-sm"
           }`}
         >
-          {a.content || <span className="opacity-60 italic">(empty)</span>}
+          {a.content
+            ? renderWithMentions(a.content, currentUserId)
+            : <span className="opacity-60 italic">(empty)</span>}
           {a.type === "CALL" && a.metadata?.duration_minutes != null && (
             <p className="text-[10px] opacity-70 mt-1">
               📞 Call · {a.metadata.duration_minutes} min

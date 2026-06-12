@@ -58,8 +58,10 @@ export function useCreateBdActivity() {
       type: BdActivityType;
       content?: string | null;
       metadata?: Record<string, any>;
+      mentioned_user_ids?: string[];
     }) => {
       if (!profile?.company_id) throw new Error("No company");
+      const mentioned = (input.mentioned_user_ids ?? []).filter((id) => id !== profile.id);
       const { error } = await supabase.from("bd_activities").insert({
         company_id: profile.company_id,
         lead_id: input.filter.leadId ?? null,
@@ -68,8 +70,29 @@ export function useCreateBdActivity() {
         content: input.content ?? null,
         metadata: input.metadata ?? {},
         created_by: profile.id,
+        mentioned_user_ids: mentioned,
       } as any);
       if (error) throw error;
+
+      // Fire-and-forget bell notifications for each mentioned teammate
+      if (mentioned.length > 0) {
+        const link = input.filter.eventId
+          ? `/bd/events/${input.filter.eventId}`
+          : input.filter.leadId
+            ? `/bd/leads/${input.filter.leadId}`
+            : null;
+        const authorName = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "A teammate";
+        const rows = mentioned.map((uid) => ({
+          company_id: profile.company_id!,
+          user_id: uid,
+          type: "bd_mention",
+          title: `${authorName} mentioned you`,
+          body: (input.content ?? "").slice(0, 200),
+          link,
+          event_id: input.filter.eventId ?? null,
+        }));
+        await supabase.from("notifications").insert(rows as any);
+      }
     },
     onSuccess: (_d, v) => {
       qc.invalidateQueries({ queryKey: queryKey(v.filter) });
