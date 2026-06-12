@@ -9749,6 +9749,16 @@ export type Database = {
       }
       get_user_app_roles: { Args: { _user_id: string }; Returns: string[] }
       get_user_company_id: { Args: never; Returns: string }
+      global_search: {
+        Args: { _limit?: number; _q: string }
+        Returns: {
+          id: string
+          kind: string
+          subtitle: string
+          title: string
+          url: string
+        }[]
+      }
       has_app_role: {
         Args: { _role: string; _user_id: string }
         Returns: boolean
