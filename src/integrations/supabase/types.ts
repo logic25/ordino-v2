@@ -9801,6 +9801,7 @@ export type Database = {
         Args: { _payment_method?: string; _token: string }
         Returns: Json
       }
+      preview_lead_client_match: { Args: { _lead_id: string }; Returns: Json }
       seed_document_folders: {
         Args: { target_company_id: string }
         Returns: undefined
