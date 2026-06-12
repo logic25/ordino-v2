@@ -288,7 +288,46 @@ export default function Documents() {
     setTitle(""); setDescription(""); setCategory("general");
     setSelectedFile(null);
     setLinkProjectId(undefined); setLinkPropertyId(undefined); setLinkProposalId(undefined);
+    setUploadJurisdiction(selectedFolder?.default_jurisdiction || "NYC");
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // Sync jurisdiction default to selected folder
+  useEffect(() => {
+    setUploadJurisdiction(selectedFolder?.default_jurisdiction || "NYC");
+  }, [selectedFolderId, selectedFolder?.default_jurisdiction]);
+
+  const handleBulkTagJurisdiction = async () => {
+    if (selectedDocIds.size === 0) return;
+    setBulkTagPending(true);
+    try {
+      const ids = Array.from(selectedDocIds);
+      const { error } = await supabase
+        .from("universal_documents")
+        .update({ jurisdiction: bulkJurisdiction } as any)
+        .in("id", ids);
+      if (error) throw error;
+      toast({ title: `Tagged ${ids.length} document${ids.length === 1 ? "" : "s"} as ${bulkJurisdiction}` });
+      setSelectedDocIds(new Set());
+      setBulkTagOpen(false);
+      qc.invalidateQueries({ queryKey: ["universal-documents"] });
+    } catch (err: any) {
+      toast({ title: "Bulk tag failed", description: err.message, variant: "destructive" });
+    } finally {
+      setBulkTagPending(false);
+    }
+  };
+
+  const toggleSelectDoc = (id: string) => {
+    setSelectedDocIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const toggleSelectAllVisible = (checked: boolean) => {
+    if (checked) setSelectedDocIds(new Set(paginatedDocs.map((d) => d.id)));
+    else setSelectedDocIds(new Set());
   };
 
   return (
