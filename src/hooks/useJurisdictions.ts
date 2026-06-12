@@ -1,7 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase as supabaseTyped } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "./useAuth";
+
+// `jurisdictions` table is not yet in generated Supabase types; bypass the typed table union.
+const supabase = supabaseTyped as any;
 
 export type JurisdictionStatus = "researching" | "candidate" | "validating" | "live" | "rejected";
 
