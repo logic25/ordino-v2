@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -26,7 +26,7 @@ type MarketSignal = {
   created_at: string;
 };
 
-export default function BdMarketSignals() {
+export default function BdMarketSignals({ embedded = false }: { embedded?: boolean }) {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -94,8 +94,9 @@ export default function BdMarketSignals() {
       toast({ title: "Could not create lead", description: e.message, variant: "destructive" }),
   });
 
+  const Shell = embedded ? Fragment : AppLayout;
   return (
-    <AppLayout>
+    <Shell>
       <div className="p-6 max-w-5xl mx-auto space-y-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Market Signals</h1>
@@ -191,6 +192,6 @@ export default function BdMarketSignals() {
           </div>
         )}
       </div>
-    </AppLayout>
+    </Shell>
   );
 }

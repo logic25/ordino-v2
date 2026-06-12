@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, Fragment } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -155,7 +155,7 @@ function IntelBlock({ label, text }: { label: string; text: string }) {
   );
 }
 
-export default function Markets() {
+export default function Markets({ embedded = false }: { embedded?: boolean }) {
   const { data: markets = [], isLoading } = useMarkets();
   const del = useDeleteMarket();
   const { toast } = useToast();
@@ -196,8 +196,9 @@ export default function Markets() {
     }
   };
 
+  const Shell = embedded ? Fragment : AppLayout;
   return (
-    <AppLayout>
+    <Shell>
       <div className="space-y-5 animate-fade-in">
         <div className="flex items-center justify-between">
           <div>
@@ -316,6 +317,6 @@ export default function Markets() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </AppLayout>
+    </Shell>
   );
 }
