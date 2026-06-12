@@ -1,0 +1,2 @@
+DROP POLICY IF EXISTS "Users can soft-delete own messages" ON public.widget_messages;
+CREATE POLICY "Users can soft-delete own messages" ON public.widget_messages FOR UPDATE USING (((auth.jwt() ->> 'email'::text) = user_email) AND is_company_member(company_id)) WITH CHECK (((auth.jwt() ->> 'email'::text) = user_email) AND is_company_member(company_id));
