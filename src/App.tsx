@@ -80,9 +80,8 @@ const BdLeadDetail = lazyWithRetry(() => import("./pages/bd/BdLeadDetail"), "bd-
 const BdEvents = lazyWithRetry(() => import("./pages/bd/BdEvents"), "bd-events");
 const BdSequences = lazyWithRetry(() => import("./pages/bd/BdSequences"), "bd-sequences");
 const BdMarkets = lazyWithRetry(() => import("./pages/bd/BdMarkets"), "bd-markets");
-const BdCapture = lazyWithRetry(() => import("./pages/bd/BdCapture"), "bd-capture");
 const BdEventDetail = lazyWithRetry(() => import("./pages/bd/BdEventDetail"), "bd-event-detail");
-const BdMyCard = lazyWithRetry(() => import("./pages/bd/BdMyCard"), "bd-my-card");
+const BdEventCard = lazyWithRetry(() => import("./pages/bd/BdEventCard"), "bd-event-card");
 
 function PageSpinner() {
   return (
@@ -141,9 +140,11 @@ function AppRoutes() {
       <Route path="/bd/events/:id" element={<ProtectedRoute><BdEventDetail /></ProtectedRoute>} />
       <Route path="/bd/sequences" element={<ProtectedRoute><BdSequences /></ProtectedRoute>} />
       <Route path="/bd/markets" element={<ProtectedRoute><BdMarkets /></ProtectedRoute>} />
-      <Route path="/bd/capture" element={<ProtectedRoute><BdCapture /></ProtectedRoute>} />
+      <Route path="/bd/event-card" element={<ProtectedRoute><BdEventCard /></ProtectedRoute>} />
+      <Route path="/bd/capture" element={<Navigate to="/bd/event-card?tab=scan" replace />} />
+      <Route path="/bd/my-card" element={<Navigate to="/bd/event-card?tab=mycard" replace />} />
+      <Route path="/bd/card" element={<Navigate to="/bd/event-card?tab=mycard" replace />} />
       <Route path="/bd/prep" element={<Navigate to="/bd/events" replace />} />
-      <Route path="/bd/card" element={<ProtectedRoute><BdMyCard /></ProtectedRoute>} />
       <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
       <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
       <Route path="/clients/:id" element={<ProtectedRoute><ClientDetail /></ProtectedRoute>} />
