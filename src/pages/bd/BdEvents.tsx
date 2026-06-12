@@ -53,6 +53,8 @@ import { useIsAdmin } from "@/hooks/useUserRoles";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
+import { isInvested, isConsidering, eventCost, fmtMoney0, scopeToYear } from "@/lib/eventBudget";
+
 
 const STATUS_META: Record<EventStatus, { label: string; className: string }> = {
   SUGGESTED: { label: "AI Suggested", className: "bg-amber-50 text-amber-800 border-amber-200" },
@@ -107,10 +109,15 @@ export default function BdEvents() {
   const [detailEvent, setDetailEvent] = useState<BdEvent | null>(null);
   // Multi-status filter — empty set means "all (default: hide SUGGESTED + DISMISSED)".
   const [statusFilter, setStatusFilter] = useState<Set<EventStatus>>(new Set());
+  // Bucket filter from the summary strip. When set, overrides statusFilter and
+  // uses the shared helpers (isInvested / isConsidering) for the table filter
+  // so the strip totals and the table content stay in lock-step.
+  const [bucketFilter, setBucketFilter] = useState<"INVESTED" | "CONSIDERING" | null>(null);
   const [search, setSearch] = useState("");
   const [timeRange, setTimeRange] = useState<"UPCOMING" | "PAST" | "THIS_MONTH" | "ALL">("UPCOMING");
   const [view, setView] = useState<"list" | "calendar">("list");
   const [calMonth, setCalMonth] = useState<Date>(new Date());
+
 
   const events = useBdEvents();
   const updateEvent = useUpdateBdEvent();
@@ -126,9 +133,16 @@ export default function BdEvents() {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const hasFilter = statusFilter.size > 0;
     return (events.data ?? []).filter((e) => {
-      // Default view (no statuses picked) hides SUGGESTED + DISMISSED noise.
-      if (!hasFilter && (e.status === "SUGGESTED" || e.status === "DISMISSED")) return false;
-      if (hasFilter && !statusFilter.has(e.status)) return false;
+      // Bucket filter (from summary strip) wins over status filter.
+      if (bucketFilter === "INVESTED") {
+        if (!isInvested(e)) return false;
+      } else if (bucketFilter === "CONSIDERING") {
+        if (!isConsidering(e)) return false;
+      } else {
+        // Default view (no statuses picked) hides SUGGESTED + DISMISSED noise.
+        if (!hasFilter && (e.status === "SUGGESTED" || e.status === "DISMISSED")) return false;
+        if (hasFilter && !statusFilter.has(e.status)) return false;
+      }
       if (search) {
         const q = search.toLowerCase();
         if (!(`${e.name} ${e.location ?? ""} ${e.category ?? ""}`.toLowerCase().includes(q))) return false;
@@ -147,15 +161,35 @@ export default function BdEvents() {
       const db = parseEventDate(b.start_date)?.getTime() ?? Infinity;
       return timeRange === "PAST" ? db - da : da - db;
     });
-  }, [events.data, statusFilter, search, timeRange]);
+  }, [events.data, statusFilter, bucketFilter, search, timeRange]);
+
+  // Summary strip data — year-scoped to the current year. Derives off the
+  // same useBdEvents query (no extra request); shares math with the Budget tab
+  // via lib/eventBudget.ts so totals can never drift between the two views.
+  const stripData = useMemo(() => {
+    const yearScoped = scopeToYear(events.data ?? [], new Date().getFullYear());
+    const invested = yearScoped.filter(isInvested);
+    const considering = yearScoped.filter(isConsidering);
+    const byStatus = (s: EventStatus) => yearScoped.filter((e) => e.status === s).length;
+    return {
+      invested: { count: invested.length, total: invested.reduce((s, e) => s + eventCost(e), 0) },
+      considering: { count: considering.length, total: considering.reduce((s, e) => s + eventCost(e), 0) },
+      perStatus: [
+        "PENDING_APPROVAL", "APPROVED", "REGISTERED", "ATTENDED", "SKIPPED",
+      ].map((s) => ({ status: s as EventStatus, count: byStatus(s as EventStatus) })),
+    };
+  }, [events.data]);
+
 
   const toggleStatus = (s: EventStatus) => {
+    setBucketFilter(null); // explicit status pick clears the bucket bias
     setStatusFilter((prev) => {
       const next = new Set(prev);
       next.has(s) ? next.delete(s) : next.add(s);
       return next;
     });
   };
+
   const isOnlyStatus = (s: EventStatus) =>
     statusFilter.size === 1 && statusFilter.has(s);
 
@@ -187,7 +221,90 @@ export default function BdEvents() {
           </TabsList>
 
           <TabsContent value="events" className="space-y-4">
+            {/* Summary strip — year-scoped glance. Clicking drills the table below.
+                Math comes from lib/eventBudget.ts (shared with the Budget tab). */}
+            <div className="flex flex-wrap items-center gap-1.5 px-1">
+              <span className="text-xs text-muted-foreground mr-1">
+                {new Date().getFullYear()}:
+              </span>
+              {(() => {
+                const investedActive = bucketFilter === "INVESTED";
+                const consideringActive = bucketFilter === "CONSIDERING";
+                return (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStatusFilter(new Set());
+                        setBucketFilter(investedActive ? null : "INVESTED");
+                      }}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                        investedActive
+                          ? "bg-green-100 text-green-800 border-green-300 ring-2 ring-offset-1 ring-primary/30"
+                          : "bg-green-50 text-green-800 border-green-200 hover:bg-green-100"
+                      }`}
+                    >
+                      <span className="font-medium">Invested {fmtMoney0(stripData.invested.total)}</span>
+                      <span className={investedActive ? "" : "text-green-700/70"}>
+                        ({stripData.invested.count})
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStatusFilter(new Set());
+                        setBucketFilter(consideringActive ? null : "CONSIDERING");
+                      }}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                        consideringActive
+                          ? "bg-blue-100 text-blue-800 border-blue-300 ring-2 ring-offset-1 ring-primary/30"
+                          : "bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100"
+                      }`}
+                    >
+                      <span className="font-medium">Considering {fmtMoney0(stripData.considering.total)}</span>
+                      <span className={consideringActive ? "" : "text-blue-700/70"}>
+                        ({stripData.considering.count})
+                      </span>
+                    </button>
+                    <span className="mx-1 h-4 w-px bg-border" />
+                    {stripData.perStatus.map(({ status, count }) => {
+                      const active = !bucketFilter && statusFilter.size === 1 && statusFilter.has(status);
+                      const meta = STATUS_META[status];
+                      return (
+                        <button
+                          key={status}
+                          type="button"
+                          onClick={() => {
+                            setBucketFilter(null);
+                            setStatusFilter(active ? new Set() : new Set([status]));
+                          }}
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                            active
+                              ? meta.className + " ring-2 ring-offset-1 ring-primary/30"
+                              : "bg-background hover:bg-muted"
+                          }`}
+                        >
+                          <span className="font-medium">{meta.label}</span>
+                          <span className={active ? "" : "text-muted-foreground"}>{count}</span>
+                        </button>
+                      );
+                    })}
+                    {(bucketFilter || statusFilter.size > 0) && (
+                      <button
+                        type="button"
+                        className="text-xs text-muted-foreground hover:text-foreground ml-1 underline-offset-2 hover:underline"
+                        onClick={() => { setBucketFilter(null); setStatusFilter(new Set()); }}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+
             <div className="flex items-center gap-2 flex-wrap">
+
               <Input
                 placeholder="Search events…" className="max-w-sm"
                 value={search} onChange={(e) => setSearch(e.target.value)}

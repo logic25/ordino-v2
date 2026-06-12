@@ -104,8 +104,17 @@ Deno.serve(async (req) => {
                 description:
                   "Other expediters / competitors likely in the room and how GLE can stand out.",
               },
+              talking_points: {
+                type: "array",
+                items: { type: "string" },
+                description:
+                  "3-6 short opening lines or hooks GLE reps can use in conversation. Each ≤140 chars, concrete, NYC-specific (e.g. reference a recent rule, ZR amendment, or DOB filing trend).",
+              },
             },
-            required: ["why_it_matters", "recent_news", "key_attendees", "competitive_landscape"],
+            required: [
+              "why_it_matters", "recent_news", "key_attendees",
+              "competitive_landscape", "talking_points",
+            ],
           },
         },
       }],
@@ -123,16 +132,20 @@ Deno.serve(async (req) => {
 
   const aiJson = await aiRes.json();
   const call = aiJson?.choices?.[0]?.message?.tool_calls?.[0];
-  let parsed: Record<string, string> = {};
+  let parsed: Record<string, unknown> = {};
   try { parsed = JSON.parse(call?.function?.arguments ?? "{}"); }
   catch {
     return json({ error: "Could not parse AI response" }, 400);
   }
 
   return json({
-    why_it_matters: parsed.why_it_matters ?? "",
-    recent_news: parsed.recent_news ?? "",
-    key_attendees: parsed.key_attendees ?? "",
-    competitive_landscape: parsed.competitive_landscape ?? "",
+    why_it_matters: (parsed.why_it_matters as string) ?? "",
+    recent_news: (parsed.recent_news as string) ?? "",
+    key_attendees: (parsed.key_attendees as string) ?? "",
+    competitive_landscape: (parsed.competitive_landscape as string) ?? "",
+    talking_points: Array.isArray(parsed.talking_points)
+      ? (parsed.talking_points as unknown[]).map((s) => String(s)).filter(Boolean)
+      : [],
   });
 });
+

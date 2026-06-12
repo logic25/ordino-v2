@@ -162,10 +162,8 @@ export default function Proposals() {
       })
     : displayProposals;
 
-  // Legacy leads-tab redirect — kept harmless; the tab itself was removed in Batch C.
-  useEffect(() => {
-    if (activeTab === "leads") navigate("/bd/leads");
-  }, [activeTab, navigate]);
+  // Legacy "leads" tab is fully removed — no redirect needed (CaptureLead opens BD).
+
 
 
   // Month-over-month analytics from lightweight stats query
@@ -315,7 +313,10 @@ export default function Proposals() {
   };
 
   const handleDelete = async (id: string) => {
-    // Check if proposal is executed — cannot delete
+    // Loosened guard — allow delete when:
+    //   • status === 'draft' (no downstream artefacts to protect), OR
+    //   • linked project has no invoices AND no services.
+    // Otherwise block with a clear toast (executed proposals are always blocked).
     const proposal = filteredProposals.find((p) => p.id === id);
     if (proposal?.status === "executed") {
       toast({
@@ -325,6 +326,24 @@ export default function Proposals() {
       });
       return;
     }
+    if (proposal && proposal.status !== "draft") {
+      const projectId = (proposal as any).converted_project_id as string | null;
+      if (projectId) {
+        const [{ count: invCount = 0 } = { count: 0 }, { count: svcCount = 0 } = { count: 0 }] =
+          await Promise.all([
+            supabase.from("invoices").select("id", { count: "exact", head: true }).eq("project_id", projectId),
+            supabase.from("services").select("id", { count: "exact", head: true }).eq("project_id", projectId),
+          ]);
+        if ((invCount ?? 0) > 0 || (svcCount ?? 0) > 0) {
+          toast({
+            title: "Cannot delete this proposal",
+            description: `Linked project has ${invCount ?? 0} invoice(s) and ${svcCount ?? 0} service(s). Remove or archive them first.`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+    }
     try {
       await deleteProposal.mutateAsync(id);
       toast({ title: "Proposal deleted", description: "The proposal has been removed." });
@@ -333,7 +352,7 @@ export default function Proposals() {
       if (msg.includes("foreign key") || msg.includes("projects")) {
         toast({
           title: "Cannot delete this proposal",
-          description: "This proposal is linked to a project and cannot be deleted.",
+          description: "This proposal is linked to a project with related records.",
           variant: "destructive",
         });
       } else {
@@ -341,6 +360,7 @@ export default function Proposals() {
       }
     }
   };
+
 
   const handleOpenSend = async (id: string) => {
     // Fetch proposal with items for the send dialog
@@ -550,8 +570,9 @@ export default function Proposals() {
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Proposals</h1>
             <p className="text-muted-foreground mt-1">
-              Create and manage client proposals. Capture leads from calls, emails, or referrals — they live in BD → Leads.
+              Create and manage client proposals.
             </p>
+
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -820,8 +841,9 @@ export default function Proposals() {
       <CaptureLeadModal
         open={leadDialogOpen}
         onOpenChange={setLeadDialogOpen}
-        onCreated={() => setActiveTab("leads")}
+        onCreated={() => { setLeadDialogOpen(false); navigate("/bd/leads"); }}
       />
+
 
       <ProposalPreviewModal
         proposal={previewProposal}
