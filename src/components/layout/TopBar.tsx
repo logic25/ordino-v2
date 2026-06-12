@@ -59,17 +59,22 @@ export function TopBar({ onMenuToggle }: TopBarProps) {
         <Menu className="h-5 w-5" />
       </Button>
 
-      {/* Search */}
+      {/* Search trigger (opens ⌘K dialog) */}
       <div className="flex-1 max-w-md hidden md:block" data-tour="topbar-search">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search projects, properties, clients..."
-            className="pl-9 bg-background border-border"
-          />
-        </div>
+        <button
+          type="button"
+          onClick={() => setSearchOpen(true)}
+          className="w-full flex items-center gap-2 h-9 px-3 rounded-md border border-border bg-background text-sm text-muted-foreground hover:bg-muted/50 transition-colors"
+        >
+          <Search className="h-4 w-4" />
+          <span className="flex-1 text-left truncate">Search leads, proposals, clients…</span>
+          <kbd className="hidden lg:inline-flex items-center gap-1 rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+            ⌘K
+          </kbd>
+        </button>
       </div>
+
+      <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
 
       {/* Actions */}
       <div className="flex items-center gap-2">
