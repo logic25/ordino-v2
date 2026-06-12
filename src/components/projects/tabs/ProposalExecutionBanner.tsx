@@ -9,7 +9,7 @@ import { format } from "date-fns";
 import type { ProjectWithRelations } from "@/hooks/useProjects";
 import type { ChangeOrder } from "@/hooks/useChangeOrders";
 
-export function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWithRelations; changeOrders: ChangeOrder[] }) {
+export function ProposalExecutionBanner({ project, changeOrders, onViewSignedProposal }: { project: ProjectWithRelations; changeOrders: ChangeOrder[]; onViewSignedProposal?: () => void }) {
   const unsignedCOs = changeOrders.filter(co => (!co.internal_signed_at || !co.client_signed_at) && co.status !== "draft");
   const proposal = project.proposals;
   const resendProposal = useSendProposal();
@@ -65,13 +65,21 @@ export function ProposalExecutionBanner({ project, changeOrders }: { project: Pr
     );
   }
 
+  const canViewSigned = fullyExecuted && !!onViewSignedProposal;
   return (
     <div className="flex items-center gap-3 flex-wrap">
-      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${
-        fullyExecuted 
-          ? "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800" 
-          : "bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800"
-      }`}>
+      <div
+        role={canViewSigned ? "button" : undefined}
+        tabIndex={canViewSigned ? 0 : undefined}
+        onClick={canViewSigned ? onViewSignedProposal : undefined}
+        onKeyDown={canViewSigned ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onViewSignedProposal!(); } } : undefined}
+        title={canViewSigned ? "View signed proposal in Documents" : undefined}
+        className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
+          fullyExecuted
+            ? `bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800 ${canViewSigned ? "hover:bg-emerald-100 dark:hover:bg-emerald-900/20 cursor-pointer" : ""}`
+            : "bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800"
+        }`}
+      >
         {fullyExecuted ? (
           <>
             <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -79,6 +87,7 @@ export function ProposalExecutionBanner({ project, changeOrders }: { project: Pr
             <span className="text-xs text-muted-foreground">
               Internal: {internalDate}{clientDate ? ` · Client: ${clientDate}` : ` · ${({physical_copy:"Physical signed copy",client_agreement:"Client's own agreement",email_confirmation:"Email confirmation"})[proposal.approval_method || ""] || "Approved (alt. method)"}`}
             </span>
+            {canViewSigned && <span className="text-[10px] text-emerald-700/70 dark:text-emerald-300/70 ml-1 underline">View signed PDF</span>}
           </>
         ) : (
           <>

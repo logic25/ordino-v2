@@ -152,6 +152,7 @@ export default function ProjectDetail() {
   const [selectedCOId, setSelectedCOId] = useState<string | null>(null);
   const [coSheetOpen, setCoSheetOpen] = useState(false);
   const [coAutoSign, setCoAutoSign] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("services");
 
   // Real data hooks — use URL id directly so services don't wait for useProjects() to resolve
   const { data: realServices = [], isLoading: servicesLoading } = useProjectServices(id);
@@ -422,7 +423,7 @@ export default function ProjectDetail() {
         </div>
 
         {/* Proposal Execution Status + Quick Reference + Readiness Checklist */}
-        <ProposalExecutionBanner project={project} changeOrders={changeOrders} />
+        <ProposalExecutionBanner project={project} changeOrders={changeOrders} onViewSignedProposal={() => setActiveTab("documents")} />
         {dobApplications.length > 0 && (
           <QuickReferenceBar
             applications={dobApplications}
@@ -446,7 +447,7 @@ export default function ProjectDetail() {
 
         {/* Main Tabbed Content */}
         <Card>
-          <Tabs defaultValue="services" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <div className="overflow-x-auto border-b bg-muted/20 rounded-t-lg scrollbar-hide">
             <TabsList className="w-max justify-start rounded-none bg-transparent h-11 px-2 sm:px-4 gap-0.5 sm:gap-1">
               <TabsTrigger value="services" className="gap-1.5 data-[state=active]:bg-background">
