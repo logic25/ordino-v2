@@ -53,10 +53,12 @@ import {
 import { useCalendarDragDrop } from "@/hooks/useCalendarDragDrop";
 import { useGmailConnection } from "@/hooks/useGmailConnection";
 import { useCanAccessBilling } from "@/hooks/useUserRoles";
+import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Calendar() {
