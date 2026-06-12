@@ -340,66 +340,50 @@ export default function BdEventDetail() {
             </Card>
 
 
-            <Card className="p-4 space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                Classification
-              </p>
-              <Field label="Event type">
-                <EditableText value={event.event_type ?? null}
-                  onSave={(v) => set({ event_type: v } as any)}
-                  placeholder="e.g. Conference, Mixer, Panel" />
-              </Field>
-              <Field label="Target audience">
-                <EditableText value={event.target_audience ?? null}
-                  onSave={(v) => set({ target_audience: v } as any)}
-                  placeholder="e.g. Architects + GCs, Owners" />
-              </Field>
-              <Field label="Category">
-                <EditableText value={event.category}
-                  onSave={(v) => set({ category: v })} placeholder="e.g. Conference" />
-              </Field>
-              <Field label="Priority">
-                <Select value={event.priority ?? "DISCUSS"}
-                  onValueChange={(v) => set({ priority: v as any })}>
-                  <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PRIORITY_OPTIONS.map((o) =>
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </Card>
-
-            <Card className="p-4 space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+            <Card className="p-4 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Cost
               </p>
-              <Field label="Member price">
-                <Input type="number" className="h-8" value={event.cost_member ?? ""}
-                  onChange={(e) => set({ cost_member: e.target.value ? Number(e.target.value) : null })} />
-              </Field>
-              <Field label="Non-member">
-                <Input type="number" className="h-8" value={event.cost_nonmember ?? ""}
-                  onChange={(e) => set({ cost_nonmember: e.target.value ? Number(e.target.value) : null })} />
-              </Field>
-              <Field label="Actual paid">
-                <Input type="number" className="h-8" value={event.cost_actual ?? ""}
-                  onChange={(e) => set({ cost_actual: e.target.value === "" ? null : Number(e.target.value) })} />
-              </Field>
-              <Field label="Paid by">
-                <Select
-                  value={event.paid_by_user_id ?? "__none"}
-                  onValueChange={(v) => set({ paid_by_user_id: v === "__none" ? null : v })}>
-                  <SelectTrigger className="h-8"><SelectValue placeholder="—" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none">—</SelectItem>
-                    {(profiles.data ?? []).map((p: any) =>
-                      <SelectItem key={p.id} value={p.id}>
-                        {[p.first_name, p.last_name].filter(Boolean).join(" ") || p.display_name}
-                      </SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Field>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-xs text-muted-foreground space-y-1">
+                  Member $
+                  <Input type="number" className="h-8" value={event.cost_member ?? ""}
+                    onChange={(e) => set({ cost_member: e.target.value ? Number(e.target.value) : null })} />
+                </label>
+                <label className="text-xs text-muted-foreground space-y-1">
+                  Non-member $
+                  <Input type="number" className="h-8" value={event.cost_nonmember ?? ""}
+                    onChange={(e) => set({ cost_nonmember: e.target.value ? Number(e.target.value) : null })} />
+                </label>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-xs text-muted-foreground space-y-1">
+                  Paid $
+                  <Input type="number" className="h-8" value={event.cost_actual ?? ""}
+                    onChange={(e) => set({ cost_actual: e.target.value === "" ? null : Number(e.target.value) })} />
+                </label>
+                <label className="text-xs text-muted-foreground space-y-1">
+                  Paid by
+                  <Select
+                    value={event.paid_by_user_id ?? "__none"}
+                    onValueChange={(v) => set({ paid_by_user_id: v === "__none" ? null : v })}>
+                    <SelectTrigger className="h-8"><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">—</SelectItem>
+                      {(profiles.data ?? []).map((p: any) =>
+                        <SelectItem key={p.id} value={p.id}>
+                          {[p.first_name, p.last_name].filter(Boolean).join(" ") || p.display_name}
+                        </SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </label>
+              </div>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
+                <input type="checkbox" className="h-3.5 w-3.5"
+                  checked={!!event.included_in_membership}
+                  onChange={(e) => set({ included_in_membership: e.target.checked })} />
+                Included in membership (counted as Invested with $0)
+              </label>
             </Card>
 
             <Card className="p-4 space-y-1">
