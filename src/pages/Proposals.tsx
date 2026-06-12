@@ -679,10 +679,8 @@ export default function Proposals() {
             <TabsTrigger value="leads" className="gap-1.5">
               <UserPlus className="h-4 w-4" />
               Leads
-              <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">
-                {leads.length}
-              </Badge>
             </TabsTrigger>
+
           </TabsList>
 
           <TabsContent value="proposals">
