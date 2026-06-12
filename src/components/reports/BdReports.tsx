@@ -84,11 +84,11 @@ export default function BdReports() {
 
   // Event rollup
   const eventMap = new Map(events.map((e) => [e.id, e.name]));
-  const byEvent = new Map<string, { name: string; captured: number; pipeline: number; converted: number }>();
+  const byEvent = new Map<string, { id: string; name: string; captured: number; pipeline: number; converted: number }>();
   for (const l of leads) {
     if (!l.event_id) continue;
     const name = eventMap.get(l.event_id) || "(deleted event)";
-    const cur = byEvent.get(l.event_id) || { name, captured: 0, pipeline: 0, converted: 0 };
+    const cur = byEvent.get(l.event_id) || { id: l.event_id, name, captured: 0, pipeline: 0, converted: 0 };
     cur.captured += 1;
     if (l.stage !== "LOST") cur.pipeline += Number(l.expected_value || 0);
     if (isWon(l)) cur.converted += Number(l.expected_value || 0);
