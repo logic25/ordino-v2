@@ -51,9 +51,12 @@ const CATEGORIES = [
   { value: "other", label: "Other" },
 ];
 
-// Today NYC is the only jurisdiction. Adding more here automatically lights them up in selectors.
+// Extensible jurisdiction list. Add new markets here (e.g. "Charleston, SC", "Nassau")
+// and they will automatically appear in selectors and filters.
+// 'universal' = cross-jurisdiction (Company SOPs, Platform SOPs, etc.)
 const JURISDICTIONS: { value: string; label: string }[] = [
   { value: "NYC", label: "NYC" },
+  { value: "universal", label: "Universal" },
 ];
 
 function getFileIcon(mimeType: string | null) {
