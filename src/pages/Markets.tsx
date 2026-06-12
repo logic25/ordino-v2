@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -152,6 +153,8 @@ export default function Markets() {
   const del = useDeleteMarket();
   const { toast } = useToast();
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") === "details" ? "details" : "overview";
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Market | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Market | null>(null);
@@ -199,7 +202,16 @@ export default function Markets() {
           <Button onClick={openAdd}><Plus className="mr-2 h-4 w-4" />Add Market</Button>
         </div>
 
-        <Tabs defaultValue="overview" className="space-y-4">
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => {
+            const next = new URLSearchParams(searchParams);
+            if (v === "overview") next.delete("tab");
+            else next.set("tab", v);
+            setSearchParams(next, { replace: true });
+          }}
+          className="space-y-4"
+        >
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="details">Details</TabsTrigger>
