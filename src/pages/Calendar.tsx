@@ -147,8 +147,10 @@ export default function Calendar() {
   const allEvents: UnifiedEvent[] = useMemo(() => {
     const combined: UnifiedEvent[] = [...(events || [])];
     if (showBilling && billingItems) combined.push(...billingItems);
-    return combined.filter(ev => !hiddenTypes.has(ev.event_type || "general"));
-  }, [events, billingItems, showBilling, hiddenTypes]);
+    return combined
+      .filter(ev => !hiddenTypes.has(ev.event_type || "general"))
+      .filter(ev => !(ev as any).user_id || !hiddenUsers.has((ev as any).user_id));
+  }, [events, billingItems, showBilling, hiddenTypes, hiddenUsers]);
 
   const toDateKey = useCallback((isoString: string, allDay: boolean | null | undefined): string => {
     if (allDay && isoString.length >= 10) {
