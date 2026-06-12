@@ -34,23 +34,28 @@ Deno.serve(async (req) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const admin = createClient(supabaseUrl, serviceKey);
 
-  // Auth: x-cron-secret header. Accept env CRON_SECRET OR vault `cron_secret` (same
-  // dual-source pattern as auto-summarize-projects so pg_cron + manual invocations both work).
-  let expected = Deno.env.get("CRON_SECRET") || "";
+  // Auth: x-cron-secret header.
+  // Source of truth for this project's cron is the Vault `cron_secret` (every pg_cron job in
+  // public.cron uses it). Fall back to env CRON_SECRET so manual env-based callers still work.
   const caller = req.headers.get("x-cron-secret") || "";
-  let ok = !!expected && caller === expected;
-  if (!ok) {
+  let expected = "";
+  try {
     const { data: vaultRow } = await admin
       .schema("vault" as any).from("decrypted_secrets")
       .select("decrypted_secret").eq("name", "cron_secret").maybeSingle();
-    const vaultSecret = (vaultRow as any)?.decrypted_secret || "";
-    ok = !!vaultSecret && caller === vaultSecret;
+    expected = (vaultRow as any)?.decrypted_secret || "";
+  } catch (e) {
+    console.error("vault read failed:", (e as Error).message);
   }
+  const envSecret = Deno.env.get("CRON_SECRET") || "";
+  const ok = (!!expected && caller === expected) || (!!envSecret && caller === envSecret);
+  console.log("auth check", { hasCaller: !!caller, hasVault: !!expected, hasEnv: !!envSecret, ok });
   if (!ok) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+
 
 
   const url = new URL(req.url);
