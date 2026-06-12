@@ -219,7 +219,90 @@ export default function BdEvents() {
           </TabsList>
 
           <TabsContent value="events" className="space-y-4">
+            {/* Summary strip — year-scoped glance. Clicking drills the table below.
+                Math comes from lib/eventBudget.ts (shared with the Budget tab). */}
+            <div className="flex flex-wrap items-center gap-1.5 px-1">
+              <span className="text-xs text-muted-foreground mr-1">
+                {new Date().getFullYear()}:
+              </span>
+              {(() => {
+                const investedActive = bucketFilter === "INVESTED";
+                const consideringActive = bucketFilter === "CONSIDERING";
+                return (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStatusFilter(new Set());
+                        setBucketFilter(investedActive ? null : "INVESTED");
+                      }}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                        investedActive
+                          ? "bg-green-100 text-green-800 border-green-300 ring-2 ring-offset-1 ring-primary/30"
+                          : "bg-green-50 text-green-800 border-green-200 hover:bg-green-100"
+                      }`}
+                    >
+                      <span className="font-medium">Invested {fmtMoney0(stripData.invested.total)}</span>
+                      <span className={investedActive ? "" : "text-green-700/70"}>
+                        ({stripData.invested.count})
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStatusFilter(new Set());
+                        setBucketFilter(consideringActive ? null : "CONSIDERING");
+                      }}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                        consideringActive
+                          ? "bg-blue-100 text-blue-800 border-blue-300 ring-2 ring-offset-1 ring-primary/30"
+                          : "bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100"
+                      }`}
+                    >
+                      <span className="font-medium">Considering {fmtMoney0(stripData.considering.total)}</span>
+                      <span className={consideringActive ? "" : "text-blue-700/70"}>
+                        ({stripData.considering.count})
+                      </span>
+                    </button>
+                    <span className="mx-1 h-4 w-px bg-border" />
+                    {stripData.perStatus.map(({ status, count }) => {
+                      const active = !bucketFilter && statusFilter.size === 1 && statusFilter.has(status);
+                      const meta = STATUS_META[status];
+                      return (
+                        <button
+                          key={status}
+                          type="button"
+                          onClick={() => {
+                            setBucketFilter(null);
+                            setStatusFilter(active ? new Set() : new Set([status]));
+                          }}
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                            active
+                              ? meta.className + " ring-2 ring-offset-1 ring-primary/30"
+                              : "bg-background hover:bg-muted"
+                          }`}
+                        >
+                          <span className="font-medium">{meta.label}</span>
+                          <span className={active ? "" : "text-muted-foreground"}>{count}</span>
+                        </button>
+                      );
+                    })}
+                    {(bucketFilter || statusFilter.size > 0) && (
+                      <button
+                        type="button"
+                        className="text-xs text-muted-foreground hover:text-foreground ml-1 underline-offset-2 hover:underline"
+                        onClick={() => { setBucketFilter(null); setStatusFilter(new Set()); }}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+
             <div className="flex items-center gap-2 flex-wrap">
+
               <Input
                 placeholder="Search events…" className="max-w-sm"
                 value={search} onChange={(e) => setSearch(e.target.value)}
