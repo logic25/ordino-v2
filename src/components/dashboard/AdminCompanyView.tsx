@@ -38,6 +38,49 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { InfoTooltip } from "./InfoTooltip";
 import { DrillInModal } from "./DrillInModal";
+import { useMyEventTasks } from "@/hooks/useEventTasks";
+import { format } from "date-fns";
+import { CheckSquare } from "lucide-react";
+import { Link } from "react-router-dom";
+
+function MyEventTasksWidget() {
+  const { data, isLoading } = useMyEventTasks();
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-1.5">
+          <CheckSquare className="h-4 w-4" />Event Prep Tasks
+        </CardTitle>
+        <CardDescription>Your open prep tasks across upcoming events</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Skeleton className="h-16 w-full" />
+        ) : (data ?? []).length === 0 ? (
+          <p className="text-sm text-muted-foreground">No open event prep tasks assigned to you.</p>
+        ) : (
+          <div className="space-y-1.5">
+            {(data ?? []).slice(0, 8).map((t: any) => (
+              <Link
+                key={t.id}
+                to={`/bd/events/${t.event_id}`}
+                className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/40 text-sm"
+              >
+                <div className="min-w-0">
+                  <div className="truncate">{t.title}</div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {t.event?.name ?? "Event"}
+                    {t.due_date && ` · Due ${format(new Date(t.due_date + "T12:00:00"), "MMM d")}`}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 import { useDrilldownList, type DrilldownKind } from "@/hooks/useDrilldownList";
 import { formatCurrency } from "@/lib/utils";
 import {
