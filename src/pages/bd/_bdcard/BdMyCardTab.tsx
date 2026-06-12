@@ -192,9 +192,9 @@ export function BdMyCardTab() {
           <div className="space-y-1.5"><Label>Last name</Label><Input value={fields.last} onChange={set("last")} /></div>
           <div className="space-y-1.5 col-span-2"><Label>Title</Label><Input value={fields.title} onChange={set("title")} placeholder="e.g. Senior Project Manager" /></div>
           <div className="space-y-1.5 col-span-2"><Label>Email</Label><Input value={fields.email} onChange={set("email")} /></div>
-          <div className="space-y-1.5"><Label>Office phone</Label><Input placeholder="718-392-1969" value={fields.phone} onChange={set("phone")} /></div>
+          <div className="space-y-1.5"><Label>Office phone</Label><Input placeholder="(718) 392-1969" value={fields.phone} onChange={set("phone")} /></div>
           <div className="space-y-1.5"><Label>Extension</Label><Input placeholder="12" value={fields.extension} onChange={set("extension")} /></div>
-          <div className="space-y-1.5 col-span-2"><Label>Cell</Label><Input placeholder="347-555-1234" value={fields.mobile} onChange={set("mobile")} /></div>
+          <div className="space-y-1.5 col-span-2"><Label>Cell</Label><Input placeholder="(347) 555-1234" value={fields.mobile} onChange={set("mobile")} /></div>
           <div className="space-y-1.5 col-span-2"><Label>LinkedIn URL</Label>
             <Input placeholder="https://linkedin.com/in/…" value={fields.linkedin} onChange={set("linkedin")} /></div>
           <div className="space-y-1.5 col-span-2">
