@@ -77,6 +77,21 @@ export default function Calendar() {
       return saved ? new Set(JSON.parse(saved)) : new Set();
     } catch { return new Set(); }
   });
+  const [hiddenUsers, setHiddenUsers] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem("calendar_hidden_users");
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch { return new Set(); }
+  });
+  const { data: teamProfiles } = useCompanyProfiles();
+  const toggleUser = (id: string) => {
+    setHiddenUsers(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      localStorage.setItem("calendar_hidden_users", JSON.stringify([...next]));
+      return next;
+    });
+  };
 
   const { moveEventToDate, moveEventToTime } = useCalendarDragDrop();
   const [dragOverCell, setDragOverCell] = useState<string | null>(null);
