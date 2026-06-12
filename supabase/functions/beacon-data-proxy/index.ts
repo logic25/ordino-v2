@@ -658,15 +658,18 @@ async function queryOrdino(ctx: Ctx, params: any) {
 
 // ── Bug pattern intelligence ─────────────────────────────
 
-async function queryBugPatterns(sb: any, params: any) {
+async function queryBugPatterns(ctx: Ctx, params: any) {
+  const sb = ctx.sb;
   const { search, file_path, limit: rawLimit } = params || {};
   const safeLimit = Math.min(Math.max(Number(rawLimit) || 20, 1), 100);
 
-  let q = sb
-    .from("bug_patterns")
-    .select("*")
+  let q = scopeByCompany(
+    sb.from("bug_patterns").select("*"),
+    ctx,
+  )
     .order("occurrences", { ascending: false })
     .limit(safeLimit);
+
 
   const { data, error } = await q;
   if (error) {
