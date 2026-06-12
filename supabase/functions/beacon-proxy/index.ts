@@ -401,11 +401,17 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Forward the end-user's Supabase JWT + company_id + jurisdiction to Railway /api/chat
+      // so Railway can (eventually) forward the JWT to beacon-data-proxy for per-user company scoping.
+      // company_id and jurisdiction come straight from the client body (jurisdiction is intentionally
+      // null until KB docs are tagged in Pinecone AND Railway's jurisdiction handling ships).
       beaconReqInit = {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(BEACON_API_KEY ? { "x-beacon-key": BEACON_API_KEY } : {}),
+          // Forward end-user JWT (planned: Railway → beacon-data-proxy hop)
+          ...(authHeader ? { "x-ordino-user-authorization": authHeader } : {}),
         },
         body: JSON.stringify(body),
       };
