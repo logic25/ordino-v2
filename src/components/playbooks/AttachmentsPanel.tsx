@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Paperclip, Upload, Trash2, Loader2, Download } from "lucide-react";
+import { Paperclip, Upload, Trash2, Loader2, Download, Eye } from "lucide-react";
 import type { PermitPlaybook } from "@/hooks/usePermitPlaybooks";
 import {
   useUploadAttachment, useDeleteAttachment, getAttachmentUrl,
@@ -39,6 +39,15 @@ export default function AttachmentsPanel({ playbook }: { playbook: PermitPlayboo
       a.remove();
     } catch (e: any) {
       toast({ title: "Download failed", description: e?.message, variant: "destructive" });
+    }
+  };
+
+  const handlePreview = async (path: string) => {
+    try {
+      const url = await getAttachmentUrl(path);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (e: any) {
+      toast({ title: "Preview failed", description: e?.message, variant: "destructive" });
     }
   };
 
@@ -82,6 +91,9 @@ export default function AttachmentsPanel({ playbook }: { playbook: PermitPlayboo
                 {new Date(a.uploaded_at).toLocaleDateString()}
               </div>
             </div>
+            <Button size="icon" variant="ghost" onClick={() => handlePreview(a.storage_path)} aria-label="Preview">
+              <Eye className="h-4 w-4" />
+            </Button>
             <Button size="icon" variant="ghost" onClick={() => handleDownload(a.storage_path, a.name)} aria-label="Download">
               <Download className="h-4 w-4" />
             </Button>

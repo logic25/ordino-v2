@@ -104,9 +104,16 @@ function MarketDetailsCard({ market }: { market: Market }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Playbooks (replaces generic checklist) */}
+        {/* Playbooks (replaces generic checklist) — hidden for NYC since Beacon RAG covers it */}
         <div className="space-y-2">
-          <PlaybookList marketId={market.id} />
+          {market.tier === 1 ? (
+            <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+              <div className="font-semibold uppercase tracking-wide text-[11px] mb-1">Permit Playbooks</div>
+              NYC permits are handled by Beacon's NYC knowledge base (DOB, BIS, Open Data). Playbooks here are reserved for non‑NYC jurisdictions where we don't have a live RAG.
+            </div>
+          ) : (
+            <PlaybookList marketId={market.id} />
+          )}
         </div>
 
         {/* Notes */}
