@@ -491,6 +491,18 @@ function EventDialog({ open, event, onOpenChange }: { open: boolean; event: BdEv
                 onChange={(e) => setForm({ ...form, end_date: e.target.value || null })} />
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Start time</Label>
+              <Input type="time" value={form.start_time?.slice(0, 5) ?? ""}
+                onChange={(e) => setForm({ ...form, start_time: e.target.value || null })} />
+            </div>
+            <div>
+              <Label>End time</Label>
+              <Input type="time" value={form.end_time?.slice(0, 5) ?? ""}
+                onChange={(e) => setForm({ ...form, end_time: e.target.value || null })} />
+            </div>
+          </div>
           <div>
             <Label>Location</Label>
             <Input value={form.location ?? ""} onChange={(e) => setForm({ ...form, location: e.target.value || null })} />
