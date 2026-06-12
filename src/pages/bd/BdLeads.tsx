@@ -57,12 +57,13 @@ const COLUMN_LABELS: Record<string, string> = {
   sia_name: "Special Inspector", tpp_name: "TPP Applicant",
 };
 
-function applyFilters(leads: Lead[], f: LeadViewFilters, search: string): Lead[] {
+function applyFilters(leads: Lead[], f: LeadViewFilters & { source?: string }, search: string): Lead[] {
   const q = search.trim().toLowerCase();
   return leads.filter((l) => {
     if (f.stage?.length && (!l.stage || !f.stage.includes(l.stage))) return false;
     if (f.stage_not?.length && l.stage && f.stage_not.includes(l.stage)) return false;
     if (f.source_type?.length && (!l.source_type || !f.source_type.includes(l.source_type))) return false;
+    if (f.source && (l as any).source !== f.source) return false;
     if (f.assigned_to?.length && (!l.assigned_to || !f.assigned_to.includes(l.assigned_to))) return false;
     if (f.hot_opportunity && !l.hot_opportunity) return false;
     if (f.event_id && l.event_id !== f.event_id) return false;
