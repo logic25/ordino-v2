@@ -1162,6 +1162,8 @@ export function ServicesFull({ services: initialServices, project, contacts, all
         preselectedProjectId={project.id}
         preselectedServiceIds={selectedIds}
       />
+      />
+      <ApproveExpenseDialog expenseId={approveExpenseId} open={!!approveExpenseId} onOpenChange={(o) => { if (!o) setApproveExpenseId(null); }} />
     </div>
   );
 }
