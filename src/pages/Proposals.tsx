@@ -684,11 +684,6 @@ export default function Proposals() {
                 {totalCount}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="leads" className="gap-1.5">
-              <UserPlus className="h-4 w-4" />
-              Leads
-            </TabsTrigger>
-
           </TabsList>
 
           <TabsContent value="proposals">
