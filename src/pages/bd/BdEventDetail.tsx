@@ -6,24 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Card } from "@/components/ui/card";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  ArrowLeft, Loader2, MapPin, ExternalLink, Plus, Check, X, Users, Trash2,
+  ArrowLeft, Loader2, MapPin, ExternalLink, Users, Trash2,
   Sparkles, CalendarPlus, ChevronDown, ChevronRight,
 } from "lucide-react";
 
 import {
   useBdEvent, useUpdateBdEvent, useDeleteBdEvent,
-  useEventAttendees, useAddEventAttendee, useUpdateEventAttendee, useRemoveEventAttendee,
-  useMemberships, type EventStatus, type BdEvent,
+  type EventStatus, type BdEvent,
 } from "@/hooks/useBdEvents";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useToast } from "@/hooks/use-toast";
-import { initials } from "@/components/bd/leadConstants";
 import { BdActivityThread } from "@/components/bd/BdActivityThread";
 import { EventPrepPanel } from "@/components/bd/EventPrepPanel";
 import { EventApprovalActions } from "@/components/bd/EventApprovalActions";
