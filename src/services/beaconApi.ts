@@ -79,7 +79,7 @@ export async function askBeacon(
       user_name: userName,
       space_id: "ordino-web",
       company_id: opts?.companyId ?? null,
-      jurisdiction: opts?.jurisdiction ?? "NYC",
+      jurisdiction,
       ...(projectContext && { project_context: projectContext }),
       ...(conversationHistory && conversationHistory.length > 0 && { conversation_history: conversationHistory }),
     },
