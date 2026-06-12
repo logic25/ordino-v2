@@ -237,6 +237,24 @@ Deno.serve(async (req) => {
       console.error("Failed to build sender->profile map:", e);
     }
 
+    // Pre-fetch BD leads (id, contact_email) for this company — exact email match only.
+    const leadEmailToId = new Map<string, string>();
+    try {
+      const { data: leadRows } = await supabaseAdmin
+        .from("leads")
+        .select("id, contact_email")
+        .eq("company_id", profile.company_id)
+        .not("contact_email", "is", null);
+      for (const l of leadRows || []) {
+        const em = (l.contact_email || "").trim().toLowerCase();
+        if (em) leadEmailToId.set(em, l.id);
+      }
+    } catch (e) {
+      console.error("Failed to build lead email map:", e);
+    }
+    const connectedMailbox = (connection.email_address || "").trim().toLowerCase();
+
+
     let syncedCount = 0;
     let totalChecked = 0;
     let pageToken: string | undefined = undefined;
@@ -404,8 +422,64 @@ Deno.serve(async (req) => {
         if (isUnread) unreadGmailIds.push(msg.id);
         else readGmailIds.push(msg.id);
 
+        // ── BD lead auto-association (exact, case-insensitive contact_email match) ──
+        // Runs BEFORE the dedupe-skip so existing emails also backfill on re-sync.
+        // The bd_activities unique index (lead_id, email_id) WHERE type='EMAIL' dedupes.
+        try {
+          if (leadEmailToId.size > 0) {
+            const fromLower = (from_email || "").trim().toLowerCase();
+            const toLower = (to_emails || []).map((e: string) => e.trim().toLowerCase());
+            const matchedLeadIds = new Set<string>();
+            const directionByLead = new Map<string, "inbound" | "outbound">();
+
+            const inboundLead = leadEmailToId.get(fromLower);
+            if (inboundLead) {
+              matchedLeadIds.add(inboundLead);
+              directionByLead.set(inboundLead, "inbound");
+            }
+            for (const t of toLower) {
+              const lid = leadEmailToId.get(t);
+              if (lid && !directionByLead.has(lid)) {
+                if (t === connectedMailbox) continue;
+                matchedLeadIds.add(lid);
+                directionByLead.set(lid, "outbound");
+              }
+            }
+
+            for (const leadId of matchedLeadIds) {
+              const direction = directionByLead.get(leadId)!;
+              const snippetText = (msgData.snippet || body_text || "").substring(0, 280);
+              const content = `${subject}\n\n${snippetText}`;
+              const { error: actErr } = await supabaseAdmin.from("bd_activities").insert({
+                company_id: profile.company_id,
+                lead_id: leadId,
+                type: "EMAIL",
+                content,
+                metadata: {
+                  email_id: msg.id,
+                  thread_id: msgData.threadId,
+                  direction,
+                  from_email,
+                  from_name,
+                  to_emails,
+                  subject,
+                },
+                created_by: profile.id,
+              } as any);
+              if (actErr && (actErr as any).code !== "23505") {
+                console.error("bd_activities insert error:", actErr);
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Lead auto-association failed:", e);
+        }
+
         // inserted === null => row already existed (skipped by ignoreDuplicates)
         if (!inserted) continue;
+
+
+
 
         if (isUnread && isInbox) {
           newUnreadInbox.push({ gmail_message_id: msg.id, subject, from_name: from_name || from_email });
