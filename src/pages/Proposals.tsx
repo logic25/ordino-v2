@@ -39,7 +39,7 @@ import {
   useLogFollowUp,
   useSnoozeFollowUp,
 } from "@/hooks/useProposalFollowUps";
-import { useCreateLead, type Lead } from "@/hooks/useLeads";
+
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
