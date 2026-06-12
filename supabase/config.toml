@@ -134,3 +134,6 @@ verify_jwt = false
 
 [functions.bd-email-ingest]
 verify_jwt = false
+
+[functions.kb-deleted-backup]
+verify_jwt = false

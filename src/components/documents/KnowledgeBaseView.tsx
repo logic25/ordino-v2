@@ -19,6 +19,7 @@ import {
 import { useBeaconKnowledge, useUploadToBeaconKB } from "@/hooks/useBeaconKnowledge";
 import { FOLDER_TO_SOURCE_TYPE } from "@/services/beaconApi";
 import { useToast } from "@/hooks/use-toast";
+import { RecentlyDeletedKb } from "./RecentlyDeletedKb";
 import { lazy, Suspense } from "react";
 const BeaconDocumentModal = lazy(() => import("./BeaconDocumentModal").then(m => ({ default: m.BeaconDocumentModal })));
 
@@ -187,6 +188,8 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
           </Accordion>
         </CardContent>
       </Card>
+
+      <RecentlyDeletedKb />
 
       {/* Upload dialog */}
       <Dialog open={uploadOpen} onOpenChange={(open) => {
