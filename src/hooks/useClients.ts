@@ -45,6 +45,8 @@ export interface ClientFormInput {
   specialty_tags?: string[];
   licensed_jurisdictions?: string[];
   internal_notes?: string | null;
+  expected_projects_per_year?: number | null;
+  expected_annual_value?: number | null;
   contacts?: ClientContactInput[];
 }
 
@@ -124,6 +126,8 @@ export function useCreateClient() {
           specialty_tags: input.specialty_tags || [],
           licensed_jurisdictions: input.licensed_jurisdictions || [],
           internal_notes: input.internal_notes || null,
+          expected_projects_per_year: input.expected_projects_per_year ?? null,
+          expected_annual_value: input.expected_annual_value ?? null,
         })
         .select()
         .single();
@@ -204,6 +208,8 @@ export function useUpdateClient() {
           specialty_tags: input.specialty_tags ?? [],
           licensed_jurisdictions: input.licensed_jurisdictions ?? [],
           internal_notes: input.internal_notes ?? null,
+          expected_projects_per_year: input.expected_projects_per_year ?? null,
+          expected_annual_value: input.expected_annual_value ?? null,
         })
         .eq("id", id)
         .select()

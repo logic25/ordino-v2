@@ -134,6 +134,7 @@ export default function BdEvents() {
                       <TableHead>Cost</TableHead>
                       <TableHead>Going</TableHead>
                       <TableHead>Leads</TableHead>
+                      <TableHead className="text-right">Pipeline</TableHead>
                       <TableHead className="w-12" />
                     </TableRow>
                   </TableHeader>
@@ -164,6 +165,9 @@ export default function BdEvents() {
                         </TableCell>
                         <TableCell className="text-sm">{e.attendee_count ?? 0}</TableCell>
                         <TableCell className="text-sm">{e.lead_count ?? 0}</TableCell>
+                        <TableCell className="text-sm text-right tabular-nums">
+                          {e.pipeline_generated ? `$${Math.round(e.pipeline_generated).toLocaleString()}` : "—"}
+                        </TableCell>
                         <TableCell onClick={(ev) => ev.stopPropagation()}>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -186,7 +190,7 @@ export default function BdEvents() {
                       </TableRow>
                     ))}
                     {filtered.length === 0 && (
-                      <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground text-sm">
+                      <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground text-sm">
                         {events.isLoading ? "Loading…" : "No events yet. Click New event to add one."}
                       </TableCell></TableRow>
                     )}

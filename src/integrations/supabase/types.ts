@@ -3095,6 +3095,8 @@ export type Database = {
           dob_tracking: string | null
           dob_tracking_expiration: string | null
           email: string | null
+          expected_annual_value: number | null
+          expected_projects_per_year: number | null
           fax: string | null
           hic_license: string | null
           ibm_number: string | null
@@ -3122,6 +3124,8 @@ export type Database = {
           dob_tracking?: string | null
           dob_tracking_expiration?: string | null
           email?: string | null
+          expected_annual_value?: number | null
+          expected_projects_per_year?: number | null
           fax?: string | null
           hic_license?: string | null
           ibm_number?: string | null
@@ -3149,6 +3153,8 @@ export type Database = {
           dob_tracking?: string | null
           dob_tracking_expiration?: string | null
           email?: string | null
+          expected_annual_value?: number | null
+          expected_projects_per_year?: number | null
           fax?: string | null
           hic_license?: string | null
           ibm_number?: string | null

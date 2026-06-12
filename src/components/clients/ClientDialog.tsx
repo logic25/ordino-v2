@@ -53,6 +53,8 @@ const clientSchema = z.object({
   specialty_tags: z.array(z.string()).optional(),
   licensed_jurisdictions: z.array(z.string()).optional(),
   internal_notes: z.string().max(2000).optional(),
+  expected_projects_per_year: z.number().int().min(0).max(1000).nullable().optional(),
+  expected_annual_value: z.number().min(0).nullable().optional(),
 });
 
 type FormData = z.infer<typeof clientSchema>;
@@ -87,6 +89,7 @@ export function ClientDialog({
       name: "", email: "", phone: "", fax: "", address: "", notes: "",
       lead_owner_id: "", tax_id: "", client_type: "", is_sia: false,
       specialty_tags: [], licensed_jurisdictions: [], internal_notes: "",
+      expected_projects_per_year: null, expected_annual_value: null,
     },
   });
 
@@ -109,12 +112,15 @@ export function ClientDialog({
         specialty_tags: (client as any).specialty_tags || [],
         licensed_jurisdictions: (client as any).licensed_jurisdictions || [],
         internal_notes: (client as any).internal_notes || "",
+        expected_projects_per_year: (client as any).expected_projects_per_year ?? null,
+        expected_annual_value: (client as any).expected_annual_value ?? null,
       });
     } else {
       form.reset({
         name: defaultName || "", email: "", phone: "", fax: "", address: "", notes: "",
         lead_owner_id: "", tax_id: "", client_type: "", is_sia: false,
         is_rfp_partner: false, specialty_tags: [], licensed_jurisdictions: [], internal_notes: "",
+        expected_projects_per_year: null, expected_annual_value: null,
       });
     }
   }, [client, form, defaultName]);
@@ -151,6 +157,8 @@ export function ClientDialog({
         specialty_tags: data.specialty_tags || [],
         licensed_jurisdictions: (data.licensed_jurisdictions || []).map((s) => s.toUpperCase().trim()).filter(Boolean),
         internal_notes: data.internal_notes || null,
+        expected_projects_per_year: data.expected_projects_per_year ?? null,
+        expected_annual_value: data.expected_annual_value ?? null,
       });
       form.reset();
       onOpenChange(false);
@@ -373,10 +381,47 @@ export function ClientDialog({
             </>
           )}
 
+          <div className="grid grid-cols-2 gap-4 rounded-md border border-dashed p-3">
+            <div className="space-y-2">
+              <Label htmlFor="expected_projects_per_year">Expected projects / year</Label>
+              <Input
+                id="expected_projects_per_year"
+                type="number"
+                min={0}
+                placeholder="e.g. 4"
+                value={form.watch("expected_projects_per_year") ?? ""}
+                onChange={(e) => form.setValue(
+                  "expected_projects_per_year",
+                  e.target.value === "" ? null : Math.max(0, parseInt(e.target.value, 10) || 0)
+                )}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="expected_annual_value">Expected annual value ($)</Label>
+              <Input
+                id="expected_annual_value"
+                type="number"
+                min={0}
+                step="1000"
+                placeholder="e.g. 250000"
+                value={form.watch("expected_annual_value") ?? ""}
+                onChange={(e) => form.setValue(
+                  "expected_annual_value",
+                  e.target.value === "" ? null : Math.max(0, parseFloat(e.target.value) || 0)
+                )}
+              />
+              <p className="text-xs text-muted-foreground">
+                Used by the BD report as “Relationship pipeline.” Auto-seeded from a lead's expected value on conversion.
+              </p>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>
             <Textarea id="notes" placeholder="Any additional notes..." rows={3} {...form.register("notes")} />
           </div>
+
+
 
 
           <DialogFooter>
