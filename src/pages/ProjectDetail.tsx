@@ -152,6 +152,7 @@ export default function ProjectDetail() {
   const [selectedCOId, setSelectedCOId] = useState<string | null>(null);
   const [coSheetOpen, setCoSheetOpen] = useState(false);
   const [coAutoSign, setCoAutoSign] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("services");
 
   // Real data hooks — use URL id directly so services don't wait for useProjects() to resolve
   const { data: realServices = [], isLoading: servicesLoading } = useProjectServices(id);
