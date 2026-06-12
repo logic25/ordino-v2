@@ -147,11 +147,11 @@ export default function Proposals() {
   // Open dialog if coming from properties with a property pre-selected (once only)
   const didAutoOpen = useRef(false);
   useEffect(() => {
-    if (defaultPropertyId && !editingProposal && !didAutoOpen.current) {
+    if ((defaultPropertyId || initialPropertyAddress) && !editingProposal && !didAutoOpen.current) {
       didAutoOpen.current = true;
       setDialogOpen(true);
     }
-  }, [defaultPropertyId]);
+  }, [defaultPropertyId, initialPropertyAddress]);
 
   // For follow_up filter, apply client-side on the already-fetched page
   const filteredProposals = statusFilter === "follow_up" 
