@@ -46,31 +46,44 @@ export function EventPrepPanel({
     },
   });
 
-  // TIMS targets (parsed broker/brokerage from notes)
+  // TIMS targets (parsed broker/brokerage from notes) — SCOPED to leads owned
+  // or created by event attendees only.
   const { data: timsLeads = [] } = useQuery({
-    queryKey: ["event-prep-tims"],
-    enabled: !!profile?.company_id,
+    queryKey: ["event-prep-tims", eventId, attendees],
+    enabled: !!profile?.company_id && attendees.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("leads")
-        .select("id, full_name, subject, notes, property_address, stage")
+        .select("id, full_name, subject, notes, property_address, stage, assigned_to, created_by")
         .ilike("subject", "TIMS%")
-        .is("deleted_at", null);
+        .is("deleted_at", null)
+        .or(
+          [
+            `assigned_to.in.(${attendees.join(",")})`,
+            `created_by.in.(${attendees.join(",")})`,
+          ].join(","),
+        );
       if (error) throw error;
       return data ?? [];
     },
   });
 
-  // Event-source leads we've already met (for company matching)
+  // Event-source leads we've already met (for company matching) — also scoped.
   const { data: knownLeads = [] } = useQuery({
-    queryKey: ["event-prep-known-leads"],
-    enabled: !!profile?.company_id,
+    queryKey: ["event-prep-known-leads", eventId, attendees],
+    enabled: !!profile?.company_id && attendees.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("leads")
-        .select("id, full_name, company, role, hot_opportunity, stage")
+        .select("id, full_name, company, role, hot_opportunity, stage, assigned_to, created_by")
         .eq("source_type", "EVENT")
         .is("deleted_at", null)
+        .or(
+          [
+            `assigned_to.in.(${attendees.join(",")})`,
+            `created_by.in.(${attendees.join(",")})`,
+          ].join(","),
+        )
         .order("created_at", { ascending: false })
         .limit(200);
       if (error) throw error;
