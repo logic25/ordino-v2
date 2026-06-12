@@ -6294,6 +6294,73 @@ export type Database = {
           },
         ]
       }
+      permit_playbooks: {
+        Row: {
+          attachments: Json
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          last_ai_research_at: string | null
+          last_verified_at: string | null
+          market_id: string
+          permit_type: string
+          qa: Json
+          summary: string | null
+          updated_at: string
+        }
+        Insert: {
+          attachments?: Json
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_ai_research_at?: string | null
+          last_verified_at?: string | null
+          market_id: string
+          permit_type: string
+          qa?: Json
+          summary?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attachments?: Json
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_ai_research_at?: string | null
+          last_verified_at?: string | null
+          market_id?: string
+          permit_type?: string
+          qa?: Json
+          summary?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permit_playbooks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "permit_playbooks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "permit_playbooks_market_id_fkey"
+            columns: ["market_id"]
+            isOneToOne: false
+            referencedRelation: "markets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pinned_chat_spaces: {
         Row: {
           created_at: string
@@ -9988,6 +10055,21 @@ export type Database = {
       is_company_member: {
         Args: { target_company_id: string }
         Returns: boolean
+      }
+      lookup_permit_playbook: {
+        Args: {
+          _company_id: string
+          _market_name: string
+          _permit_type: string
+        }
+        Returns: {
+          last_verified_at: string
+          market_name: string
+          permit_type: string
+          qa: Json
+          state: string
+          summary: string
+        }[]
       }
       merge_clients: {
         Args: { duplicate_ids: string[]; primary_id: string }
