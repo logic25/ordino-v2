@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import {
   ArrowLeft, Loader2, MapPin, ExternalLink, Plus, Check, X, Users, Trash2,
+  Sparkles, CalendarPlus,
 } from "lucide-react";
 import {
   useBdEvent, useUpdateBdEvent, useDeleteBdEvent,
@@ -25,6 +26,52 @@ import { initials } from "@/components/bd/leadConstants";
 import { BdActivityThread } from "@/components/bd/BdActivityThread";
 import { EventPrepPanel } from "@/components/bd/EventPrepPanel";
 import { EventApprovalActions } from "@/components/bd/EventApprovalActions";
+import { EventTasksCard } from "@/components/bd/EventTasksCard";
+import { AttendeesPicker } from "@/components/bd/AttendeesPicker";
+import { supabase } from "@/integrations/supabase/client";
+
+function icsEscape(v: string) {
+  return v.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;");
+}
+function toIcsDateTime(date: string, time: string | null, fallback: string) {
+  const t = (time && /^\d{2}:\d{2}/.test(time) ? time.slice(0, 5) : fallback).replace(":", "") + "00";
+  return `${date.replace(/-/g, "")}T${t}`;
+}
+function downloadEventIcs(event: BdEvent) {
+  if (!event.start_date) {
+    alert("Add a start date before exporting to calendar.");
+    return;
+  }
+  const dtStart = toIcsDateTime(event.start_date, event.start_time, "0900");
+  const dtEnd = toIcsDateTime(event.end_date || event.start_date, event.end_time, "1700");
+  const uid = `${event.id}@ordino`;
+  const now = new Date().toISOString().replace(/[-:.]/g, "").slice(0, 15) + "Z";
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Ordino//BD Events//EN",
+    "BEGIN:VEVENT",
+    `UID:${uid}`,
+    `DTSTAMP:${now}`,
+    `DTSTART:${dtStart}`,
+    `DTEND:${dtEnd}`,
+    `SUMMARY:${icsEscape(event.name)}`,
+    event.location ? `LOCATION:${icsEscape(event.location)}` : "",
+    event.notes ? `DESCRIPTION:${icsEscape(event.notes)}` : "",
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].filter(Boolean);
+  const blob = new Blob([lines.join("\r\n")], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${event.name.replace(/[^a-z0-9]+/gi, "_")}.ics`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 
 const STATUS_META: Record<EventStatus, { label: string; className: string }> = {
   PENDING_APPROVAL: { label: "Pending", className: "bg-gray-100 text-gray-700 border-gray-200" },
@@ -112,6 +159,7 @@ export default function BdEventDetail() {
   const updAtt = useUpdateEventAttendee();
   const rmAtt = useRemoveEventAttendee();
   const [pickUser, setPickUser] = useState("");
+  const [isDrafting, setIsDrafting] = useState(false);
 
   if (isLoading) {
     return (
@@ -152,16 +200,21 @@ export default function BdEventDetail() {
           <Button variant="ghost" size="sm" onClick={() => navigate("/bd/events")}>
             <ArrowLeft className="mr-2 h-4 w-4" />Events
           </Button>
-          <Button variant="ghost" size="sm" className="text-destructive"
-            onClick={() => {
-              if (confirm("Delete this event?")) {
-                del.mutate(event.id, {
-                  onSuccess: () => { toast({ title: "Event deleted" }); navigate("/bd/events"); },
-                });
-              }
-            }}>
-            <Trash2 className="h-4 w-4 mr-1.5" />Delete
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="sm" onClick={() => downloadEventIcs(event)}>
+              <CalendarPlus className="h-4 w-4 mr-1.5" />Export to Calendar
+            </Button>
+            <Button variant="ghost" size="sm" className="text-destructive"
+              onClick={() => {
+                if (confirm("Delete this event?")) {
+                  del.mutate(event.id, {
+                    onSuccess: () => { toast({ title: "Event deleted" }); navigate("/bd/events"); },
+                  });
+                }
+              }}>
+              <Trash2 className="h-4 w-4 mr-1.5" />Delete
+            </Button>
+          </div>
         </div>
 
         <div>
@@ -170,7 +223,10 @@ export default function BdEventDetail() {
           </h1>
           <div className="flex items-center gap-2 mt-2 flex-wrap text-sm text-muted-foreground">
             {event.start_date && (
-              <span>{format(new Date(event.start_date + "T12:00:00"), "MMM d, yyyy")}</span>
+              <span>
+                {format(new Date(event.start_date + "T12:00:00"), "MMM d, yyyy")}
+                {event.start_time && `, ${format(new Date(`2000-01-01T${event.start_time}`), "h:mm a")}`}
+              </span>
             )}
             {event.location && (
               <span className="inline-flex items-center gap-1">
@@ -207,14 +263,39 @@ export default function BdEventDetail() {
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
                 Schedule & Logistics
               </p>
+              <Field label="All day">
+                <div className="flex items-center gap-2 pt-1.5">
+                  <input
+                    type="checkbox"
+                    checked={!event.start_time && !event.end_time}
+                    onChange={(e) => {
+                      if (e.target.checked) set({ start_time: null, end_time: null } as any);
+                      else set({ start_time: "09:00", end_time: "17:00" } as any);
+                    }}
+                  />
+                  <span className="text-xs text-muted-foreground">No specific time</span>
+                </div>
+              </Field>
               <Field label="Start date">
                 <Input type="date" className="h-8" value={event.start_date ?? ""}
                   onChange={(e) => set({ start_date: e.target.value || null })} />
               </Field>
+              {(event.start_time || event.end_time) && (
+                <Field label="Start time">
+                  <Input type="time" className="h-8" value={(event.start_time ?? "").slice(0, 5)}
+                    onChange={(e) => set({ start_time: e.target.value || null } as any)} />
+                </Field>
+              )}
               <Field label="End date">
                 <Input type="date" className="h-8" value={event.end_date ?? ""}
                   onChange={(e) => set({ end_date: e.target.value || null })} />
               </Field>
+              {(event.start_time || event.end_time) && (
+                <Field label="End time">
+                  <Input type="time" className="h-8" value={(event.end_time ?? "").slice(0, 5)}
+                    onChange={(e) => set({ end_time: e.target.value || null } as any)} />
+                </Field>
+              )}
               <Field label="Location">
                 <EditableText value={event.location} onSave={(v) => set({ location: v })} />
               </Field>
@@ -288,41 +369,67 @@ export default function BdEventDetail() {
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="Price verified">
-                <Select value={event.price_verified ?? "UNKNOWN"}
-                  onValueChange={(v) => set({ price_verified: v as any })}>
-                  <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PRICE_VERIFIED_OPTIONS.map((o) =>
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Included in membership">
-                <div className="flex items-center gap-2 pt-1.5">
-                  <input type="checkbox" checked={!!event.included_in_membership}
-                    onChange={(e) => set({
-                      included_in_membership: e.target.checked,
-                      ...(e.target.checked ? {} : { membership_id: null }),
-                    } as any)} />
-                  <Select
-                    value={event.membership_id ?? "__none"}
-                    onValueChange={(v) => set({ membership_id: v === "__none" ? null : v })}>
-                    <SelectTrigger className="h-8 flex-1"><SelectValue placeholder="Linked membership" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none">None</SelectItem>
-                      {(memberships.data ?? []).map((m) =>
-                        <SelectItem key={m.id} value={m.id}>{m.organization}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </Field>
             </Card>
 
             <Card className="p-4 space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                Strategy
-              </p>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Strategy
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={isDrafting}
+                  onClick={async () => {
+                    const hasAny =
+                      (event.why_it_matters ?? "").trim() ||
+                      (intel.recent_news ?? "").trim() ||
+                      (intel.key_attendees ?? "").trim() ||
+                      (intel.competitive_landscape ?? "").trim();
+                    if (hasAny && !confirm("Overwrite existing Strategy fields with AI draft?")) return;
+                    setIsDrafting(true);
+                    try {
+                      const { data, error } = await supabase.functions.invoke("draft-event-strategy", {
+                        body: {
+                          event_name: event.name,
+                          source_url: (event.intel as any)?.source_url ?? event.source_url,
+                          category: event.category,
+                          target_audience: event.target_audience,
+                          why_it_matters: event.why_it_matters,
+                        },
+                      });
+                      if (error) throw error;
+                      const d = data as any;
+                      const nextIntel = {
+                        ...(event.intel ?? {}),
+                        recent_news: d.recent_news ?? intel.recent_news,
+                        key_attendees: d.key_attendees ?? intel.key_attendees,
+                        competitive_landscape: d.competitive_landscape ?? intel.competitive_landscape,
+                      };
+                      set({
+                        why_it_matters: d.why_it_matters ?? event.why_it_matters,
+                        intel: nextIntel as any,
+                      } as any);
+                      toast({ title: "AI strategy drafted" });
+                    } catch (e: any) {
+                      toast({
+                        title: "AI draft failed",
+                        description: e?.message ?? "Try again in a moment.",
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setIsDrafting(false);
+                    }
+                  }}
+                >
+                  {isDrafting ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                  )}
+                  Draft strategy with AI
+                </Button>
+              </div>
               <Field label="Why it matters">
                 <EditableText value={event.why_it_matters ?? null}
                   onSave={(v) => set({ why_it_matters: v } as any)}
@@ -357,50 +464,7 @@ export default function BdEventDetail() {
                   <Users className="h-3.5 w-3.5" />Attendees
                 </p>
               </div>
-              <div className="flex gap-2 mb-3">
-                <Select value={pickUser} onValueChange={setPickUser}>
-                  <SelectTrigger className="h-8"><SelectValue placeholder="Add teammate…" /></SelectTrigger>
-                  <SelectContent>
-                    {available.map((p: any) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {[p.first_name, p.last_name].filter(Boolean).join(" ") || p.display_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button size="sm" disabled={!pickUser}
-                  onClick={() => { addAtt.mutate({ event_id: event.id, user_id: pickUser }); setPickUser(""); }}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="space-y-1">
-                {(attendees.data ?? []).map((a) => {
-                  const name = [a.user?.first_name, a.user?.last_name].filter(Boolean).join(" ") || "Unknown";
-                  return (
-                    <div key={a.id} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/40">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-7 w-7"><AvatarFallback className="text-xs">{initials(name)}</AvatarFallback></Avatar>
-                        <span className="text-sm">{name}</span>
-                        {a.attended && <Badge variant="outline" className="bg-green-50 text-green-700 text-xs">Attended</Badge>}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button size="icon" variant="ghost" className="h-7 w-7"
-                          title="Toggle attended"
-                          onClick={() => updAtt.mutate({ id: a.id, event_id: event.id, attended: !a.attended })}>
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7"
-                          onClick={() => rmAtt.mutate({ id: a.id, event_id: event.id })}>
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-                {(attendees.data ?? []).length === 0 && (
-                  <p className="text-xs text-muted-foreground py-2">No attendees yet.</p>
-                )}
-              </div>
+              <AttendeesPicker eventId={event.id} />
             </Card>
 
             <EventPrepPanel
@@ -408,6 +472,8 @@ export default function BdEventDetail() {
               category={event.category}
               targetAudience={event.target_audience ?? null}
             />
+
+            <EventTasksCard eventId={event.id} />
           </div>
 
           {/* RIGHT — discussion */}
