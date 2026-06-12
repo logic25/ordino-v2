@@ -12,6 +12,7 @@ import {
   Receipt,
   Mail,
   CalendarDays,
+  CalendarClock,
   LogOut,
   FileArchive,
   ScrollText,
@@ -50,6 +51,7 @@ const mainNav: NavEntry[] = [
     label: "BD",
     items: [
       { title: "Leads", icon: Users, href: "/bd/leads", resource: "proposals" as ResourceKey },
+      { title: "Follow-ups", icon: CalendarClock, href: "/bd/follow-ups", resource: "proposals" as ResourceKey },
       { title: "Events", icon: CalendarDays, href: "/bd/events", resource: "proposals" as ResourceKey },
       { title: "Sequences", icon: Mail, href: "/bd/sequences", resource: "proposals" as ResourceKey },
       { title: "Market Signals", icon: Globe2, href: "/bd/market-signals", resource: "proposals" as ResourceKey },
@@ -84,6 +86,7 @@ const routePrefetchMap: Record<string, () => Promise<unknown>> = {
   "/bd/leads/:id": () => import("@/pages/bd/BdLeadDetail"),
   "/bd/events": () => import("@/pages/bd/BdEvents"),
   "/bd/sequences": () => import("@/pages/bd/BdSequences"),
+  "/bd/follow-ups": () => import("@/pages/bd/BdFollowUps"),
   "/bd/market-signals": () => import("@/pages/bd/BdMarketSignals"),
   "/markets": () => import("@/pages/Markets"),
   "/bd/event-card": () => import("@/pages/bd/BdEventCard"),
