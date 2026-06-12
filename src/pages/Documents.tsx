@@ -566,6 +566,16 @@ export default function Documents() {
               </div>
             )}
             <div>
+              <Label>Jurisdiction</Label>
+              <Select value={uploadJurisdiction} onValueChange={setUploadJurisdiction}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {JURISDICTIONS.map((j) => <SelectItem key={j.value} value={j.value}>{j.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground mt-1">Defaults to this folder's jurisdiction. Used by Beacon to scope answers.</p>
+            </div>
+            <div>
               <Label>Description (optional)</Label>
               <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Brief description..." className="mt-1" rows={2} />
             </div>
