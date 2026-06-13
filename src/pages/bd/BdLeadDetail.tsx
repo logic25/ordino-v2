@@ -348,12 +348,46 @@ export default function BdLeadDetail() {
                     />
                   </FieldRow>
                 </div>
+
+                {/* Where we met + Communications summary */}
+                <div className="mt-5 pt-5 border-t border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1.5">Where we met</p>
+                    <p className="text-sm text-slate-900">
+                      {lead.source_type ? SOURCE_META[lead.source_type].label : "Source not specified"}
+                      {lead.event?.name && <> · <Link to="/bd/events" className="text-amber-600 hover:underline">{lead.event.name}</Link></>}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      First contact {formatDistanceToNow(new Date(lead.created_at), { addSuffix: true })}
+                      {lead.event?.start_date && <> · Event {format(new Date(lead.event.start_date), "MMM d, yyyy")}</>}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1.5">Communications</p>
+                    {commsCounts.total === 0 ? (
+                      <p className="text-sm text-slate-400 italic">No activity logged yet</p>
+                    ) : (
+                      <>
+                        <p className="text-sm text-slate-900">
+                          {commsCounts.email} {commsCounts.email === 1 ? "email" : "emails"} ·{" "}
+                          {commsCounts.call} {commsCounts.call === 1 ? "call" : "calls"} ·{" "}
+                          {commsCounts.meeting} {commsCounts.meeting === 1 ? "meeting" : "meetings"}
+                        </p>
+                        {lastActivity && (
+                          <p className="text-xs text-slate-500 mt-1">
+                            Last activity {formatDistanceToNow(new Date(lastActivity.created_at), { addSuffix: true })}
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
               </Section>
 
               {/* Project Details */}
               <Section eyebrow="Project Details">
-                <FieldRow label="Subject">
-                  <EditableText value={lead.subject} onSave={(v) => set({ subject: v })} placeholder="Add subject" forceEdit={editAll} />
+                <FieldRow label="Opportunity">
+                  <EditableText value={lead.subject} onSave={(v) => set({ subject: v })} placeholder="What's the work? (e.g. Façade LL11, New Building)" forceEdit={editAll} />
                 </FieldRow>
                 <FieldRow label="Property">
                   <EditableText value={lead.property_address} onSave={(v) => set({ property_address: v })} placeholder="Add address" forceEdit={editAll} />
