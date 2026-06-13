@@ -133,9 +133,22 @@ export default function BdLeadDetail() {
   const navigate = useNavigate();
   const { data: lead, isLoading } = useLead(id);
   const { data: profiles = [] } = useAssignableProfiles();
+  const { data: activities = [] } = useBdActivities({ leadId: id });
   const update = useUpdateLead();
   useConvertLeadToProposal(); // hook still warmed for downstream
   const [editAll, setEditAll] = useState(false);
+
+  const commsCounts = activities.reduce(
+    (acc, a) => {
+      if (a.type === "EMAIL") acc.email++;
+      else if (a.type === "CALL") acc.call++;
+      else if (a.type === "MEETING") acc.meeting++;
+      acc.total++;
+      return acc;
+    },
+    { email: 0, call: 0, meeting: 0, total: 0 },
+  );
+  const lastActivity = activities[0];
 
   if (isLoading) {
     return (
