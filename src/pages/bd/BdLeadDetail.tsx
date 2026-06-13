@@ -371,10 +371,12 @@ export default function BdLeadDetail() {
                 <div className="mt-5 pt-5 border-t border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1.5">Where we met</p>
-                    <p className="text-sm text-slate-900">
-                      {lead.source_type ? SOURCE_META[lead.source_type].label : "Source not specified"}
-                      {lead.event?.name && <> · <Link to="/bd/events" className="text-amber-600 hover:underline">{lead.event.name}</Link></>}
-                    </p>
+                    <WhereWeMetEditor
+                      sourceType={lead.source_type}
+                      eventId={lead.event_id ?? (lead.event as any)?.id ?? null}
+                      eventName={lead.event?.name ?? null}
+                      onChange={(next) => set(next)}
+                    />
                     <p className="text-xs text-slate-500 mt-1">
                       First contact {formatDistanceToNow(new Date(lead.created_at), { addSuffix: true })}
                       {lead.event?.start_date && <> · Event {format(new Date(lead.event.start_date), "MMM d, yyyy")}</>}
