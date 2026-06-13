@@ -129,7 +129,7 @@ export function BdActivityThread({
         <div className="flex items-end gap-2">
           <MentionInput
             ref={composerRef}
-            placeholder="Message the team… use @ to tag a teammate"
+            placeholder="Message… @ to mention"
             value={draft}
             onChange={setDraft}
             onSubmit={send}
