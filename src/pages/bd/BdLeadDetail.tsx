@@ -20,6 +20,7 @@ import { LeadConnectionsCard } from "@/components/bd/LeadConnectionsCard";
 import { LeadStageStepper } from "@/components/bd/LeadStageStepper";
 import { BdActivityThread } from "@/components/bd/BdActivityThread";
 import { LeadOutreachCard } from "@/components/bd/LeadOutreachCard";
+import { LeadCommsActions } from "@/components/bd/LeadCommsActions";
 import { LeadTagsEditor } from "@/components/bd/LeadTagsEditor";
 import { LeadSuggestedMatchesCard } from "@/components/bd/LeadSuggestedMatchesCard";
 import { InfoTip } from "@/components/bd/InfoTip";
