@@ -75,7 +75,7 @@ export function BdActivityThread({
   };
 
   return (
-    <div className="flex flex-col h-[600px]">
+    <div className="flex flex-col h-full min-h-[480px]">
       {extraActions && (
         <div className="flex items-center gap-2 flex-wrap pb-3 border-b mb-3">
           {extraActions}
