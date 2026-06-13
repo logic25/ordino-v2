@@ -351,6 +351,19 @@ export default function BdLeadDetail() {
                       forceEdit={editAll}
                     />
                   </FieldRow>
+                  <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-3 items-start py-2.5">
+                    <span className="text-xs font-medium uppercase tracking-wide text-slate-500 pt-1.5 inline-flex items-center gap-1">
+                      Tags
+                      <InfoTip label="Tag info">
+                        Free-form labels (e.g. <em>architect</em>, <em>GC</em>, <em>referral partner</em>, <em>FISP</em>).
+                        Used to filter the list and power the <strong>Suggested matches</strong> card.
+                      </InfoTip>
+                    </span>
+                    <LeadTagsEditor
+                      tags={Array.isArray((lead as any).tags) ? (lead as any).tags : []}
+                      onChange={(next) => set({ tags: next } as any)}
+                    />
+                  </div>
                 </div>
 
                 {/* Where we met + Communications summary */}
