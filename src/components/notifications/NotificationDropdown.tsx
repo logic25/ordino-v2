@@ -8,6 +8,16 @@ import {
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   useNotifications,
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
@@ -52,6 +62,8 @@ export function NotificationDropdown() {
     }
     prevCountRef.current = unreadCount;
   }, [unreadCount]);
+
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
 
   const handleClick = (n: typeof notifications[0]) => {
     if (!n.read_at) markRead.mutate(n.id);
@@ -113,11 +125,7 @@ export function NotificationDropdown() {
                 size="sm"
                 className="text-xs gap-1 h-7 text-destructive hover:text-destructive"
                 disabled={dismissAll.isPending}
-                onClick={() => {
-                  if (confirm(`Clear all ${notifications.length} notifications?`)) {
-                    dismissAll.mutate();
-                  }
-                }}
+                onClick={() => setConfirmClearOpen(true)}
               >
                 <X className="h-3.5 w-3.5" />
                 Clear all
@@ -182,6 +190,28 @@ export function NotificationDropdown() {
           )}
         </ScrollArea>
       </PopoverContent>
+
+      <AlertDialog open={confirmClearOpen} onOpenChange={setConfirmClearOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear all notifications?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove all {notifications.length} notifications from your inbox.
+              You can't undo this, but new notifications will keep arriving as things happen
+              in Ordino.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep them</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => dismissAll.mutate()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Yes, clear all
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Popover>
   );
 }
