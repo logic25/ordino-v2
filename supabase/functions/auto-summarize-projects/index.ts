@@ -101,13 +101,46 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Cron mode: all active projects across all companies
-    const { data: projects, error } = await admin
+    // Cron mode: weekly digest for ACTIVE projects that are actually moving.
+    // The digest is an "ai_weekly" note, so this should run ~weekly per project,
+    // not nightly — and only for projects with recent activity. Quiet/dormant
+    // projects don't burn tokens (and on-demand summaries cover anyone who needs
+    // a fresh one sooner). Deterministic order (most-recently-active first) +
+    // a 500 hard cap as a safety net.
+    const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
+
+    const { data: activeProjects, error } = await admin
       .from("projects")
-      .select("id, company_id, assigned_pm_id")
-      .in("status", ["open", "on_hold"])
-      .limit(500);
+      .select("id, company_id, assigned_pm_id, updated_at")
+      .in("status", ["open", "on_hold"]);
     if (error) throw error;
+
+    // Freshness gate: skip projects already given a weekly digest in the last 7 days.
+    const { data: freshNotes } = await admin
+      .from("project_notes")
+      .select("project_id")
+      .eq("source", "ai_weekly")
+      .gte("created_at", sevenDaysAgo);
+    const summarizedRecently = new Set((freshNotes || []).map((n: any) => n.project_id));
+
+    // Activity gate: only summarize projects with real activity (any non-weekly
+    // note) in the window. Combined with updated_at as a fallback signal.
+    const { data: activityNotes } = await admin
+      .from("project_notes")
+      .select("project_id")
+      .neq("source", "ai_weekly")
+      .gte("created_at", sevenDaysAgo);
+    const hadActivity = new Set((activityNotes || []).map((n: any) => n.project_id));
+
+    const projects = (activeProjects || [])
+      .filter((p: any) =>
+        !summarizedRecently.has(p.id) &&
+        (hadActivity.has(p.id) || (p.updated_at && p.updated_at >= sevenDaysAgo)))
+      .sort((a: any, b: any) => (b.updated_at || "").localeCompare(a.updated_at || ""))
+      .slice(0, 500);
+
+    const totalActive = (activeProjects || []).length;
+    console.log(`auto-summarize cron: ${totalActive} active, summarizing ${projects.length} due+active (skipped ${totalActive - projects.length})`);
 
     const results: any[] = [];
     for (const p of projects || []) {
@@ -123,7 +156,7 @@ Deno.serve(async (req) => {
       await new Promise((res) => setTimeout(res, 200));
     }
 
-    return new Response(JSON.stringify({ mode, processed: results.length, results }), {
+    return new Response(JSON.stringify({ mode, active: totalActive, processed: results.length, results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
