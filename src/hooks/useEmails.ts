@@ -318,3 +318,88 @@ export function useProjectEmails(projectId: string | undefined) {
     enabled: !!projectId,
   });
 }
+
+/**
+ * Emails tagged to a specific proposal. One tag row per (proposal, email) pair.
+ * Click into one and EmailDetailSheet expands the full thread via useThreadEmails
+ * — so replies that landed on the same Gmail thread automatically appear.
+ */
+export function useProposalEmails(proposalId: string | undefined) {
+  return useQuery({
+    queryKey: ["proposal-emails", proposalId],
+    queryFn: async () => {
+      if (!proposalId) return [];
+
+      const { data, error } = await (supabase as any)
+        .from("email_project_tags")
+        .select(`
+          id, category, notes, tagged_at,
+          emails (
+            id, gmail_message_id, thread_id, subject, from_email, from_name,
+            date, snippet, has_attachments, is_read,
+            email_attachments (id, filename, mime_type, size_bytes)
+          )
+        `)
+        .eq("proposal_id", proposalId)
+        .order("tagged_at", { ascending: false });
+
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: !!proposalId,
+  });
+}
+
+/** Emails tagged to a specific change order. Same shape as useProposalEmails. */
+export function useChangeOrderEmails(changeOrderId: string | undefined) {
+  return useQuery({
+    queryKey: ["change-order-emails", changeOrderId],
+    queryFn: async () => {
+      if (!changeOrderId) return [];
+
+      const { data, error } = await (supabase as any)
+        .from("email_project_tags")
+        .select(`
+          id, category, notes, tagged_at,
+          emails (
+            id, gmail_message_id, thread_id, subject, from_email, from_name,
+            date, snippet, has_attachments, is_read,
+            email_attachments (id, filename, mime_type, size_bytes)
+          )
+        `)
+        .eq("change_order_id", changeOrderId)
+        .order("tagged_at", { ascending: false });
+
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: !!changeOrderId,
+  });
+}
+
+/** Emails tagged to a specific invoice. */
+export function useInvoiceEmails(invoiceId: string | undefined) {
+  return useQuery({
+    queryKey: ["invoice-emails", invoiceId],
+    queryFn: async () => {
+      if (!invoiceId) return [];
+
+      const { data, error } = await (supabase as any)
+        .from("email_project_tags")
+        .select(`
+          id, category, notes, tagged_at,
+          emails (
+            id, gmail_message_id, thread_id, subject, from_email, from_name,
+            date, snippet, has_attachments, is_read,
+            email_attachments (id, filename, mime_type, size_bytes)
+          )
+        `)
+        .eq("invoice_id", invoiceId)
+        .order("tagged_at", { ascending: false });
+
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: !!invoiceId,
+  });
+}

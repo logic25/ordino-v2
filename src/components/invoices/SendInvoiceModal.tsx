@@ -118,6 +118,11 @@ export function SendInvoiceModal({ invoice, open, onOpenChange, onSent }: SendIn
             content: pdfBase64,
             mime_type: "application/pdf",
           }],
+          // Auto-link this outbound invoice email to its invoice and project so
+          // replies surface on the invoice detail view and the project Emails tab.
+          project_id: invoice.project_id || undefined,
+          invoice_id: invoice.id,
+          tag_category: "client",
         },
       });
       if (sendError) throw sendError;

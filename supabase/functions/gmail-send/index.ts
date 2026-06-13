@@ -452,7 +452,7 @@ Deno.serve(async (req) => {
 
     const reqBody = isServiceRole ? (req as any)._parsedBody : await req.json();
     console.log("gmail-send: body keys", Object.keys(reqBody || {}), "attachments_in_body:", Array.isArray(reqBody?.attachments) ? reqBody.attachments.length : typeof reqBody?.attachments);
-    const { to, cc, bcc, subject, html_body, reply_to_email_id, forward_from_email_id, attachments, project_id, tag_category } = reqBody;
+    const { to, cc, bcc, subject, html_body, reply_to_email_id, forward_from_email_id, attachments, project_id, proposal_id, change_order_id, invoice_id, tag_category } = reqBody;
 
     if (!to || !subject || !html_body) {
       console.error("Missing required fields", { to: !!to, subject: !!subject, html_body: !!html_body });
@@ -643,12 +643,19 @@ Deno.serve(async (req) => {
       .select("id")
       .single();
 
-    if (project_id && insertedEmail?.id) {
+    // Tag the outbound email to any record passed in. project_id stays as the
+    // rollup anchor; proposal_id / change_order_id / invoice_id let detail views
+    // surface their own thread. One row, multiple pointers.
+    const hasAnyTarget = project_id || proposal_id || change_order_id || invoice_id;
+    if (hasAnyTarget && insertedEmail?.id) {
       await supabaseAdmin
         .from("email_project_tags")
         .insert({
           email_id: insertedEmail.id,
-          project_id,
+          project_id: project_id || null,
+          proposal_id: proposal_id || null,
+          change_order_id: change_order_id || null,
+          invoice_id: invoice_id || null,
           company_id: connection.company_id,
           tagged_by_id: profileId,
           category: tag_category || "other",

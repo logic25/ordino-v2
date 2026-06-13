@@ -6,15 +6,40 @@ interface SendBillingEmailParams {
   cc?: string;
   subject: string;
   htmlBody: string;
+  /** Auto-tag the sent email to a project so it appears on the project's Emails tab. */
+  projectId?: string;
+  /** Auto-tag the sent email to a proposal so its detail view can show the thread. */
+  proposalId?: string;
+  /** Auto-tag the sent email to a change order. */
+  changeOrderId?: string;
+  /** Auto-tag the sent email to an invoice. */
+  invoiceId?: string;
+  /** Category for the tag — defaults to 'client' for billing-style emails. */
+  tagCategory?: string;
 }
 
-export async function sendBillingEmail({ to, cc, subject, htmlBody }: SendBillingEmailParams) {
+export async function sendBillingEmail({
+  to,
+  cc,
+  subject,
+  htmlBody,
+  projectId,
+  proposalId,
+  changeOrderId,
+  invoiceId,
+  tagCategory = "client",
+}: SendBillingEmailParams) {
   const { data, error } = await supabase.functions.invoke("gmail-send", {
     body: {
       to,
       cc: cc || undefined,
       subject,
       html_body: htmlBody,
+      project_id: projectId,
+      proposal_id: proposalId,
+      change_order_id: changeOrderId,
+      invoice_id: invoiceId,
+      tag_category: tagCategory,
     },
   });
   if (error) throw error;
