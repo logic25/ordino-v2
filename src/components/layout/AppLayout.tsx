@@ -34,7 +34,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           id, name, project_number, filing_type, floor_number, notes, estimated_job_cost,
           properties (address, borough, block, lot),
           services:services (name, status, total_amount, billed_amount),
-          dob_applications:dob_applications (job_number, filing_type, status),
+          dob_applications:dob_applications (job_number, application_type, status),
           clients:clients!projects_client_id_fkey (name)
         `)
         .eq("id", projectId!)
@@ -109,7 +109,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     if (!projectData) return { projectId };
     const prop = (projectData as any).properties;
     const services = ((projectData as any).services || []) as { name: string; status: string; total_amount: number; billed_amount: number }[];
-    const apps = ((projectData as any).dob_applications || []) as { job_number: string; filing_type: string; status: string }[];
+    const apps = ((projectData as any).dob_applications || []) as { job_number: string; application_type: string; status: string }[];
     const client = (projectData as any).clients;
 
     const contractValue = services.reduce((sum, s) => sum + (Number(s.total_amount) || 0), 0);
@@ -178,7 +178,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       contractValue: contractValue || undefined,
       billedAmount: billedAmount || undefined,
       serviceDetails: services.map((s) => `${s.name} (${s.status}, $${Number(s.total_amount) || 0})`),
-      dobApplications: apps.map((a) => `${a.job_number || 'No job#'} - ${a.filing_type || 'N/A'} (${a.status || 'pending'})`),
+      dobApplications: apps.map((a) => `${a.job_number || 'No job#'} - ${a.application_type || 'N/A'} (${a.status || 'pending'})`),
       clientName: client?.name || undefined,
       lastActivity,
       daysSinceLastActivity,
