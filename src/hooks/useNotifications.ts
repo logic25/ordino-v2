@@ -110,3 +110,22 @@ export function useDismissNotification() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });
 }
+
+export function useDismissAllNotifications() {
+  const { profile } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const now = new Date().toISOString();
+      // Match the same id forms the read policy accepts (profile.id or auth uid).
+      const { error } = await supabase
+        .from("notifications")
+        .update({ dismissed_at: now })
+        .or(`user_id.eq.${profile!.id},user_id.eq.${profile!.user_id}`)
+        .is("dismissed_at", null);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+}
+
