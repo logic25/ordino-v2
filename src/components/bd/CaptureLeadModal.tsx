@@ -187,6 +187,7 @@ export function CaptureLeadModal({ open, onOpenChange, onCreated }: CaptureLeadM
   const [timeline, setTimeline] = useState<LeadTimeline | "">("");
   const [expectedValue, setExpectedValue] = useState("");
   const [hot, setHot] = useState(false);
+  const [contactOnly, setContactOnly] = useState(false);
 
   const [assignedTo, setAssignedTo] = useState("");
   const [notes, setNotes] = useState("");
