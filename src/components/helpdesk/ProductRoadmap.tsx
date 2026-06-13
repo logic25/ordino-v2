@@ -209,6 +209,7 @@ export function ProductRoadmap() {
   const [editingItem, setEditingItem] = useState<RoadmapItem | null>(null);
   const [promoteOpen, setPromoteOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
+  const [compactMode, setCompactMode] = useState(false);
   const [form, setForm] = useState({ title: "", description: "", category: "general", status: "gap", priority: "medium" });
   const [stressTesting, setStressTesting] = useState(false);
 
