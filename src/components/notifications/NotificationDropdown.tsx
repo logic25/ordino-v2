@@ -125,11 +125,7 @@ export function NotificationDropdown() {
                 size="sm"
                 className="text-xs gap-1 h-7 text-destructive hover:text-destructive"
                 disabled={dismissAll.isPending}
-                onClick={() => {
-                  if (confirm(`Clear all ${notifications.length} notifications?`)) {
-                    dismissAll.mutate();
-                  }
-                }}
+                onClick={() => setConfirmClearOpen(true)}
               >
                 <X className="h-3.5 w-3.5" />
                 Clear all
