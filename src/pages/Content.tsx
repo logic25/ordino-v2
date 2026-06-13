@@ -9,8 +9,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   Loader2, Sparkles, Check, X, Send, FileText, Mail, Eye, Copy, Pencil,
-  TrendingUp, Users, ExternalLink, HelpCircle, Plus, LayoutTemplate,
+  TrendingUp, Users, ExternalLink, HelpCircle, Plus, LayoutTemplate, Lightbulb,
 } from "lucide-react";
+import { PageHeader } from "@/components/common/PageHeader";
+import { StatCard } from "@/components/common/StatCard";
 import ReactMarkdown from "react-markdown";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -337,12 +339,18 @@ export default function Content() {
   return (
     <AppLayout>
       <div className="space-y-4 animate-fade-in">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2"><Sparkles className="h-6 w-6 text-orange-500" /> Content Intelligence</h1>
-            <p className="text-sm text-muted-foreground">AI-identified content opportunities from your knowledge base &amp; team questions. Draft, review, publish.</p>
-          </div>
-          <Button onClick={() => openCompose(null)}><Plus className="h-4 w-4 mr-1" /> Compose from Scratch</Button>
+        <PageHeader
+          icon={Lightbulb}
+          title="Content Intelligence"
+          subtitle="AI-identified content opportunities from your knowledge base & team questions"
+          actions={<Button onClick={() => openCompose(null)}><Plus className="h-4 w-4 mr-1" /> Compose from Scratch</Button>}
+        />
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <StatCard icon={Lightbulb} tone="amber" value={byStage.pending?.length ?? 0} label="Ideas waiting" />
+          <StatCard icon={FileText} tone="blue" value={byStage.drafted?.length ?? 0} label="Drafted" />
+          <StatCard icon={Check} tone="green" value={byStage.approved?.length ?? 0} label="Approved" />
+          <StatCard icon={Send} tone="purple" value={byStage.published?.length ?? 0} label="Published" />
         </div>
 
         <Tabs defaultValue="pipeline">
