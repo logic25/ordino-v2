@@ -468,87 +468,15 @@ export default function BdLeadDetail() {
                 </div>
               </Section>
 
-              {/* Next Follow-up — quiet white card with amber accent dot */}
-              <section className="rounded-xl p-6 bg-white border border-slate-200">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
-                    <CalendarClock className="h-3.5 w-3.5" /> Next Follow-up
-                  </h3>
-                  {(lead.next_follow_up_at || lead.follow_up_note) && (
-                    <button
-                      onClick={() => set({ next_follow_up_at: null, follow_up_note: null })}
-                      className="text-xs text-slate-500 hover:text-slate-900 inline-flex items-center gap-1"
-                    >
-                      <X className="h-3 w-3" /> Clear
-                    </button>
-                  )}
-                </div>
-                <div className="space-y-3">
-                  <input
-                    type="text"
-                    placeholder="Note — e.g. discuss Hudson Yards permit timeline"
-                    defaultValue={lead.follow_up_note ?? ""}
-                    onBlur={(e) => {
-                      const v = e.target.value || null;
-                      if (v !== (lead.follow_up_note ?? null)) set({ follow_up_note: v });
-                    }}
-                    className="w-full bg-transparent border-0 border-b border-slate-200 px-0 py-1 text-base font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-amber-500"
-                    key={`n-${lead.id}-${lead.follow_up_note ?? ""}`}
-                  />
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="date"
-                      defaultValue={lead.next_follow_up_at ?? ""}
-                      onChange={(e) => set({ next_follow_up_at: e.target.value || null })}
-                      className="h-9 rounded-md bg-white border border-slate-300 px-2 text-sm text-slate-900 focus:outline-none focus:border-amber-500"
-                      key={`d-${lead.id}-${lead.next_follow_up_at ?? ""}`}
-                    />
-                    <span className="text-xs text-slate-500">
-                      Personal reminder — shows in BD → Follow-ups
-                    </span>
-                  </div>
-                </div>
-              </section>
-
-              {/* Source */}
-              <Section eyebrow="Acquisition Source">
-                {lead.source_type === "EVENT" && lead.event ? (
-                  <Link
-                    to="/bd/events"
-                    className="block group"
-                  >
-                    <p className="text-lg font-semibold text-slate-900 group-hover:text-amber-600 transition-colors">
-                      {lead.event.name}
-                    </p>
-                    {lead.event.start_date && (
-                      <p className="text-sm text-slate-500 mt-0.5">
-                        {format(new Date(lead.event.start_date), "MMMM d, yyyy")}
-                      </p>
-                    )}
-                  </Link>
-                ) : lead.source_type === "REFERRAL" && (lead.referrer || lead.referred_by) ? (
-                  <div>
-                    <p className="text-lg font-semibold text-slate-900">
-                      {lead.referrer ? (
-                        <Link to="/clients" className="hover:text-amber-600">{lead.referrer.name}</Link>
-                      ) : (
-                        lead.referred_by
-                      )}
-                    </p>
-                    <p className="text-sm text-slate-500 mt-0.5">Referral</p>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-sm text-slate-600">
-                    {SourceIcon && <SourceIcon className="h-4 w-4 text-amber-600" />}
-                    <span>
-                      {lead.source_type
-                        ? SOURCE_META[lead.source_type].label
-                        : "Source not specified"}
-                    </span>
-                  </div>
-                )}
-              </Section>
+              {/* Outreach: Sequence + one-off Next Follow-up */}
+              <LeadOutreachCard
+                leadId={lead.id}
+                leadStage={lead.stage}
+                leadKind={((lead as any).lead_kind as "PROSPECT" | "CONTACT") ?? "PROSPECT"}
+                followUpAt={lead.next_follow_up_at}
+                followUpNote={lead.follow_up_note}
+                onChangeFollowUp={(next) => set(next)}
+              />
 
               {/* Connections */}
               <div className="bd-surface rounded-xl">
