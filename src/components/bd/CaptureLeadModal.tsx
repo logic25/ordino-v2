@@ -477,6 +477,23 @@ export function CaptureLeadModal({ open, onOpenChange, onCreated }: CaptureLeadM
             <Textarea placeholder="Initial context — becomes the first note on the lead…" rows={3}
               value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
+
+          {/* g) Contact-only flag */}
+          <div className="flex items-start gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5">
+            <input
+              id="cl-contact-only"
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-amber-600"
+              checked={contactOnly}
+              onChange={(e) => setContactOnly(e.target.checked)}
+            />
+            <Label htmlFor="cl-contact-only" className="text-sm font-normal cursor-pointer leading-tight">
+              <span className="font-medium">Save as Contact only</span>
+              <span className="block text-xs text-slate-500 mt-0.5">
+                Someone you met but aren't actively pursuing. Skips the pipeline, can be promoted to a Prospect later.
+              </span>
+            </Label>
+          </div>
         </div>
 
         <DialogFooter>
