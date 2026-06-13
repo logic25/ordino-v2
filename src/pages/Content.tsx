@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   Loader2, Sparkles, Check, X, Send, FileText, Mail, Eye, Copy, Pencil,
-  TrendingUp, Users, ExternalLink, HelpCircle, Plus, LayoutTemplate, Lightbulb,
+  TrendingUp, Users, ExternalLink, HelpCircle, Plus, LayoutTemplate, Lightbulb, RefreshCw,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { StatCard } from "@/components/common/StatCard";
@@ -153,6 +153,9 @@ function IdeaCard({
       );
       case "drafted": return (
         <>
+          <Button size="sm" variant="ghost" disabled={generatingId === c.id} onClick={() => onGenerate(c)} title="Regenerate draft">
+            {generatingId === c.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+          </Button>
           <Button size="sm" variant="outline" onClick={() => onView(c)}><Eye className="h-3.5 w-3.5 mr-1" />Review</Button>
           <Button size="sm" onClick={() => onStatus(c, "approved", "Approved")}><Check className="h-3.5 w-3.5 mr-1" />Approve</Button>
         </>
