@@ -19,8 +19,8 @@ export function useFollowUps() {
     queryKey: ["bd-follow-ups"],
     enabled: !!profile?.company_id,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("leads")
+      const { data, error } = await (supabase
+        .from("leads") as any)
         .select("id, full_name, company, stage, next_follow_up_at, follow_up_note, assigned_to")
         .not("next_follow_up_at", "is", null)
         .order("next_follow_up_at", { ascending: true });
