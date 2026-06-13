@@ -3595,6 +3595,7 @@ export type Database = {
       content_candidates: {
         Row: {
           affects_services: Json | null
+          company_id: string
           content_angle: string | null
           content_preview: string | null
           content_type: string | null
@@ -3622,6 +3623,7 @@ export type Database = {
         }
         Insert: {
           affects_services?: Json | null
+          company_id?: string
           content_angle?: string | null
           content_preview?: string | null
           content_type?: string | null
@@ -3649,6 +3651,7 @@ export type Database = {
         }
         Update: {
           affects_services?: Json | null
+          company_id?: string
           content_angle?: string | null
           content_preview?: string | null
           content_type?: string | null
@@ -3674,7 +3677,15 @@ export type Database = {
           title?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "content_candidates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       custom_roles: {
         Row: {
@@ -4858,6 +4869,7 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           candidate_id: string | null
+          company_id: string
           content: string | null
           content_type: string | null
           generated_at: string | null
@@ -4872,6 +4884,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           candidate_id?: string | null
+          company_id?: string
           content?: string | null
           content_type?: string | null
           generated_at?: string | null
@@ -4886,6 +4899,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           candidate_id?: string | null
+          company_id?: string
           content?: string | null
           content_type?: string | null
           generated_at?: string | null
@@ -4902,6 +4916,13 @@ export type Database = {
             columns: ["candidate_id"]
             isOneToOne: false
             referencedRelation: "content_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generated_content_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -5341,24 +5362,35 @@ export type Database = {
       }
       kb_deleted_documents: {
         Row: {
+          company_id: string
           content: string | null
           deleted_at: string
           id: string
           source_file: string
         }
         Insert: {
+          company_id?: string
           content?: string | null
           deleted_at?: string
           id?: string
           source_file: string
         }
         Update: {
+          company_id?: string
           content?: string | null
           deleted_at?: string
           id?: string
           source_file?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "kb_deleted_documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       kb_document_versions: {
         Row: {
