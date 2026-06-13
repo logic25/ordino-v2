@@ -34,6 +34,21 @@ const CLIENT_TYPES = [
   "developer", "management_company", "government", "other",
 ];
 
+/** Suggest a likely company/organization name from a government-style role title. */
+function suggestCompanyFromRole(role: string | null | undefined): string | null {
+  if (!role) return null;
+  const r = role.trim();
+  if (!r) return null;
+  const govPatterns = [
+    /borough president/i, /council member/i, /councilmember/i, /commissioner/i,
+    /comptroller/i, /public advocate/i, /assembly member/i, /assemblymember/i,
+    /state senator/i, /senator/i, /district leader/i, /community board/i,
+    /mayor/i, /deputy mayor/i, /chief of staff/i, /director of/i,
+  ];
+  if (govPatterns.some((p) => p.test(r))) return `Office of the ${r}`;
+  return null;
+}
+
 /** Click-to-edit text field with a hover pencil. Saves on blur or Enter. */
 function EditableText({
   value, onSave, placeholder = "Add value", forceEdit = false,
