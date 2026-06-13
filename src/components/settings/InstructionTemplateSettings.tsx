@@ -228,7 +228,12 @@ export function InstructionTemplateSettings() {
           <div className="border rounded-lg p-6 bg-background">
             <div
               className="prose prose-sm max-w-none dark:prose-invert [&_img]:max-w-full [&_img]:rounded-md"
-              dangerouslySetInnerHTML={{ __html: previewTemplate?.body || "" }}
+              dangerouslySetInnerHTML={{
+                __html: DOMPurify.sanitize(previewTemplate?.body || "", {
+                  FORBID_TAGS: ["script", "style", "iframe", "object", "embed"],
+                  FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover", "onfocus", "onblur"],
+                }),
+              }}
             />
           </div>
           <DialogFooter>
