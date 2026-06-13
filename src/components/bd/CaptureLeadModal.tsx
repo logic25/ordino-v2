@@ -27,6 +27,7 @@ import { useCreateLead, type LeadSourceType, type LeadTimeline } from "@/hooks/u
 
 const SOURCES: { value: LeadSourceType; label: string; icon: typeof Phone }[] = [
   { value: "EVENT", label: "Event", icon: CalendarDays },
+  { value: "IN_PERSON", label: "In person", icon: Users },
   { value: "REFERRAL", label: "Referral", icon: Users },
   { value: "PHONE", label: "Phone", icon: Phone },
   { value: "EMAIL", label: "Email", icon: Mail },
@@ -186,6 +187,7 @@ export function CaptureLeadModal({ open, onOpenChange, onCreated }: CaptureLeadM
   const [timeline, setTimeline] = useState<LeadTimeline | "">("");
   const [expectedValue, setExpectedValue] = useState("");
   const [hot, setHot] = useState(false);
+  const [contactOnly, setContactOnly] = useState(false);
 
   const [assignedTo, setAssignedTo] = useState("");
   const [notes, setNotes] = useState("");
@@ -215,6 +217,7 @@ export function CaptureLeadModal({ open, onOpenChange, onCreated }: CaptureLeadM
     setFullName(""); setCompany(""); setRole(""); setEmail(""); setPhone(""); setClientType("");
     setSubject(""); setPropertyAddress(""); setParty({ ...blankParty }); setOpenParty(null);
     setDrawingFiles([]); setTimeline(""); setExpectedValue(""); setHot(false);
+    setContactOnly(false);
     setAssignedTo(""); setNotes("");
   };
 
@@ -242,6 +245,7 @@ export function CaptureLeadModal({ open, onOpenChange, onCreated }: CaptureLeadM
         project_timeline: (timeline || null) as LeadTimeline | null,
         expected_value: expectedValue ? Number(expectedValue) : null,
         hot_opportunity: hot,
+        lead_kind: contactOnly ? "CONTACT" : "PROSPECT",
         assigned_to: assignedTo || null,
         notes: notes.trim() || null,
         drawings_uploaded: drawingFiles.length > 0,
@@ -472,6 +476,23 @@ export function CaptureLeadModal({ open, onOpenChange, onCreated }: CaptureLeadM
             <Label>Notes</Label>
             <Textarea placeholder="Initial context — becomes the first note on the lead…" rows={3}
               value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
+
+          {/* g) Contact-only flag */}
+          <div className="flex items-start gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5">
+            <input
+              id="cl-contact-only"
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-amber-600"
+              checked={contactOnly}
+              onChange={(e) => setContactOnly(e.target.checked)}
+            />
+            <Label htmlFor="cl-contact-only" className="text-sm font-normal cursor-pointer leading-tight">
+              <span className="font-medium">Save as Contact only</span>
+              <span className="block text-xs text-slate-500 mt-0.5">
+                Someone you met but aren't actively pursuing. Skips the pipeline, can be promoted to a Prospect later.
+              </span>
+            </Label>
           </div>
         </div>
 

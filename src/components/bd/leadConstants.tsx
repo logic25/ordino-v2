@@ -1,5 +1,5 @@
 import {
-  CalendarDays, Users, Phone, Mail, Globe, Search, Snowflake, MoreHorizontal,
+  CalendarDays, Users, Phone, Mail, Globe, Search, Snowflake, MoreHorizontal, Handshake,
 } from "lucide-react";
 import type { LeadStage, LeadSourceType, LeadTimeline } from "@/hooks/useLeads";
 
@@ -34,6 +34,7 @@ export const SOURCE_META: Record<LeadSourceType, { label: string; icon: typeof P
   WEBSITE: { label: "Website", icon: Globe },
   GOOGLE: { label: "Google", icon: Search },
   COLD: { label: "Cold", icon: Snowflake },
+  IN_PERSON: { label: "In person", icon: Handshake },
   OTHER: { label: "Other", icon: MoreHorizontal },
 };
 

@@ -5763,6 +5763,8 @@ export type Database = {
           gc_phone: string | null
           hot_opportunity: boolean
           id: string
+          lead_kind: Database["public"]["Enums"]["lead_kind"]
+          lost_reason: string | null
           next_follow_up_at: string | null
           notes: string | null
           project_timeline:
@@ -5818,6 +5820,8 @@ export type Database = {
           gc_phone?: string | null
           hot_opportunity?: boolean
           id?: string
+          lead_kind?: Database["public"]["Enums"]["lead_kind"]
+          lost_reason?: string | null
           next_follow_up_at?: string | null
           notes?: string | null
           project_timeline?:
@@ -5875,6 +5879,8 @@ export type Database = {
           gc_phone?: string | null
           hot_opportunity?: boolean
           id?: string
+          lead_kind?: Database["public"]["Enums"]["lead_kind"]
+          lost_reason?: string | null
           next_follow_up_at?: string | null
           notes?: string | null
           project_timeline?:
@@ -10496,6 +10502,7 @@ export type Database = {
         | "GOOGLE"
         | "COLD"
         | "OTHER"
+        | "IN_PERSON"
       bd_lead_stage:
         | "NEW"
         | "CONTACTED"
@@ -10522,6 +10529,7 @@ export type Database = {
         | "approved"
         | "rejected"
         | "voided"
+      lead_kind: "PROSPECT" | "CONTACT"
       project_status: "open" | "on_hold" | "closed" | "paid"
       project_waiting_on: "us" | "client" | "agency" | "partner" | "none"
       proposal_status:
@@ -10728,6 +10736,7 @@ export const Constants = {
         "GOOGLE",
         "COLD",
         "OTHER",
+        "IN_PERSON",
       ],
       bd_lead_stage: [
         "NEW",
@@ -10758,6 +10767,7 @@ export const Constants = {
         "rejected",
         "voided",
       ],
+      lead_kind: ["PROSPECT", "CONTACT"],
       project_status: ["open", "on_hold", "closed", "paid"],
       project_waiting_on: ["us", "client", "agency", "partner", "none"],
       proposal_status: [
