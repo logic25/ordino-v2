@@ -181,9 +181,21 @@ export default function BdLeadDetail() {
 
           {/* NEXT FOLLOW-UP — personal cadence (not an automated sequence) */}
           <Card className="p-3 space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
-              <CalendarClock className="h-3.5 w-3.5" /> Next follow-up
-            </p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                <CalendarClock className="h-3.5 w-3.5" /> Next follow-up
+              </p>
+              {(lead.next_follow_up_at || lead.follow_up_note) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => set({ next_follow_up_at: null, follow_up_note: null })}
+                >
+                  <X className="h-3.5 w-3.5 mr-1" /> Clear
+                </Button>
+              )}
+            </div>
             <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="date"
@@ -201,11 +213,11 @@ export default function BdLeadDetail() {
                   if (v !== (lead.follow_up_note ?? null)) set({ follow_up_note: v });
                 }}
                 className="h-9 flex-1 rounded-md border bg-background px-2 text-sm"
-                key={`n-${lead.id}`}
+                key={`n-${lead.id}-${lead.follow_up_note ?? ""}`}
               />
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Personal reminder — shows in <span className="font-medium">BD → Follow-ups</span>. Not an automated email.
+              Personal reminder — shows in <span className="font-medium">BD → Follow-ups</span>. Not an automated email. Use <span className="font-medium">Clear</span> to dismiss.
             </p>
           </Card>
         </div>
