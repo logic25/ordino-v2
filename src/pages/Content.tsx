@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Sparkles, Check, X, Send, FileText, Eye } from "lucide-react";
+import { Loader2, Sparkles, Check, X, Send, FileText, Eye, Copy } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -21,17 +21,25 @@ const STAGES: { key: string; label: string; tone: string }[] = [
 ];
 
 function DraftDialog({ candidate, open, onClose }: { candidate: ContentCandidate | null; open: boolean; onClose: () => void }) {
+  const { toast } = useToast();
   const { data: draft, isLoading } = useGeneratedFor(open ? candidate?.id ?? null : null);
+  const copy = () => {
+    navigator.clipboard.writeText(draft?.content || "");
+    toast({ title: "Copied", description: "Paste it into your blog, LinkedIn, or newsletter to publish." });
+  };
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
-        <DialogHeader><DialogTitle className="truncate">{candidate?.title}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="truncate pr-8">{candidate?.title}</DialogTitle></DialogHeader>
         <div className="flex-1 overflow-y-auto" style={{ maxHeight: "70vh" }}>
           {isLoading ? (
             <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
           ) : draft?.content ? (
             <>
-              <p className="text-xs text-muted-foreground mb-2">{draft.word_count} words · {draft.content_type}</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs text-muted-foreground">{draft.word_count} words · {draft.content_type?.replace(/_/g, " ")}</p>
+                <Button size="sm" variant="outline" onClick={copy}><Copy className="h-3.5 w-3.5 mr-1" /> Copy</Button>
+              </div>
               <div className="prose prose-sm max-w-none dark:prose-invert"><ReactMarkdown>{draft.content}</ReactMarkdown></div>
             </>
           ) : (
