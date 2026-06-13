@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Menu, Search, LogOut, Settings, Plus, FileText, UserPlus, Building2 } from "lucide-react";
-import { ChatSlideOut } from "@/components/chat/ChatSlideOut";
 import { Button } from "@/components/ui/button";
 import { GlobalSearchDialog } from "@/components/layout/GlobalSearchDialog";
 import { useNavigate } from "react-router-dom";
@@ -100,11 +99,6 @@ export function TopBar({ onMenuToggle }: TopBarProps) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-
-        {/* Google Chat slide-out */}
-        <ChatSlideOut />
-
-
 
         {/* Notifications */}
         <div data-tour="topbar-notifications">
