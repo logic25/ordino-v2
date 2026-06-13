@@ -395,6 +395,11 @@ export default function BdLeadDetail() {
                         )}
                       </>
                     )}
+                    <LeadCommsActions
+                      leadId={lead.id}
+                      contactEmail={lead.contact_email}
+                      leadName={lead.full_name}
+                    />
                   </div>
                 </div>
               </Section>
