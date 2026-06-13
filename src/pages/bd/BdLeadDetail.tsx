@@ -628,7 +628,13 @@ function WhereWeMetEditor({
     <div className="flex flex-wrap items-center gap-2">
       <Select
         value={sourceType ?? undefined}
-        onValueChange={(v) => onChange({ source_type: v, ...(v !== "EVENT" ? { event_id: null } : {}) })}
+        onValueChange={(v) =>
+          onChange({
+            source_type: v,
+            source: v.toLowerCase(), // keep legacy column in sync (NOT NULL)
+            ...(v !== "EVENT" ? { event_id: null } : {}),
+          })
+        }
       >
         <SelectTrigger className="h-8 w-[150px] border-slate-300 text-sm">
           <SelectValue placeholder="Set source" />
@@ -647,7 +653,7 @@ function WhereWeMetEditor({
             onChange(
               v === "__none__"
                 ? { event_id: null }
-                : { event_id: v, source_type: "EVENT" },
+                : { event_id: v, source_type: "EVENT", source: "event" },
             )
           }
         >
