@@ -179,6 +179,7 @@ export default function BdLeadDetail() {
   const stageMeta = lead.stage ? STAGE_META[lead.stage] : null;
   const canCreateProposal = stageRank(lead.stage) >= stageRank("QUALIFIED");
   const showWonLost = lead.stage === "PROPOSAL";
+  const isContact = ((lead as any).lead_kind as string | undefined) === "CONTACT";
 
   const handleCreateProposal = () => {
     const params = new URLSearchParams();
