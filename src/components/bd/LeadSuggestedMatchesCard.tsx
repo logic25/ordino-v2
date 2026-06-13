@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Sparkles, ArrowUpRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { InfoTip } from "@/components/bd/InfoTip";
 
 /**
  * "People in your network who might be a fit for this lead."
@@ -60,9 +61,10 @@ export function LeadSuggestedMatchesCard({
 
   return (
     <div className="bd-surface rounded-xl p-5">
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-1.5 mb-3">
         <Sparkles className="h-3.5 w-3.5 text-amber-500" />
         <h3 className="bd-eyebrow !mb-0">Suggested matches</h3>
+        <InfoTip text="Other leads in your network who look like a fit for this one — ranked by shared tags, same client type, same source, or same company. Useful for warm intros." />
       </div>
 
       {isLoading ? (

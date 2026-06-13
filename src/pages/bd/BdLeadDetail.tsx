@@ -20,6 +20,7 @@ import { LeadConnectionsCard } from "@/components/bd/LeadConnectionsCard";
 import { LeadStageStepper } from "@/components/bd/LeadStageStepper";
 import { BdActivityThread } from "@/components/bd/BdActivityThread";
 import { LeadOutreachCard } from "@/components/bd/LeadOutreachCard";
+import { LeadCommsActions } from "@/components/bd/LeadCommsActions";
 import { LeadTagsEditor } from "@/components/bd/LeadTagsEditor";
 import { LeadSuggestedMatchesCard } from "@/components/bd/LeadSuggestedMatchesCard";
 import { InfoTip } from "@/components/bd/InfoTip";
@@ -178,6 +179,7 @@ export default function BdLeadDetail() {
   const stageMeta = lead.stage ? STAGE_META[lead.stage] : null;
   const canCreateProposal = stageRank(lead.stage) >= stageRank("QUALIFIED");
   const showWonLost = lead.stage === "PROPOSAL";
+  const isContact = ((lead as any).lead_kind as string | undefined) === "CONTACT";
 
   const handleCreateProposal = () => {
     const params = new URLSearchParams();
@@ -394,101 +396,127 @@ export default function BdLeadDetail() {
                         )}
                       </>
                     )}
+                    <LeadCommsActions
+                      leadId={lead.id}
+                      contactEmail={lead.contact_email}
+                      leadName={lead.full_name}
+                    />
                   </div>
                 </div>
               </Section>
 
-              {/* Project Details */}
-              <Section eyebrow="Project Details">
-                <FieldRow label="Opportunity">
-                  <EditableText value={lead.subject} onSave={(v) => set({ subject: v })} placeholder="What's the work? (e.g. Façade LL11, New Building)" forceEdit={editAll} />
-                </FieldRow>
-                <FieldRow label="Property">
-                  <EditableText value={lead.property_address} onSave={(v) => set({ property_address: v })} placeholder="Add address" forceEdit={editAll} />
-                </FieldRow>
-                {(lead.architect_name || editAll) && (
-                  <FieldRow label="Architect">
-                    <EditableText value={lead.architect_name} onSave={(v) => set({ architect_name: v })} placeholder="Add architect" forceEdit={editAll} />
-                  </FieldRow>
-                )}
-                {(lead.gc_name || editAll) && (
-                  <FieldRow label="GC">
-                    <EditableText value={lead.gc_name} onSave={(v) => set({ gc_name: v })} placeholder="Add GC" forceEdit={editAll} />
-                  </FieldRow>
-                )}
-              </Section>
+              {/* Deal-only sections — hidden on Contact-only leads */}
+              {!isContact && (
+                <>
+                  {/* Project Details */}
+                  <Section eyebrow="Project Details">
+                    <FieldRow label="Opportunity">
+                      <EditableText value={lead.subject} onSave={(v) => set({ subject: v })} placeholder="What's the work?" forceEdit={editAll} />
+                    </FieldRow>
+                    <FieldRow label="Property">
+                      <EditableText value={lead.property_address} onSave={(v) => set({ property_address: v })} placeholder="Add address" forceEdit={editAll} />
+                    </FieldRow>
+                    {(lead.architect_name || editAll) && (
+                      <FieldRow label="Architect">
+                        <EditableText value={lead.architect_name} onSave={(v) => set({ architect_name: v })} placeholder="Add architect" forceEdit={editAll} />
+                      </FieldRow>
+                    )}
+                    {(lead.gc_name || editAll) && (
+                      <FieldRow label="GC">
+                        <EditableText value={lead.gc_name} onSave={(v) => set({ gc_name: v })} placeholder="Add GC" forceEdit={editAll} />
+                      </FieldRow>
+                    )}
+                  </Section>
 
-              {/* Qualification */}
-              <Section eyebrow="Qualification">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-1">
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1.5">Timeline</p>
-                    <Select
-                      value={lead.project_timeline ?? undefined}
-                      onValueChange={(v) => set({ project_timeline: v })}
-                    >
-                      <SelectTrigger className="h-9 border-slate-300">
-                        <SelectValue placeholder="Set timeline" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(TIMELINE_LABELS).map(([k, v]) => (
-                          <SelectItem key={k} value={k}>{v}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1.5">Expected value</p>
-                    <div className="text-2xl font-semibold text-slate-900 tracking-tight">
+                  {/* Deal Qualification */}
+                  <Section eyebrow="Deal Qualification">
+                    <div className="flex items-center gap-1.5 -mt-2 mb-3">
+                      <span className="text-[11px] text-slate-500">How real / how big / who owns it</span>
+                      <InfoTip text="Sales qualification — when is the work happening, how much is it worth, and which team member owns the relationship. Hidden on Contact-only entries." />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-1">
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1.5">Timeline</p>
+                        <Select
+                          value={lead.project_timeline ?? undefined}
+                          onValueChange={(v) => set({ project_timeline: v })}
+                        >
+                          <SelectTrigger className="h-9 border-slate-300">
+                            <SelectValue placeholder="Set timeline" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(TIMELINE_LABELS).map(([k, v]) => (
+                              <SelectItem key={k} value={k}>{v}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1.5">Expected value</p>
+                        <div className="text-2xl font-semibold text-slate-900 tracking-tight">
+                          <EditableText
+                            value={lead.expected_value != null ? `$${Number(lead.expected_value).toLocaleString()}` : null}
+                            onSave={(v) => {
+                              const clean = v.replace(/[^0-9.]/g, "");
+                              set({ expected_value: clean ? Number(clean) : null });
+                            }}
+                            placeholder="Add value"
+                            forceEdit={editAll}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1.5">Owner</p>
+                        <Select
+                          value={lead.assigned_to ?? undefined}
+                          onValueChange={(v) => set({ assigned_to: v })}
+                        >
+                          <SelectTrigger className="h-9 border-slate-300">
+                            <SelectValue placeholder="Unassigned" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {profiles.map((p: any) => (
+                              <SelectItem key={p.id} value={p.id}>{profileLabel(p)}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="mt-5 pt-5 border-t border-slate-200">
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1.5">Notes</p>
                       <EditableText
-                        value={lead.expected_value != null ? `$${Number(lead.expected_value).toLocaleString()}` : null}
-                        onSave={(v) => {
-                          const clean = v.replace(/[^0-9.]/g, "");
-                          set({ expected_value: clean ? Number(clean) : null });
-                        }}
-                        placeholder="Add value"
+                        value={(lead as any).notes ?? null}
+                        onSave={(v) => set({ notes: v })}
+                        placeholder="Add a note about this lead…"
                         forceEdit={editAll}
+                        multiline
                       />
                     </div>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1.5">Owner</p>
-                    <Select
-                      value={lead.assigned_to ?? undefined}
-                      onValueChange={(v) => set({ assigned_to: v })}
-                    >
-                      <SelectTrigger className="h-9 border-slate-300">
-                        <SelectValue placeholder="Unassigned" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {profiles.map((p: any) => (
-                          <SelectItem key={p.id} value={p.id}>{profileLabel(p)}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="mt-5 pt-5 border-t border-slate-200">
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1.5">Notes</p>
+                  </Section>
+
+                  {/* Outreach: Sequence + one-off Next Follow-up */}
+                  <LeadOutreachCard
+                    leadId={lead.id}
+                    leadStage={lead.stage}
+                    leadKind={((lead as any).lead_kind as "PROSPECT" | "CONTACT") ?? "PROSPECT"}
+                    followUpAt={lead.next_follow_up_at}
+                    followUpNote={lead.follow_up_note}
+                    onChangeFollowUp={(next) => set(next)}
+                  />
+                </>
+              )}
+
+              {isContact && (
+                <Section eyebrow="Notes">
                   <EditableText
                     value={(lead as any).notes ?? null}
                     onSave={(v) => set({ notes: v })}
-                    placeholder="Add a note about this lead…"
+                    placeholder="Anything to remember about this contact…"
                     forceEdit={editAll}
                     multiline
                   />
-                </div>
-              </Section>
-
-              {/* Outreach: Sequence + one-off Next Follow-up */}
-              <LeadOutreachCard
-                leadId={lead.id}
-                leadStage={lead.stage}
-                leadKind={((lead as any).lead_kind as "PROSPECT" | "CONTACT") ?? "PROSPECT"}
-                followUpAt={lead.next_follow_up_at}
-                followUpNote={lead.follow_up_note}
-                onChangeFollowUp={(next) => set(next)}
-              />
+                </Section>
+              )}
 
               {/* Lineage */}
               <LeadLineageCard leadId={lead.id} clientId={lead.client_id} />
