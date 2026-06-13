@@ -228,10 +228,36 @@ export default function BdLeadDetail() {
             <Card className="p-4 space-y-1">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Identity</p>
               <Field label="Name"><EditableText value={lead.full_name} onSave={(v) => set({ full_name: v })} placeholder="Add name" forceEdit={editAll} /></Field>
-              <Field label="Company"><EditableText value={lead.company} onSave={(v) => set({ company: v })} placeholder="Add company" forceEdit={editAll} /></Field>
+              <Field label="Company">
+                <div className="space-y-1">
+                  <EditableText
+                    value={lead.company}
+                    onSave={(v) => set({ company: v })}
+                    placeholder={suggestCompanyFromRole(lead.role) ?? "Add company"}
+                    forceEdit={editAll}
+                  />
+                  {!lead.company && suggestCompanyFromRole(lead.role) && (
+                    <button
+                      type="button"
+                      onClick={() => set({ company: suggestCompanyFromRole(lead.role)! })}
+                      className="text-[11px] text-primary hover:underline pl-1.5"
+                    >
+                      Use suggested: "{suggestCompanyFromRole(lead.role)}"
+                    </button>
+                  )}
+                </div>
+              </Field>
               <Field label="Role"><EditableText value={lead.role} onSave={(v) => set({ role: v })} placeholder="Add role" forceEdit={editAll} /></Field>
               <Field label="Email"><EditableText value={lead.contact_email} onSave={(v) => set({ contact_email: v })} placeholder="Add email" forceEdit={editAll} /></Field>
               <Field label="Phone"><EditableText value={lead.contact_phone} onSave={(v) => set({ contact_phone: v })} placeholder="Add phone" forceEdit={editAll} /></Field>
+              <Field label="Address">
+                <EditableText
+                  value={(lead as any).contact_address ?? null}
+                  onSave={(v) => set({ contact_address: v } as any)}
+                  placeholder="Add mailing/office address"
+                  forceEdit={editAll}
+                />
+              </Field>
               <Field label="Client type">
                 <Select value={lead.client_type ?? undefined} onValueChange={(v) => set({ client_type: v })}>
                   <SelectTrigger className="h-8"><SelectValue placeholder="Set client type" /></SelectTrigger>
