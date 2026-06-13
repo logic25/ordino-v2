@@ -74,7 +74,7 @@ export function LeadOutreachCard({
                     <Play className="mr-1.5 h-3 w-3" /> Resume
                   </Button>
                 )}
-                <Button size="sm" variant="ghost" className="h-8 text-slate-500 hover:text-red-600" onClick={() => update.mutate({ id: active.id, status: "STOPPED" })}>
+                <Button size="sm" variant="ghost" className="h-8 text-slate-500 hover:text-red-600" onClick={() => update.mutate({ id: active.id, status: "EXITED" })}>
                   <Trash2 className="mr-1.5 h-3 w-3" /> Unenroll
                 </Button>
               </div>
