@@ -27,6 +27,7 @@ import { useCreateLead, type LeadSourceType, type LeadTimeline } from "@/hooks/u
 
 const SOURCES: { value: LeadSourceType; label: string; icon: typeof Phone }[] = [
   { value: "EVENT", label: "Event", icon: CalendarDays },
+  { value: "IN_PERSON", label: "In person", icon: Users },
   { value: "REFERRAL", label: "Referral", icon: Users },
   { value: "PHONE", label: "Phone", icon: Phone },
   { value: "EMAIL", label: "Email", icon: Mail },
