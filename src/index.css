@@ -293,6 +293,36 @@
   }
 }
 
+/* ───────────────────────────────────────────────────────────────
+   BD module scope — editorial cream-tinted overlay on top of the
+   existing slate/amber tokens. Applies only inside `.bd-scope`,
+   so the main CRM (Projects, Properties, Billing) is untouched.
+   ─────────────────────────────────────────────────────────────── */
+.bd-scope {
+  background-color: #faf8f3;
+  font-family: 'DM Sans', 'Inter', system-ui, sans-serif;
+  color: hsl(220 20% 12%);
+}
+.bd-scope .bd-display {
+  font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  letter-spacing: -0.015em;
+}
+.bd-scope .bd-eyebrow {
+  font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: hsl(38 60% 32%);
+}
+.bd-scope .bd-hairline {
+  border-color: hsl(38 20% 88%);
+}
+.bd-scope .bd-surface {
+  background: #ffffff;
+  border: 1px solid hsl(38 20% 88%);
+}
+
 /* Print styles for client-facing proposal */
 @media print {
   body { background: white !important; }

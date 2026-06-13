@@ -1,42 +1,73 @@
-## Goal
-Route Ask Ordino panel free-text questions through `askBeacon` (the floating Beacon widget's brain) so there's one AI. Keep `/readiness` on `beacon-readiness-check`. Leave the `ask-ordino` edge function deployed but idle.
+## Lead Detail Page — Full Restructure
 
-## Single change: rewrite `src/hooks/useAskOrdino.ts`
+Base structure = **v3 (Architectural editorial)**. Color scheme = **Ordino slate/amber with cream accents** (a hint of the reference, not a full repaint). Follow-up treatment = **v2's bold gold card** (clearer than v3's muted version). All current sections preserved — v3 dropped a few that we're putting back.
 
-- Add imports: `useAuth` from `@/hooks/useAuth`, `useLocation` from `react-router-dom`, and `askBeacon` + `BeaconProjectContext` from `@/services/beaconApi`.
-- Resolve identity inside the hook (matching `BeaconChatWidget`):
-  - `userId = user?.email || user?.id || "anonymous"`
-  - `userName = profile?.display_name || profile?.first_name || user?.user_metadata?.full_name || "User"`
-- Build minimal `BeaconProjectContext` from `location.pathname`:
-  - Always set `currentPage: location.pathname`
-  - If URL matches `/projects/:uuid`, set `projectId`
-- Pass last 5 messages as `conversation_history` (`{ role, content }`).
-- Replace the `supabase.functions.invoke("ask-ordino", …)` call with:
-  ```ts
-  const res = await askBeacon(
-    question, userId, userName, projectContext, history,
-    { companyId: profile?.company_id ?? null, jurisdiction: "NYC" }
-  );
-  ```
-- Render `res.response`. If `res.sources?.length`, append:
-  ```
-  
-  ---
-  **Sources:**
-  - {title}
-  - {title}
-  - {title}
-  ```
-  (top 3 by array order).
-- `/readiness` branch: drop the extra `supabase.from("profiles")` lookup and read `profile.company_id` from `useAuth`. Everything else in that branch is unchanged.
-- Preserve all existing error handling verbatim: 429 → "Rate limited" toast, 402 → "Credits exhausted" toast, friendly fallback messages for 503 / rate / unavailable. (The "column does not exist" fallback can stay or be dropped — it's now unreachable since Beacon doesn't expose schema errors; keeping it is harmless.)
-- Update `useCallback` deps to include `user`, `profile`, `location.pathname` alongside `messages`.
+### Visual system (scoped to `/bd/*` only)
 
-## Not touched
-- `ask-ordino` edge function (`supabase/functions/ask-ordino/` and its `config.toml` entry) — stays deployed, just stops being called.
-- `BeaconChatWidget`, AI Usage dashboard, `beacon-readiness-check`.
-- Other `ai_usage_logs` writers (`draft-proposal-followup`, `analyze-telemetry`, `analyze-plans`, `generate-collection-message`).
-- `AskOrdinoPanel.tsx` / `AskOrdinoButton.tsx` — no prop/contract changes.
+Add a `.bd-section` scope in `index.css` that overlays cream tints on top of Ordino's existing slate/amber tokens — main app is untouched.
 
-## Net effect
-Ask Ordino panel now answers both knowledge questions ("what does the code say") and ops questions ("what's overdue this week") via Beacon's existing tools (`query_projects`, `query_invoices`, `query_pm_workload`, etc.). The "Ordino AI" usage tab will flatten over time, confirming `ask-ordino` is safe to delete in a future pass.
+- Page background: `#faf8f3` (warm off-white, subtle nod to the reference cream)
+- Surface / cards: `white` with `border-slate-200/70`
+- Ink: existing slate-900 / slate-600 / slate-400
+- Accent: existing **amber-500 / amber-600** (Ordino brand) — used for active pipeline stage, expected value, follow-up card, source tag
+- Hairline dividers: `slate-200`
+- Headings: Space Grotesk (already loaded)
+- Body: DM Sans (add via Google Fonts link in `index.html`)
+- Section labels: `text-[10px] font-bold uppercase tracking-[0.2em] text-amber-700`
+
+### Page composition (v3 skeleton, all sections restored)
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ Sticky header: ← Leads / breadcrumb                         │
+│   Vanessa L. Gibson           [Edit details] [• • • menu]   │
+│   Office of the Bronx Borough President                     │
+│   [Event] [Hot] [client_type]                               │
+│   ▰▰▰▱▱  Stage: Qualified                                  │
+├──────────────────────────────────────┬──────────────────────┤
+│ MAIN (col-span 8)                    │ ASIDE (col-span 4)   │
+│                                      │                      │
+│ § PRIMARY IDENTITY                   │ § ACTIVITY           │
+│   Role        | Client type          │   (BdActivityThread, │
+│   Email       | Phone                │    full height,      │
+│   Address (full width)               │    sticky composer)  │
+│                                      │                      │
+│ § PROJECT DETAILS                    │                      │
+│   Subject (inline edit)              │                      │
+│   Property address (inline edit)     │                      │
+│                                      │                      │
+│ § QUALIFICATION                      │                      │
+│   Timeline | Expected value | Owner  │                      │
+│                                      │                      │
+│ § NEXT FOLLOW-UP  ← amber card (v2)  │                      │
+│   "Discuss Hudson Yards…"            │                      │
+│   Jun 24 · [Clear]                   │                      │
+│                                      │                      │
+│ § SOURCE                             │                      │
+│   NY Building Congress — Jun 15      │                      │
+│                                      │                      │
+│ § CONNECTIONS                        │                      │
+│   People we know at this company     │                      │
+│   Our work at this address           │                      │
+└──────────────────────────────────────┴──────────────────────┘
+```
+
+All fields stay **inline-edit with debounced autosave** — click value → input → blur saves. No per-field buttons.
+
+### Files changed
+
+- `src/pages/bd/BdLeadDetail.tsx` — full rewrite into the layout above. Keep all existing hooks (`useLead`, `useUpdateLead`, `useLeadConnections`, `useBdActivities`).
+- `src/index.css` — add Space Grotesk + DM Sans imports; add `.bd-scope` block with cream background and amber-700 label utility. No global token changes.
+- `src/components/bd/LeadStageStepper.tsx` — restyle as horizontal bar segments (v3-style) using existing amber tokens. Same props.
+- `src/components/bd/BdActivityThread.tsx` — minor: make it fill the parent height (`h-full` instead of fixed `h-[600px]`) so it slots into the sticky right rail.
+- `index.html` — add Google Fonts `<link>` for Space Grotesk + DM Sans.
+
+### Out of scope for this batch (carry-overs from earlier approved plan)
+
+These were already approved but kept separate so this redesign ships independently:
+
+1. `CaptureLeadModal` / `BdScanTab` source-picker copy ("In person" / "No event")
+2. `lead_source_type` enum migration to add `IN_PERSON`
+3. Camera permission helper text on the scan button
+
+Confirm and I'll ship the redesign first, then tackle 1–3 in the next batch.
