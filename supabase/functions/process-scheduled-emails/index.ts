@@ -128,12 +128,27 @@ Deno.serve(async (req) => {
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Find all due scheduled emails
+    // Tenant scoping: only process emails belonging to the caller's company
+    const { data: callerProfile, error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .select("company_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (profileError || !callerProfile?.company_id) {
+      return new Response(JSON.stringify({ error: "Profile/company not found" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Find all due scheduled emails for this company only
     const now = new Date().toISOString();
     const { data: dueEmails, error: fetchError } = await supabaseAdmin
       .from("scheduled_emails")
       .select("*")
       .eq("status", "scheduled")
+      .eq("company_id", callerProfile.company_id)
       .lte("scheduled_send_time", now)
       .limit(50);
 
