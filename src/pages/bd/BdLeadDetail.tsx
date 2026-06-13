@@ -93,10 +93,10 @@ function EditableText({
   return (
     <button
       type="button"
-      className="group flex w-full items-center justify-between gap-2 rounded px-1.5 -mx-1.5 py-1 text-left text-sm hover:bg-amber-50/60 transition-colors"
+      className="group flex w-full items-center justify-between gap-2 rounded px-1.5 -mx-1.5 py-1 text-left text-sm hover:bg-slate-100 transition-colors"
       onClick={() => { setDraft(value ?? ""); setEditing(true); }}
     >
-      <span className={cn("truncate", empty && "text-slate-400 italic")}>
+      <span className={cn("truncate text-sm text-slate-900", empty && "text-slate-400 italic")}>
         {value || placeholder}
       </span>
       <Pencil className="h-3 w-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
@@ -107,8 +107,8 @@ function EditableText({
 /** Two-column inline field row used inside each section. */
 function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-3 items-start py-2 border-b border-amber-100/70 last:border-0">
-      <span className="text-[11px] uppercase font-bold tracking-wider text-slate-500 pt-1.5">
+    <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-3 items-start py-2.5 border-b border-slate-100 last:border-0">
+      <span className="text-xs font-medium uppercase tracking-wide text-slate-500 pt-1.5">
         {label}
       </span>
       <div className="min-w-0">{children}</div>
