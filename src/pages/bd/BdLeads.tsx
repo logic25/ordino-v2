@@ -386,6 +386,20 @@ export default function BdLeads() {
         {/* Toolbar */}
         <div className="flex items-center gap-2 flex-wrap">
           <Input placeholder="Search leads…" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs h-9" />
+          <div className="inline-flex rounded-md border border-slate-200 bg-white p-0.5">
+            {(["PROSPECT", "CONTACT", "ALL"] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setKindView(k)}
+                className={`px-2.5 h-8 text-xs font-medium rounded ${
+                  kindView === k ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                {k === "PROSPECT" ? "Prospects" : k === "CONTACT" ? "Contacts" : "All"}
+              </button>
+            ))}
+          </div>
           <FilterPopover filters={filters} setFilters={setFilters} profiles={profiles} />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
