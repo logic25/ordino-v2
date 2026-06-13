@@ -19,6 +19,8 @@ import { LineageBreadcrumb } from "@/components/shared/LineageBreadcrumb";
 import { LeadConnectionsCard } from "@/components/bd/LeadConnectionsCard";
 import { LeadStageStepper } from "@/components/bd/LeadStageStepper";
 import { BdActivityThread } from "@/components/bd/BdActivityThread";
+import { useBdActivities } from "@/hooks/useBdActivities";
+import { formatDistanceToNow } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 
