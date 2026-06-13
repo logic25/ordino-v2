@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Menu, Search, LogOut, Settings, Plus, FileText, UserPlus, Building2 } from "lucide-react";
-import { ChatSlideOut } from "@/components/chat/ChatSlideOut";
 import { Button } from "@/components/ui/button";
 import { GlobalSearchDialog } from "@/components/layout/GlobalSearchDialog";
 import { useNavigate } from "react-router-dom";
