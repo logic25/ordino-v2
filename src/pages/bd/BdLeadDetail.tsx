@@ -408,12 +408,12 @@ export default function BdLeadDetail() {
               <Section eyebrow="Qualification">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-1">
                   <div>
-                    <p className="text-[10px] uppercase font-bold tracking-wider text-slate-500 mb-1.5">Timeline</p>
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1.5">Timeline</p>
                     <Select
                       value={lead.project_timeline ?? undefined}
                       onValueChange={(v) => set({ project_timeline: v })}
                     >
-                      <SelectTrigger className="h-9 border-amber-200/60">
+                      <SelectTrigger className="h-9 border-slate-300">
                         <SelectValue placeholder="Set timeline" />
                       </SelectTrigger>
                       <SelectContent>
@@ -424,8 +424,8 @@ export default function BdLeadDetail() {
                     </Select>
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase font-bold tracking-wider text-slate-500 mb-1.5">Expected value</p>
-                    <div className="bd-display text-2xl font-bold text-slate-900">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1.5">Expected value</p>
+                    <div className="text-2xl font-semibold text-slate-900 tracking-tight">
                       <EditableText
                         value={lead.expected_value != null ? `$${Number(lead.expected_value).toLocaleString()}` : null}
                         onSave={(v) => {
@@ -438,12 +438,12 @@ export default function BdLeadDetail() {
                     </div>
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase font-bold tracking-wider text-slate-500 mb-1.5">Owner</p>
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1.5">Owner</p>
                     <Select
                       value={lead.assigned_to ?? undefined}
                       onValueChange={(v) => set({ assigned_to: v })}
                     >
-                      <SelectTrigger className="h-9 border-amber-200/60">
+                      <SelectTrigger className="h-9 border-slate-300">
                         <SelectValue placeholder="Unassigned" />
                       </SelectTrigger>
                       <SelectContent>
@@ -454,8 +454,8 @@ export default function BdLeadDetail() {
                     </Select>
                   </div>
                 </div>
-                <div className="mt-5 pt-5 border-t bd-hairline">
-                  <p className="text-[10px] uppercase font-bold tracking-wider text-slate-500 mb-1.5">Notes</p>
+                <div className="mt-5 pt-5 border-t border-slate-200">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1.5">Notes</p>
                   <EditableText
                     value={(lead as any).notes ?? null}
                     onSave={(v) => set({ notes: v })}
@@ -466,16 +466,17 @@ export default function BdLeadDetail() {
                 </div>
               </Section>
 
-              {/* Next Follow-up — amber accent card (v2 style) */}
-              <section className="rounded-xl p-6 bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-[0_8px_24px_-12px_rgba(217,119,6,0.5)]">
+              {/* Next Follow-up — quiet white card with amber accent dot */}
+              <section className="rounded-xl p-6 bg-white border border-slate-200">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-50/80 flex items-center gap-1.5">
+                  <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
                     <CalendarClock className="h-3.5 w-3.5" /> Next Follow-up
                   </h3>
                   {(lead.next_follow_up_at || lead.follow_up_note) && (
                     <button
                       onClick={() => set({ next_follow_up_at: null, follow_up_note: null })}
-                      className="text-[11px] uppercase font-bold tracking-wider text-amber-50/80 hover:text-white inline-flex items-center gap-1"
+                      className="text-xs text-slate-500 hover:text-slate-900 inline-flex items-center gap-1"
                     >
                       <X className="h-3 w-3" /> Clear
                     </button>
@@ -490,7 +491,7 @@ export default function BdLeadDetail() {
                       const v = e.target.value || null;
                       if (v !== (lead.follow_up_note ?? null)) set({ follow_up_note: v });
                     }}
-                    className="w-full bg-transparent border-0 border-b border-amber-200/40 px-0 py-1 text-lg font-medium placeholder:text-amber-100/60 focus:outline-none focus:border-white bd-display"
+                    className="w-full bg-transparent border-0 border-b border-slate-200 px-0 py-1 text-base font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-amber-500"
                     key={`n-${lead.id}-${lead.follow_up_note ?? ""}`}
                   />
                   <div className="flex items-center gap-3">
@@ -498,10 +499,10 @@ export default function BdLeadDetail() {
                       type="date"
                       defaultValue={lead.next_follow_up_at ?? ""}
                       onChange={(e) => set({ next_follow_up_at: e.target.value || null })}
-                      className="h-8 rounded-md bg-white/15 border border-white/20 px-2 text-xs text-white [color-scheme:dark] focus:outline-none focus:border-white/60"
+                      className="h-9 rounded-md bg-white border border-slate-300 px-2 text-sm text-slate-900 focus:outline-none focus:border-amber-500"
                       key={`d-${lead.id}-${lead.next_follow_up_at ?? ""}`}
                     />
-                    <span className="text-[11px] uppercase tracking-wider font-bold text-amber-50/70">
+                    <span className="text-xs text-slate-500">
                       Personal reminder — shows in BD → Follow-ups
                     </span>
                   </div>
