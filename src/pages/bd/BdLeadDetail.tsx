@@ -151,7 +151,7 @@ export default function BdLeadDetail() {
       <AppLayout>
         <div className="bd-scope p-8 text-center text-slate-500">
           Lead not found.{" "}
-          <Link to="/bd/leads" className="text-amber-700 underline">Back to Leads</Link>
+          <Link to="/bd/leads" className="text-amber-600 underline">Back to Leads</Link>
         </div>
       </AppLayout>
     );
