@@ -5360,6 +5360,124 @@ export type Database = {
           },
         ]
       }
+      jurisdictions: {
+        Row: {
+          annual_permits: number | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          eval_last_run_at: string | null
+          eval_pass_rate: number | null
+          id: string
+          inspection_scheduling_online: boolean | null
+          kb_status: string
+          license_required: boolean | null
+          name: string
+          notes: string | null
+          online_filing: boolean | null
+          online_payments: boolean | null
+          open_data_platform: string | null
+          open_data_url: string | null
+          owner_auth_sufficient: boolean | null
+          permit_trend: string | null
+          plans_upload_online: boolean | null
+          portal_platform: string | null
+          portal_url: string | null
+          research: Json
+          revenue_actual: number | null
+          revenue_goal: number | null
+          salesperson_id: string | null
+          state: string | null
+          status: string
+          tier: number | null
+          updated_at: string
+        }
+        Insert: {
+          annual_permits?: number | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          eval_last_run_at?: string | null
+          eval_pass_rate?: number | null
+          id?: string
+          inspection_scheduling_online?: boolean | null
+          kb_status?: string
+          license_required?: boolean | null
+          name: string
+          notes?: string | null
+          online_filing?: boolean | null
+          online_payments?: boolean | null
+          open_data_platform?: string | null
+          open_data_url?: string | null
+          owner_auth_sufficient?: boolean | null
+          permit_trend?: string | null
+          plans_upload_online?: boolean | null
+          portal_platform?: string | null
+          portal_url?: string | null
+          research?: Json
+          revenue_actual?: number | null
+          revenue_goal?: number | null
+          salesperson_id?: string | null
+          state?: string | null
+          status?: string
+          tier?: number | null
+          updated_at?: string
+        }
+        Update: {
+          annual_permits?: number | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          eval_last_run_at?: string | null
+          eval_pass_rate?: number | null
+          id?: string
+          inspection_scheduling_online?: boolean | null
+          kb_status?: string
+          license_required?: boolean | null
+          name?: string
+          notes?: string | null
+          online_filing?: boolean | null
+          online_payments?: boolean | null
+          open_data_platform?: string | null
+          open_data_url?: string | null
+          owner_auth_sufficient?: boolean | null
+          permit_trend?: string | null
+          plans_upload_online?: boolean | null
+          portal_platform?: string | null
+          portal_url?: string | null
+          research?: Json
+          revenue_actual?: number | null
+          revenue_goal?: number | null
+          salesperson_id?: string | null
+          state?: string | null
+          status?: string
+          tier?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jurisdictions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jurisdictions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jurisdictions_salesperson_id_fkey"
+            columns: ["salesperson_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kb_deleted_documents: {
         Row: {
           company_id: string
@@ -5636,6 +5754,7 @@ export type Database = {
           drawings_uploaded: boolean | null
           event_id: string | null
           expected_value: number | null
+          follow_up_note: string | null
           full_name: string
           gc_company: string | null
           gc_email: string | null
@@ -5643,6 +5762,7 @@ export type Database = {
           gc_phone: string | null
           hot_opportunity: boolean
           id: string
+          next_follow_up_at: string | null
           notes: string | null
           project_timeline:
             | Database["public"]["Enums"]["bd_lead_timeline"]
@@ -5688,6 +5808,7 @@ export type Database = {
           drawings_uploaded?: boolean | null
           event_id?: string | null
           expected_value?: number | null
+          follow_up_note?: string | null
           full_name: string
           gc_company?: string | null
           gc_email?: string | null
@@ -5695,6 +5816,7 @@ export type Database = {
           gc_phone?: string | null
           hot_opportunity?: boolean
           id?: string
+          next_follow_up_at?: string | null
           notes?: string | null
           project_timeline?:
             | Database["public"]["Enums"]["bd_lead_timeline"]
@@ -5742,6 +5864,7 @@ export type Database = {
           drawings_uploaded?: boolean | null
           event_id?: string | null
           expected_value?: number | null
+          follow_up_note?: string | null
           full_name?: string
           gc_company?: string | null
           gc_email?: string | null
@@ -5749,6 +5872,7 @@ export type Database = {
           gc_phone?: string | null
           hot_opportunity?: boolean
           id?: string
+          next_follow_up_at?: string | null
           notes?: string | null
           project_timeline?:
             | Database["public"]["Enums"]["bd_lead_timeline"]
