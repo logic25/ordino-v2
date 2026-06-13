@@ -40,6 +40,7 @@ import {
   STAGE_META, STAGE_ORDER, ALL_STAGES, SOURCE_META, TIMELINE_LABELS, profileLabel, initials, daysSince,
 } from "@/components/bd/leadConstants";
 import { CaptureLeadModal } from "@/components/bd/CaptureLeadModal";
+import BdFollowUps from "@/pages/bd/BdFollowUps";
 
 const HIDDEN_BY_DEFAULT: VisibilityState = {
   contact_email: false, contact_phone: false, property_address: false, subject: false,
@@ -108,7 +109,9 @@ export default function BdLeads() {
   const [sorting, setSorting] = useState<SortingState>([{ id: "days", desc: false }]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(HIDDEN_BY_DEFAULT);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-  const [kindView, setKindView] = useState<"PROSPECT" | "CONTACT" | "ALL">("PROSPECT");
+  const [kindView, setKindView] = useState<"PROSPECT" | "CONTACT" | "ALL" | "FOLLOWUPS">(
+    () => (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("view") === "followups" ? "FOLLOWUPS" : "PROSPECT"),
+  );
 
   // Seed default views on first visit.
   useEffect(() => {
@@ -387,7 +390,7 @@ export default function BdLeads() {
         <div className="flex items-center gap-2 flex-wrap">
           <Input placeholder="Search leads…" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs h-9" />
           <div className="inline-flex rounded-md border border-slate-200 bg-white p-0.5">
-            {(["PROSPECT", "CONTACT", "ALL"] as const).map((k) => (
+            {(["PROSPECT", "CONTACT", "ALL", "FOLLOWUPS"] as const).map((k) => (
               <button
                 key={k}
                 type="button"
@@ -396,7 +399,7 @@ export default function BdLeads() {
                   kindView === k ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
                 }`}
               >
-                {k === "PROSPECT" ? "Prospects" : k === "CONTACT" ? "Contacts" : "All"}
+                {k === "PROSPECT" ? "Prospects" : k === "CONTACT" ? "Contacts" : k === "ALL" ? "All" : "Follow-ups"}
               </button>
             ))}
           </div>
@@ -466,42 +469,46 @@ export default function BdLeads() {
           })}
         </div>
 
-        {/* Table */}
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((hg) => (
-                <TableRow key={hg.id}>
-                  {hg.headers.map((h) => (
-                    <TableHead key={h.id}>
-                      {h.isPlaceholder ? null : h.column.getCanSort() ? (
-                        <button className="flex items-center gap-1 hover:text-foreground" onClick={h.column.getToggleSortingHandler()}>
-                          {flexRender(h.column.columnDef.header, h.getContext())}
-                          <ArrowUpDown className="h-3 w-3 opacity-50" />
-                        </button>
-                      ) : flexRender(h.column.columnDef.header, h.getContext())}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">Loading…</TableCell></TableRow>
-              ) : table.getRowModel().rows.length === 0 ? (
-                <TableRow><TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">No leads. Capture one to get started.</TableCell></TableRow>
-              ) : (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id} className="cursor-pointer" onClick={() => navigate(`/bd/leads/${row.original.id}`)}>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+        {/* Table OR Follow-ups panel */}
+        {kindView === "FOLLOWUPS" ? (
+          <div className="-mx-1"><BdFollowUps /></div>
+        ) : (
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map((hg) => (
+                  <TableRow key={hg.id}>
+                    {hg.headers.map((h) => (
+                      <TableHead key={h.id}>
+                        {h.isPlaceholder ? null : h.column.getCanSort() ? (
+                          <button className="flex items-center gap-1 hover:text-foreground" onClick={h.column.getToggleSortingHandler()}>
+                            {flexRender(h.column.columnDef.header, h.getContext())}
+                            <ArrowUpDown className="h-3 w-3 opacity-50" />
+                          </button>
+                        ) : flexRender(h.column.columnDef.header, h.getContext())}
+                      </TableHead>
                     ))}
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow><TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">Loading…</TableCell></TableRow>
+                ) : table.getRowModel().rows.length === 0 ? (
+                  <TableRow><TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">No leads. Capture one to get started.</TableCell></TableRow>
+                ) : (
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow key={row.id} className="cursor-pointer" onClick={() => navigate(`/bd/leads/${row.original.id}`)}>
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </div>
 
       <CaptureLeadModal

@@ -22,7 +22,7 @@ import { BdActivityThread } from "@/components/bd/BdActivityThread";
 import { LeadOutreachCard } from "@/components/bd/LeadOutreachCard";
 import { LeadCommsActions } from "@/components/bd/LeadCommsActions";
 import { LeadTagsEditor } from "@/components/bd/LeadTagsEditor";
-import { LeadSuggestedMatchesCard } from "@/components/bd/LeadSuggestedMatchesCard";
+
 import { InfoTip } from "@/components/bd/InfoTip";
 import { useBdActivities } from "@/hooks/useBdActivities";
 import { formatDistanceToNow } from "date-fns";
@@ -537,13 +537,6 @@ export default function BdLeadDetail() {
                   />
                 </div>
 
-                <LeadSuggestedMatchesCard
-                  leadId={lead.id}
-                  tags={Array.isArray((lead as any).tags) ? (lead as any).tags : []}
-                  clientType={lead.client_type}
-                  sourceType={lead.source_type}
-                  company={lead.company}
-                />
 
                 <div className="bd-surface rounded-xl p-5 flex flex-col">
                   <h3 className="bd-eyebrow mb-3">Activity</h3>
