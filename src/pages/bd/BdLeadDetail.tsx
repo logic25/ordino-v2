@@ -309,7 +309,7 @@ export default function BdLeadDetail() {
                         <button
                           type="button"
                           onClick={() => set({ company: suggestCompanyFromRole(lead.role)! })}
-                          className="text-[11px] text-amber-700 hover:underline pl-1.5"
+                          className="text-[11px] text-amber-600 hover:underline pl-1.5"
                         >
                           Use suggested: "{suggestCompanyFromRole(lead.role)}"
                         </button>
@@ -516,7 +516,7 @@ export default function BdLeadDetail() {
                     to="/bd/events"
                     className="block group"
                   >
-                    <p className="bd-display text-lg font-semibold text-slate-900 group-hover:text-amber-700 transition-colors">
+                    <p className="text-lg font-semibold text-slate-900 group-hover:text-amber-600 transition-colors">
                       {lead.event.name}
                     </p>
                     {lead.event.start_date && (
@@ -527,9 +527,9 @@ export default function BdLeadDetail() {
                   </Link>
                 ) : lead.source_type === "REFERRAL" && (lead.referrer || lead.referred_by) ? (
                   <div>
-                    <p className="bd-display text-lg font-semibold text-slate-900">
+                    <p className="text-lg font-semibold text-slate-900">
                       {lead.referrer ? (
-                        <Link to="/clients" className="hover:text-amber-700">{lead.referrer.name}</Link>
+                        <Link to="/clients" className="hover:text-amber-600">{lead.referrer.name}</Link>
                       ) : (
                         lead.referred_by
                       )}
@@ -538,7 +538,7 @@ export default function BdLeadDetail() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 text-sm text-slate-600">
-                    {SourceIcon && <SourceIcon className="h-4 w-4 text-amber-700" />}
+                    {SourceIcon && <SourceIcon className="h-4 w-4 text-amber-600" />}
                     <span>
                       {lead.source_type
                         ? SOURCE_META[lead.source_type].label
