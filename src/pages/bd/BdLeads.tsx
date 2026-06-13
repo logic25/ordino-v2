@@ -163,7 +163,12 @@ export default function BdLeads() {
     [profiles],
   );
 
-  const filtered = useMemo(() => applyFilters(leads, filters, search), [leads, filters, search]);
+  const filtered = useMemo(() => {
+    const byKind = kindView === "ALL"
+      ? leads
+      : leads.filter((l) => ((l as any).lead_kind ?? "PROSPECT") === kindView);
+    return applyFilters(byKind, filters, search);
+  }, [leads, filters, search, kindView]);
 
   const columns = useMemo<ColumnDef<Lead>[]>(() => [
     {
