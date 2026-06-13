@@ -15,7 +15,7 @@ export function useUnreadIndicators() {
         .select("id")
         .eq("is_read", false)
         .is("archived_at", null)
-        .contains("labels", ["INBOX"]);
+        .filter("labels", "cs", '["INBOX"]');
       if (error) throw error;
       return data ?? [];
     },
