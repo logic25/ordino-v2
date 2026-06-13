@@ -27,7 +27,7 @@ import {
   Plus, GripVertical, MoreHorizontal, Pencil, Trash2,
   AlertTriangle, Clock, Lightbulb, CheckCircle2, Rocket,
   ArrowRight, Inbox, LayoutGrid, List, Brain, Sparkles, ChevronRight, AlertCircle, Loader2,
-  BarChart2,
+  BarChart2, Minimize2, Maximize2,
 } from "lucide-react";
 import { AIRoadmapIntake } from "./AIRoadmapIntake";
 import {
