@@ -101,11 +101,6 @@ export function TopBar({ onMenuToggle }: TopBarProps) {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Google Chat slide-out */}
-        <ChatSlideOut />
-
-
-
         {/* Notifications */}
         <div data-tour="topbar-notifications">
           <NotificationDropdown />
