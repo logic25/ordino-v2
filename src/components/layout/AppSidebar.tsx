@@ -52,7 +52,7 @@ const mainNav: NavEntry[] = [
     label: "BD",
     items: [
       { title: "Leads", icon: Users, href: "/bd/leads", resource: "proposals" as ResourceKey },
-      { title: "Follow-ups", icon: CalendarClock, href: "/bd/follow-ups", resource: "proposals" as ResourceKey },
+      
       { title: "Events", icon: CalendarDays, href: "/bd/events", resource: "proposals" as ResourceKey },
       { title: "Sequences", icon: Mail, href: "/bd/sequences", resource: "proposals" as ResourceKey },
       { title: "Markets", icon: Globe2, href: "/markets", resource: "proposals" as ResourceKey },
