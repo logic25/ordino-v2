@@ -294,33 +294,26 @@
 }
 
 /* ───────────────────────────────────────────────────────────────
-   BD module scope — editorial cream-tinted overlay on top of the
-   existing slate/amber tokens. Applies only inside `.bd-scope`,
-   so the main CRM (Projects, Properties, Billing) is untouched.
+   BD module scope — keeps Ordino's slate/amber palette and fonts.
+   Provides small utility classes used by BD pages so we don't
+   pepper components with raw color tokens.
    ─────────────────────────────────────────────────────────────── */
 .bd-scope {
-  background-color: #faf8f3;
-  font-family: 'DM Sans', 'Inter', system-ui, sans-serif;
-  color: hsl(220 20% 12%);
-}
-.bd-scope .bd-display {
-  font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
-  letter-spacing: -0.015em;
+  background-color: hsl(220 14% 96%);
 }
 .bd-scope .bd-eyebrow {
-  font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.2em;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: hsl(38 60% 32%);
+  color: hsl(220 10% 45%);
 }
 .bd-scope .bd-hairline {
-  border-color: hsl(38 20% 88%);
+  border-color: hsl(220 13% 88%);
 }
 .bd-scope .bd-surface {
   background: #ffffff;
-  border: 1px solid hsl(38 20% 88%);
+  border: 1px solid hsl(220 13% 88%);
 }
 
 /* Print styles for client-facing proposal */
