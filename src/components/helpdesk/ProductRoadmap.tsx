@@ -669,13 +669,14 @@ export function ProductRoadmap() {
                 <div className="space-y-2 min-h-[100px] p-2 rounded-lg bg-muted/30 border border-dashed border-border">
                   <SortableContext items={columnItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
                     {columnItems.map((item) => (
-                      <SortableRoadmapCard
-                        key={item.id}
-                        item={item}
-                        onEdit={handleEdit}
-                        onDelete={(id) => deleteMutation.mutate(id)}
-                        onStatusChange={handleStatusChange}
-                      />
+                    <SortableRoadmapCard
+                      key={item.id}
+                      item={item}
+                      onEdit={handleEdit}
+                      onDelete={(id) => deleteMutation.mutate(id)}
+                      onStatusChange={handleStatusChange}
+                      compact={compactMode}
+                    />
                     ))}
                   </SortableContext>
                   {columnItems.length === 0 && (
