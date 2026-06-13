@@ -20,6 +20,8 @@ import { LeadConnectionsCard } from "@/components/bd/LeadConnectionsCard";
 import { LeadStageStepper } from "@/components/bd/LeadStageStepper";
 import { BdActivityThread } from "@/components/bd/BdActivityThread";
 import { LeadOutreachCard } from "@/components/bd/LeadOutreachCard";
+import { LeadTagsEditor } from "@/components/bd/LeadTagsEditor";
+import { LeadSuggestedMatchesCard } from "@/components/bd/LeadSuggestedMatchesCard";
 import { InfoTip } from "@/components/bd/InfoTip";
 import { useBdActivities } from "@/hooks/useBdActivities";
 import { formatDistanceToNow } from "date-fns";
@@ -349,6 +351,16 @@ export default function BdLeadDetail() {
                       forceEdit={editAll}
                     />
                   </FieldRow>
+                  <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-3 items-start py-2.5">
+                    <span className="text-xs font-medium uppercase tracking-wide text-slate-500 pt-1.5 inline-flex items-center gap-1">
+                      Tags
+                      <InfoTip text="Free-form labels (e.g. architect, GC, referral partner, FISP). Used to filter the list and power Suggested matches." />
+                    </span>
+                    <LeadTagsEditor
+                      tags={Array.isArray((lead as any).tags) ? (lead as any).tags : []}
+                      onChange={(next) => set({ tags: next } as any)}
+                    />
+                  </div>
                 </div>
 
                 {/* Where we met + Communications summary */}
@@ -478,27 +490,36 @@ export default function BdLeadDetail() {
                 onChangeFollowUp={(next) => set(next)}
               />
 
-              {/* Connections */}
-              <div className="bd-surface rounded-xl">
-                <LeadConnectionsCard
-                  leadId={lead.id}
-                  company={lead.company}
-                  propertyAddress={lead.property_address}
-                />
-              </div>
-
               {/* Lineage */}
               <LeadLineageCard leadId={lead.id} clientId={lead.client_id} />
             </div>
 
-            {/* ASIDE (col-span 4) — Activity */}
-            <aside className="lg:col-span-4">
-              <div className="lg:sticky lg:top-[260px] bd-surface rounded-xl p-5 flex flex-col">
-                <h3 className="bd-eyebrow mb-3">Activity</h3>
-                <BdActivityThread
-                  filter={{ leadId: lead.id }}
-                  emptyText="No activity yet — start the conversation."
+            {/* ASIDE (col-span 4) — Connections → Suggested matches → Activity */}
+            <aside className="lg:col-span-4 space-y-6">
+              <div className="lg:sticky lg:top-[260px] space-y-6">
+                <div className="bd-surface rounded-xl">
+                  <LeadConnectionsCard
+                    leadId={lead.id}
+                    company={lead.company}
+                    propertyAddress={lead.property_address}
+                  />
+                </div>
+
+                <LeadSuggestedMatchesCard
+                  leadId={lead.id}
+                  tags={Array.isArray((lead as any).tags) ? (lead as any).tags : []}
+                  clientType={lead.client_type}
+                  sourceType={lead.source_type}
+                  company={lead.company}
                 />
+
+                <div className="bd-surface rounded-xl p-5 flex flex-col">
+                  <h3 className="bd-eyebrow mb-3">Activity</h3>
+                  <BdActivityThread
+                    filter={{ leadId: lead.id }}
+                    emptyText="No activity yet — start the conversation."
+                  />
+                </div>
               </div>
             </aside>
           </div>
