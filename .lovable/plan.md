@@ -1,56 +1,82 @@
-# BD Lead Detail — Refinement Pass
+# BD Lead Detail — Flow, IA, and Cleanup Pass
 
-Tightens the recent redesign based on your feedback. No data-model changes; one label rename and a small identity-card expansion.
+Combines the structural redesign with the previously-deferred items. Two are kept out of scope with reasons noted at the bottom.
 
-## 1. Tone down the visual loudness
-
-- **Drop Space Grotesk + DM Sans** for BD pages. Use the same font stack as the rest of Ordino (system/Inter — whatever the global `body` resolves to). Remove the BD-only Google Fonts `<link>` from `index.html`.
-- **Bump up sizes** to match the app: section headers move from `text-[10px]` micro-caps to the standard Ordino label size (`text-xs font-medium uppercase tracking-wide text-slate-500`). Body text uses `text-sm`, values `text-base`.
-- **Amber → match Ordino**: keep amber strictly as a small accent (pipeline active step, single icon hue, link hover). Remove:
-  - the gold gradient on the "Next Follow-up" card → replace with a quiet white card, `border-slate-200`, with a small amber dot + `text-slate-900` heading
-  - amber-700 uppercase subheaders → switch to slate
-  - amber-tinted page background → return to Ordino's standard `bg-slate-50`
-- Net effect: BD pages look like the rest of Ordino, just with the new editorial grid composition kept intact.
-
-## 2. Subject vs Property (what's there today)
-
-In the DB:
-- `subject` — short topic line, captured in the modal with the placeholder *"e.g. Summons, Violation, New Building…"*
-- `property_address` — the street address, used to deep-link into Properties
-
-They map cleanly to your instinct: **rename `subject` → "Opportunity"** in the UI only (no migration). Placeholder becomes *"What's the work? (e.g. Façade LL11, New Building, Violation)"*. The Property field stays as the address.
-
-## 3. Identity card — recommendation
-
-Show the lead's origin story compactly, with comms living in the activity rail:
+## Page structure (top → bottom, main column)
 
 ```
-PRIMARY IDENTITY
-Jane Doe • Property Manager
-ACME Realty
-jane@acme.com • (212) 555-0100
-
-WHERE WE MET
-In-person · Industry Mixer @ Javits  · Jun 4, 2026
-First contact: 9 days ago
-
-COMMUNICATIONS
-3 emails · 1 call · last activity 2d ago      [Jump to thread →]
+┌─ Sticky header: name, company, Prospect/Contact toggle, badges, stage stepper ─┐
+│                                                                                 │
+│ MAIN (col-8)                              ASIDE (col-4, sticky)                │
+│ ───────────                               ─────────────────                    │
+│ 1. Identity                               Activity                             │
+│    name • role • company • email …        (notes, emails, calls,               │
+│                                            meetings, stage changes              │
+│ 2. Origin           ← MOVED UP             — running log for THIS lead)        │
+│    Source · Event · First contact                                              │
+│    3 emails · 1 call · last 2d ago        Connections   ← MOVED HERE           │
+│                                            Same company (n)                    │
+│ 3. Opportunity  (was Project Details)      Same property (n)                   │
+│    Opportunity · Property · Architect/GC   Prior client? badge                 │
+│                                                                                │
+│ 4. Qualification                                                               │
+│    Timeline · Expected value · Owner · Notes                                   │
+│                                                                                │
+│ 5. Outreach                                                                    │
+│    Sequence enrollment + Next Follow-up (one-off)                              │
+│                                                                                │
+│ 6. Lineage (only when proposal/project exists)                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- Source line pulls `lead_source_type` + `event_name` + `created_at`
-- Comms summary counts entries from `bd_activities` (filtered by type) — no new tables, no inline message bodies. The "Jump to thread →" anchors to the existing right-rail `BdActivityThread`.
-- Keeps the identity card scannable; the full timeline stays where it already lives.
+Deletions: standalone "Acquisition Source" card (folded into Origin), legacy `bd-display` classes.
 
-## 4. Out of scope (deferred)
+## Prospect vs Contact
 
-- Camera/no-event capture UX
-- `IN_PERSON` source enum migration
-- Sidebar nav restructure
+- New column `leads.lead_kind` (`PROSPECT` default, or `CONTACT`).
+- Toggle in the header next to the stage badge.
+- Capture modal gets a checkbox **"Save as Contact only (not a live opportunity)"**.
+- **Contacts do NOT auto-create clients/client_contacts.** They live in `leads` with `lead_kind=CONTACT`. The `clients`/`client_contacts` tables remain reserved for paying customers.
+- **Contacts can still be enrolled in sequences** (manually) — useful for "keep in touch" cadences. The sequence dropdown is available on both Prospect and Contact pages; no auto-enroll.
+- Contact pages **hide** the stage stepper, Won/Lost actions, and Expected Value (those imply a live deal). Everything else is the same.
+- BD → Leads list: default view shows Prospects only; a filter chip surfaces Contacts. One-click **"Promote to Prospect"** button on a Contact page (lands at NEW stage).
+
+## Outreach card (Sequence + Follow-up, side by side)
+
+- **Sequence** (left half): shows current enrollment if any — `Post-event nurture · Step 2 of 5 · Next: Tue Jun 16`. Buttons: `Enroll ▾` / `Pause` / `Unenroll`. Templates managed in BD → Sequences (already exists, unchanged).
+- **Next Follow-up** (right half): one-off personal reminder with date + note + Clear (same component, just half-width).
+- Quiet inline nudge when both empty on a Prospect past NEW stage: *"No outreach scheduled. Enroll in a sequence or set a follow-up."*
+
+## Disqualification reasons on LOST  *(now in scope)*
+
+When stage moves to LOST, open a tiny inline confirm with required reason: `Not a fit` · `No budget` · `Went with competitor` · `Unresponsive` · `Wrong contact` · `Other (specify)`. Stored on the lead in a new column `lost_reason` (text, nullable). Shown as a small slate chip under the stage badge when present.
+
+## IN_PERSON source enum  *(now in scope)*
+
+Add `IN_PERSON` to the `bd_lead_source_type` enum. Label "In person" with a `Users` icon. Used when you meet someone walking the floor / on a job site / at a coffee shop and it's *not* tied to a tracked event. The capture-modal source picker gets it as a new option (no other modal changes).
+
+## Tooltips — confusing fields only
+
+Small `(i)` icon next to: **Stage**, **Hot**, **Source**, **Sequence**, **Next Follow-up**, **Connections**, **Expected value**, **Lead type**. One-line Radix tooltip each. No tooltips on Name/Email/Phone/Company/Address/Notes.
+
+## Out of scope — with reasons
+
+- **Capture-modal redesign** — bigger surface than this batch; the modal is functional today, and the only modal-related change here (adding `IN_PERSON` and the "Contact only" checkbox) is small. Full redesign deserves its own pass with screens.
+- **BD sidebar nav restructure** — needs a separate IA conversation across all BD pages (Leads, Events, Sequences, Follow-ups, Market Signals). Doing it inside a lead-detail batch would scope-creep.
 
 ## Technical notes
 
-- Files touched: `src/pages/bd/BdLeadDetail.tsx`, `src/index.css` (remove `.bd-scope` overrides), `index.html` (remove Google Fonts link), `src/components/bd/CaptureLeadModal.tsx` (relabel Subject→Opportunity).
-- `LeadStageStepper.tsx` keeps the bar-segment layout but uses amber-600 only on the active segment, slate-200 elsewhere.
-- Comms summary computed client-side from the already-fetched `bd_activities` — no new query.
-- Changelog entry: "Refined BD lead detail typography, color, and identity card."
+- **Migration (one file):**
+  - `ALTER TYPE bd_lead_source_type ADD VALUE 'IN_PERSON'`
+  - `CREATE TYPE lead_kind AS ENUM ('PROSPECT','CONTACT')`
+  - `ALTER TABLE leads ADD COLUMN lead_kind lead_kind NOT NULL DEFAULT 'PROSPECT'`
+  - `ALTER TABLE leads ADD COLUMN lost_reason text`
+- **Files touched:**
+  - `src/pages/bd/BdLeadDetail.tsx` — reorder, Prospect/Contact toggle, Outreach card, LOST reason flow, tooltips
+  - `src/pages/bd/BdLeads.tsx` — Contacts filter chip, default exclude Contacts from Prospect view
+  - `src/components/bd/CaptureLeadModal.tsx` — "Save as Contact only" checkbox, `IN_PERSON` option
+  - `src/components/bd/LeadConnectionsCard.tsx` — visual trim for sidebar
+  - `src/components/bd/leadConstants.tsx` — SOURCE_META entry for `IN_PERSON`
+  - New: `src/components/bd/InfoTip.tsx` (Radix tooltip wrapper around `Info` icon)
+  - New: `src/components/bd/LeadOutreachCard.tsx` (Sequence + Follow-up combined)
+- **Changelog entry** logged at the end.
