@@ -8,8 +8,12 @@ export interface ContentCandidate {
   priority: string;
   status: string;
   relevance_score: number | null;
+  demand_score: number | null;
+  search_interest: string | null;
   key_topics: string[] | null;
   reasoning: string | null;
+  review_question: string | null;
+  team_questions: string[] | null;
   team_questions_count: number | null;
   source_type: string | null;
   source_url: string | null;
@@ -89,6 +93,49 @@ export function useUpdateCandidateStatus() {
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["content-candidates"] }),
+  });
+}
+
+// Save an edited draft body back to generated_content (re-counts words).
+export function useSaveDraft() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, candidateId, content }: { id: string; candidateId: string; content: string }) => {
+      const word_count = content.split(/\s+/).filter(Boolean).length;
+      const { error } = await (supabase as any)
+        .from("generated_content")
+        .update({ content, word_count })
+        .eq("id", id);
+      if (error) throw error;
+      return { candidateId };
+    },
+    onSuccess: ({ candidateId }) => {
+      qc.invalidateQueries({ queryKey: ["generated-content", candidateId] });
+    },
+  });
+}
+
+// Publish: mark both the draft row and its candidate as published.
+export function usePublish() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ draftId, candidateId, url }: { draftId: string; candidateId: string; url?: string }) => {
+      const { error: e1 } = await (supabase as any)
+        .from("generated_content")
+        .update({ status: "published", published_url: url || null })
+        .eq("id", draftId);
+      if (e1) throw e1;
+      const { error: e2 } = await (supabase as any)
+        .from("content_candidates")
+        .update({ status: "published", updated_at: new Date().toISOString() })
+        .eq("id", candidateId);
+      if (e2) throw e2;
+    },
+    onSuccess: (_d, { candidateId }) => {
+      qc.invalidateQueries({ queryKey: ["content-candidates"] });
+      qc.invalidateQueries({ queryKey: ["published-content"] });
+      qc.invalidateQueries({ queryKey: ["generated-content", candidateId] });
+    },
   });
 }
 
