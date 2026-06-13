@@ -71,6 +71,11 @@ export default function Proposals() {
   useEffect(() => {
     const s = searchParams.get("status");
     if (s !== statusFilter) setStatusFilter(s);
+    // Quick Create deep-link from TopBar
+    if (searchParams.get("new") === "1") {
+      setEditingProposal(null);
+      setDialogOpen(true);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
   const [composeOpen, setComposeOpen] = useState(false);

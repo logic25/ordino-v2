@@ -150,6 +150,10 @@ export default function BdLeads() {
         ...(source_type ? { source_type: [source_type] } : {}),
       }));
     }
+    // Quick Create deep-link from TopBar
+    if (searchParams.get("new") === "1") {
+      setCaptureOpen(true);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
