@@ -217,6 +217,7 @@ export function CaptureLeadModal({ open, onOpenChange, onCreated }: CaptureLeadM
     setFullName(""); setCompany(""); setRole(""); setEmail(""); setPhone(""); setClientType("");
     setSubject(""); setPropertyAddress(""); setParty({ ...blankParty }); setOpenParty(null);
     setDrawingFiles([]); setTimeline(""); setExpectedValue(""); setHot(false);
+    setContactOnly(false);
     setAssignedTo(""); setNotes("");
   };
 
