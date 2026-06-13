@@ -39,6 +39,7 @@ export function NotificationDropdown() {
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
   const dismiss = useDismissNotification();
+  const dismissAll = useDismissAllNotifications();
   const navigate = useNavigate();
 
   // Re-trigger the wiggle animation each time the unread count INCREASES
@@ -94,17 +95,35 @@ export function NotificationDropdown() {
       <PopoverContent align="end" className="w-96 p-0">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <h3 className="font-semibold text-sm">Notifications</h3>
-          {unreadCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs gap-1 h-7"
-              onClick={() => markAllRead.mutate()}
-            >
-              <CheckCheck className="h-3.5 w-3.5" />
-              Mark all read
-            </Button>
-          )}
+          <div className="flex items-center gap-1">
+            {unreadCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs gap-1 h-7"
+                onClick={() => markAllRead.mutate()}
+              >
+                <CheckCheck className="h-3.5 w-3.5" />
+                Mark all read
+              </Button>
+            )}
+            {notifications.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs gap-1 h-7 text-destructive hover:text-destructive"
+                disabled={dismissAll.isPending}
+                onClick={() => {
+                  if (confirm(`Clear all ${notifications.length} notifications?`)) {
+                    dismissAll.mutate();
+                  }
+                }}
+              >
+                <X className="h-3.5 w-3.5" />
+                Clear all
+              </Button>
+            )}
+          </div>
         </div>
         <ScrollArea className="max-h-[400px]">
           {isLoading ? (
