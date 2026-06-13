@@ -10,7 +10,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  ArrowLeft, Flame, Loader2, Pencil, FilePlus2, Trophy, Ban, Check, CalendarClock,
+  ArrowLeft, Flame, Loader2, Pencil, FilePlus2, Trophy, Ban, Check, CalendarClock, X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
