@@ -10,7 +10,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  ArrowLeft, Flame, Loader2, Pencil, FilePlus2, Trophy, Ban, Check, CalendarClock,
+  ArrowLeft, Flame, Loader2, Pencil, FilePlus2, Trophy, Ban, Check, CalendarClock, X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -33,6 +33,21 @@ const CLIENT_TYPES = [
   "homeowner", "property_manager", "contractor", "architect",
   "developer", "management_company", "government", "other",
 ];
+
+/** Suggest a likely company/organization name from a government-style role title. */
+function suggestCompanyFromRole(role: string | null | undefined): string | null {
+  if (!role) return null;
+  const r = role.trim();
+  if (!r) return null;
+  const govPatterns = [
+    /borough president/i, /council member/i, /councilmember/i, /commissioner/i,
+    /comptroller/i, /public advocate/i, /assembly member/i, /assemblymember/i,
+    /state senator/i, /senator/i, /district leader/i, /community board/i,
+    /mayor/i, /deputy mayor/i, /chief of staff/i, /director of/i,
+  ];
+  if (govPatterns.some((p) => p.test(r))) return `Office of the ${r}`;
+  return null;
+}
 
 /** Click-to-edit text field with a hover pencil. Saves on blur or Enter. */
 function EditableText({
@@ -181,9 +196,21 @@ export default function BdLeadDetail() {
 
           {/* NEXT FOLLOW-UP — personal cadence (not an automated sequence) */}
           <Card className="p-3 space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
-              <CalendarClock className="h-3.5 w-3.5" /> Next follow-up
-            </p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                <CalendarClock className="h-3.5 w-3.5" /> Next follow-up
+              </p>
+              {(lead.next_follow_up_at || lead.follow_up_note) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => set({ next_follow_up_at: null, follow_up_note: null })}
+                >
+                  <X className="h-3.5 w-3.5 mr-1" /> Clear
+                </Button>
+              )}
+            </div>
             <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="date"
@@ -201,11 +228,11 @@ export default function BdLeadDetail() {
                   if (v !== (lead.follow_up_note ?? null)) set({ follow_up_note: v });
                 }}
                 className="h-9 flex-1 rounded-md border bg-background px-2 text-sm"
-                key={`n-${lead.id}`}
+                key={`n-${lead.id}-${lead.follow_up_note ?? ""}`}
               />
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Personal reminder — shows in <span className="font-medium">BD → Follow-ups</span>. Not an automated email.
+              Personal reminder — shows in <span className="font-medium">BD → Follow-ups</span>. Not an automated email. Use <span className="font-medium">Clear</span> to dismiss.
             </p>
           </Card>
         </div>
@@ -216,10 +243,36 @@ export default function BdLeadDetail() {
             <Card className="p-4 space-y-1">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Identity</p>
               <Field label="Name"><EditableText value={lead.full_name} onSave={(v) => set({ full_name: v })} placeholder="Add name" forceEdit={editAll} /></Field>
-              <Field label="Company"><EditableText value={lead.company} onSave={(v) => set({ company: v })} placeholder="Add company" forceEdit={editAll} /></Field>
+              <Field label="Company">
+                <div className="space-y-1">
+                  <EditableText
+                    value={lead.company}
+                    onSave={(v) => set({ company: v })}
+                    placeholder={suggestCompanyFromRole(lead.role) ?? "Add company"}
+                    forceEdit={editAll}
+                  />
+                  {!lead.company && suggestCompanyFromRole(lead.role) && (
+                    <button
+                      type="button"
+                      onClick={() => set({ company: suggestCompanyFromRole(lead.role)! })}
+                      className="text-[11px] text-primary hover:underline pl-1.5"
+                    >
+                      Use suggested: "{suggestCompanyFromRole(lead.role)}"
+                    </button>
+                  )}
+                </div>
+              </Field>
               <Field label="Role"><EditableText value={lead.role} onSave={(v) => set({ role: v })} placeholder="Add role" forceEdit={editAll} /></Field>
               <Field label="Email"><EditableText value={lead.contact_email} onSave={(v) => set({ contact_email: v })} placeholder="Add email" forceEdit={editAll} /></Field>
               <Field label="Phone"><EditableText value={lead.contact_phone} onSave={(v) => set({ contact_phone: v })} placeholder="Add phone" forceEdit={editAll} /></Field>
+              <Field label="Address">
+                <EditableText
+                  value={(lead as any).contact_address ?? null}
+                  onSave={(v) => set({ contact_address: v } as any)}
+                  placeholder="Add mailing/office address"
+                  forceEdit={editAll}
+                />
+              </Field>
               <Field label="Client type">
                 <Select value={lead.client_type ?? undefined} onValueChange={(v) => set({ client_type: v })}>
                   <SelectTrigger className="h-8"><SelectValue placeholder="Set client type" /></SelectTrigger>
