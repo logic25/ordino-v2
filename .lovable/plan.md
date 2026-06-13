@@ -1,73 +1,56 @@
-## Lead Detail Page — Full Restructure
+# BD Lead Detail — Refinement Pass
 
-Base structure = **v3 (Architectural editorial)**. Color scheme = **Ordino slate/amber with cream accents** (a hint of the reference, not a full repaint). Follow-up treatment = **v2's bold gold card** (clearer than v3's muted version). All current sections preserved — v3 dropped a few that we're putting back.
+Tightens the recent redesign based on your feedback. No data-model changes; one label rename and a small identity-card expansion.
 
-### Visual system (scoped to `/bd/*` only)
+## 1. Tone down the visual loudness
 
-Add a `.bd-section` scope in `index.css` that overlays cream tints on top of Ordino's existing slate/amber tokens — main app is untouched.
+- **Drop Space Grotesk + DM Sans** for BD pages. Use the same font stack as the rest of Ordino (system/Inter — whatever the global `body` resolves to). Remove the BD-only Google Fonts `<link>` from `index.html`.
+- **Bump up sizes** to match the app: section headers move from `text-[10px]` micro-caps to the standard Ordino label size (`text-xs font-medium uppercase tracking-wide text-slate-500`). Body text uses `text-sm`, values `text-base`.
+- **Amber → match Ordino**: keep amber strictly as a small accent (pipeline active step, single icon hue, link hover). Remove:
+  - the gold gradient on the "Next Follow-up" card → replace with a quiet white card, `border-slate-200`, with a small amber dot + `text-slate-900` heading
+  - amber-700 uppercase subheaders → switch to slate
+  - amber-tinted page background → return to Ordino's standard `bg-slate-50`
+- Net effect: BD pages look like the rest of Ordino, just with the new editorial grid composition kept intact.
 
-- Page background: `#faf8f3` (warm off-white, subtle nod to the reference cream)
-- Surface / cards: `white` with `border-slate-200/70`
-- Ink: existing slate-900 / slate-600 / slate-400
-- Accent: existing **amber-500 / amber-600** (Ordino brand) — used for active pipeline stage, expected value, follow-up card, source tag
-- Hairline dividers: `slate-200`
-- Headings: Space Grotesk (already loaded)
-- Body: DM Sans (add via Google Fonts link in `index.html`)
-- Section labels: `text-[10px] font-bold uppercase tracking-[0.2em] text-amber-700`
+## 2. Subject vs Property (what's there today)
 
-### Page composition (v3 skeleton, all sections restored)
+In the DB:
+- `subject` — short topic line, captured in the modal with the placeholder *"e.g. Summons, Violation, New Building…"*
+- `property_address` — the street address, used to deep-link into Properties
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│ Sticky header: ← Leads / breadcrumb                         │
-│   Vanessa L. Gibson           [Edit details] [• • • menu]   │
-│   Office of the Bronx Borough President                     │
-│   [Event] [Hot] [client_type]                               │
-│   ▰▰▰▱▱  Stage: Qualified                                  │
-├──────────────────────────────────────┬──────────────────────┤
-│ MAIN (col-span 8)                    │ ASIDE (col-span 4)   │
-│                                      │                      │
-│ § PRIMARY IDENTITY                   │ § ACTIVITY           │
-│   Role        | Client type          │   (BdActivityThread, │
-│   Email       | Phone                │    full height,      │
-│   Address (full width)               │    sticky composer)  │
-│                                      │                      │
-│ § PROJECT DETAILS                    │                      │
-│   Subject (inline edit)              │                      │
-│   Property address (inline edit)     │                      │
-│                                      │                      │
-│ § QUALIFICATION                      │                      │
-│   Timeline | Expected value | Owner  │                      │
-│                                      │                      │
-│ § NEXT FOLLOW-UP  ← amber card (v2)  │                      │
-│   "Discuss Hudson Yards…"            │                      │
-│   Jun 24 · [Clear]                   │                      │
-│                                      │                      │
-│ § SOURCE                             │                      │
-│   NY Building Congress — Jun 15      │                      │
-│                                      │                      │
-│ § CONNECTIONS                        │                      │
-│   People we know at this company     │                      │
-│   Our work at this address           │                      │
-└──────────────────────────────────────┴──────────────────────┘
+They map cleanly to your instinct: **rename `subject` → "Opportunity"** in the UI only (no migration). Placeholder becomes *"What's the work? (e.g. Façade LL11, New Building, Violation)"*. The Property field stays as the address.
+
+## 3. Identity card — recommendation
+
+Show the lead's origin story compactly, with comms living in the activity rail:
+
+```
+PRIMARY IDENTITY
+Jane Doe • Property Manager
+ACME Realty
+jane@acme.com • (212) 555-0100
+
+WHERE WE MET
+In-person · Industry Mixer @ Javits  · Jun 4, 2026
+First contact: 9 days ago
+
+COMMUNICATIONS
+3 emails · 1 call · last activity 2d ago      [Jump to thread →]
 ```
 
-All fields stay **inline-edit with debounced autosave** — click value → input → blur saves. No per-field buttons.
+- Source line pulls `lead_source_type` + `event_name` + `created_at`
+- Comms summary counts entries from `bd_activities` (filtered by type) — no new tables, no inline message bodies. The "Jump to thread →" anchors to the existing right-rail `BdActivityThread`.
+- Keeps the identity card scannable; the full timeline stays where it already lives.
 
-### Files changed
+## 4. Out of scope (deferred)
 
-- `src/pages/bd/BdLeadDetail.tsx` — full rewrite into the layout above. Keep all existing hooks (`useLead`, `useUpdateLead`, `useLeadConnections`, `useBdActivities`).
-- `src/index.css` — add Space Grotesk + DM Sans imports; add `.bd-scope` block with cream background and amber-700 label utility. No global token changes.
-- `src/components/bd/LeadStageStepper.tsx` — restyle as horizontal bar segments (v3-style) using existing amber tokens. Same props.
-- `src/components/bd/BdActivityThread.tsx` — minor: make it fill the parent height (`h-full` instead of fixed `h-[600px]`) so it slots into the sticky right rail.
-- `index.html` — add Google Fonts `<link>` for Space Grotesk + DM Sans.
+- Camera/no-event capture UX
+- `IN_PERSON` source enum migration
+- Sidebar nav restructure
 
-### Out of scope for this batch (carry-overs from earlier approved plan)
+## Technical notes
 
-These were already approved but kept separate so this redesign ships independently:
-
-1. `CaptureLeadModal` / `BdScanTab` source-picker copy ("In person" / "No event")
-2. `lead_source_type` enum migration to add `IN_PERSON`
-3. Camera permission helper text on the scan button
-
-Confirm and I'll ship the redesign first, then tackle 1–3 in the next batch.
+- Files touched: `src/pages/bd/BdLeadDetail.tsx`, `src/index.css` (remove `.bd-scope` overrides), `index.html` (remove Google Fonts link), `src/components/bd/CaptureLeadModal.tsx` (relabel Subject→Opportunity).
+- `LeadStageStepper.tsx` keeps the bar-segment layout but uses amber-600 only on the active segment, slate-200 elsewhere.
+- Comms summary computed client-side from the already-fetched `bd_activities` — no new query.
+- Changelog entry: "Refined BD lead detail typography, color, and identity card."
