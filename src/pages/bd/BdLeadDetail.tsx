@@ -71,7 +71,7 @@ function EditableText({
       <textarea
         autoFocus={editing}
         rows={3}
-        className="w-full rounded-md border border-amber-200/60 bg-white px-2.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 resize-y"
+        className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 resize-y"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
@@ -79,7 +79,7 @@ function EditableText({
     ) : (
       <Input
         autoFocus={editing}
-        className="h-8 border-amber-200/60 focus-visible:ring-amber-500"
+        className="h-9 border-slate-300 focus-visible:ring-amber-500"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
