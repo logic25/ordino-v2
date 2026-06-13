@@ -71,10 +71,26 @@ export function useBeaconAnalytics(dateRange: DateRange) {
     },
   });
 
+  // Reviewed (approved/rejected) corrections — the audit trail behind the Feedback panel.
+  const reviewed = useQuery({
+    queryKey: ["beacon-suggestions-reviewed", dateRange],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("beacon_suggestions")
+        .select("*")
+        .neq("status", "pending")
+        .order("reviewed_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
   const isLoading = interactions.isLoading || apiUsage.isLoading || suggestions.isLoading;
   const rows = interactions.data || [];
   const costs = apiUsage.data || [];
   const pendingSuggestions = suggestions.data || [];
+  const reviewedSuggestions = reviewed.data || [];
 
   // KPIs
   const totalQuestions = rows.length;
@@ -219,5 +235,27 @@ export function useBeaconAnalytics(dateRange: DateRange) {
     costProviderKeys,
     teamActivity,
     pendingSuggestions,
+    reviewedSuggestions,
   };
+}
+
+// Turn a logged Beacon question into a content_candidate (feeds the Content pipeline).
+export function useTurnQuestionIntoContent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ question }: { question: string }) => {
+      const title = (question || "").slice(0, 140);
+      const { error } = await (supabase as any).from("content_candidates").insert({
+        id: `beacon-q-${Date.now()}`,
+        title,
+        content_type: "blog_post",
+        priority: "medium",
+        status: "pending",
+        source_type: "beacon_question",
+        reasoning: "Surfaced from a real Beacon question — people are already asking this.",
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["content-candidates"] }),
+  });
 }
