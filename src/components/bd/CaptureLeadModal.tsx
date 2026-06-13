@@ -245,6 +245,7 @@ export function CaptureLeadModal({ open, onOpenChange, onCreated }: CaptureLeadM
         project_timeline: (timeline || null) as LeadTimeline | null,
         expected_value: expectedValue ? Number(expectedValue) : null,
         hot_opportunity: hot,
+        lead_kind: contactOnly ? "CONTACT" : "PROSPECT",
         assigned_to: assignedTo || null,
         notes: notes.trim() || null,
         drawings_uploaded: drawingFiles.length > 0,
