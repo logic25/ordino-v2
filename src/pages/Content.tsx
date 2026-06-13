@@ -3,20 +3,22 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   Loader2, Sparkles, Check, X, Send, FileText, Mail, Eye, Copy, Pencil,
-  TrendingUp, Users, ExternalLink, HelpCircle,
+  TrendingUp, Users, ExternalLink, HelpCircle, Plus, LayoutTemplate,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useToast } from "@/hooks/use-toast";
 import {
   useContentCandidates, useGeneratedFor, usePublishedContent,
-  useUpdateCandidateStatus, useGenerateDraft, useSaveDraft, usePublish,
+  useUpdateCandidateStatus, useGenerateDraft, useSaveDraft, usePublish, useComposeContent,
   type ContentCandidate,
 } from "@/hooks/useContent";
+import { CONTENT_TEMPLATES, type ContentTemplate } from "@/lib/contentTemplates";
 
 const STAGES: { key: string; label: string; tone: string }[] = [
   { key: "pending", label: "Ideas", tone: "text-foreground" },
@@ -227,6 +229,78 @@ function IdeaCard({
   );
 }
 
+// ── Compose from scratch (optionally seeded by a template) ──────────────────
+function ComposeDialog({
+  open, onClose, preset, onComposed,
+}: {
+  open: boolean;
+  onClose: () => void;
+  preset: ContentTemplate | null;
+  onComposed: (c: ContentCandidate) => void;
+}) {
+  const { toast } = useToast();
+  const compose = useComposeContent();
+  const [title, setTitle] = useState("");
+  const [type, setType] = useState<"blog_post" | "newsletter">("blog_post");
+  const [templateId, setTemplateId] = useState<string>("");
+
+  useEffect(() => {
+    if (open) {
+      setTitle("");
+      setType(preset?.content_type ?? "blog_post");
+      setTemplateId(preset?.id ?? "");
+    }
+  }, [open, preset]);
+
+  const tmpl = CONTENT_TEMPLATES.find((t) => t.id === templateId);
+
+  const submit = async () => {
+    if (!title.trim()) { toast({ title: "Add a title first", variant: "destructive" }); return; }
+    const c = await compose.mutateAsync({ title: title.trim(), content_type: type, body: tmpl?.body ?? `# ${title.trim()}\n\n` });
+    toast({ title: "Draft created", description: "Opening the editor…" });
+    onClose();
+    onComposed(c);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle className="flex items-center gap-2"><Plus className="h-4 w-4" /> Compose from Scratch</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Title</label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. New DOB NOW filing requirement for 2026" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Type</label>
+              <div className="flex gap-1.5 mt-1">
+                <Button type="button" size="sm" variant={type === "blog_post" ? "default" : "outline"} onClick={() => setType("blog_post")} className="flex-1"><FileText className="h-3.5 w-3.5 mr-1" />Blog</Button>
+                <Button type="button" size="sm" variant={type === "newsletter" ? "default" : "outline"} onClick={() => setType("newsletter")} className="flex-1"><Mail className="h-3.5 w-3.5 mr-1" />Newsletter</Button>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Template</label>
+              <select value={templateId} onChange={(e) => setTemplateId(e.target.value)}
+                className="mt-1 w-full h-9 rounded-md border bg-background px-2 text-sm">
+                <option value="">Blank</option>
+                {CONTENT_TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.icon} {t.name}</option>)}
+              </select>
+            </div>
+          </div>
+          {tmpl && <p className="text-xs text-muted-foreground">{tmpl.description}</p>}
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button onClick={submit} disabled={compose.isPending}>
+            {compose.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Pencil className="h-4 w-4 mr-1" />}Create draft
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function Content() {
   const { toast } = useToast();
   const { data: candidates = [], isLoading } = useContentCandidates();
@@ -235,6 +309,10 @@ export default function Content() {
   const generate = useGenerateDraft();
   const [viewing, setViewing] = useState<ContentCandidate | null>(null);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [composePreset, setComposePreset] = useState<ContentTemplate | null>(null);
+
+  const openCompose = (preset: ContentTemplate | null = null) => { setComposePreset(preset); setComposeOpen(true); };
 
   const byStage = useMemo(() => {
     const g: Record<string, ContentCandidate[]> = { pending: [], drafted: [], approved: [], published: [], skipped: [] };
@@ -259,15 +337,19 @@ export default function Content() {
   return (
     <AppLayout>
       <div className="space-y-4 animate-fade-in">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2"><Sparkles className="h-6 w-6 text-orange-500" /> Content Intelligence</h1>
-          <p className="text-sm text-muted-foreground">AI-identified content opportunities from your knowledge base &amp; team questions. Draft, review, publish.</p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2"><Sparkles className="h-6 w-6 text-orange-500" /> Content Intelligence</h1>
+            <p className="text-sm text-muted-foreground">AI-identified content opportunities from your knowledge base &amp; team questions. Draft, review, publish.</p>
+          </div>
+          <Button onClick={() => openCompose(null)}><Plus className="h-4 w-4 mr-1" /> Compose from Scratch</Button>
         </div>
 
         <Tabs defaultValue="pipeline">
           <TabsList>
             <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
             <TabsTrigger value="published">Published ({published.length})</TabsTrigger>
+            <TabsTrigger value="templates">Templates ({CONTENT_TEMPLATES.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="pipeline" className="mt-4 space-y-5">
@@ -310,10 +392,31 @@ export default function Content() {
               </Card>
             ))}
           </TabsContent>
+
+          <TabsContent value="templates" className="mt-4 space-y-4">
+            <Card className="p-4 bg-muted/30">
+              <div className="font-semibold flex items-center gap-2"><LayoutTemplate className="h-4 w-4" /> Content Templates</div>
+              <p className="text-sm text-muted-foreground mt-0.5">Pre-built structures for common content types. Pick one to get a head start.</p>
+            </Card>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {CONTENT_TEMPLATES.map((t) => (
+                <Card key={t.id} className="p-4 flex flex-col">
+                  <div className="flex items-center gap-2 font-semibold"><span>{t.icon}</span>{t.name}</div>
+                  <Badge variant="secondary" className="text-[10px] w-fit mt-1.5">{t.category}</Badge>
+                  <p className="text-sm text-muted-foreground mt-2 flex-1">{t.description}</p>
+                  <pre className="mt-3 max-h-28 overflow-hidden rounded bg-muted/60 p-2 text-[11px] leading-snug text-muted-foreground whitespace-pre-wrap">{t.body.split("\n").slice(0, 6).join("\n")}</pre>
+                  <Button size="sm" variant="outline" className="mt-3" onClick={() => openCompose(t)}>
+                    <Pencil className="h-3.5 w-3.5 mr-1" /> Use template
+                  </Button>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
         </Tabs>
       </div>
 
       <PreviewDialog candidate={viewing} open={!!viewing} onClose={() => setViewing(null)} />
+      <ComposeDialog open={composeOpen} onClose={() => setComposeOpen(false)} preset={composePreset} onComposed={setViewing} />
     </AppLayout>
   );
 }

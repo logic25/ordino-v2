@@ -96,6 +96,32 @@ export function useUpdateCandidateStatus() {
   });
 }
 
+// Compose from scratch: create a manual candidate + a draft pre-filled from a
+// template skeleton, landing straight in "drafted" so you can edit & publish it.
+export function useComposeContent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ title, content_type, body }: { title: string; content_type: string; body: string }) => {
+      const id = `manual-${Date.now()}`;
+      const word_count = body.split(/\s+/).filter(Boolean).length;
+      const { error: e1 } = await (supabase as any).from("content_candidates").insert({
+        id, title, content_type, priority: "medium", status: "drafted",
+        source_type: "manual", reasoning: "Composed from scratch",
+      });
+      if (e1) throw e1;
+      const { error: e2 } = await (supabase as any).from("generated_content").insert({
+        id: `gen-${id}`, candidate_id: id, content_type, title, content: body, word_count, status: "draft",
+      });
+      if (e2) throw e2;
+      return { id, title, content_type, status: "drafted", priority: "medium" } as unknown as ContentCandidate;
+    },
+    onSuccess: (cand) => {
+      qc.invalidateQueries({ queryKey: ["content-candidates"] });
+      qc.invalidateQueries({ queryKey: ["generated-content", cand.id] });
+    },
+  });
+}
+
 // Save an edited draft body back to generated_content (re-counts words).
 export function useSaveDraft() {
   const qc = useQueryClient();
