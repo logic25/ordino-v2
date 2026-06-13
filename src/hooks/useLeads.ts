@@ -16,6 +16,7 @@ export const SOURCE_LABELS: Record<LeadSourceType, string> = {
   WEBSITE: "the website",
   GOOGLE: "Google",
   COLD: "a cold outreach",
+  IN_PERSON: "in person",
   OTHER: "other",
 };
 
