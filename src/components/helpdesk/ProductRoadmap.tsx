@@ -259,12 +259,26 @@ export function ProductRoadmap() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("roadmap_items").delete().eq("id", id);
+      const { data, error } = await supabase
+        .from("roadmap_items")
+        .delete()
+        .eq("id", id)
+        .select("id");
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("Not permitted: only company admins can delete roadmap items.");
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["roadmap-items"] });
       toast({ title: "Item removed" });
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Couldn't delete item",
+        description: err?.message ?? "Unknown error",
+        variant: "destructive",
+      });
     },
   });
 
