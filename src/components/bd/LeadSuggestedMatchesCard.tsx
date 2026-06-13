@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Sparkles, ArrowUpRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { InfoTip } from "@/components/bd/InfoTip";
 
 /**
  * "People in your network who might be a fit for this lead."
