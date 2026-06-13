@@ -1,8 +1,24 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { subDays, format, formatDistanceToNow } from "date-fns";
 
 export type DateRange = "7" | "30" | "90" | "all";
+
+// Approve/reject a Beacon KB correction suggestion. Approving flips status to
+// 'approved'; Beacon's poller ingests approved corrections into the knowledge base.
+export function useReviewSuggestion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, status, reviewedBy }: { id: number; status: "approved" | "rejected"; reviewedBy?: string }) => {
+      const { error } = await supabase
+        .from("beacon_suggestions")
+        .update({ status, reviewed_by: reviewedBy ?? null, reviewed_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["beacon-suggestions"] }),
+  });
+}
 
 function getDateStart(range: DateRange): string | null {
   if (range === "all") return null;
