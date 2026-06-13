@@ -495,7 +495,10 @@ export function DobNowFilingPrepSheet({
       setLoggedIn(false);
       setSubmitStep("session");
       setShowSessionModal(true);
-      toast({ title: "Session created", description: "Log into DOB NOW in the browser window, then click 'I'm Logged In'." });
+      toast({
+        title: "Session created",
+        description: "Log in, click +Job Filing, select Alteration, then click Next. Then hand off to the agent.",
+      });
     } catch (err) {
       console.error("[FilingAgent] Session creation error:", err);
       toast({ title: "Error", description: "Failed to create browser session.", variant: "destructive" });
@@ -1021,19 +1024,37 @@ export function DobNowFilingPrepSheet({
                       allow="autoplay; encrypted-media; fullscreen"
                       title="DOB NOW Login Session"
                     />
-                    <div className="flex items-center gap-2 px-4 py-3 border-t shrink-0">
-                      <Button
-                        className="flex-1 gap-2"
-                        onClick={() => {
-                          setLoggedIn(true);
-                          setShowSessionModal(false);
-                        }}
-                      >
-                        <CheckCircle2 className="h-4 w-4" /> I'm Logged In
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => { resetAgentState(); setShowSessionModal(false); }}>
-                        Cancel
-                      </Button>
+                    <div className="flex flex-col gap-2 px-4 py-3 border-t shrink-0">
+                      <div className="text-xs text-muted-foreground space-y-1">
+                        <p>
+                          <span className="font-semibold text-foreground">Step 1.</span>{" "}
+                          Log into DOB NOW.
+                        </p>
+                        <p>
+                          <span className="font-semibold text-foreground">Step 2.</span>{" "}
+                          Click <span className="font-mono text-foreground">+ Job Filing</span>, select{" "}
+                          <span className="font-mono text-foreground">Alteration</span>, click{" "}
+                          <span className="font-mono text-foreground">Next</span>. Stop on the 5-questions screen.
+                        </p>
+                        <p>
+                          <span className="font-semibold text-foreground">Step 3.</span>{" "}
+                          Hand off below — agent fills the rest automatically.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          className="flex-1 gap-2"
+                          onClick={() => {
+                            setLoggedIn(true);
+                            setShowSessionModal(false);
+                          }}
+                        >
+                          <CheckCircle2 className="h-4 w-4" /> Hand Off to Agent
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => { resetAgentState(); setShowSessionModal(false); }}>
+                          Cancel
+                        </Button>
+                      </div>
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -1042,7 +1063,7 @@ export function DobNowFilingPrepSheet({
                   <div className="space-y-2 pt-2">
                     <div className="flex items-center gap-2 p-2 rounded-md bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800 text-sm text-emerald-700 dark:text-emerald-300">
                       <CheckCircle2 className="h-4 w-4 shrink-0" />
-                      <span className="font-medium">Logged in — ready to launch agent</span>
+                      <span className="font-medium">Modal open — ready to launch agent</span>
                     </div>
                     <Button
                       className="w-full gap-2"
@@ -1057,7 +1078,7 @@ export function DobNowFilingPrepSheet({
                       Launch Filing Agent
                     </Button>
                     <p className="text-xs text-muted-foreground text-center">
-                      The agent will connect to your logged-in session and fill the DOB NOW forms.
+                      The agent will pick up from the Initial Job Filing modal and fill the DOB NOW forms.
                     </p>
                   </div>
                 )}
