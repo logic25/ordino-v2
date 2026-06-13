@@ -5745,6 +5745,7 @@ export type Database = {
           client_type: string | null
           company: string | null
           company_id: string
+          contact_address: string | null
           contact_email: string | null
           contact_id: string | null
           contact_phone: string | null
@@ -5799,6 +5800,7 @@ export type Database = {
           client_type?: string | null
           company?: string | null
           company_id: string
+          contact_address?: string | null
           contact_email?: string | null
           contact_id?: string | null
           contact_phone?: string | null
@@ -5855,6 +5857,7 @@ export type Database = {
           client_type?: string | null
           company?: string | null
           company_id?: string
+          contact_address?: string | null
           contact_email?: string | null
           contact_id?: string | null
           contact_phone?: string | null
