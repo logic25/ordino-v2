@@ -76,7 +76,8 @@ function EditableText({
       <textarea
         autoFocus={editing}
         rows={3}
-        className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 resize-y"
+        placeholder={placeholder}
+        className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-2 text-sm placeholder:text-slate-400 placeholder:italic focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 resize-y"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
@@ -84,7 +85,8 @@ function EditableText({
     ) : (
       <Input
         autoFocus={editing}
-        className="h-9 border-slate-300 focus-visible:ring-amber-500"
+        placeholder={placeholder}
+        className="h-9 border-slate-300 placeholder:text-slate-400 placeholder:italic focus-visible:ring-amber-500"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
@@ -369,10 +371,12 @@ export default function BdLeadDetail() {
                 <div className="mt-5 pt-5 border-t border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1.5">Where we met</p>
-                    <p className="text-sm text-slate-900">
-                      {lead.source_type ? SOURCE_META[lead.source_type].label : "Source not specified"}
-                      {lead.event?.name && <> · <Link to="/bd/events" className="text-amber-600 hover:underline">{lead.event.name}</Link></>}
-                    </p>
+                    <WhereWeMetEditor
+                      sourceType={lead.source_type}
+                      eventId={lead.event_id ?? (lead.event as any)?.id ?? null}
+                      eventName={lead.event?.name ?? null}
+                      onChange={(next) => set(next)}
+                    />
                     <p className="text-xs text-slate-500 mt-1">
                       First contact {formatDistanceToNow(new Date(lead.created_at), { addSuffix: true })}
                       {lead.event?.start_date && <> · Event {format(new Date(lead.event.start_date), "MMM d, yyyy")}</>}
@@ -594,5 +598,90 @@ function LeadLineageCard({ leadId, clientId }: { leadId: string; clientId: strin
         project={data?.project}
       />
     </section>
+  );
+}
+
+/**
+ * Inline editor for "Where we met". Two compact selects:
+ *   - Source: how the lead came in (Event, Referral, Phone, …)
+ *   - Event:  shown only when source = EVENT. Lets you change which
+ *             event the lead is attached to (or detach it). Pulls from
+ *             bd_events. Selecting an event auto-sets source to EVENT.
+ */
+function WhereWeMetEditor({
+  sourceType,
+  eventId,
+  eventName,
+  onChange,
+}: {
+  sourceType: string | null;
+  eventId: string | null;
+  eventName: string | null;
+  onChange: (next: Record<string, any>) => void;
+}) {
+  const { data: events = [] } = useQuery({
+    queryKey: ["bd-events-picker"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("bd_events")
+        .select("id, name, start_date")
+        .order("start_date", { ascending: false })
+        .limit(50);
+      return (data ?? []) as { id: string; name: string; start_date: string | null }[];
+    },
+  });
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Select
+        value={sourceType ?? undefined}
+        onValueChange={(v) => onChange({ source_type: v, ...(v !== "EVENT" ? { event_id: null } : {}) })}
+      >
+        <SelectTrigger className="h-8 w-[150px] border-slate-300 text-sm">
+          <SelectValue placeholder="Set source" />
+        </SelectTrigger>
+        <SelectContent>
+          {Object.entries(SOURCE_META).map(([k, v]) => (
+            <SelectItem key={k} value={k}>{v.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {(sourceType === "EVENT" || eventId) && (
+        <Select
+          value={eventId ?? "__none__"}
+          onValueChange={(v) =>
+            onChange(
+              v === "__none__"
+                ? { event_id: null }
+                : { event_id: v, source_type: "EVENT" },
+            )
+          }
+        >
+          <SelectTrigger className="h-8 min-w-[200px] border-slate-300 text-sm">
+            <SelectValue placeholder={eventName ?? "Pick an event"} />
+          </SelectTrigger>
+          <SelectContent className="max-h-72">
+            <SelectItem value="__none__">— No event —</SelectItem>
+            {events.map((e) => (
+              <SelectItem key={e.id} value={e.id}>
+                {e.name}
+                {e.start_date && (
+                  <span className="text-xs text-slate-400 ml-2">
+                    {format(new Date(e.start_date), "MMM d, yyyy")}
+                  </span>
+                )}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+
+      {eventId && (
+        <Link to="/bd/events" className="text-xs text-amber-600 hover:underline">
+          Open event ↗
+        </Link>
+      )}
+    </div>
   );
 }
