@@ -1,5 +1,5 @@
 import {
-  CalendarDays, Users, Phone, Mail, Globe, Search, Snowflake, MoreHorizontal,
+  CalendarDays, Users, Phone, Mail, Globe, Search, Snowflake, MoreHorizontal, Handshake,
 } from "lucide-react";
 import type { LeadStage, LeadSourceType, LeadTimeline } from "@/hooks/useLeads";
 
