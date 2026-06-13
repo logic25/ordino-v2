@@ -5784,6 +5784,7 @@ export type Database = {
           stage: Database["public"]["Enums"]["bd_lead_stage"] | null
           status: string
           subject: string | null
+          tags: string[]
           tpp_email: string | null
           tpp_name: string | null
           updated_at: string
@@ -5843,6 +5844,7 @@ export type Database = {
           stage?: Database["public"]["Enums"]["bd_lead_stage"] | null
           status?: string
           subject?: string | null
+          tags?: string[]
           tpp_email?: string | null
           tpp_name?: string | null
           updated_at?: string
@@ -5902,6 +5904,7 @@ export type Database = {
           stage?: Database["public"]["Enums"]["bd_lead_stage"] | null
           status?: string
           subject?: string | null
+          tags?: string[]
           tpp_email?: string | null
           tpp_name?: string | null
           updated_at?: string
