@@ -63,6 +63,8 @@ export function NotificationDropdown() {
     prevCountRef.current = unreadCount;
   }, [unreadCount]);
 
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+
   const handleClick = (n: typeof notifications[0]) => {
     if (!n.read_at) markRead.mutate(n.id);
     if (n.link) navigate(n.link);
