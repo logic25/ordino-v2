@@ -11,11 +11,92 @@ import {
 } from "recharts";
 import {
   MessageSquare, Users, Target, AlertCircle, ChevronDown, Clock, DollarSign, Trophy,
+  Check, X, Loader2, Sparkles, Inbox,
 } from "lucide-react";
-import { useBeaconAnalytics, type DateRange } from "@/hooks/useBeaconAnalytics";
+import { Button } from "@/components/ui/button";
+import { useBeaconAnalytics, useReviewSuggestion, type DateRange } from "@/hooks/useBeaconAnalytics";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 
 const BEACON_ORANGE = "#f59e0b";
+
+// ── Feedback: pending KB correction suggestions, approve/reject ──────────────
+function SuggestionCard({ s }: { s: any }) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const review = useReviewSuggestion();
+  const act = (status: "approved" | "rejected") =>
+    review.mutate(
+      { id: s.id, status, reviewedBy: user?.email ?? user?.id },
+      {
+        onSuccess: () => toast({
+          title: status === "approved" ? "Approved" : "Rejected",
+          description: status === "approved"
+            ? "Beacon will fold this correction into the knowledge base."
+            : "Dismissed — won't be used.",
+        }),
+        onError: (e: any) => toast({ title: "Couldn't update", description: e.message, variant: "destructive" }),
+      },
+    );
+  return (
+    <div className="rounded-lg border p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <span className="font-medium text-foreground">{s.user_name || "Someone"}</span>
+          {s.timestamp && <span>· {formatDistanceToNow(new Date(s.timestamp), { addSuffix: true })}</span>}
+          {s.topics && <Badge variant="secondary" className="text-[9px]">{s.topics}</Badge>}
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Button size="sm" variant="outline" disabled={review.isPending} onClick={() => act("rejected")}>
+            <X className="h-3.5 w-3.5 mr-1" /> Reject
+          </Button>
+          <Button size="sm" disabled={review.isPending} onClick={() => act("approved")}>
+            {review.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Check className="h-3.5 w-3.5 mr-1" />} Approve
+          </Button>
+        </div>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div className="rounded-md bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 p-2">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">Beacon said (wrong)</div>
+          <p className="text-xs text-foreground/90 mt-0.5 whitespace-pre-wrap">{s.wrong_answer}</p>
+        </div>
+        <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 p-2">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Should be</div>
+          <p className="text-xs text-foreground/90 mt-0.5 whitespace-pre-wrap">{s.correct_answer}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FeedbackPanel({ suggestions, isLoading }: { suggestions: any[]; isLoading: boolean }) {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-orange-500" /> Feedback — KB Corrections to Review
+          {suggestions.length > 0 && <Badge className="ml-1">{suggestions.length}</Badge>}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Skeleton className="h-24 w-full" />
+        ) : suggestions.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+            <Inbox className="h-8 w-8 mb-2 opacity-40" />
+            <p className="text-xs">No corrections waiting. You're all caught up.</p>
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {suggestions.map((s) => <SuggestionCard key={s.id} s={s} />)}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 function formatAbbrev(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -150,6 +231,9 @@ export function BeaconAnalyticsDashboard() {
           );
         })}
       </div>
+
+      {/* Feedback — pending KB corrections (actionable, so it's up top) */}
+      <FeedbackPanel suggestions={data.pendingSuggestions} isLoading={data.isLoading} />
 
       {/* Questions Over Time + Topics */}
       <div className="grid gap-4 lg:grid-cols-2">
