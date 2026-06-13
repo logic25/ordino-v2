@@ -257,7 +257,14 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
         style: emailStyle,
       });
 
-      await sendBillingEmail({ to: clientEmail, subject, htmlBody });
+      await sendBillingEmail({
+        to: clientEmail,
+        subject,
+        htmlBody,
+        proposalId: proposal.id,
+        projectId: proposal.converted_project_id || undefined,
+        tagCategory: "client",
+      });
 
       track("proposals", "send_completed", { proposal_id: proposal.id });
       onConfirmSend(proposal.id);
