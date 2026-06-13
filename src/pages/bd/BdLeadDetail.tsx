@@ -176,45 +176,45 @@ export default function BdLeadDetail() {
       <div className="bd-scope min-h-screen -m-6 p-6 md:p-10 animate-fade-in">
         <div className="max-w-[1280px] mx-auto space-y-6">
           {/* ─── Sticky Header ───────────────────────────────────────── */}
-          <header className="sticky top-0 z-10 -mx-6 md:-mx-10 px-6 md:px-10 py-5 bg-[#faf8f3]/85 backdrop-blur-md border-b bd-hairline">
+          <header className="sticky top-0 z-10 -mx-6 md:-mx-10 px-6 md:px-10 py-5 bg-slate-50/90 backdrop-blur-md border-b border-slate-200">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => navigate("/bd/leads")}
-              className="bd-eyebrow text-amber-700 hover:bg-amber-50 -ml-2 mb-3"
+              className="text-slate-600 hover:bg-slate-100 -ml-2 mb-3"
             >
               <ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Leads
             </Button>
 
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
               <div className="min-w-0">
-                <h1 className="bd-display text-3xl md:text-4xl font-bold text-slate-900 truncate">
+                <h1 className="text-2xl md:text-3xl font-semibold text-slate-900 truncate tracking-tight">
                   {lead.full_name}
                 </h1>
                 {lead.company && (
-                  <p className="text-base md:text-lg text-slate-500 mt-1 truncate">
+                  <p className="text-base text-slate-500 mt-1 truncate">
                     {lead.company}
                   </p>
                 )}
                 <div className="flex flex-wrap items-center gap-2 mt-3">
                   {stageMeta && (
-                    <Badge variant="outline" className={cn("rounded-full text-[10px] font-bold uppercase tracking-wider", stageMeta.className)}>
+                    <Badge variant="outline" className={cn("rounded-full text-xs font-medium", stageMeta.className)}>
                       {stageMeta.label}
                     </Badge>
                   )}
                   {SourceIcon && lead.source_type && (
-                    <Badge variant="secondary" className="rounded-full gap-1 bg-amber-100/70 text-amber-800 border-0 text-[10px] font-bold uppercase tracking-wider">
+                    <Badge variant="secondary" className="rounded-full gap-1 bg-slate-100 text-slate-700 border-0 text-xs font-medium">
                       <SourceIcon className="h-3 w-3" /> {SOURCE_META[lead.source_type].label}
                     </Badge>
                   )}
                   {lead.client_type && (
-                    <Badge variant="outline" className="rounded-full text-[10px] font-bold uppercase tracking-wider border-amber-200/70 text-slate-600">
+                    <Badge variant="outline" className="rounded-full text-xs font-medium border-slate-200 text-slate-600">
                       {lead.client_type.replace(/_/g, " ")}
                     </Badge>
                   )}
                   <button
                     onClick={() => set({ hot_opportunity: !lead.hot_opportunity })}
-                    className="inline-flex items-center gap-1 rounded-full border border-amber-200/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600 hover:bg-amber-50 transition-colors"
+                    className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors"
                     aria-label="Toggle hot"
                   >
                     <Flame className={cn("h-3 w-3", lead.hot_opportunity ? "text-orange-500 fill-orange-500" : "text-slate-400")} />
@@ -228,7 +228,7 @@ export default function BdLeadDetail() {
                   variant="outline"
                   size="sm"
                   onClick={() => setEditAll((v) => !v)}
-                  className="rounded-full border-amber-200/70 hover:bg-amber-50"
+                  className="rounded-full border-slate-200 hover:bg-slate-100"
                 >
                   <Pencil className="mr-1.5 h-3.5 w-3.5" />
                   {editAll ? "Done editing" : "Edit details"}
@@ -265,7 +265,7 @@ export default function BdLeadDetail() {
               </div>
             </div>
 
-            {/* Stage stepper as architectural bar segments */}
+            {/* Stage stepper */}
             <div className="mt-6">
               <LeadStageStepper current={lead.stage} onChange={(s) => set({ stage: s })} />
             </div>
