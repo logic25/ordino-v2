@@ -8,6 +8,10 @@ create policy "members read content candidates" on public.content_candidates
 drop policy if exists "members update content candidates" on public.content_candidates;
 create policy "members update content candidates" on public.content_candidates
   for update using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+-- insert: Compose-from-scratch creates manual candidates from the app
+drop policy if exists "members insert content candidates" on public.content_candidates;
+create policy "members insert content candidates" on public.content_candidates
+  for insert with check (auth.role() = 'authenticated');
 
 drop policy if exists "members read generated content" on public.generated_content;
 create policy "members read generated content" on public.generated_content
