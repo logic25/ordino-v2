@@ -49,22 +49,21 @@ export function LeadStageStepper({
             <div
               className={cn(
                 "h-1 w-full rounded-full transition-colors",
-                isReached ? "bg-amber-500" : "bg-amber-100",
-                isCurrent && "bg-amber-600",
+                isCurrent ? "bg-amber-500" : isReached ? "bg-slate-700" : "bg-slate-200",
               )}
             />
             <div className="mt-2 flex items-baseline gap-1.5">
               <span
                 className={cn(
-                  "text-[10px] font-bold tabular-nums",
-                  isReached ? "text-amber-700" : "text-slate-400",
+                  "text-xs font-semibold tabular-nums",
+                  isReached ? "text-slate-700" : "text-slate-400",
                 )}
               >
                 {String(idx + 1).padStart(2, "0")}
               </span>
               <span
                 className={cn(
-                  "text-[11px] font-semibold uppercase tracking-wider",
+                  "text-sm font-medium",
                   isCurrent ? "text-slate-900" : isReached ? "text-slate-700" : "text-slate-400",
                 )}
               >

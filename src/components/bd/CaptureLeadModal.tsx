@@ -346,8 +346,8 @@ export function CaptureLeadModal({ open, onOpenChange, onCreated }: CaptureLeadM
 
           {/* d) Permit context */}
           <div className="space-y-1.5">
-            <Label>Subject</Label>
-            <Input placeholder="e.g. Summons, Violation, New Building…" value={subject} onChange={(e) => setSubject(e.target.value)} />
+            <Label>Opportunity</Label>
+            <Input placeholder="What's the work? (e.g. Façade LL11, New Building, Violation)" value={subject} onChange={(e) => setSubject(e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label>Property Address</Label>

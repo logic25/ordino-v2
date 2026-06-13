@@ -19,6 +19,8 @@ import { LineageBreadcrumb } from "@/components/shared/LineageBreadcrumb";
 import { LeadConnectionsCard } from "@/components/bd/LeadConnectionsCard";
 import { LeadStageStepper } from "@/components/bd/LeadStageStepper";
 import { BdActivityThread } from "@/components/bd/BdActivityThread";
+import { useBdActivities } from "@/hooks/useBdActivities";
+import { formatDistanceToNow } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 
@@ -69,7 +71,7 @@ function EditableText({
       <textarea
         autoFocus={editing}
         rows={3}
-        className="w-full rounded-md border border-amber-200/60 bg-white px-2.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 resize-y"
+        className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 resize-y"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
@@ -77,7 +79,7 @@ function EditableText({
     ) : (
       <Input
         autoFocus={editing}
-        className="h-8 border-amber-200/60 focus-visible:ring-amber-500"
+        className="h-9 border-slate-300 focus-visible:ring-amber-500"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
@@ -91,10 +93,10 @@ function EditableText({
   return (
     <button
       type="button"
-      className="group flex w-full items-center justify-between gap-2 rounded px-1.5 -mx-1.5 py-1 text-left text-sm hover:bg-amber-50/60 transition-colors"
+      className="group flex w-full items-center justify-between gap-2 rounded px-1.5 -mx-1.5 py-1 text-left text-sm hover:bg-slate-100 transition-colors"
       onClick={() => { setDraft(value ?? ""); setEditing(true); }}
     >
-      <span className={cn("truncate", empty && "text-slate-400 italic")}>
+      <span className={cn("truncate text-sm text-slate-900", empty && "text-slate-400 italic")}>
         {value || placeholder}
       </span>
       <Pencil className="h-3 w-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
@@ -105,8 +107,8 @@ function EditableText({
 /** Two-column inline field row used inside each section. */
 function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-3 items-start py-2 border-b border-amber-100/70 last:border-0">
-      <span className="text-[11px] uppercase font-bold tracking-wider text-slate-500 pt-1.5">
+    <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-3 items-start py-2.5 border-b border-slate-100 last:border-0">
+      <span className="text-xs font-medium uppercase tracking-wide text-slate-500 pt-1.5">
         {label}
       </span>
       <div className="min-w-0">{children}</div>
@@ -131,9 +133,22 @@ export default function BdLeadDetail() {
   const navigate = useNavigate();
   const { data: lead, isLoading } = useLead(id);
   const { data: profiles = [] } = useAssignableProfiles();
+  const { data: activities = [] } = useBdActivities({ leadId: id });
   const update = useUpdateLead();
   useConvertLeadToProposal(); // hook still warmed for downstream
   const [editAll, setEditAll] = useState(false);
+
+  const commsCounts = activities.reduce(
+    (acc, a) => {
+      if (a.type === "EMAIL") acc.email++;
+      else if (a.type === "CALL") acc.call++;
+      else if (a.type === "MEETING") acc.meeting++;
+      acc.total++;
+      return acc;
+    },
+    { email: 0, call: 0, meeting: 0, total: 0 },
+  );
+  const lastActivity = activities[0];
 
   if (isLoading) {
     return (
@@ -149,7 +164,7 @@ export default function BdLeadDetail() {
       <AppLayout>
         <div className="bd-scope p-8 text-center text-slate-500">
           Lead not found.{" "}
-          <Link to="/bd/leads" className="text-amber-700 underline">Back to Leads</Link>
+          <Link to="/bd/leads" className="text-amber-600 underline">Back to Leads</Link>
         </div>
       </AppLayout>
     );
@@ -174,45 +189,45 @@ export default function BdLeadDetail() {
       <div className="bd-scope min-h-screen -m-6 p-6 md:p-10 animate-fade-in">
         <div className="max-w-[1280px] mx-auto space-y-6">
           {/* ─── Sticky Header ───────────────────────────────────────── */}
-          <header className="sticky top-0 z-10 -mx-6 md:-mx-10 px-6 md:px-10 py-5 bg-[#faf8f3]/85 backdrop-blur-md border-b bd-hairline">
+          <header className="sticky top-0 z-10 -mx-6 md:-mx-10 px-6 md:px-10 py-5 bg-slate-50/90 backdrop-blur-md border-b border-slate-200">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => navigate("/bd/leads")}
-              className="bd-eyebrow text-amber-700 hover:bg-amber-50 -ml-2 mb-3"
+              className="text-slate-600 hover:bg-slate-100 -ml-2 mb-3"
             >
               <ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Leads
             </Button>
 
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
               <div className="min-w-0">
-                <h1 className="bd-display text-3xl md:text-4xl font-bold text-slate-900 truncate">
+                <h1 className="text-2xl md:text-3xl font-semibold text-slate-900 truncate tracking-tight">
                   {lead.full_name}
                 </h1>
                 {lead.company && (
-                  <p className="text-base md:text-lg text-slate-500 mt-1 truncate">
+                  <p className="text-base text-slate-500 mt-1 truncate">
                     {lead.company}
                   </p>
                 )}
                 <div className="flex flex-wrap items-center gap-2 mt-3">
                   {stageMeta && (
-                    <Badge variant="outline" className={cn("rounded-full text-[10px] font-bold uppercase tracking-wider", stageMeta.className)}>
+                    <Badge variant="outline" className={cn("rounded-full text-xs font-medium", stageMeta.className)}>
                       {stageMeta.label}
                     </Badge>
                   )}
                   {SourceIcon && lead.source_type && (
-                    <Badge variant="secondary" className="rounded-full gap-1 bg-amber-100/70 text-amber-800 border-0 text-[10px] font-bold uppercase tracking-wider">
+                    <Badge variant="secondary" className="rounded-full gap-1 bg-slate-100 text-slate-700 border-0 text-xs font-medium">
                       <SourceIcon className="h-3 w-3" /> {SOURCE_META[lead.source_type].label}
                     </Badge>
                   )}
                   {lead.client_type && (
-                    <Badge variant="outline" className="rounded-full text-[10px] font-bold uppercase tracking-wider border-amber-200/70 text-slate-600">
+                    <Badge variant="outline" className="rounded-full text-xs font-medium border-slate-200 text-slate-600">
                       {lead.client_type.replace(/_/g, " ")}
                     </Badge>
                   )}
                   <button
                     onClick={() => set({ hot_opportunity: !lead.hot_opportunity })}
-                    className="inline-flex items-center gap-1 rounded-full border border-amber-200/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600 hover:bg-amber-50 transition-colors"
+                    className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors"
                     aria-label="Toggle hot"
                   >
                     <Flame className={cn("h-3 w-3", lead.hot_opportunity ? "text-orange-500 fill-orange-500" : "text-slate-400")} />
@@ -226,7 +241,7 @@ export default function BdLeadDetail() {
                   variant="outline"
                   size="sm"
                   onClick={() => setEditAll((v) => !v)}
-                  className="rounded-full border-amber-200/70 hover:bg-amber-50"
+                  className="rounded-full border-slate-200 hover:bg-slate-100"
                 >
                   <Pencil className="mr-1.5 h-3.5 w-3.5" />
                   {editAll ? "Done editing" : "Edit details"}
@@ -263,7 +278,7 @@ export default function BdLeadDetail() {
               </div>
             </div>
 
-            {/* Stage stepper as architectural bar segments */}
+            {/* Stage stepper */}
             <div className="mt-6">
               <LeadStageStepper current={lead.stage} onChange={(s) => set({ stage: s })} />
             </div>
@@ -294,7 +309,7 @@ export default function BdLeadDetail() {
                         <button
                           type="button"
                           onClick={() => set({ company: suggestCompanyFromRole(lead.role)! })}
-                          className="text-[11px] text-amber-700 hover:underline pl-1.5"
+                          className="text-[11px] text-amber-600 hover:underline pl-1.5"
                         >
                           Use suggested: "{suggestCompanyFromRole(lead.role)}"
                         </button>
@@ -333,12 +348,46 @@ export default function BdLeadDetail() {
                     />
                   </FieldRow>
                 </div>
+
+                {/* Where we met + Communications summary */}
+                <div className="mt-5 pt-5 border-t border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1.5">Where we met</p>
+                    <p className="text-sm text-slate-900">
+                      {lead.source_type ? SOURCE_META[lead.source_type].label : "Source not specified"}
+                      {lead.event?.name && <> · <Link to="/bd/events" className="text-amber-600 hover:underline">{lead.event.name}</Link></>}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      First contact {formatDistanceToNow(new Date(lead.created_at), { addSuffix: true })}
+                      {lead.event?.start_date && <> · Event {format(new Date(lead.event.start_date), "MMM d, yyyy")}</>}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1.5">Communications</p>
+                    {commsCounts.total === 0 ? (
+                      <p className="text-sm text-slate-400 italic">No activity logged yet</p>
+                    ) : (
+                      <>
+                        <p className="text-sm text-slate-900">
+                          {commsCounts.email} {commsCounts.email === 1 ? "email" : "emails"} ·{" "}
+                          {commsCounts.call} {commsCounts.call === 1 ? "call" : "calls"} ·{" "}
+                          {commsCounts.meeting} {commsCounts.meeting === 1 ? "meeting" : "meetings"}
+                        </p>
+                        {lastActivity && (
+                          <p className="text-xs text-slate-500 mt-1">
+                            Last activity {formatDistanceToNow(new Date(lastActivity.created_at), { addSuffix: true })}
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
               </Section>
 
               {/* Project Details */}
               <Section eyebrow="Project Details">
-                <FieldRow label="Subject">
-                  <EditableText value={lead.subject} onSave={(v) => set({ subject: v })} placeholder="Add subject" forceEdit={editAll} />
+                <FieldRow label="Opportunity">
+                  <EditableText value={lead.subject} onSave={(v) => set({ subject: v })} placeholder="What's the work? (e.g. Façade LL11, New Building)" forceEdit={editAll} />
                 </FieldRow>
                 <FieldRow label="Property">
                   <EditableText value={lead.property_address} onSave={(v) => set({ property_address: v })} placeholder="Add address" forceEdit={editAll} />
@@ -359,12 +408,12 @@ export default function BdLeadDetail() {
               <Section eyebrow="Qualification">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-1">
                   <div>
-                    <p className="text-[10px] uppercase font-bold tracking-wider text-slate-500 mb-1.5">Timeline</p>
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1.5">Timeline</p>
                     <Select
                       value={lead.project_timeline ?? undefined}
                       onValueChange={(v) => set({ project_timeline: v })}
                     >
-                      <SelectTrigger className="h-9 border-amber-200/60">
+                      <SelectTrigger className="h-9 border-slate-300">
                         <SelectValue placeholder="Set timeline" />
                       </SelectTrigger>
                       <SelectContent>
@@ -375,8 +424,8 @@ export default function BdLeadDetail() {
                     </Select>
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase font-bold tracking-wider text-slate-500 mb-1.5">Expected value</p>
-                    <div className="bd-display text-2xl font-bold text-slate-900">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1.5">Expected value</p>
+                    <div className="text-2xl font-semibold text-slate-900 tracking-tight">
                       <EditableText
                         value={lead.expected_value != null ? `$${Number(lead.expected_value).toLocaleString()}` : null}
                         onSave={(v) => {
@@ -389,12 +438,12 @@ export default function BdLeadDetail() {
                     </div>
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase font-bold tracking-wider text-slate-500 mb-1.5">Owner</p>
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1.5">Owner</p>
                     <Select
                       value={lead.assigned_to ?? undefined}
                       onValueChange={(v) => set({ assigned_to: v })}
                     >
-                      <SelectTrigger className="h-9 border-amber-200/60">
+                      <SelectTrigger className="h-9 border-slate-300">
                         <SelectValue placeholder="Unassigned" />
                       </SelectTrigger>
                       <SelectContent>
@@ -405,8 +454,8 @@ export default function BdLeadDetail() {
                     </Select>
                   </div>
                 </div>
-                <div className="mt-5 pt-5 border-t bd-hairline">
-                  <p className="text-[10px] uppercase font-bold tracking-wider text-slate-500 mb-1.5">Notes</p>
+                <div className="mt-5 pt-5 border-t border-slate-200">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-1.5">Notes</p>
                   <EditableText
                     value={(lead as any).notes ?? null}
                     onSave={(v) => set({ notes: v })}
@@ -417,16 +466,17 @@ export default function BdLeadDetail() {
                 </div>
               </Section>
 
-              {/* Next Follow-up — amber accent card (v2 style) */}
-              <section className="rounded-xl p-6 bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-[0_8px_24px_-12px_rgba(217,119,6,0.5)]">
+              {/* Next Follow-up — quiet white card with amber accent dot */}
+              <section className="rounded-xl p-6 bg-white border border-slate-200">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-50/80 flex items-center gap-1.5">
+                  <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
                     <CalendarClock className="h-3.5 w-3.5" /> Next Follow-up
                   </h3>
                   {(lead.next_follow_up_at || lead.follow_up_note) && (
                     <button
                       onClick={() => set({ next_follow_up_at: null, follow_up_note: null })}
-                      className="text-[11px] uppercase font-bold tracking-wider text-amber-50/80 hover:text-white inline-flex items-center gap-1"
+                      className="text-xs text-slate-500 hover:text-slate-900 inline-flex items-center gap-1"
                     >
                       <X className="h-3 w-3" /> Clear
                     </button>
@@ -441,7 +491,7 @@ export default function BdLeadDetail() {
                       const v = e.target.value || null;
                       if (v !== (lead.follow_up_note ?? null)) set({ follow_up_note: v });
                     }}
-                    className="w-full bg-transparent border-0 border-b border-amber-200/40 px-0 py-1 text-lg font-medium placeholder:text-amber-100/60 focus:outline-none focus:border-white bd-display"
+                    className="w-full bg-transparent border-0 border-b border-slate-200 px-0 py-1 text-base font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-amber-500"
                     key={`n-${lead.id}-${lead.follow_up_note ?? ""}`}
                   />
                   <div className="flex items-center gap-3">
@@ -449,10 +499,10 @@ export default function BdLeadDetail() {
                       type="date"
                       defaultValue={lead.next_follow_up_at ?? ""}
                       onChange={(e) => set({ next_follow_up_at: e.target.value || null })}
-                      className="h-8 rounded-md bg-white/15 border border-white/20 px-2 text-xs text-white [color-scheme:dark] focus:outline-none focus:border-white/60"
+                      className="h-9 rounded-md bg-white border border-slate-300 px-2 text-sm text-slate-900 focus:outline-none focus:border-amber-500"
                       key={`d-${lead.id}-${lead.next_follow_up_at ?? ""}`}
                     />
-                    <span className="text-[11px] uppercase tracking-wider font-bold text-amber-50/70">
+                    <span className="text-xs text-slate-500">
                       Personal reminder — shows in BD → Follow-ups
                     </span>
                   </div>
@@ -466,7 +516,7 @@ export default function BdLeadDetail() {
                     to="/bd/events"
                     className="block group"
                   >
-                    <p className="bd-display text-lg font-semibold text-slate-900 group-hover:text-amber-700 transition-colors">
+                    <p className="text-lg font-semibold text-slate-900 group-hover:text-amber-600 transition-colors">
                       {lead.event.name}
                     </p>
                     {lead.event.start_date && (
@@ -477,9 +527,9 @@ export default function BdLeadDetail() {
                   </Link>
                 ) : lead.source_type === "REFERRAL" && (lead.referrer || lead.referred_by) ? (
                   <div>
-                    <p className="bd-display text-lg font-semibold text-slate-900">
+                    <p className="text-lg font-semibold text-slate-900">
                       {lead.referrer ? (
-                        <Link to="/clients" className="hover:text-amber-700">{lead.referrer.name}</Link>
+                        <Link to="/clients" className="hover:text-amber-600">{lead.referrer.name}</Link>
                       ) : (
                         lead.referred_by
                       )}
@@ -488,7 +538,7 @@ export default function BdLeadDetail() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 text-sm text-slate-600">
-                    {SourceIcon && <SourceIcon className="h-4 w-4 text-amber-700" />}
+                    {SourceIcon && <SourceIcon className="h-4 w-4 text-amber-600" />}
                     <span>
                       {lead.source_type
                         ? SOURCE_META[lead.source_type].label
