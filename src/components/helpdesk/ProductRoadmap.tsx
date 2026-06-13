@@ -500,6 +500,15 @@ export function ProductRoadmap() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant={compactMode ? "secondary" : "ghost"}
+            size="sm"
+            className="h-7 px-2"
+            onClick={() => setCompactMode((c) => !c)}
+            title={compactMode ? "Expand cards" : "Collapse cards"}
+          >
+            {compactMode ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
+          </Button>
           <div className="flex items-center border rounded-md">
             <Button variant={viewMode === "kanban" ? "secondary" : "ghost"} size="sm" className="h-7 px-2 rounded-r-none" onClick={() => setViewMode("kanban")}>
               <LayoutGrid className="h-3.5 w-3.5" />
