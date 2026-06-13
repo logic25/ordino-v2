@@ -600,3 +600,88 @@ function LeadLineageCard({ leadId, clientId }: { leadId: string; clientId: strin
     </section>
   );
 }
+
+/**
+ * Inline editor for "Where we met". Two compact selects:
+ *   - Source: how the lead came in (Event, Referral, Phone, …)
+ *   - Event:  shown only when source = EVENT. Lets you change which
+ *             event the lead is attached to (or detach it). Pulls from
+ *             bd_events. Selecting an event auto-sets source to EVENT.
+ */
+function WhereWeMetEditor({
+  sourceType,
+  eventId,
+  eventName,
+  onChange,
+}: {
+  sourceType: string | null;
+  eventId: string | null;
+  eventName: string | null;
+  onChange: (next: Record<string, any>) => void;
+}) {
+  const { data: events = [] } = useQuery({
+    queryKey: ["bd-events-picker"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("bd_events")
+        .select("id, name, start_date")
+        .order("start_date", { ascending: false })
+        .limit(50);
+      return (data ?? []) as { id: string; name: string; start_date: string | null }[];
+    },
+  });
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Select
+        value={sourceType ?? undefined}
+        onValueChange={(v) => onChange({ source_type: v, ...(v !== "EVENT" ? { event_id: null } : {}) })}
+      >
+        <SelectTrigger className="h-8 w-[150px] border-slate-300 text-sm">
+          <SelectValue placeholder="Set source" />
+        </SelectTrigger>
+        <SelectContent>
+          {Object.entries(SOURCE_META).map(([k, v]) => (
+            <SelectItem key={k} value={k}>{v.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {(sourceType === "EVENT" || eventId) && (
+        <Select
+          value={eventId ?? "__none__"}
+          onValueChange={(v) =>
+            onChange(
+              v === "__none__"
+                ? { event_id: null }
+                : { event_id: v, source_type: "EVENT" },
+            )
+          }
+        >
+          <SelectTrigger className="h-8 min-w-[200px] border-slate-300 text-sm">
+            <SelectValue placeholder={eventName ?? "Pick an event"} />
+          </SelectTrigger>
+          <SelectContent className="max-h-72">
+            <SelectItem value="__none__">— No event —</SelectItem>
+            {events.map((e) => (
+              <SelectItem key={e.id} value={e.id}>
+                {e.name}
+                {e.start_date && (
+                  <span className="text-xs text-slate-400 ml-2">
+                    {format(new Date(e.start_date), "MMM d, yyyy")}
+                  </span>
+                )}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+
+      {eventId && (
+        <Link to="/bd/events" className="text-xs text-amber-600 hover:underline">
+          Open event ↗
+        </Link>
+      )}
+    </div>
+  );
+}
