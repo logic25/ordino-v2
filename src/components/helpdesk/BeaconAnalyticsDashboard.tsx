@@ -14,7 +14,7 @@ import {
   Check, X, Loader2, Sparkles, Inbox,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useBeaconAnalytics, useReviewSuggestion, type DateRange } from "@/hooks/useBeaconAnalytics";
+import { useBeaconAnalytics, useReviewSuggestion, useTurnQuestionIntoContent, type DateRange } from "@/hooks/useBeaconAnalytics";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
@@ -71,27 +71,69 @@ function SuggestionCard({ s }: { s: any }) {
   );
 }
 
-function FeedbackPanel({ suggestions, isLoading }: { suggestions: any[]; isLoading: boolean }) {
+function ReviewedCard({ s }: { s: any }) {
+  const approved = s.status === "approved";
+  return (
+    <div className="rounded-lg border p-3 space-y-2">
+      <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+        <span className={cn("font-semibold px-1.5 py-0.5 rounded-full text-[10px]",
+          approved ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+                   : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400")}>
+          {approved ? "Approved" : "Rejected"}
+        </span>
+        {s.user_name && <span>by {s.user_name}</span>}
+        {s.reviewed_at && <span>· {formatDistanceToNow(new Date(s.reviewed_at), { addSuffix: true })}</span>}
+        {s.topics && <Badge variant="secondary" className="text-[9px]">{s.topics}</Badge>}
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div className="rounded-md bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 p-2">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">Was wrong</div>
+          <p className="text-xs text-foreground/90 mt-0.5 whitespace-pre-wrap">{s.wrong_answer}</p>
+        </div>
+        <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 p-2">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Corrected to</div>
+          <p className="text-xs text-foreground/90 mt-0.5 whitespace-pre-wrap">{s.correct_answer}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FeedbackPanel({ suggestions, reviewed, isLoading }: { suggestions: any[]; reviewed: any[]; isLoading: boolean }) {
+  const [tab, setTab] = useState<"pending" | "history">("pending");
   return (
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-orange-500" /> Feedback — KB Corrections to Review
-          {suggestions.length > 0 && <Badge className="ml-1">{suggestions.length}</Badge>}
+          <Sparkles className="h-4 w-4 text-orange-500" /> Feedback — KB Corrections
         </CardTitle>
+        <div className="flex gap-1 mt-2">
+          <button onClick={() => setTab("pending")}
+            className={cn("text-xs px-2.5 py-1 rounded-md transition-colors", tab === "pending" ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted/50")}>
+            Pending Review {suggestions.length > 0 && <span className="ml-1 text-[10px] rounded-full bg-orange-500 text-white px-1.5">{suggestions.length}</span>}
+          </button>
+          <button onClick={() => setTab("history")}
+            className={cn("text-xs px-2.5 py-1 rounded-md transition-colors", tab === "history" ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted/50")}>
+            Approved History {reviewed.length > 0 && <span className="ml-1 text-[10px] text-muted-foreground">({reviewed.length})</span>}
+          </button>
+        </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (
           <Skeleton className="h-24 w-full" />
-        ) : suggestions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-            <Inbox className="h-8 w-8 mb-2 opacity-40" />
-            <p className="text-xs">No corrections waiting. You're all caught up.</p>
-          </div>
+        ) : tab === "pending" ? (
+          suggestions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+              <Inbox className="h-8 w-8 mb-2 opacity-40" />
+              <p className="text-xs">No corrections waiting. You're all caught up.</p>
+            </div>
+          ) : (
+            <div className="space-y-2.5">{suggestions.map((s) => <SuggestionCard key={s.id} s={s} />)}</div>
+          )
+        ) : reviewed.length === 0 ? (
+          <p className="text-xs text-muted-foreground py-6 text-center">No reviewed corrections yet.</p>
         ) : (
-          <div className="space-y-2.5">
-            {suggestions.map((s) => <SuggestionCard key={s.id} s={s} />)}
-          </div>
+          <div className="space-y-2.5">{reviewed.map((s) => <ReviewedCard key={s.id} s={s} />)}</div>
         )}
       </CardContent>
     </Card>
@@ -113,6 +155,13 @@ function ConfidenceBadge({ value }: { value: number }) {
 
 function ConversationItem({ item }: { item: any }) {
   const [open, setOpen] = useState(false);
+  const { toast } = useToast();
+  const turnIntoContent = useTurnQuestionIntoContent();
+  const toContent = () =>
+    turnIntoContent.mutate({ question: item.question }, {
+      onSuccess: () => toast({ title: "Added to Content pipeline", description: "Find it under Content → Ideas." }),
+      onError: (e: any) => toast({ title: "Couldn't add", description: e.message, variant: "destructive" }),
+    });
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger className="w-full text-left group">
@@ -159,6 +208,10 @@ function ConversationItem({ item }: { item: any }) {
             <span>Cost: <strong className="text-foreground">${item.costUsd.toFixed(4)}</strong></span>
             <span>{new Date(item.timestamp).toLocaleString()}</span>
           </div>
+          <Button size="sm" variant="outline" className="h-7 text-xs" disabled={turnIntoContent.isPending} onClick={toContent}>
+            {turnIntoContent.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1 text-orange-500" />}
+            Turn into Content
+          </Button>
         </div>
       </CollapsibleContent>
     </Collapsible>
@@ -233,7 +286,7 @@ export function BeaconAnalyticsDashboard() {
       </div>
 
       {/* Feedback — pending KB corrections (actionable, so it's up top) */}
-      <FeedbackPanel suggestions={data.pendingSuggestions} isLoading={data.isLoading} />
+      <FeedbackPanel suggestions={data.pendingSuggestions} reviewed={data.reviewedSuggestions} isLoading={data.isLoading} />
 
       {/* Questions Over Time + Topics */}
       <div className="grid gap-4 lg:grid-cols-2">
