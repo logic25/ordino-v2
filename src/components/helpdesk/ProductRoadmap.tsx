@@ -27,7 +27,7 @@ import {
   Plus, GripVertical, MoreHorizontal, Pencil, Trash2,
   AlertTriangle, Clock, Lightbulb, CheckCircle2, Rocket,
   ArrowRight, Inbox, LayoutGrid, List, Brain, Sparkles, ChevronRight, AlertCircle, Loader2,
-  BarChart2,
+  BarChart2, Minimize2, Maximize2,
 } from "lucide-react";
 import { AIRoadmapIntake } from "./AIRoadmapIntake";
 import {
@@ -123,27 +123,28 @@ function useFeatureRequestsForPromotion() {
 
 // Sortable Card
 function SortableRoadmapCard({
-  item, onEdit, onDelete, onStatusChange,
+  item, onEdit, onDelete, onStatusChange, compact = false,
 }: {
   item: RoadmapItem;
   onEdit: (item: RoadmapItem) => void;
   onDelete: (id: string) => void;
   onStatusChange: (id: string, status: string) => void;
+  compact?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
 
   return (
     <div ref={setNodeRef} style={style} {...attributes}>
-      <Card className="group cursor-pointer hover:shadow-md transition-shadow" onClick={() => onEdit(item)}>
-        <CardContent className="p-3 space-y-1.5">
+      <Card className={`group cursor-pointer hover:shadow-md transition-shadow ${compact ? "border-muted" : ""}`} onClick={() => onEdit(item)}>
+        <CardContent className={compact ? "p-2 space-y-1" : "p-3 space-y-1.5"}>
           <div className="flex items-start gap-1.5">
             <button {...listeners} className="mt-0.5 cursor-grab text-muted-foreground hover:text-foreground shrink-0">
               <GripVertical className="h-3.5 w-3.5" />
             </button>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground leading-tight">{item.title}</p>
-              {item.description && (
+              {!compact && item.description && (
                 <p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">{item.description}</p>
               )}
             </div>
@@ -169,26 +170,30 @@ function SortableRoadmapCard({
             </DropdownMenu>
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 capitalize">{item.category}</Badge>
+            {!compact && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 capitalize">{item.category}</Badge>
+            )}
             <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${PRIORITY_STYLES[item.priority] || ""}`}>
               {item.priority}
             </Badge>
-            {item.feature_request_id && (
+            {!compact && item.feature_request_id && (
               <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-primary/5 text-primary border-primary/20">
                 From request
               </Badge>
             )}
-            {item.stress_tested_at && (
+            {!compact && item.stress_tested_at && (
               <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-violet-500/10 text-violet-600 border-violet-300 dark:text-violet-400 dark:border-violet-700 gap-1">
                 <Sparkles className="h-2.5 w-2.5" /> AI tested
               </Badge>
             )}
           </div>
-          <div className="text-[10px] text-muted-foreground mt-0.5">
-            {item.created_by_profile?.display_name || item.created_by_profile?.first_name || "System"}
-            {" · "}
-            {new Date(item.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-          </div>
+          {!compact && (
+            <div className="text-[10px] text-muted-foreground mt-0.5">
+              {item.created_by_profile?.display_name || item.created_by_profile?.first_name || "System"}
+              {" · "}
+              {new Date(item.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -209,6 +214,7 @@ export function ProductRoadmap() {
   const [editingItem, setEditingItem] = useState<RoadmapItem | null>(null);
   const [promoteOpen, setPromoteOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
+  const [compactMode, setCompactMode] = useState(false);
   const [form, setForm] = useState({ title: "", description: "", category: "general", status: "gap", priority: "medium" });
   const [stressTesting, setStressTesting] = useState(false);
 
@@ -499,6 +505,15 @@ export function ProductRoadmap() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant={compactMode ? "secondary" : "ghost"}
+            size="sm"
+            className="h-7 px-2"
+            onClick={() => setCompactMode((c) => !c)}
+            title={compactMode ? "Expand cards" : "Collapse cards"}
+          >
+            {compactMode ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
+          </Button>
           <div className="flex items-center border rounded-md">
             <Button variant={viewMode === "kanban" ? "secondary" : "ghost"} size="sm" className="h-7 px-2 rounded-r-none" onClick={() => setViewMode("kanban")}>
               <LayoutGrid className="h-3.5 w-3.5" />
@@ -654,13 +669,14 @@ export function ProductRoadmap() {
                 <div className="space-y-2 min-h-[100px] p-2 rounded-lg bg-muted/30 border border-dashed border-border">
                   <SortableContext items={columnItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
                     {columnItems.map((item) => (
-                      <SortableRoadmapCard
-                        key={item.id}
-                        item={item}
-                        onEdit={handleEdit}
-                        onDelete={(id) => deleteMutation.mutate(id)}
-                        onStatusChange={handleStatusChange}
-                      />
+                    <SortableRoadmapCard
+                      key={item.id}
+                      item={item}
+                      onEdit={handleEdit}
+                      onDelete={(id) => deleteMutation.mutate(id)}
+                      onStatusChange={handleStatusChange}
+                      compact={compactMode}
+                    />
                     ))}
                   </SortableContext>
                   {columnItems.length === 0 && (
