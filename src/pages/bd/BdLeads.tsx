@@ -108,6 +108,7 @@ export default function BdLeads() {
   const [sorting, setSorting] = useState<SortingState>([{ id: "days", desc: false }]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(HIDDEN_BY_DEFAULT);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [kindView, setKindView] = useState<"PROSPECT" | "CONTACT" | "ALL">("PROSPECT");
 
   // Seed default views on first visit.
   useEffect(() => {
