@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Bell, Check, CheckCheck, FolderKanban, X, FileText, AlertTriangle, Receipt, Mail, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,19 +40,52 @@ export function NotificationDropdown() {
   const dismiss = useDismissNotification();
   const navigate = useNavigate();
 
+  // Re-trigger the wiggle animation each time the unread count INCREASES
+  // (i.e. a new realtime insert arrived). The keyed remount restarts the CSS animation.
+  const prevCountRef = useRef(unreadCount);
+  const [wiggleKey, setWiggleKey] = useState(0);
+  useEffect(() => {
+    if (unreadCount > prevCountRef.current) {
+      setWiggleKey((k) => k + 1);
+    }
+    prevCountRef.current = unreadCount;
+  }, [unreadCount]);
+
   const handleClick = (n: typeof notifications[0]) => {
     if (!n.read_at) markRead.mutate(n.id);
     if (n.link) navigate(n.link);
   };
 
+  const hasUnread = unreadCount > 0;
+  const badgeLabel = unreadCount > 99 ? "99+" : String(unreadCount);
+
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className={cn("h-5 w-5 transition-transform", unreadCount > 0 && "animate-[wiggle_0.5s_ease-in-out]")} />
-          {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center px-1 animate-pulse">
-              {unreadCount > 99 ? "99+" : unreadCount}
+        <Button variant="ghost" size="icon" className="relative h-10 w-10">
+          {/* Soft persistent pulse ring while there are unread notifications */}
+          {hasUnread && (
+            <span
+              aria-hidden
+              className="absolute inset-1 rounded-full bg-destructive/20 animate-ping pointer-events-none"
+            />
+          )}
+          <Bell
+            key={wiggleKey}
+            className={cn(
+              "h-5 w-5 relative",
+              hasUnread && "text-destructive animate-[wiggle_0.8s_ease-in-out]"
+            )}
+          />
+          {hasUnread && (
+            <span
+              className={cn(
+                "absolute -top-1 -right-1 min-w-[22px] h-[22px] rounded-full bg-destructive text-destructive-foreground",
+                "text-[11px] font-bold flex items-center justify-center px-1.5",
+                "ring-2 ring-card shadow-sm"
+              )}
+            >
+              {badgeLabel}
             </span>
           )}
         </Button>
