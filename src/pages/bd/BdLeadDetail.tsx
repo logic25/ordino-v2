@@ -607,7 +607,7 @@ function WhereWeMetEditor({
   eventName,
   onChange,
 }: {
-  sourceType: string | null;
+  sourceType: LeadSourceType | null;
   eventId: string | null;
   eventName: string | null;
   onChange: (next: Record<string, any>) => void;
