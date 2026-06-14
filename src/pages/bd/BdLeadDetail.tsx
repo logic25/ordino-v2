@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { format } from "date-fns";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAssignableProfiles } from "@/hooks/useProfiles";
-import { useLead, useUpdateLead, type LeadStage } from "@/hooks/useLeads";
+import { useLead, useUpdateLead, type LeadStage, type LeadSourceType } from "@/hooks/useLeads";
 import { useConvertLeadToProposal } from "@/hooks/useLeadConversion";
 import { LineageBreadcrumb } from "@/components/shared/LineageBreadcrumb";
 import { LeadConnectionsCard } from "@/components/bd/LeadConnectionsCard";
@@ -607,11 +607,17 @@ function WhereWeMetEditor({
   eventName,
   onChange,
 }: {
-  sourceType: string | null;
+  sourceType: LeadSourceType | null;
   eventId: string | null;
   eventName: string | null;
   onChange: (next: Record<string, any>) => void;
 }) {
+  const [draftSourceType, setDraftSourceType] = useState<LeadSourceType | null>(sourceType);
+
+  useEffect(() => {
+    setDraftSourceType(sourceType);
+  }, [sourceType]);
+
   const { data: events = [] } = useQuery({
     queryKey: ["bd-events-picker"],
     queryFn: async () => {
@@ -627,14 +633,16 @@ function WhereWeMetEditor({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Select
-        value={sourceType ?? undefined}
-        onValueChange={(v) =>
+        value={draftSourceType ?? undefined}
+        onValueChange={(v: LeadSourceType) => {
+          setDraftSourceType(v);
+          if (v === "EVENT" && !eventId) return;
           onChange({
             source_type: v,
             source: v.toLowerCase(), // keep legacy column in sync (NOT NULL)
             ...(v !== "EVENT" ? { event_id: null } : {}),
-          })
-        }
+          });
+        }}
       >
         <SelectTrigger className="h-8 w-[150px] border-slate-300 text-sm">
           <SelectValue placeholder="Set source" />
@@ -646,16 +654,18 @@ function WhereWeMetEditor({
         </SelectContent>
       </Select>
 
-      {(sourceType === "EVENT" || eventId) && (
+      {(draftSourceType === "EVENT" || eventId) && (
         <Select
           value={eventId ?? "__none__"}
-          onValueChange={(v) =>
-            onChange(
-              v === "__none__"
-                ? { event_id: null }
-                : { event_id: v, source_type: "EVENT", source: "event" },
-            )
-          }
+          onValueChange={(v) => {
+            if (v === "__none__") {
+              setDraftSourceType("OTHER");
+              onChange({ event_id: null, source_type: "OTHER", source: "other" });
+              return;
+            }
+            setDraftSourceType("EVENT");
+            onChange({ event_id: v, source_type: "EVENT", source: "event" });
+          }}
         >
           <SelectTrigger className="h-8 min-w-[200px] border-slate-300 text-sm">
             <SelectValue placeholder={eventName ?? "Pick an event"} />
