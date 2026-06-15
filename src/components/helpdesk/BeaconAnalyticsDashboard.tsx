@@ -19,6 +19,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import { InfoTooltip } from "@/components/dashboard/InfoTooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const BEACON_ORANGE = "#f59e0b";
 
