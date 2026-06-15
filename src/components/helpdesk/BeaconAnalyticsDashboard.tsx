@@ -527,7 +527,15 @@ export function BeaconAnalyticsDashboard() {
                   </TableHeader>
                   <TableBody>
                     {data.topQuestions.map((q, i) => (
-                      <TableRow key={i} className="group">
+                      <TableRow
+                        key={i}
+                        className="group cursor-pointer hover:bg-muted/50"
+                        onClick={() => setDrilldown({
+                          title: q.question,
+                          subtitle: `Asked ${q.count} time${q.count === 1 ? "" : "s"} — full responses below`,
+                          items: q.items,
+                        })}
+                      >
                         <TableCell className="text-xs py-2">
                           <span title={q.question}>
                             {q.question.length > 100 ? q.question.slice(0, 100) + "…" : q.question}
@@ -540,6 +548,7 @@ export function BeaconAnalyticsDashboard() {
                   </TableBody>
                 </Table>
               </div>
+
             )}
           </CardContent>
         </Card>
