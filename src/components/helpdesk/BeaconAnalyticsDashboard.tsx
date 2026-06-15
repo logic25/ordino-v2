@@ -245,8 +245,8 @@ function DrilldownDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl h-[85vh] overflow-hidden flex flex-col p-0">
+        <DialogHeader className="px-6 pt-6 pb-3 border-b shrink-0">
           <DialogTitle className="text-base flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-amber-500" />
             <span className="truncate">{title}</span>
@@ -254,7 +254,7 @@ function DrilldownDialog({
           </DialogTitle>
           {subtitle && <DialogDescription className="text-xs">{subtitle}</DialogDescription>}
         </DialogHeader>
-        <ScrollArea className="flex-1 -mx-6 px-6">
+        <ScrollArea className="flex-1 min-h-0 px-6 py-4">
           <div className="space-y-3 pb-2">
             {items.length === 0 ? (
               <p className="text-xs text-muted-foreground py-6 text-center">Nothing to show.</p>
