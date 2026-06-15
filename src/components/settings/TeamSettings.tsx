@@ -1045,7 +1045,6 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                       <SelectItem value="manager">Manager</SelectItem>
                       <SelectItem value="pm">PM</SelectItem>
                       <SelectItem value="accounting">Accounting</SelectItem>
-                      <SelectItem value="production">Production</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

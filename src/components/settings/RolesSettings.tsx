@@ -56,7 +56,7 @@ const PERMISSION_FIELDS = ["enabled", "can_list", "can_show", "can_create", "can
 type PermField = typeof PERMISSION_FIELDS[number];
 
 export function RolesSettings() {
-  const [selectedRole, setSelectedRole] = useState<string>("production");
+  const [selectedRole, setSelectedRole] = useState<string>("pm");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingRole, setEditingRole] = useState<CustomRole | null>(null);
   const [deleteConfirmRole, setDeleteConfirmRole] = useState<CustomRole | null>(null);
