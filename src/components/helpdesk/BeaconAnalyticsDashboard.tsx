@@ -227,7 +227,7 @@ const COST_PROVIDER_COLORS: Record<string, string> = {
 };
 
 export function BeaconAnalyticsDashboard() {
-  const [dateRange, setDateRange] = useState<DateRange>("30");
+  const [dateRange, setDateRange] = useState<DateRange>("all");
   const data = useBeaconAnalytics(dateRange);
 
   const kpis = [
