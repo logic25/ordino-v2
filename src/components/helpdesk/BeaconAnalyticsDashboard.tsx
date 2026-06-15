@@ -216,7 +216,7 @@ function ConversationItem({ item }: { item: any }) {
             <span>Confidence: <strong className="text-foreground">{item.confidence}%</strong></span>
             <span>Topic: <strong className="text-foreground">{item.topic || "—"}</strong></span>
             <span>Response time: <strong className="text-foreground">{item.responseTimeMs}ms</strong></span>
-            <span>Cost: <strong className="text-foreground">${item.costUsd.toFixed(4)}</strong></span>
+            <span>Cost: <strong className="text-foreground">{formatCost(item.costUsd)}</strong></span>
             <span>{new Date(item.timestamp).toLocaleString()}</span>
           </div>
           <Button size="sm" variant="outline" className="h-7 text-xs" disabled={turnIntoContent.isPending} onClick={toContent}>
