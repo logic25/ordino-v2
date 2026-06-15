@@ -272,8 +272,20 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
 
         {selectedSpaceId ? (
           <>
-            <ChatMessageList messages={mergedMessages} isLoading={msgsLoading} members={activeMembers} isWaitingForBeacon={isWaitingForBeacon} />
-            <ChatCompose onSend={handleSend} isSending={isBeaconBotDm ? beaconSending : sendMutation.isPending} />
+            <ChatMessageList
+              messages={mergedMessages}
+              isLoading={msgsLoading}
+              members={activeMembers}
+              isWaitingForBeacon={isWaitingForBeacon}
+              onReplyInThread={isBeaconBotDm ? undefined : setReplyTarget}
+              activeReplyThreadKey={replyTarget?.threadKey ?? null}
+            />
+            <ChatCompose
+              onSend={handleSend}
+              isSending={isBeaconBotDm ? beaconSending : sendMutation.isPending}
+              replyingTo={replyTarget ? { preview: replyTarget.preview, senderName: replyTarget.senderName } : null}
+              onCancelReply={() => setReplyTarget(null)}
+            />
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
