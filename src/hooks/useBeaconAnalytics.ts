@@ -240,14 +240,18 @@ export function useBeaconAnalytics(dateRange: DateRange) {
     }));
   const costProviderKeys = [...new Set(costs.map((c: any) => c.api_name || "unknown"))];
 
-  // Team activity
+  // Team activity — merge identity variants (email + UUID + Google id collapse into one).
   const userStats: Record<string, { count: number; totalConf: number; confCount: number; lastActive: string; name: string }> = {};
-  rows.forEach((r: any) => {
-    const uid = r.user_id || "unknown";
-    if (!userStats[uid]) userStats[uid] = { count: 0, totalConf: 0, confCount: 0, lastActive: r.timestamp, name: r.user_name || uid };
-    userStats[uid].count++;
-    if (r.confidence != null) { userStats[uid].totalConf += toPct(r.confidence) || 0; userStats[uid].confCount++; }
-    if (r.timestamp > userStats[uid].lastActive) userStats[uid].lastActive = r.timestamp;
+  humanRows.forEach((r: any) => {
+    const { key, displayName } = canonicalIdentity(r.user_id || "", r.user_name || "");
+    if (!userStats[key]) userStats[key] = { count: 0, totalConf: 0, confCount: 0, lastActive: r.timestamp, name: displayName };
+    userStats[key].count++;
+    // Prefer the most "human-readable" name we see (longer, has space, no @)
+    if (displayName.length > userStats[key].name.length && !displayName.includes("@")) {
+      userStats[key].name = displayName;
+    }
+    if (r.confidence != null) { userStats[key].totalConf += toPct(r.confidence) || 0; userStats[key].confCount++; }
+    if (r.timestamp > userStats[key].lastActive) userStats[key].lastActive = r.timestamp;
   });
   const teamActivity = Object.entries(userStats)
     .map(([uid, d]) => ({
