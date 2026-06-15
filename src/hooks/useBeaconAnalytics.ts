@@ -25,6 +25,37 @@ function getDateStart(range: DateRange): string | null {
   return subDays(new Date(), parseInt(range)).toISOString();
 }
 
+// Synthetic / test identities that should NOT be counted as real human users.
+const SYNTHETIC_ID_PATTERNS = [
+  /^test$/i, /^unknown$/i, /^web-user$/i, /^anonymous$/i, /^guest$/i,
+  /^users\/t$/i, /^users\/test$/i, /^users\/\d+$/i,
+];
+const SYNTHETIC_NAME_PATTERNS = [/^test/i, /^web user/i, /^anonymous/i, /^guest/i];
+
+function isSynthetic(uid: string, name: string): boolean {
+  if (!uid) return true;
+  if (SYNTHETIC_ID_PATTERNS.some((re) => re.test(uid))) return true;
+  if (SYNTHETIC_NAME_PATTERNS.some((re) => re.test(name || ""))) return true;
+  return false;
+}
+
+// Collapse many shapes of "the same person" (email, profile UUID, Google id,
+// name variants) into one canonical identity.
+function canonicalIdentity(uid: string, name: string): { key: string; displayName: string } {
+  const emailMatch = (uid?.includes("@") ? uid : name?.includes("@") ? name : "")
+    .toLowerCase()
+    .trim();
+  if (emailMatch) {
+    const pretty = name && !name.includes("@") ? name : emailMatch.split("@")[0];
+    return { key: emailMatch, displayName: pretty };
+  }
+  const cleanName = (name || uid || "").trim();
+  if (cleanName) {
+    return { key: cleanName.toLowerCase().replace(/\s+/g, ""), displayName: cleanName };
+  }
+  return { key: uid || "unknown", displayName: uid || "Unknown" };
+}
+
 export function useBeaconAnalytics(dateRange: DateRange) {
   const since = getDateStart(dateRange);
 
