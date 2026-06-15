@@ -183,7 +183,7 @@ export function AutomationRulesSettings() {
     return ACTION_TYPES.find((a) => a.value === type)?.label || type;
   };
 
-  const managers = profiles.filter((p) => p.role === "admin" || p.role === "manager");
+  const managers = profiles.filter((p) => ["admin", "manager", "pm", "production"].includes(p.role));
 
   return (
     <div className="space-y-4">

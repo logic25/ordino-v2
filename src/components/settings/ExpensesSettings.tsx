@@ -42,7 +42,7 @@ export function ExpensesSettings() {
     })();
   }, []);
 
-  const adminProfiles = profiles.filter((p: any) => p.role === "admin" && p.is_active);
+  const adminProfiles = profiles.filter((p: any) => (p.role === "admin" || p.role === "manager") && p.is_active);
 
   const toggleApprover = (id: string) => {
     setApproverIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
