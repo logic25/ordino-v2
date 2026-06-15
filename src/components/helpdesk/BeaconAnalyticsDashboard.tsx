@@ -307,8 +307,8 @@ export function BeaconAnalyticsDashboard() {
       tip: "Every question a real teammate asked Beacon (web chat, Google Chat DM, embedded widget). Test/anonymous probes are excluded so this reflects actual usage.",
     },
     {
-      label: "Active Users", value: data.activeUsers.toString(), icon: Users, color: "bg-blue-500/10 text-blue-600",
-      tip: "Distinct humans who asked Beacon at least once in the selected range. Identity variants (work email, profile ID, Google ID, name aliases) are merged into one person — so Manny logged in 4 different ways still counts as 1.",
+      label: "Active Users", value: `${data.activeUsers} of ${data.teamActivity.length}`, icon: Users, color: "bg-blue-500/10 text-blue-600",
+      tip: `${data.activeUsers} teammate(s) actually asked Beacon a question in this range. The Team Activity table below lists all ${data.teamActivity.length} active teammates (including those with 0 questions) so you can see who hasn't engaged yet. Identity variants (work email, profile ID, Google ID, name aliases) are merged into one person.`,
     },
     {
       label: "Avg Confidence", value: `${data.avgConfidence}%`, icon: Target, color: "bg-green-500/10 text-green-600",
@@ -647,7 +647,7 @@ export function BeaconAnalyticsDashboard() {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <Trophy className="h-4 w-4" /> Team Activity
-            <InfoTooltip>Who's using Beacon most. Identity variants are merged — one teammate counts once regardless of which login (email, Google ID, profile UUID) Beacon recorded.</InfoTooltip>
+            <InfoTooltip>Full active roster + Beacon usage. Teammates with 0 questions are included so you can see who hasn't tried Beacon yet — that's why this list can be longer than the "Active Users" KPI (which only counts people who actually asked something). Identity variants are merged.</InfoTooltip>
           </CardTitle>
         </CardHeader>
         <CardContent>
