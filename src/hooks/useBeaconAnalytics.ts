@@ -144,7 +144,7 @@ export function useBeaconAnalytics(dateRange: DateRange) {
 
   // Questions over time (daily)
   const dailyCounts: Record<string, number> = {};
-  rows.forEach((r: any) => {
+  humanRows.forEach((r: any) => {
     const day = (r.timestamp || "").slice(0, 10);
     if (day) dailyCounts[day] = (dailyCounts[day] || 0) + 1;
   });
@@ -154,7 +154,7 @@ export function useBeaconAnalytics(dateRange: DateRange) {
 
   // Topics breakdown
   const topicCounts: Record<string, number> = {};
-  rows.forEach((r: any) => {
+  humanRows.forEach((r: any) => {
     const t = r.topic || "Uncategorized";
     topicCounts[t] = (topicCounts[t] || 0) + 1;
   });
@@ -164,8 +164,8 @@ export function useBeaconAnalytics(dateRange: DateRange) {
 
   // Confidence distribution
   let high = 0, medium = 0, low = 0;
-  rows.forEach((r: any) => {
-    if (r.confidence == null) return; // skip no-RAG rows (no confidence score)
+  humanRows.forEach((r: any) => {
+    if (r.confidence == null) return;
     const c = toPct(r.confidence) || 0;
     if (c >= 85) high++;
     else if (c >= 60) medium++;
@@ -179,7 +179,7 @@ export function useBeaconAnalytics(dateRange: DateRange) {
 
   // Top questions
   const questionCounts: Record<string, { count: number; lastAsked: string }> = {};
-  rows
+  humanRows
     .filter((r: any) => !r.command)
     .forEach((r: any) => {
       const q = r.question || "";
@@ -198,7 +198,7 @@ export function useBeaconAnalytics(dateRange: DateRange) {
     .slice(0, 10);
 
   // Recent conversations
-  const recentConversations = rows.slice(0, 20).map((r: any) => ({
+  const recentConversations = humanRows.slice(0, 20).map((r: any) => ({
     id: r.id,
     question: r.question || "",
     response: r.response || "",
@@ -206,7 +206,7 @@ export function useBeaconAnalytics(dateRange: DateRange) {
     sourcesCount: r.sources_used ? (() => { try { return JSON.parse(r.sources_used).length; } catch { return 0; } })() : 0,
     timestamp: r.timestamp,
     timestampRelative: r.timestamp ? formatDistanceToNow(new Date(r.timestamp), { addSuffix: true }) : "",
-    userName: r.user_name || r.user_id || "Unknown",
+    userName: canonicalIdentity(r.user_id || "", r.user_name || "").displayName,
     topic: r.topic || "",
     responseTimeMs: r.response_time_ms || 0,
     costUsd: r.cost_usd || 0,
