@@ -246,6 +246,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
               onLoadMore={() => fetchNextPage()}
               onSelect={(id) => {
                 setSelectedSpaceId(id);
+                setReplyTarget(null);
                 if (compact) setShowSidebar(false);
               }}
             />
