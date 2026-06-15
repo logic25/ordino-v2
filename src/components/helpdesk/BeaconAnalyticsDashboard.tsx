@@ -465,6 +465,7 @@ export function BeaconAnalyticsDashboard() {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <Clock className="h-4 w-4" /> Recent Conversations
+            <InfoTooltip>Latest 20 question-and-answer exchanges. Click any row to see the full question, response preview, confidence, response time, and cost — and to turn it into a Content candidate.</InfoTooltip>
           </CardTitle>
         </CardHeader>
         <CardContent>
