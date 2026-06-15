@@ -545,6 +545,7 @@ export function BeaconAnalyticsDashboard() {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <Trophy className="h-4 w-4" /> Team Activity
+            <InfoTooltip>Who's using Beacon most. Identity variants are merged — one teammate counts once regardless of which login (email, Google ID, profile UUID) Beacon recorded.</InfoTooltip>
           </CardTitle>
         </CardHeader>
         <CardContent>
