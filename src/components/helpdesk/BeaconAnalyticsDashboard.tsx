@@ -254,6 +254,7 @@ export function BeaconAnalyticsDashboard() {
   const rangeLabel = dateRange === "all" ? "All time" : `Last ${dateRange} days`;
 
   return (
+    <TooltipProvider delayDuration={150}>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -289,7 +290,10 @@ export function BeaconAnalyticsDashboard() {
                     </div>
                     <div>
                       <p className="text-2xl font-bold tabular-nums" style={{ color: BEACON_ORANGE }}>{kpi.value}</p>
-                      <p className="text-xs font-medium text-muted-foreground">{kpi.label}</p>
+                      <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                        {kpi.label}
+                        <InfoTooltip>{kpi.tip}</InfoTooltip>
+                      </p>
                     </div>
                   </div>
                 )}
