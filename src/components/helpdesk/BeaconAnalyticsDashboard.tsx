@@ -420,7 +420,10 @@ export function BeaconAnalyticsDashboard() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Top Questions</CardTitle>
+            <CardTitle className="text-sm flex items-center gap-1.5">
+              Top Questions
+              <InfoTooltip>The most frequently asked questions, deduped. Open any conversation below and click "Turn into Content" to send it to the Content pipeline as a blog/playbook candidate.</InfoTooltip>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {data.isLoading ? (
