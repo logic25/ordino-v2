@@ -5,13 +5,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
 import {
   MessageSquare, Users, Target, AlertCircle, ChevronDown, Clock, DollarSign, Trophy,
-  Check, X, Loader2, Sparkles, Inbox,
+  Check, X, Loader2, Sparkles, Inbox, ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useBeaconAnalytics, useReviewSuggestion, useTurnQuestionIntoContent, type DateRange } from "@/hooks/useBeaconAnalytics";
@@ -21,6 +23,7 @@ import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { InfoTooltip } from "@/components/dashboard/InfoTooltip";
 import { TooltipProvider } from "@/components/ui/tooltip";
+
 
 const BEACON_ORANGE = "#f59e0b";
 
@@ -226,11 +229,77 @@ const COST_PROVIDER_COLORS: Record<string, string> = {
   anthropic: "#8b5cf6",
   pinecone: "#06b6d4",
   voyage: "#f97316",
+  beacon: "#f59e0b",
 };
+
+// Drill-down dialog: show the full text of every Beacon Q&A inside a
+// topic bucket or behind a "Top Question" row.
+function DrilldownDialog({
+  open, onOpenChange, title, subtitle, items,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  title: string;
+  subtitle?: string;
+  items: any[];
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="text-base flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-amber-500" />
+            <span className="truncate">{title}</span>
+            <Badge variant="secondary" className="ml-auto shrink-0">{items.length}</Badge>
+          </DialogTitle>
+          {subtitle && <DialogDescription className="text-xs">{subtitle}</DialogDescription>}
+        </DialogHeader>
+        <ScrollArea className="flex-1 -mx-6 px-6">
+          <div className="space-y-3 pb-2">
+            {items.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-6 text-center">Nothing to show.</p>
+            ) : items.map((item: any) => (
+              <div key={item.id} className="rounded-lg border bg-card p-3 space-y-2">
+                <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">
+                  <span className="font-medium text-foreground">{item.userName}</span>
+                  <span>·</span>
+                  <span>{item.timestampRelative}</span>
+                  {item.topic && <Badge variant="outline" className="text-[9px]">{item.topic}</Badge>}
+                  <span className="ml-auto flex items-center gap-2">
+                    <span className={cn(
+                      "text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
+                      item.confidence >= 85 ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400"
+                        : item.confidence >= 60 ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
+                        : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400",
+                    )}>{item.confidence}%</span>
+                    <span>${item.costUsd.toFixed(4)}</span>
+                  </span>
+                </div>
+                <div>
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Question</p>
+                  <p className="text-xs text-foreground whitespace-pre-wrap">{item.question}</p>
+                </div>
+                {item.response && (
+                  <div>
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Beacon's Response</p>
+                    <p className="text-xs text-foreground/90 whitespace-pre-wrap">{item.response}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 export function BeaconAnalyticsDashboard() {
   const [dateRange, setDateRange] = useState<DateRange>("all");
   const data = useBeaconAnalytics(dateRange);
+  const [drilldown, setDrilldown] = useState<{ title: string; subtitle?: string; items: any[] } | null>(null);
+
 
   const kpis = [
     {
@@ -340,7 +409,7 @@ export function BeaconAnalyticsDashboard() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-1.5">
               Topics Breakdown
-              <InfoTooltip>What subjects teammates are asking Beacon about (DOB filings, objections, RFPs, etc.). This feeds the Content engine — recurring topics become candidates for blog posts, playbooks, and training material.</InfoTooltip>
+              <InfoTooltip>What subjects teammates are asking Beacon about (DOB filings, objections, RFPs, etc.). Click a topic to read every question (and Beacon's response) in that bucket. Recurring topics become Content engine candidates.</InfoTooltip>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -349,20 +418,36 @@ export function BeaconAnalyticsDashboard() {
             ) : data.topicBreakdown.length === 0 ? (
               <div className="h-[300px] flex items-center justify-center text-muted-foreground text-xs">No data yet</div>
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={data.topicBreakdown.slice(0, 10)} layout="vertical" margin={{ left: 0, right: 20 }}>
-                  <XAxis type="number" tick={{ fontSize: 10 }} />
-                  <YAxis type="category" dataKey="topic" tick={{ fontSize: 10 }} width={120} />
-                  <RechartsTooltip
-                    contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid hsl(var(--border))" }}
-                    formatter={(v: number) => [`${v} questions`, "Count"]}
-                  />
-                  <Bar dataKey="count" fill={BEACON_ORANGE} radius={[0, 4, 4, 0]} barSize={16} />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="max-h-[300px] overflow-y-auto pr-1">
+                {data.topicBreakdown.map((t) => {
+                  const max = data.topicBreakdown[0].count;
+                  const pct = Math.max(6, (t.count / max) * 100);
+                  return (
+                    <button
+                      key={t.topic}
+                      onClick={() => setDrilldown({
+                        title: t.topic,
+                        subtitle: `${t.count} question${t.count === 1 ? "" : "s"} in this topic`,
+                        items: t.items,
+                      })}
+                      className="w-full text-left group py-1.5 px-1 rounded-md hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="font-medium truncate flex-1">{t.topic}</span>
+                        <span className="tabular-nums text-muted-foreground">{t.count}</span>
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                      <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: BEACON_ORANGE }} />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </CardContent>
         </Card>
+
       </div>
 
       {/* Confidence Distribution + Top Questions */}
@@ -442,7 +527,15 @@ export function BeaconAnalyticsDashboard() {
                   </TableHeader>
                   <TableBody>
                     {data.topQuestions.map((q, i) => (
-                      <TableRow key={i} className="group">
+                      <TableRow
+                        key={i}
+                        className="group cursor-pointer hover:bg-muted/50"
+                        onClick={() => setDrilldown({
+                          title: q.question,
+                          subtitle: `Asked ${q.count} time${q.count === 1 ? "" : "s"} — full responses below`,
+                          items: q.items,
+                        })}
+                      >
                         <TableCell className="text-xs py-2">
                           <span title={q.question}>
                             {q.question.length > 100 ? q.question.slice(0, 100) + "…" : q.question}
@@ -455,6 +548,7 @@ export function BeaconAnalyticsDashboard() {
                   </TableBody>
                 </Table>
               </div>
+
             )}
           </CardContent>
         </Card>
@@ -483,33 +577,41 @@ export function BeaconAnalyticsDashboard() {
         </CardContent>
       </Card>
 
-      {/* Cost Tracking */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        {["Anthropic", "Pinecone", "Voyage"].map((provider) => {
-          const entry = data.costBreakdown.find((c) => c.provider.toLowerCase() === provider.toLowerCase());
-          return (
-            <Card key={provider}>
-              <CardContent className="pt-4 pb-3">
-                {data.isLoading ? (
-                  <Skeleton className="h-12 w-full" />
-                ) : (
-                  <div className="flex items-start gap-3">
-                    <div className="rounded-md p-2 bg-amber-500/10">
-                      <DollarSign className="h-4 w-4 text-amber-600" />
-                    </div>
-                    <div>
-                      <p className="text-lg font-bold tabular-nums" style={{ color: BEACON_ORANGE }}>
-                        ${(entry?.total || 0).toFixed(2)}
-                      </p>
-                      <p className="text-xs font-medium text-muted-foreground">{provider} API</p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      {/* Cost Tracking — Total + per-provider breakdown.
+          beacon_api_usage is currently empty; the hook falls back to
+          summing cost_usd off beacon_interactions so this never shows $0.00
+          when there's real spend. */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <DollarSign className="h-4 w-4 text-amber-600" /> Beacon API Spend
+            <InfoTooltip>Total spend on Beacon AI calls (Anthropic Claude, Voyage embeddings, Pinecone retrieval) over the selected range. Pulled from per-interaction `cost_usd` when the dedicated usage log is empty.</InfoTooltip>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {data.isLoading ? (
+            <Skeleton className="h-20 w-full" />
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <p className="text-2xl font-bold tabular-nums" style={{ color: BEACON_ORANGE }}>
+                  ${data.totalCost.toFixed(2)}
+                </p>
+                <p className="text-xs font-medium text-muted-foreground">Total — {rangeLabel.toLowerCase()}</p>
+              </div>
+              {(data.costBreakdown.length > 0 ? data.costBreakdown : [{ provider: "Beacon", total: 0 }]).map((entry) => (
+                <div key={entry.provider} className="rounded-lg border p-3">
+                  <p className="text-lg font-semibold tabular-nums" style={{ color: BEACON_ORANGE }}>
+                    ${entry.total.toFixed(4)}
+                  </p>
+                  <p className="text-xs font-medium text-muted-foreground">{entry.provider}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
 
       {data.costOverTime.length > 0 && (
         <Card>
@@ -585,7 +687,16 @@ export function BeaconAnalyticsDashboard() {
           )}
         </CardContent>
       </Card>
+
+      <DrilldownDialog
+        open={!!drilldown}
+        onOpenChange={(v) => { if (!v) setDrilldown(null); }}
+        title={drilldown?.title || ""}
+        subtitle={drilldown?.subtitle}
+        items={drilldown?.items || []}
+      />
     </div>
     </TooltipProvider>
+
   );
 }
