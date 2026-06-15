@@ -577,33 +577,41 @@ export function BeaconAnalyticsDashboard() {
         </CardContent>
       </Card>
 
-      {/* Cost Tracking */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        {["Anthropic", "Pinecone", "Voyage"].map((provider) => {
-          const entry = data.costBreakdown.find((c) => c.provider.toLowerCase() === provider.toLowerCase());
-          return (
-            <Card key={provider}>
-              <CardContent className="pt-4 pb-3">
-                {data.isLoading ? (
-                  <Skeleton className="h-12 w-full" />
-                ) : (
-                  <div className="flex items-start gap-3">
-                    <div className="rounded-md p-2 bg-amber-500/10">
-                      <DollarSign className="h-4 w-4 text-amber-600" />
-                    </div>
-                    <div>
-                      <p className="text-lg font-bold tabular-nums" style={{ color: BEACON_ORANGE }}>
-                        ${(entry?.total || 0).toFixed(2)}
-                      </p>
-                      <p className="text-xs font-medium text-muted-foreground">{provider} API</p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      {/* Cost Tracking — Total + per-provider breakdown.
+          beacon_api_usage is currently empty; the hook falls back to
+          summing cost_usd off beacon_interactions so this never shows $0.00
+          when there's real spend. */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <DollarSign className="h-4 w-4 text-amber-600" /> Beacon API Spend
+            <InfoTooltip>Total spend on Beacon AI calls (Anthropic Claude, Voyage embeddings, Pinecone retrieval) over the selected range. Pulled from per-interaction `cost_usd` when the dedicated usage log is empty.</InfoTooltip>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {data.isLoading ? (
+            <Skeleton className="h-20 w-full" />
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <p className="text-2xl font-bold tabular-nums" style={{ color: BEACON_ORANGE }}>
+                  ${data.totalCost.toFixed(2)}
+                </p>
+                <p className="text-xs font-medium text-muted-foreground">Total — {rangeLabel.toLowerCase()}</p>
+              </div>
+              {(data.costBreakdown.length > 0 ? data.costBreakdown : [{ provider: "Beacon", total: 0 }]).map((entry) => (
+                <div key={entry.provider} className="rounded-lg border p-3">
+                  <p className="text-lg font-semibold tabular-nums" style={{ color: BEACON_ORANGE }}>
+                    ${entry.total.toFixed(4)}
+                  </p>
+                  <p className="text-xs font-medium text-muted-foreground">{entry.provider}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
 
       {data.costOverTime.length > 0 && (
         <Card>
