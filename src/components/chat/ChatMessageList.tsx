@@ -1,7 +1,7 @@
 import { useRef, useEffect, useMemo, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Brain, ChevronDown, ChevronRight } from "lucide-react";
+import { Loader2, Brain, ChevronDown, ChevronRight, CornerDownRight, MessageSquareReply } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import type { GChatMessage } from "@/hooks/useGoogleChat";
