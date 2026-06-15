@@ -145,11 +145,16 @@ function FeedbackPanel({ suggestions, reviewed, isLoading }: { suggestions: any[
   );
 }
 
+// Always render as dollars with enough precision that small per-call costs
+// don't round to "$0.00" and confuse the user. Examples:
+//   0          -> "$0.0000"
+//   0.003349   -> "$0.0033"
+//   0.51       -> "$0.5100"
+//   1.23       -> "$1.23"
 function formatCost(n: number): string {
-  if (!n) return "$0.00";
-  if (n < 0.01) return `${(n * 100).toFixed(2)}¢`;
-  if (n < 1) return `$${n.toFixed(3)}`;
-  return `$${n.toFixed(2)}`;
+  const v = Number(n) || 0;
+  if (v >= 1) return `$${v.toFixed(2)}`;
+  return `$${v.toFixed(4)}`;
 }
 function formatAbbrev(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
