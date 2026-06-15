@@ -145,6 +145,12 @@ function FeedbackPanel({ suggestions, reviewed, isLoading }: { suggestions: any[
   );
 }
 
+function formatCost(n: number): string {
+  if (!n) return "$0.00";
+  if (n < 0.01) return `${(n * 100).toFixed(2)}¢`;
+  if (n < 1) return `$${n.toFixed(3)}`;
+  return `$${n.toFixed(2)}`;
+}
 function formatAbbrev(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
@@ -210,7 +216,7 @@ function ConversationItem({ item }: { item: any }) {
             <span>Confidence: <strong className="text-foreground">{item.confidence}%</strong></span>
             <span>Topic: <strong className="text-foreground">{item.topic || "—"}</strong></span>
             <span>Response time: <strong className="text-foreground">{item.responseTimeMs}ms</strong></span>
-            <span>Cost: <strong className="text-foreground">${item.costUsd.toFixed(4)}</strong></span>
+            <span>Cost: <strong className="text-foreground">{formatCost(item.costUsd)}</strong></span>
             <span>{new Date(item.timestamp).toLocaleString()}</span>
           </div>
           <Button size="sm" variant="outline" className="h-7 text-xs" disabled={turnIntoContent.isPending} onClick={toContent}>
@@ -245,8 +251,8 @@ function DrilldownDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl h-[85vh] overflow-hidden flex flex-col p-0">
+        <DialogHeader className="px-6 pt-6 pb-3 border-b shrink-0">
           <DialogTitle className="text-base flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-amber-500" />
             <span className="truncate">{title}</span>
@@ -254,7 +260,7 @@ function DrilldownDialog({
           </DialogTitle>
           {subtitle && <DialogDescription className="text-xs">{subtitle}</DialogDescription>}
         </DialogHeader>
-        <ScrollArea className="flex-1 -mx-6 px-6">
+        <ScrollArea className="flex-1 min-h-0 px-6 py-4">
           <div className="space-y-3 pb-2">
             {items.length === 0 ? (
               <p className="text-xs text-muted-foreground py-6 text-center">Nothing to show.</p>
@@ -272,7 +278,7 @@ function DrilldownDialog({
                         : item.confidence >= 60 ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
                         : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400",
                     )}>{item.confidence}%</span>
-                    <span>${item.costUsd.toFixed(4)}</span>
+                    <span className="tabular-nums" title={`$${item.costUsd.toFixed(6)}`}>{formatCost(item.costUsd)}</span>
                   </span>
                 </div>
                 <div>
