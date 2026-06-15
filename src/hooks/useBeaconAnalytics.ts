@@ -95,8 +95,13 @@ export function useBeaconAnalytics(dateRange: DateRange) {
   // KPIs
   const totalQuestions = rows.length;
   const activeUsers = new Set(rows.map((r: any) => r.user_id)).size;
-  const avgConfidence = rows.length
-    ? Math.round(rows.reduce((s: number, r: any) => s + (r.confidence || 0), 0) / rows.length)
+  // confidence is stored 0-1; normalize to 0-100 (tolerate already-0-100 rows), and
+  // average only over rows that actually have a confidence (skip no-RAG/null rows).
+  const toPct = (v: any): number | null =>
+    v == null ? null : Math.round(Number(v) <= 1 ? Number(v) * 100 : Number(v));
+  const confRows = rows.filter((r: any) => r.confidence != null);
+  const avgConfidence = confRows.length
+    ? Math.round(confRows.reduce((s: number, r: any) => s + (toPct(r.confidence) || 0), 0) / confRows.length)
     : 0;
   const pendingCount = pendingSuggestions.length;
 
@@ -123,7 +128,8 @@ export function useBeaconAnalytics(dateRange: DateRange) {
   // Confidence distribution
   let high = 0, medium = 0, low = 0;
   rows.forEach((r: any) => {
-    const c = r.confidence || 0;
+    if (r.confidence == null) return; // skip no-RAG rows (no confidence score)
+    const c = toPct(r.confidence) || 0;
     if (c >= 85) high++;
     else if (c >= 60) medium++;
     else low++;
@@ -159,7 +165,7 @@ export function useBeaconAnalytics(dateRange: DateRange) {
     id: r.id,
     question: r.question || "",
     response: r.response || "",
-    confidence: r.confidence || 0,
+    confidence: toPct(r.confidence) ?? 0,
     sourcesCount: r.sources_used ? (() => { try { return JSON.parse(r.sources_used).length; } catch { return 0; } })() : 0,
     timestamp: r.timestamp,
     timestampRelative: r.timestamp ? formatDistanceToNow(new Date(r.timestamp), { addSuffix: true }) : "",
@@ -198,12 +204,12 @@ export function useBeaconAnalytics(dateRange: DateRange) {
   const costProviderKeys = [...new Set(costs.map((c: any) => c.api_name || "unknown"))];
 
   // Team activity
-  const userStats: Record<string, { count: number; totalConf: number; lastActive: string; name: string }> = {};
+  const userStats: Record<string, { count: number; totalConf: number; confCount: number; lastActive: string; name: string }> = {};
   rows.forEach((r: any) => {
     const uid = r.user_id || "unknown";
-    if (!userStats[uid]) userStats[uid] = { count: 0, totalConf: 0, lastActive: r.timestamp, name: r.user_name || uid };
+    if (!userStats[uid]) userStats[uid] = { count: 0, totalConf: 0, confCount: 0, lastActive: r.timestamp, name: r.user_name || uid };
     userStats[uid].count++;
-    userStats[uid].totalConf += r.confidence || 0;
+    if (r.confidence != null) { userStats[uid].totalConf += toPct(r.confidence) || 0; userStats[uid].confCount++; }
     if (r.timestamp > userStats[uid].lastActive) userStats[uid].lastActive = r.timestamp;
   });
   const teamActivity = Object.entries(userStats)
@@ -211,7 +217,7 @@ export function useBeaconAnalytics(dateRange: DateRange) {
       uid,
       name: d.name,
       count: d.count,
-      avgConfidence: Math.round(d.totalConf / d.count),
+      avgConfidence: d.confCount ? Math.round(d.totalConf / d.confCount) : 0,
       lastActive: d.lastActive,
       lastActiveRelative: formatDistanceToNow(new Date(d.lastActive), { addSuffix: true }),
     }))
