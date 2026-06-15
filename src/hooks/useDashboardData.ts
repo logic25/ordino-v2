@@ -19,7 +19,7 @@ function nameOf(p: any) {
   );
 }
 
-const PM_ROLES = new Set(["admin", "pm", "senior_pm"]);
+const PM_ROLES = new Set(["admin", "manager", "pm"]);
 
 export function useProjectsByPM() {
   const { profile } = useAuth();

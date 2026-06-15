@@ -150,7 +150,7 @@ export function useCreateBillingRequest() {
           .from("user_roles")
           .select("user_id")
           .eq("company_id", profile.company_id)
-          .in("role", ["admin", "accounting"]);
+          .in("role", ["admin", "manager", "accounting"]);
 
         const { data: proj } = await supabase
           .from("projects")

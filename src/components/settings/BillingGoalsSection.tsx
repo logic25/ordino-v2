@@ -38,7 +38,7 @@ export function BillingGoalsSection() {
         .eq("company_id", profile.company_id)
         .eq("is_active", true);
       const monthly = (data || [])
-        .filter((p: any) => ["pm", "admin", "manager"].includes(p.role))
+        .filter((p: any) => ["pm", "admin", "manager", "production"].includes(p.role))
         .reduce((s: number, p: any) => s + (Number(p.monthly_goal) || 0), 0);
       return { monthly, weekly: monthly / 4.33 };
     },
