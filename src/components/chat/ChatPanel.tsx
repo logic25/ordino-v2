@@ -35,6 +35,8 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
   const [peopleQuery, setPeopleQuery] = useState("");
   const [beaconSending, setBeaconSending] = useState(false);
   const [isWaitingForBeacon, setIsWaitingForBeacon] = useState(false);
+  // Per-message reply-in-thread target. Cleared on space change or after send.
+  const [replyTarget, setReplyTarget] = useState<{ threadKey: string; preview: string; senderName?: string } | null>(null);
 
   const { data: spaces = [], isLoading: spacesLoading, error: spacesError, hasNextPage, isFetchingNextPage, fetchNextPage } = useGChatSpaces();
   const { data: messages = [], isLoading: msgsLoading } = useGChatMessages(selectedSpaceId);
