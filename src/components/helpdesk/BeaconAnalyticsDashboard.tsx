@@ -145,6 +145,12 @@ function FeedbackPanel({ suggestions, reviewed, isLoading }: { suggestions: any[
   );
 }
 
+function formatCost(n: number): string {
+  if (!n) return "$0.00";
+  if (n < 0.01) return `${(n * 100).toFixed(2)}¢`;
+  if (n < 1) return `$${n.toFixed(3)}`;
+  return `$${n.toFixed(2)}`;
+}
 function formatAbbrev(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
