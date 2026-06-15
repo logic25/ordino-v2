@@ -572,5 +572,6 @@ export function BeaconAnalyticsDashboard() {
         </CardContent>
       </Card>
     </div>
+    </TooltipProvider>
   );
 }
