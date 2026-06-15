@@ -369,7 +369,10 @@ export function BeaconAnalyticsDashboard() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Confidence Distribution</CardTitle>
+            <CardTitle className="text-sm flex items-center gap-1.5">
+              Confidence Distribution
+              <InfoTooltip>How sure Beacon was when answering. High (≥85%) = strong KB match. Medium (60–84%) = partial match. Low (&lt;60%) = thin coverage — those topics need more documents in the knowledge base.</InfoTooltip>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {data.isLoading ? (
