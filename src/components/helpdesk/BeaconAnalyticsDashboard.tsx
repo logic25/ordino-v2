@@ -687,7 +687,16 @@ export function BeaconAnalyticsDashboard() {
           )}
         </CardContent>
       </Card>
+
+      <DrilldownDialog
+        open={!!drilldown}
+        onOpenChange={(v) => { if (!v) setDrilldown(null); }}
+        title={drilldown?.title || ""}
+        subtitle={drilldown?.subtitle}
+        items={drilldown?.items || []}
+      />
     </div>
     </TooltipProvider>
+
   );
 }
