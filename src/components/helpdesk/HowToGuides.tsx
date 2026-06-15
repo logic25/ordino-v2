@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, FolderKanban, FileText, Receipt, Clock, Mail, ScrollText, Settings, Building2, Lightbulb, AlertTriangle, ArrowRight, Filter } from "lucide-react";
+import { Search, FolderKanban, FileText, Receipt, Clock, Mail, ScrollText, Settings, Building2, Lightbulb, AlertTriangle, ArrowRight, Filter, Sparkles } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
 
@@ -36,6 +36,67 @@ const ROLE_STYLES: Record<Role, { label: string; className: string }> = {
 };
 
 const GUIDES: Guide[] = [
+  {
+    title: "Beacon AI Assistant",
+    icon: Sparkles,
+    items: [
+      {
+        title: "Three ways to use Beacon",
+        roles: ["all"],
+        relatedGuides: ["Slash commands", "When to use a command vs. thumbs up/down"],
+        steps: [
+          { text: "Just ask in the 'Office Staff' chat — Beacon watches for work questions and, if nobody answers in ~15 min, replies with what it found plus a source link.", tip: "It ignores chit-chat and only responds to real work questions, so it won't get noisy in the channel." },
+          { text: "@mention Beacon (or use the chat widget / Ask panel) — this is the powerful mode: it reasons over our LIVE Ordino data, not just documents.", tip: "Try: 'what's the status of [project]?', 'which of my filings are ready?', 'what invoices are overdue?', 'what should I focus on today?'" },
+          "Use slash commands for instant structured tools (see the Slash Commands guide).",
+          { text: "Beacon always cites its source so you can verify it.", warning: "For filings, deadlines, and code specifics, confirm it's current against DOB — rules change. If Beacon isn't confident, it'll say so and point you to Chris." },
+        ],
+      },
+      {
+        title: "Slash commands",
+        roles: ["all"],
+        steps: [
+          "/lookup <address>, <borough> — quick property lookup",
+          "/zoning <address>, <borough> — full zoning analysis",
+          "/objections <filing type> — common DOB objections for that filing",
+          "/plans — what Beacon can analyze from uploaded plans",
+          "/suggest <wrong> | <right> — suggest a correction for review",
+          { text: "/correct <wrong> | <right> — fix Beacon's knowledge directly", tip: "Admins only." },
+          "/tip <your tip> — add a quick tip to the knowledge base",
+          "/stats — knowledge base + usage statistics",
+          "/help — list every command",
+        ],
+      },
+      {
+        title: "When to use a command vs. thumbs up/down",
+        roles: ["all"],
+        steps: [
+          { text: "👍 / 👎 rate the answer Beacon just gave — no typing, and it feeds Beacon's learning loop." },
+          "Beacon nailed it → 👍 (reinforces it).",
+          "Beacon was wrong but you're busy → 👎 (flags it for review).",
+          { text: "Beacon was wrong AND you know the right answer → /suggest <wrong> | <right> to propose the fix (or /correct if you're an admin).", tip: "👎 is the quick flag; /suggest is when you can actually provide the correction." },
+          "You just want to look something up → use a slash command (/zoning, /objections, /lookup).",
+        ],
+      },
+      {
+        title: "What Beacon can and can't see",
+        roles: ["all"],
+        steps: [
+          "Code / zoning / permit knowledge — available to everyone.",
+          { text: "Live Ordino data (projects, invoices, clients, filings) — only when you @mention Beacon or use the widget, and it's scoped to GLE's data.", tip: "It can't see anything outside GLE." },
+          { text: "The passive chat helper uses only the knowledge base — it can't pull project or financial data, so it can't expose anything sensitive even if asked." },
+        ],
+      },
+      {
+        title: "Found a bug? Just describe it",
+        roles: ["all"],
+        steps: [
+          { text: "Go to Help → Bug Reports and describe what went wrong in plain English — what you were doing and what happened.", tip: "No detailed form needed: the AI auto-triages it from your description — it figures out which page, the severity, and the likely cause." },
+          "Optionally set a priority, or mark it as a 'polish' nice-to-have instead of a bug.",
+          { text: "Reports get tracked, commented on, and automatically grouped with similar ones." },
+        ],
+      },
+    ],
+  },
   {
     title: "Projects",
     icon: FolderKanban,
