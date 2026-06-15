@@ -229,7 +229,71 @@ const COST_PROVIDER_COLORS: Record<string, string> = {
   anthropic: "#8b5cf6",
   pinecone: "#06b6d4",
   voyage: "#f97316",
+  beacon: "#f59e0b",
 };
+
+// Drill-down dialog: show the full text of every Beacon Q&A inside a
+// topic bucket or behind a "Top Question" row.
+function DrilldownDialog({
+  open, onOpenChange, title, subtitle, items,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  title: string;
+  subtitle?: string;
+  items: any[];
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="text-base flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-amber-500" />
+            <span className="truncate">{title}</span>
+            <Badge variant="secondary" className="ml-auto shrink-0">{items.length}</Badge>
+          </DialogTitle>
+          {subtitle && <DialogDescription className="text-xs">{subtitle}</DialogDescription>}
+        </DialogHeader>
+        <ScrollArea className="flex-1 -mx-6 px-6">
+          <div className="space-y-3 pb-2">
+            {items.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-6 text-center">Nothing to show.</p>
+            ) : items.map((item: any) => (
+              <div key={item.id} className="rounded-lg border bg-card p-3 space-y-2">
+                <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">
+                  <span className="font-medium text-foreground">{item.userName}</span>
+                  <span>·</span>
+                  <span>{item.timestampRelative}</span>
+                  {item.topic && <Badge variant="outline" className="text-[9px]">{item.topic}</Badge>}
+                  <span className="ml-auto flex items-center gap-2">
+                    <span className={cn(
+                      "text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
+                      item.confidence >= 85 ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400"
+                        : item.confidence >= 60 ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
+                        : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400",
+                    )}>{item.confidence}%</span>
+                    <span>${item.costUsd.toFixed(4)}</span>
+                  </span>
+                </div>
+                <div>
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Question</p>
+                  <p className="text-xs text-foreground whitespace-pre-wrap">{item.question}</p>
+                </div>
+                {item.response && (
+                  <div>
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Beacon's Response</p>
+                    <p className="text-xs text-foreground/90 whitespace-pre-wrap">{item.response}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 export function BeaconAnalyticsDashboard() {
   const [dateRange, setDateRange] = useState<DateRange>("all");
