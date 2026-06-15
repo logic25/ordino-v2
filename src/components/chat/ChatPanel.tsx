@@ -35,6 +35,8 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
   const [peopleQuery, setPeopleQuery] = useState("");
   const [beaconSending, setBeaconSending] = useState(false);
   const [isWaitingForBeacon, setIsWaitingForBeacon] = useState(false);
+  // Per-message reply-in-thread target. Cleared on space change or after send.
+  const [replyTarget, setReplyTarget] = useState<{ threadKey: string; preview: string; senderName?: string } | null>(null);
 
   const { data: spaces = [], isLoading: spacesLoading, error: spacesError, hasNextPage, isFetchingNextPage, fetchNextPage } = useGChatSpaces();
   const { data: messages = [], isLoading: msgsLoading } = useGChatMessages(selectedSpaceId);
@@ -193,7 +195,12 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
       return;
     }
 
-    sendMutation.mutate({ spaceId: selectedSpaceId, text, threadKey });
+    // Reply target wins over the panel-level threadKey prop.
+    const effectiveThreadKey = replyTarget?.threadKey || threadKey;
+    sendMutation.mutate(
+      { spaceId: selectedSpaceId, text, threadKey: effectiveThreadKey },
+      { onSuccess: () => setReplyTarget(null) },
+    );
   };
 
   const handleNewChat = async (email: string) => {
@@ -239,6 +246,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
               onLoadMore={() => fetchNextPage()}
               onSelect={(id) => {
                 setSelectedSpaceId(id);
+                setReplyTarget(null);
                 if (compact) setShowSidebar(false);
               }}
             />
@@ -265,8 +273,20 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
 
         {selectedSpaceId ? (
           <>
-            <ChatMessageList messages={mergedMessages} isLoading={msgsLoading} members={activeMembers} isWaitingForBeacon={isWaitingForBeacon} />
-            <ChatCompose onSend={handleSend} isSending={isBeaconBotDm ? beaconSending : sendMutation.isPending} />
+            <ChatMessageList
+              messages={mergedMessages}
+              isLoading={msgsLoading}
+              members={activeMembers}
+              isWaitingForBeacon={isWaitingForBeacon}
+              onReplyInThread={isBeaconBotDm ? undefined : setReplyTarget}
+              activeReplyThreadKey={replyTarget?.threadKey ?? null}
+            />
+            <ChatCompose
+              onSend={handleSend}
+              isSending={isBeaconBotDm ? beaconSending : sendMutation.isPending}
+              replyingTo={replyTarget ? { preview: replyTarget.preview, senderName: replyTarget.senderName } : null}
+              onCancelReply={() => setReplyTarget(null)}
+            />
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
