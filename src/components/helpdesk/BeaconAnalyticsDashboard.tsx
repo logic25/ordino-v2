@@ -310,7 +310,10 @@ export function BeaconAnalyticsDashboard() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Questions Over Time</CardTitle>
+            <CardTitle className="text-sm flex items-center gap-1.5">
+              Questions Over Time
+              <InfoTooltip>Daily volume of questions teammates asked Beacon. Spikes usually align with new filings, audits, or training pushes.</InfoTooltip>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {data.isLoading ? (
