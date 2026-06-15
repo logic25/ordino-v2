@@ -10464,7 +10464,7 @@ export type Database = {
         | "meeting"
         | "site_visit"
         | "document"
-      app_role: "admin" | "production" | "accounting"
+      app_role: "admin" | "production" | "accounting" | "manager" | "pm"
       application_status:
         | "draft"
         | "filed"
@@ -10695,7 +10695,7 @@ export const Constants = {
         "site_visit",
         "document",
       ],
-      app_role: ["admin", "production", "accounting"],
+      app_role: ["admin", "production", "accounting", "manager", "pm"],
       application_status: [
         "draft",
         "filed",
