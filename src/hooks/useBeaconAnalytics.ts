@@ -25,6 +25,37 @@ function getDateStart(range: DateRange): string | null {
   return subDays(new Date(), parseInt(range)).toISOString();
 }
 
+// Synthetic / test identities that should NOT be counted as real human users.
+const SYNTHETIC_ID_PATTERNS = [
+  /^test$/i, /^unknown$/i, /^web-user$/i, /^anonymous$/i, /^guest$/i,
+  /^users\/t$/i, /^users\/test$/i, /^users\/\d+$/i,
+];
+const SYNTHETIC_NAME_PATTERNS = [/^test/i, /^web user/i, /^anonymous/i, /^guest/i];
+
+function isSynthetic(uid: string, name: string): boolean {
+  if (!uid) return true;
+  if (SYNTHETIC_ID_PATTERNS.some((re) => re.test(uid))) return true;
+  if (SYNTHETIC_NAME_PATTERNS.some((re) => re.test(name || ""))) return true;
+  return false;
+}
+
+// Collapse many shapes of "the same person" (email, profile UUID, Google id,
+// name variants) into one canonical identity.
+function canonicalIdentity(uid: string, name: string): { key: string; displayName: string } {
+  const emailMatch = (uid?.includes("@") ? uid : name?.includes("@") ? name : "")
+    .toLowerCase()
+    .trim();
+  if (emailMatch) {
+    const pretty = name && !name.includes("@") ? name : emailMatch.split("@")[0];
+    return { key: emailMatch, displayName: pretty };
+  }
+  const cleanName = (name || uid || "").trim();
+  if (cleanName) {
+    return { key: cleanName.toLowerCase().replace(/\s+/g, ""), displayName: cleanName };
+  }
+  return { key: uid || "unknown", displayName: uid || "Unknown" };
+}
+
 export function useBeaconAnalytics(dateRange: DateRange) {
   const since = getDateStart(dateRange);
 
@@ -92,14 +123,20 @@ export function useBeaconAnalytics(dateRange: DateRange) {
   const pendingSuggestions = suggestions.data || [];
   const reviewedSuggestions = reviewed.data || [];
 
+  // Real human rows only (drop test/unknown/web-user/anonymous probes).
+  const humanRows = rows.filter((r: any) => !isSynthetic(r.user_id || "", r.user_name || ""));
+
   // KPIs
-  const totalQuestions = rows.length;
-  const activeUsers = new Set(rows.map((r: any) => r.user_id)).size;
+  const totalQuestions = humanRows.length;
+  // Active users = distinct canonical humans (Manny via email + UUID + Google id collapses to 1).
+  const activeUsers = new Set(
+    humanRows.map((r: any) => canonicalIdentity(r.user_id || "", r.user_name || "").key),
+  ).size;
   // confidence is stored 0-1; normalize to 0-100 (tolerate already-0-100 rows), and
   // average only over rows that actually have a confidence (skip no-RAG/null rows).
   const toPct = (v: any): number | null =>
     v == null ? null : Math.round(Number(v) <= 1 ? Number(v) * 100 : Number(v));
-  const confRows = rows.filter((r: any) => r.confidence != null);
+  const confRows = humanRows.filter((r: any) => r.confidence != null);
   const avgConfidence = confRows.length
     ? Math.round(confRows.reduce((s: number, r: any) => s + (toPct(r.confidence) || 0), 0) / confRows.length)
     : 0;
@@ -107,7 +144,7 @@ export function useBeaconAnalytics(dateRange: DateRange) {
 
   // Questions over time (daily)
   const dailyCounts: Record<string, number> = {};
-  rows.forEach((r: any) => {
+  humanRows.forEach((r: any) => {
     const day = (r.timestamp || "").slice(0, 10);
     if (day) dailyCounts[day] = (dailyCounts[day] || 0) + 1;
   });
@@ -117,7 +154,7 @@ export function useBeaconAnalytics(dateRange: DateRange) {
 
   // Topics breakdown
   const topicCounts: Record<string, number> = {};
-  rows.forEach((r: any) => {
+  humanRows.forEach((r: any) => {
     const t = r.topic || "Uncategorized";
     topicCounts[t] = (topicCounts[t] || 0) + 1;
   });
@@ -127,8 +164,8 @@ export function useBeaconAnalytics(dateRange: DateRange) {
 
   // Confidence distribution
   let high = 0, medium = 0, low = 0;
-  rows.forEach((r: any) => {
-    if (r.confidence == null) return; // skip no-RAG rows (no confidence score)
+  humanRows.forEach((r: any) => {
+    if (r.confidence == null) return;
     const c = toPct(r.confidence) || 0;
     if (c >= 85) high++;
     else if (c >= 60) medium++;
@@ -142,7 +179,7 @@ export function useBeaconAnalytics(dateRange: DateRange) {
 
   // Top questions
   const questionCounts: Record<string, { count: number; lastAsked: string }> = {};
-  rows
+  humanRows
     .filter((r: any) => !r.command)
     .forEach((r: any) => {
       const q = r.question || "";
@@ -161,7 +198,7 @@ export function useBeaconAnalytics(dateRange: DateRange) {
     .slice(0, 10);
 
   // Recent conversations
-  const recentConversations = rows.slice(0, 20).map((r: any) => ({
+  const recentConversations = humanRows.slice(0, 20).map((r: any) => ({
     id: r.id,
     question: r.question || "",
     response: r.response || "",
@@ -169,7 +206,7 @@ export function useBeaconAnalytics(dateRange: DateRange) {
     sourcesCount: r.sources_used ? (() => { try { return JSON.parse(r.sources_used).length; } catch { return 0; } })() : 0,
     timestamp: r.timestamp,
     timestampRelative: r.timestamp ? formatDistanceToNow(new Date(r.timestamp), { addSuffix: true }) : "",
-    userName: r.user_name || r.user_id || "Unknown",
+    userName: canonicalIdentity(r.user_id || "", r.user_name || "").displayName,
     topic: r.topic || "",
     responseTimeMs: r.response_time_ms || 0,
     costUsd: r.cost_usd || 0,
@@ -203,14 +240,18 @@ export function useBeaconAnalytics(dateRange: DateRange) {
     }));
   const costProviderKeys = [...new Set(costs.map((c: any) => c.api_name || "unknown"))];
 
-  // Team activity
+  // Team activity — merge identity variants (email + UUID + Google id collapse into one).
   const userStats: Record<string, { count: number; totalConf: number; confCount: number; lastActive: string; name: string }> = {};
-  rows.forEach((r: any) => {
-    const uid = r.user_id || "unknown";
-    if (!userStats[uid]) userStats[uid] = { count: 0, totalConf: 0, confCount: 0, lastActive: r.timestamp, name: r.user_name || uid };
-    userStats[uid].count++;
-    if (r.confidence != null) { userStats[uid].totalConf += toPct(r.confidence) || 0; userStats[uid].confCount++; }
-    if (r.timestamp > userStats[uid].lastActive) userStats[uid].lastActive = r.timestamp;
+  humanRows.forEach((r: any) => {
+    const { key, displayName } = canonicalIdentity(r.user_id || "", r.user_name || "");
+    if (!userStats[key]) userStats[key] = { count: 0, totalConf: 0, confCount: 0, lastActive: r.timestamp, name: displayName };
+    userStats[key].count++;
+    // Prefer the most "human-readable" name we see (longer, has space, no @)
+    if (displayName.length > userStats[key].name.length && !displayName.includes("@")) {
+      userStats[key].name = displayName;
+    }
+    if (r.confidence != null) { userStats[key].totalConf += toPct(r.confidence) || 0; userStats[key].confCount++; }
+    if (r.timestamp > userStats[key].lastActive) userStats[key].lastActive = r.timestamp;
   });
   const teamActivity = Object.entries(userStats)
     .map(([uid, d]) => ({
