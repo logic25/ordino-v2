@@ -110,9 +110,24 @@ interface Props {
   isLoading: boolean;
   members?: Array<{ member?: { name?: string; displayName?: string; type?: string } }>;
   isWaitingForBeacon?: boolean;
+  /** When provided, hovered messages get a "Reply in thread" affordance. */
+  onReplyInThread?: (args: { threadKey: string; preview: string; senderName?: string }) => void;
+  /** Currently active reply target (so we can highlight the parent thread). */
+  activeReplyThreadKey?: string | null;
 }
 
-export function ChatMessageList({ messages, isLoading, members = [], isWaitingForBeacon }: Props) {
+// Pull a usable threadKey from a message: prefer the explicit threadKey
+// the bot sent with, fall back to the thread resource name's last segment
+// (Google Chat's threads/<id>) so user-initiated threads also work.
+function getThreadKey(msg: GChatMessage): string | null {
+  const tk = msg.thread?.threadKey;
+  if (tk) return tk;
+  const tname = msg.thread?.name;
+  if (tname && tname.includes("/threads/")) return tname.split("/threads/")[1] || null;
+  return null;
+}
+
+export function ChatMessageList({ messages, isLoading, members = [], isWaitingForBeacon, onReplyInThread, activeReplyThreadKey }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const lastMsgKey = messages.length > 0
@@ -130,6 +145,32 @@ export function ChatMessageList({ messages, isLoading, members = [], isWaitingFo
     () => new Map(members.map((m) => [m.member?.name, m.member?.displayName])),
     [members]
   );
+
+  // Count how many messages share each thread so we can show "3 in thread" affordances.
+  const threadCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    messages.forEach((msg) => {
+      const tk = getThreadKey(msg);
+      if (tk) m.set(tk, (m.get(tk) || 0) + 1);
+    });
+    return m;
+  }, [messages]);
+
+  // Track which message is the "thread root" (first occurrence per threadKey,
+  // chronological). Subsequent messages with the same threadKey render indented.
+  const threadRoots = useMemo(() => {
+    const seen = new Set<string>();
+    const roots = new Set<string>(); // message.name values
+    messages.forEach((msg) => {
+      const tk = getThreadKey(msg);
+      if (!tk) return;
+      if (!seen.has(tk)) {
+        seen.add(tk);
+        if (msg.name) roots.add(msg.name);
+      }
+    });
+    return roots;
+  }, [messages]);
 
   if (isLoading) {
     return (
@@ -164,6 +205,12 @@ export function ChatMessageList({ messages, isLoading, members = [], isWaitingFo
         const hasCard = msg.cardsV2?.length || msg.cards?.length;
         const widgetMeta = (msg as any).widgetMetadata;
         const confidence = widgetMeta?.confidence;
+        const threadKey = getThreadKey(msg);
+        const isThreadRoot = msg.name ? threadRoots.has(msg.name) : false;
+        const isThreadReply = !!threadKey && !isThreadRoot;
+        const threadCount = threadKey ? threadCounts.get(threadKey) || 0 : 0;
+        const isActiveThread = !!threadKey && threadKey === activeReplyThreadKey;
+        const previewText = (msg.text || "").slice(0, 120).replace(/\s+/g, " ").trim();
 
         return (
           <div key={msg.name || idx}>
@@ -172,7 +219,13 @@ export function ChatMessageList({ messages, isLoading, members = [], isWaitingFo
                 <Badge variant="secondary" className="text-[10px] font-normal px-2">{msgDate}</Badge>
               </div>
             )}
-            <div className="flex items-start gap-2.5 py-1.5 group">
+            <div
+              className={cn(
+                "flex items-start gap-2.5 py-1.5 group relative rounded-md transition-colors",
+                isThreadReply && "ml-7 pl-3 border-l-2 border-amber-500/30",
+                isActiveThread && "bg-amber-500/5",
+              )}
+            >
               <Avatar className="h-7 w-7 mt-0.5 shrink-0">
                 {msg.sender?.avatarUrl && <AvatarImage src={msg.sender.avatarUrl} />}
                 <AvatarFallback className={cn("text-[10px]", isWidget && isBot && "bg-[#f59e0b]/15")}>
@@ -189,6 +242,16 @@ export function ChatMessageList({ messages, isLoading, members = [], isWaitingFo
                     </Badge>
                   )}
                   <span className="text-[10px] text-muted-foreground">{formatTime(msg.createTime)}</span>
+                  {isThreadReply && (
+                    <span className="inline-flex items-center gap-0.5 text-[9px] text-muted-foreground">
+                      <CornerDownRight className="h-2.5 w-2.5" /> in thread
+                    </span>
+                  )}
+                  {isThreadRoot && threadCount > 1 && (
+                    <Badge variant="outline" className="text-[9px] px-1 py-0 border-amber-500/30 text-amber-600 bg-amber-500/5">
+                      {threadCount} in thread
+                    </Badge>
+                  )}
                   {isWidget && isBot && confidence != null && confidence > 0 && (
                     <ConfidencePill confidence={confidence} />
                   )}
@@ -209,6 +272,21 @@ export function ChatMessageList({ messages, isLoading, members = [], isWaitingFo
                   </div>
                 )}
               </div>
+              {onReplyInThread && threadKey && !isWidget && (
+                <button
+                  onClick={() => onReplyInThread({ threadKey, preview: previewText || "(no text)", senderName: displayName })}
+                  className={cn(
+                    "absolute top-1 right-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-background border shadow-sm transition-opacity",
+                    isActiveThread
+                      ? "opacity-100 border-amber-500/50 text-amber-700"
+                      : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground",
+                  )}
+                  title="Reply in thread"
+                >
+                  <MessageSquareReply className="h-3 w-3" />
+                  Reply in thread
+                </button>
+              )}
             </div>
           </div>
         );
