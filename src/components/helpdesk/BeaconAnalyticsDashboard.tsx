@@ -409,7 +409,7 @@ export function BeaconAnalyticsDashboard() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-1.5">
               Topics Breakdown
-              <InfoTooltip>What subjects teammates are asking Beacon about (DOB filings, objections, RFPs, etc.). This feeds the Content engine — recurring topics become candidates for blog posts, playbooks, and training material.</InfoTooltip>
+              <InfoTooltip>What subjects teammates are asking Beacon about (DOB filings, objections, RFPs, etc.). Click a topic to read every question (and Beacon's response) in that bucket. Recurring topics become Content engine candidates.</InfoTooltip>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -418,20 +418,36 @@ export function BeaconAnalyticsDashboard() {
             ) : data.topicBreakdown.length === 0 ? (
               <div className="h-[300px] flex items-center justify-center text-muted-foreground text-xs">No data yet</div>
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={data.topicBreakdown.slice(0, 10)} layout="vertical" margin={{ left: 0, right: 20 }}>
-                  <XAxis type="number" tick={{ fontSize: 10 }} />
-                  <YAxis type="category" dataKey="topic" tick={{ fontSize: 10 }} width={120} />
-                  <RechartsTooltip
-                    contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid hsl(var(--border))" }}
-                    formatter={(v: number) => [`${v} questions`, "Count"]}
-                  />
-                  <Bar dataKey="count" fill={BEACON_ORANGE} radius={[0, 4, 4, 0]} barSize={16} />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="max-h-[300px] overflow-y-auto pr-1">
+                {data.topicBreakdown.map((t) => {
+                  const max = data.topicBreakdown[0].count;
+                  const pct = Math.max(6, (t.count / max) * 100);
+                  return (
+                    <button
+                      key={t.topic}
+                      onClick={() => setDrilldown({
+                        title: t.topic,
+                        subtitle: `${t.count} question${t.count === 1 ? "" : "s"} in this topic`,
+                        items: t.items,
+                      })}
+                      className="w-full text-left group py-1.5 px-1 rounded-md hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="font-medium truncate flex-1">{t.topic}</span>
+                        <span className="tabular-nums text-muted-foreground">{t.count}</span>
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                      <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: BEACON_ORANGE }} />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </CardContent>
         </Card>
+
       </div>
 
       {/* Confidence Distribution + Top Questions */}
