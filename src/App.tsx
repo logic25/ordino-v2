@@ -20,6 +20,7 @@ function lazyWithRetry<T extends React.ComponentType<any>>(
 ) {
   return lazy(async () => {
     const retryKey = `lazy-retry:${cacheKey}`;
+    const RETRY_WINDOW_MS = 60_000; // allow re-attempts after 1 min
 
     try {
       const module = await importer();
@@ -27,12 +28,30 @@ function lazyWithRetry<T extends React.ComponentType<any>>(
       return module;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      const isChunkLoadError = /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i.test(message);
-      const hasRetried = sessionStorage.getItem(retryKey) === "1";
+      const isChunkLoadError = /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Loading chunk|ChunkLoadError/i.test(message);
 
-      if (isChunkLoadError && !hasRetried) {
-        sessionStorage.setItem(retryKey, "1");
-        window.location.reload();
+      const lastRetryRaw = sessionStorage.getItem(retryKey);
+      const lastRetry = lastRetryRaw ? parseInt(lastRetryRaw, 10) : 0;
+      const recentlyRetried = lastRetry && Date.now() - lastRetry < RETRY_WINDOW_MS;
+
+      if (isChunkLoadError && !recentlyRetried) {
+        sessionStorage.setItem(retryKey, Date.now().toString());
+        try {
+          // Bust HTTP cache + any service worker cache, then hard-reload index.html
+          if ("serviceWorker" in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map((r) => r.unregister()));
+          }
+          if ("caches" in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((k) => caches.delete(k)));
+          }
+        } catch {
+          // ignore — fall through to reload
+        }
+        const url = new URL(window.location.href);
+        url.searchParams.set("_v", Date.now().toString());
+        window.location.replace(url.toString());
         return new Promise<never>(() => {});
       }
 
