@@ -123,14 +123,20 @@ export function useBeaconAnalytics(dateRange: DateRange) {
   const pendingSuggestions = suggestions.data || [];
   const reviewedSuggestions = reviewed.data || [];
 
+  // Real human rows only (drop test/unknown/web-user/anonymous probes).
+  const humanRows = rows.filter((r: any) => !isSynthetic(r.user_id || "", r.user_name || ""));
+
   // KPIs
-  const totalQuestions = rows.length;
-  const activeUsers = new Set(rows.map((r: any) => r.user_id)).size;
+  const totalQuestions = humanRows.length;
+  // Active users = distinct canonical humans (Manny via email + UUID + Google id collapses to 1).
+  const activeUsers = new Set(
+    humanRows.map((r: any) => canonicalIdentity(r.user_id || "", r.user_name || "").key),
+  ).size;
   // confidence is stored 0-1; normalize to 0-100 (tolerate already-0-100 rows), and
   // average only over rows that actually have a confidence (skip no-RAG/null rows).
   const toPct = (v: any): number | null =>
     v == null ? null : Math.round(Number(v) <= 1 ? Number(v) * 100 : Number(v));
-  const confRows = rows.filter((r: any) => r.confidence != null);
+  const confRows = humanRows.filter((r: any) => r.confidence != null);
   const avgConfidence = confRows.length
     ? Math.round(confRows.reduce((s: number, r: any) => s + (toPct(r.confidence) || 0), 0) / confRows.length)
     : 0;
