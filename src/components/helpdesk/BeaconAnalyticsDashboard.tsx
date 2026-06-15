@@ -233,10 +233,22 @@ export function BeaconAnalyticsDashboard() {
   const data = useBeaconAnalytics(dateRange);
 
   const kpis = [
-    { label: "Total Questions", value: formatAbbrev(data.totalQuestions), icon: MessageSquare, color: "bg-amber-500/10 text-amber-600" },
-    { label: "Active Users", value: data.activeUsers.toString(), icon: Users, color: "bg-blue-500/10 text-blue-600" },
-    { label: "Avg Confidence", value: `${data.avgConfidence}%`, icon: Target, color: "bg-green-500/10 text-green-600" },
-    { label: "Pending Suggestions", value: data.pendingCount.toString(), icon: AlertCircle, color: "bg-red-500/10 text-red-600" },
+    {
+      label: "Total Questions", value: formatAbbrev(data.totalQuestions), icon: MessageSquare, color: "bg-amber-500/10 text-amber-600",
+      tip: "Every question a real teammate asked Beacon (web chat, Google Chat DM, embedded widget). Test/anonymous probes are excluded so this reflects actual usage.",
+    },
+    {
+      label: "Active Users", value: data.activeUsers.toString(), icon: Users, color: "bg-blue-500/10 text-blue-600",
+      tip: "Distinct humans who asked Beacon at least once in the selected range. Identity variants (work email, profile ID, Google ID, name aliases) are merged into one person — so Manny logged in 4 different ways still counts as 1.",
+    },
+    {
+      label: "Avg Confidence", value: `${data.avgConfidence}%`, icon: Target, color: "bg-green-500/10 text-green-600",
+      tip: "Average RAG retrieval confidence (0–100%) across all answered questions. High = Beacon found strong matches in the knowledge base. Low = the KB is thin on that topic — a signal to add content.",
+    },
+    {
+      label: "Pending Suggestions", value: data.pendingCount.toString(), icon: AlertCircle, color: "bg-red-500/10 text-red-600",
+      tip: "KB corrections waiting for your review. When teammates flag a wrong answer in chat, it lands here. Approving folds the correction into Beacon's knowledge base.",
+    },
   ];
 
   const rangeLabel = dateRange === "all" ? "All time" : `Last ${dateRange} days`;
