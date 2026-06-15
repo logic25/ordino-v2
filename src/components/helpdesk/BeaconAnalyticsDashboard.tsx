@@ -272,7 +272,7 @@ function DrilldownDialog({
                         : item.confidence >= 60 ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
                         : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400",
                     )}>{item.confidence}%</span>
-                    <span>${item.costUsd.toFixed(4)}</span>
+                    <span className="tabular-nums" title={`$${item.costUsd.toFixed(6)}`}>{formatCost(item.costUsd)}</span>
                   </span>
                 </div>
                 <div>
