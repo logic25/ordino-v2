@@ -298,6 +298,8 @@ function DrilldownDialog({
 export function BeaconAnalyticsDashboard() {
   const [dateRange, setDateRange] = useState<DateRange>("all");
   const data = useBeaconAnalytics(dateRange);
+  const [drilldown, setDrilldown] = useState<{ title: string; subtitle?: string; items: any[] } | null>(null);
+
 
   const kpis = [
     {
