@@ -59,7 +59,7 @@ export function useAssignableProfiles() {
         .select("*")
         .eq("company_id", currentProfile.company_id)
         .eq("is_active", true)
-        .in("role", ["pm", "manager", "admin", "production"])
+        .in("role", ["pm", "manager", "admin"])
         .order("first_name");
 
       if (error) throw error;
