@@ -5,13 +5,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
 import {
   MessageSquare, Users, Target, AlertCircle, ChevronDown, Clock, DollarSign, Trophy,
-  Check, X, Loader2, Sparkles, Inbox,
+  Check, X, Loader2, Sparkles, Inbox, ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useBeaconAnalytics, useReviewSuggestion, useTurnQuestionIntoContent, type DateRange } from "@/hooks/useBeaconAnalytics";
@@ -21,6 +23,7 @@ import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { InfoTooltip } from "@/components/dashboard/InfoTooltip";
 import { TooltipProvider } from "@/components/ui/tooltip";
+
 
 const BEACON_ORANGE = "#f59e0b";
 
