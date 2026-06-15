@@ -338,7 +338,10 @@ export function BeaconAnalyticsDashboard() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Topics Breakdown</CardTitle>
+            <CardTitle className="text-sm flex items-center gap-1.5">
+              Topics Breakdown
+              <InfoTooltip>What subjects teammates are asking Beacon about (DOB filings, objections, RFPs, etc.). This feeds the Content engine — recurring topics become candidates for blog posts, playbooks, and training material.</InfoTooltip>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {data.isLoading ? (
