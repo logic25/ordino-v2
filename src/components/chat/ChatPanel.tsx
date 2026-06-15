@@ -195,7 +195,12 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
       return;
     }
 
-    sendMutation.mutate({ spaceId: selectedSpaceId, text, threadKey });
+    // Reply target wins over the panel-level threadKey prop.
+    const effectiveThreadKey = replyTarget?.threadKey || threadKey;
+    sendMutation.mutate(
+      { spaceId: selectedSpaceId, text, threadKey: effectiveThreadKey },
+      { onSuccess: () => setReplyTarget(null) },
+    );
   };
 
   const handleNewChat = async (email: string) => {
