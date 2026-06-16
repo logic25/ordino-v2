@@ -21,9 +21,11 @@ interface Props {
   threadKey?: string;
   compact?: boolean;
   className?: string;
+  initialText?: string;
 }
 
-export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className }: Props) {
+export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className, initialText }: Props) {
+
   const { data: company } = useCompanySettings();
   const { user, profile } = useAuth();
   const queryClient = useQueryClient();
