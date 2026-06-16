@@ -70,6 +70,9 @@ function vCard(p: Fields) {
 }
 
 const LS_KEY = "qr-card-fields";
+const LOGO_LS_KEY = "qr-card-logo-cfg";
+type LogoCfg = { height: number; top: number; right: number };
+const LOGO_DEFAULT: LogoCfg = { height: 20, top: 12, right: 70 };
 
 const imageExtensionPattern = /\.(png|jpe?g|gif|webp|heic|heif|bmp|svg)$/i;
 
@@ -161,6 +164,17 @@ export function BdMyCardTab() {
   const [editOpen, setEditOpen] = useState(false);
   const [uploading, setUploading] = useState<null | "avatar" | "cover">(null);
   const [coverUrl, setCoverUrl] = useState<string>("");
+  const [logoCfg, setLogoCfg] = useState<LogoCfg>(() => {
+    try {
+      const raw = localStorage.getItem(LOGO_LS_KEY);
+      if (raw) return { ...LOGO_DEFAULT, ...JSON.parse(raw) };
+    } catch {}
+    return LOGO_DEFAULT;
+  });
+  const [logoTuner, setLogoTuner] = useState(false);
+  useEffect(() => {
+    try { localStorage.setItem(LOGO_LS_KEY, JSON.stringify(logoCfg)); } catch {}
+  }, [logoCfg]);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -285,6 +299,31 @@ export function BdMyCardTab() {
     URL.revokeObjectURL(url);
   };
 
+  const shareCard = async () => {
+    const fileName = `${fields.first}-${fields.last}-GLE.vcf`.replace(/\s+/g, "");
+    const file = new File([card], fileName, { type: "text/vcard" });
+    const shareData: ShareData = {
+      title: `${fields.first} ${fields.last} — ${COMPANY.org}`,
+      text: `Contact card for ${fields.first} ${fields.last}`,
+    };
+    try {
+      // @ts-ignore
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await (navigator as any).share({ ...shareData, files: [file] });
+        return;
+      }
+      if ((navigator as any).share) {
+        await (navigator as any).share(shareData);
+        return;
+      }
+      await navigator.clipboard.writeText(card);
+      toast.success("vCard copied to clipboard");
+    } catch (e: any) {
+      if (e?.name !== "AbortError") toast.error(e?.message ?? "Share failed");
+    }
+  };
+
+
   const saveToProfile = async () => {
     if (!profile?.id) {
       toast.error("Profile not loaded yet");
@@ -394,13 +433,23 @@ export function BdMyCardTab() {
         {/* Identity */}
         <CardContent className="pt-12 pb-4 px-5 relative">
           {/* Company logo — right of avatar, in white space below cover */}
-          <div className="absolute right-[70px] top-3 h-5 w-[180px] overflow-hidden">
+          <div
+            className="absolute overflow-hidden print:!h-5 print:!top-3 print:!right-[70px]"
+            style={{
+              top: `${logoCfg.top}px`,
+              right: `${logoCfg.right}px`,
+              height: `${logoCfg.height}px`,
+              width: `${Math.round(logoCfg.height * 9)}px`,
+            }}
+          >
             <img
               src={companyLogo}
               alt="Green Light Expediting"
-              className="h-5 w-auto max-w-none"
+              className="w-auto max-w-none"
+              style={{ height: `${logoCfg.height}px` }}
             />
           </div>
+
 
           <h2 className="text-xl font-bold leading-tight">
             {fields.first} {fields.last}
@@ -437,34 +486,80 @@ export function BdMyCardTab() {
         {/* QR section */}
         <div className="border-t bg-muted/30 px-5 py-4 flex items-center gap-4">
           <div className="relative bg-white p-3 rounded-md shrink-0 border">
-            <QRCode value={card} size={140} level="H" />
+            <QRCode value={card} size={132} level="H" />
           </div>
-          <div className="flex-1 text-xs">
-            <div className="flex items-center gap-1 font-semibold text-foreground">
-              <QrCode className="h-3.5 w-3.5" /> Scan to save contact
+          <div className="flex-1 min-w-0 flex flex-col gap-2">
+            <img
+              src={mbeSeal}
+              alt="NYC Minority Business Enterprise certified"
+              title="NYC Minority Business Enterprise certified"
+              className="h-12 w-12 animate-spin-slow self-start"
+              loading="lazy"
+              width={48}
+              height={48}
+            />
+            <div className="flex flex-col gap-1.5 print:hidden">
+              <Button size="sm" variant="outline" onClick={downloadVcf} className="h-8 text-xs justify-start">
+                <Download className="mr-1.5 h-3.5 w-3.5" />Save (.vcf)
+              </Button>
+              <Button size="sm" variant="outline" onClick={shareCard} className="h-8 text-xs justify-start">
+                <Share2 className="mr-1.5 h-3.5 w-3.5" />Share
+              </Button>
             </div>
-            <p className="text-muted-foreground mt-1 leading-snug">
-              Opens directly in their phone's contacts app — no app required.
-            </p>
           </div>
-          <img
-            src={mbeSeal}
-            alt="NYC Minority Business Enterprise certified"
-            title="NYC Minority Business Enterprise certified"
-            className="h-14 w-14 shrink-0 animate-spin-slow"
-            loading="lazy"
-            width={56}
-            height={56}
-          />
         </div>
 
       </Card>
 
-      <div className="flex justify-end print:hidden">
-        <Button variant="ghost" size="sm" onClick={downloadVcf} className="text-xs text-muted-foreground hover:text-foreground h-7">
-          <Download className="mr-1.5 h-3.5 w-3.5" />Save contact (.vcf)
-        </Button>
+      {/* Logo tuner — manual size/position controls (persisted locally) */}
+      <div className="print:hidden border rounded-md bg-muted/30">
+        <button
+          type="button"
+          onClick={() => setLogoTuner((v) => !v)}
+          className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+        >
+          <span>Logo position & size</span>
+          <span className="text-[10px] opacity-70">
+            {logoTuner ? "hide" : "adjust"} · h{logoCfg.height} t{logoCfg.top} r{logoCfg.right}
+          </span>
+        </button>
+        {logoTuner && (
+          <div className="px-3 pb-3 space-y-2">
+            {([
+              { k: "height", label: "Height", min: 10, max: 60 },
+              { k: "top", label: "Top", min: -10, max: 40 },
+              { k: "right", label: "Right", min: 0, max: 200 },
+            ] as const).map(({ k, label, min, max }) => (
+              <div key={k} className="flex items-center gap-2 text-[11px]">
+                <span className="w-14 text-muted-foreground">{label}</span>
+                <input
+                  type="range"
+                  min={min}
+                  max={max}
+                  value={logoCfg[k]}
+                  onChange={(e) => setLogoCfg((c) => ({ ...c, [k]: Number(e.target.value) }))}
+                  className="flex-1"
+                />
+                <input
+                  type="number"
+                  min={min}
+                  max={max}
+                  value={logoCfg[k]}
+                  onChange={(e) => setLogoCfg((c) => ({ ...c, [k]: Number(e.target.value) }))}
+                  className="w-14 h-7 px-1.5 rounded border bg-background text-right tabular-nums"
+                />
+                <span className="text-muted-foreground">px</span>
+              </div>
+            ))}
+            <div className="flex justify-end">
+              <Button size="sm" variant="ghost" onClick={() => setLogoCfg(LOGO_DEFAULT)} className="h-7 text-xs">
+                Reset
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
+
 
       <Sheet open={editOpen} onOpenChange={setEditOpen}>
         <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
