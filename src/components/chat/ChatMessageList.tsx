@@ -1,10 +1,11 @@
-import { useRef, useEffect, useMemo, useState } from "react";
+import { useRef, useEffect, useMemo, useState, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Brain, ChevronDown, ChevronRight, CornerDownRight, MessageSquareReply } from "lucide-react";
+import { Loader2, Brain, ChevronDown, ChevronRight, CornerDownRight, MessageSquareReply, Smile } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import type { GChatMessage } from "@/hooks/useGoogleChat";
+import { useAddGChatReaction } from "@/hooks/useGoogleChat";
 
 function getInitials(name: string) {
   return name
