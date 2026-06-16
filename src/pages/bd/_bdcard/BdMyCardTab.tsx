@@ -93,47 +93,77 @@ export function BdMyCardTab() {
     phone: "", extension: "", mobile: "", linkedin: "", address: "",
   });
   const [saving, setSaving] = useState(false);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploading, setUploading] = useState<null | "avatar" | "cover">(null);
+  const [coverUrl, setCoverUrl] = useState<string>("");
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const coverInputRef = useRef<HTMLInputElement | null>(null);
 
-  const handleAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const uploadImage = async (file: File, kind: "avatar" | "cover"): Promise<string> => {
+    const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+    const path = `${user!.id}/${kind}-${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from("avatars")
+      .upload(path, file, { upsert: true, contentType: file.type });
+    if (upErr) throw upErr;
+    const { data: signed, error: signErr } = await supabase.storage
+      .from("avatars")
+      .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+    if (signErr || !signed?.signedUrl) throw signErr || new Error("Could not sign URL");
+    return signed.signedUrl;
+  };
+
+  const handleImageFile = (kind: "avatar" | "cover") => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file || !user?.id || !profile?.id) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please choose an image file");
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image must be under 5 MB");
-      return;
-    }
-    setUploadingAvatar(true);
+    if (!file.type.startsWith("image/")) { toast.error("Please choose an image file"); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error("Image must be under 5 MB"); return; }
+    setUploading(kind);
     try {
-      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-      const path = `${user.id}/avatar-${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage
-        .from("avatars")
-        .upload(path, file, { upsert: true, contentType: file.type });
-      if (upErr) throw upErr;
-      // Long-lived signed URL (~10 years) since bucket is private.
-      const { data: signed, error: signErr } = await supabase.storage
-        .from("avatars")
-        .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
-      if (signErr || !signed?.signedUrl) throw signErr || new Error("Could not sign URL");
-      const { error: updErr } = await supabase
-        .from("profiles")
-        .update({ avatar_url: signed.signedUrl })
-        .eq("id", profile.id);
-      if (updErr) throw updErr;
-      toast.success("Photo updated");
+      const url = await uploadImage(file, kind);
+      if (kind === "avatar") {
+        const { error } = await supabase.from("profiles").update({ avatar_url: url }).eq("id", profile.id);
+        if (error) throw error;
+      } else {
+        const existingPrefs = (profile as any)?.preferences ?? {};
+        const { error } = await supabase
+          .from("profiles")
+          .update({
+            preferences: {
+              ...existingPrefs,
+              bd_card: { ...(existingPrefs.bd_card ?? {}), cover_url: url },
+            },
+          })
+          .eq("id", profile.id);
+        if (error) throw error;
+        setCoverUrl(url);
+      }
+      toast.success(kind === "avatar" ? "Photo updated" : "Cover image updated");
       if (typeof refreshProfile === "function") await refreshProfile();
     } catch (err: any) {
-      toast.error(err?.message ?? "Failed to upload photo");
+      toast.error(err?.message ?? "Upload failed");
     } finally {
-      setUploadingAvatar(false);
+      setUploading(null);
     }
   };
+
+  const clearCover = async () => {
+    if (!profile?.id) return;
+    const existingPrefs = (profile as any)?.preferences ?? {};
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        preferences: {
+          ...existingPrefs,
+          bd_card: { ...(existingPrefs.bd_card ?? {}), cover_url: null },
+        },
+      })
+      .eq("id", profile.id);
+    if (error) { toast.error(error.message); return; }
+    setCoverUrl("");
+    if (typeof refreshProfile === "function") await refreshProfile();
+  };
+
 
 
   useEffect(() => {
