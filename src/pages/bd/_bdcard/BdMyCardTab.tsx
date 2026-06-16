@@ -11,6 +11,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import companyLogo from "@/assets/company-logo-hosted.webp";
 
 const COMPANY = {
   org: "Green Light Expediting",
@@ -92,6 +93,45 @@ async function getImageFileKind(file: File): Promise<{ ok: boolean; ext: string;
   return { ok: false, ext: "", contentType: "" };
 }
 
+// Downscale + recompress large images in the browser so we don't upload 10MB phone photos.
+// Skips formats the browser can't decode (HEIC, SVG) — those upload as-is.
+async function compressImage(
+  file: File,
+  opts: { maxDim: number; quality: number; mime?: string }
+): Promise<{ blob: Blob; ext: string; contentType: string }> {
+  const skip = /heic|heif|svg|gif/i.test(file.type) || /\.(heic|heif|svg|gif)$/i.test(file.name);
+  if (skip) {
+    const ext = (file.name.split(".").pop() || "bin").toLowerCase();
+    return { blob: file, ext, contentType: file.type || `image/${ext}` };
+  }
+  try {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, opts.maxDim / Math.max(bmp.width, bmp.height));
+    const w = Math.round(bmp.width * scale);
+    const h = Math.round(bmp.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("no 2d context");
+    ctx.drawImage(bmp, 0, 0, w, h);
+    const outMime = opts.mime || "image/jpeg";
+    const blob: Blob = await new Promise((resolve, reject) =>
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob failed"))), outMime, opts.quality)
+    );
+    // If compression somehow made it bigger, keep the original.
+    if (blob.size >= file.size) {
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      return { blob: file, ext, contentType: file.type || `image/${ext}` };
+    }
+    const ext = outMime === "image/png" ? "png" : outMime === "image/webp" ? "webp" : "jpg";
+    return { blob, ext, contentType: outMime };
+  } catch {
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+    return { blob: file, ext, contentType: file.type || `image/${ext}` };
+  }
+}
+
 function ContactRow({ icon, label, href }: { icon: React.ReactNode; label: string; href?: string }) {
   const content = (
     <div className="flex items-center gap-3 text-sm">
@@ -123,11 +163,16 @@ export function BdMyCardTab() {
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
 
-  const uploadImage = async (file: File, kind: "avatar" | "cover", ext: string, contentType: string): Promise<string> => {
+  const uploadImage = async (
+    body: Blob,
+    kind: "avatar" | "cover",
+    ext: string,
+    contentType: string
+  ): Promise<string> => {
     const path = `${user!.id}/${kind}-${Date.now()}.${ext}`;
     const { error: upErr } = await supabase.storage
       .from("avatars")
-      .upload(path, file, { upsert: true, contentType });
+      .upload(path, body, { upsert: true, contentType });
     if (upErr) throw upErr;
     const { data: signed, error: signErr } = await supabase.storage
       .from("avatars")
@@ -141,12 +186,18 @@ export function BdMyCardTab() {
     e.target.value = "";
     if (!file) return;
     if (!user?.id || !profile?.id) { toast.error("You must be signed in"); return; }
-    if (file.size > 15 * 1024 * 1024) { toast.error("Image must be under 15 MB"); return; }
+    if (file.size > 25 * 1024 * 1024) { toast.error("Image must be under 25 MB"); return; }
     const imageKind = await getImageFileKind(file);
     if (!imageKind.ok) { toast.error("That file is not an image. Choose a photo or screenshot."); return; }
     setUploading(kind);
     try {
-      const url = await uploadImage(file, kind, imageKind.ext, imageKind.contentType);
+      // Avatars: square-ish, max 800px. Covers: wide, max 1600px. Both as JPEG ~0.85.
+      const { blob, ext, contentType } = await compressImage(file, {
+        maxDim: kind === "avatar" ? 800 : 1600,
+        quality: 0.85,
+        mime: "image/jpeg",
+      });
+      const url = await uploadImage(blob, kind, ext, contentType);
       if (kind === "avatar") {
         const { error } = await supabase.from("profiles").update({ avatar_url: url }).eq("id", profile.id);
         if (error) throw error;
@@ -164,7 +215,12 @@ export function BdMyCardTab() {
         if (error) throw error;
         setCoverUrl(url);
       }
-      toast.success(kind === "avatar" ? "Photo updated" : "Cover image updated");
+      const savedKb = Math.max(0, Math.round((file.size - blob.size) / 1024));
+      toast.success(
+        kind === "avatar"
+          ? `Photo updated${savedKb > 50 ? ` · saved ${savedKb} KB` : ""}`
+          : `Cover image updated${savedKb > 50 ? ` · saved ${savedKb} KB` : ""}`
+      );
       if (typeof refreshProfile === "function") await refreshProfile();
     } catch (err: any) {
       toast.error(err?.message ?? "Upload failed");
@@ -293,8 +349,8 @@ export function BdMyCardTab() {
           }}
         >
           {coverUrl && <div className="absolute inset-0 bg-black/20" />}
-          <div className="absolute top-3 right-3 text-[10px] font-bold tracking-widest text-white/90 drop-shadow">
-            GREEN LIGHT EXPEDITING
+          <div className="absolute top-3 right-3 flex items-center gap-1.5 rounded-md bg-white/90 px-2 py-1 shadow-sm">
+            <img src={companyLogo} alt="Green Light Expediting" className="h-5 w-auto" />
           </div>
           {/* Cover image edit controls */}
           <div className="absolute top-2 left-2 flex gap-1 print:hidden">
