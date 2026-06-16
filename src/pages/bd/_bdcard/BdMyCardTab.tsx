@@ -523,8 +523,6 @@ export function BdMyCardTab() {
             )}
           </div>
 
-          <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile("avatar")} />
-          <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile("cover")} />
         </div>
 
         {/* Identity */}
