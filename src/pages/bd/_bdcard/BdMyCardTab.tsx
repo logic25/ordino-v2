@@ -320,10 +320,9 @@ export function BdMyCardTab() {
           <Download className="mr-1.5 h-3.5 w-3.5" />Save contact (.vcf)
         </Button>
       </div>
+      </div>
 
-
-
-      <Card className="print:hidden">
+      <Card className="print:hidden lg:sticky lg:top-4">
         <CardContent className="p-4 grid grid-cols-2 gap-3">
           <div className="space-y-1.5"><Label>First name</Label><Input value={fields.first} onChange={set("first")} /></div>
           <div className="space-y-1.5"><Label>Last name</Label><Input value={fields.last} onChange={set("last")} /></div>
