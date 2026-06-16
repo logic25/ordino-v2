@@ -363,6 +363,25 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
             <Button
               variant="ghost"
               size="sm"
+              onClick={() => {
+                const sender = email.from_name
+                  ? `${email.from_name} <${email.from_email}>`
+                  : email.from_email || "unknown sender";
+                const summary = (email.snippet || (email as any).body_text || "")
+                  .replace(/\s+/g, " ")
+                  .trim()
+                  .slice(0, 160);
+                const prefill = `Re: "${email.subject || "(no subject)"}" (from ${sender})${summary ? ` — ${summary}` : ""} `;
+                setChatPrefill(prefill);
+                setChatOpen(true);
+              }}
+            >
+              <MessagesSquare className="h-4 w-4 mr-1.5" />
+              Discuss in Chat
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={async () => {
                 try {
                   await markReadUnread.mutateAsync({ emailId: email.id, isRead: !email.is_read });
@@ -379,6 +398,7 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
                 <><MailOpen className="h-4 w-4 mr-1.5" /> Read</>
               )}
             </Button>
+
           </div>
 
           <Separator />
