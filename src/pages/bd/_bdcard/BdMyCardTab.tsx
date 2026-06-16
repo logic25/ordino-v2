@@ -93,47 +93,77 @@ export function BdMyCardTab() {
     phone: "", extension: "", mobile: "", linkedin: "", address: "",
   });
   const [saving, setSaving] = useState(false);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploading, setUploading] = useState<null | "avatar" | "cover">(null);
+  const [coverUrl, setCoverUrl] = useState<string>("");
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const coverInputRef = useRef<HTMLInputElement | null>(null);
 
-  const handleAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const uploadImage = async (file: File, kind: "avatar" | "cover"): Promise<string> => {
+    const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+    const path = `${user!.id}/${kind}-${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from("avatars")
+      .upload(path, file, { upsert: true, contentType: file.type });
+    if (upErr) throw upErr;
+    const { data: signed, error: signErr } = await supabase.storage
+      .from("avatars")
+      .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+    if (signErr || !signed?.signedUrl) throw signErr || new Error("Could not sign URL");
+    return signed.signedUrl;
+  };
+
+  const handleImageFile = (kind: "avatar" | "cover") => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file || !user?.id || !profile?.id) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please choose an image file");
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image must be under 5 MB");
-      return;
-    }
-    setUploadingAvatar(true);
+    if (!file.type.startsWith("image/")) { toast.error("Please choose an image file"); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error("Image must be under 5 MB"); return; }
+    setUploading(kind);
     try {
-      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-      const path = `${user.id}/avatar-${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage
-        .from("avatars")
-        .upload(path, file, { upsert: true, contentType: file.type });
-      if (upErr) throw upErr;
-      // Long-lived signed URL (~10 years) since bucket is private.
-      const { data: signed, error: signErr } = await supabase.storage
-        .from("avatars")
-        .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
-      if (signErr || !signed?.signedUrl) throw signErr || new Error("Could not sign URL");
-      const { error: updErr } = await supabase
-        .from("profiles")
-        .update({ avatar_url: signed.signedUrl })
-        .eq("id", profile.id);
-      if (updErr) throw updErr;
-      toast.success("Photo updated");
+      const url = await uploadImage(file, kind);
+      if (kind === "avatar") {
+        const { error } = await supabase.from("profiles").update({ avatar_url: url }).eq("id", profile.id);
+        if (error) throw error;
+      } else {
+        const existingPrefs = (profile as any)?.preferences ?? {};
+        const { error } = await supabase
+          .from("profiles")
+          .update({
+            preferences: {
+              ...existingPrefs,
+              bd_card: { ...(existingPrefs.bd_card ?? {}), cover_url: url },
+            },
+          })
+          .eq("id", profile.id);
+        if (error) throw error;
+        setCoverUrl(url);
+      }
+      toast.success(kind === "avatar" ? "Photo updated" : "Cover image updated");
       if (typeof refreshProfile === "function") await refreshProfile();
     } catch (err: any) {
-      toast.error(err?.message ?? "Failed to upload photo");
+      toast.error(err?.message ?? "Upload failed");
     } finally {
-      setUploadingAvatar(false);
+      setUploading(null);
     }
   };
+
+  const clearCover = async () => {
+    if (!profile?.id) return;
+    const existingPrefs = (profile as any)?.preferences ?? {};
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        preferences: {
+          ...existingPrefs,
+          bd_card: { ...(existingPrefs.bd_card ?? {}), cover_url: null },
+        },
+      })
+      .eq("id", profile.id);
+    if (error) { toast.error(error.message); return; }
+    setCoverUrl("");
+    if (typeof refreshProfile === "function") await refreshProfile();
+  };
+
 
 
   useEffect(() => {
@@ -150,6 +180,7 @@ export function BdMyCardTab() {
       linkedin: prefs.linkedin ?? saved.linkedin ?? "",
       address: prefs.address ?? saved.address ?? "",
     });
+    setCoverUrl(prefs.cover_url ?? "");
   }, [profile?.id, user?.email]);
 
   useEffect(() => {
@@ -224,45 +255,65 @@ export function BdMyCardTab() {
       <Card className="overflow-hidden print:shadow-none print:border-2 shadow-lg">
         {/* Banner */}
         <div
-          className="relative h-28"
+          className="relative h-28 bg-cover bg-center"
           style={{
-            background:
-              "linear-gradient(135deg, #1a2e1a 0%, #2d4a2d 40%, #6aa84f 100%)",
+            backgroundImage: coverUrl
+              ? `url("${coverUrl}")`
+              : "linear-gradient(135deg, #1a2e1a 0%, #2d4a2d 40%, #6aa84f 100%)",
           }}
         >
-          <div className="absolute top-3 right-3 text-[10px] font-bold tracking-widest text-white/80">
+          {coverUrl && <div className="absolute inset-0 bg-black/20" />}
+          <div className="absolute top-3 right-3 text-[10px] font-bold tracking-widest text-white/90 drop-shadow">
             GREEN LIGHT EXPEDITING
           </div>
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="absolute -bottom-10 left-5 group rounded-full print:hidden"
-            title="Change photo"
-            disabled={uploadingAvatar}
-          >
+          {/* Cover image edit controls */}
+          <div className="absolute top-2 left-2 flex gap-1 print:hidden">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="h-7 px-2 text-[11px] bg-white/85 hover:bg-white text-foreground shadow"
+              onClick={() => coverInputRef.current?.click()}
+              disabled={uploading === "cover"}
+            >
+              {uploading === "cover" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3 mr-1" />}
+              {coverUrl ? "Change cover" : "Add cover"}
+            </Button>
+            {coverUrl && (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                className="h-7 px-2 text-[11px] bg-white/85 hover:bg-white text-foreground shadow"
+                onClick={clearCover}
+              >
+                Reset
+              </Button>
+            )}
+          </div>
+
+          {/* Avatar with always-visible edit button */}
+          <div className="absolute -bottom-10 left-5">
             <Avatar className="h-24 w-24 ring-4 ring-background shadow-md">
               {avatarUrl && <AvatarImage src={avatarUrl} alt={`${fields.first} ${fields.last}`} />}
               <AvatarFallback className="text-xl font-semibold" style={{ backgroundColor: "#6aa84f", color: "white" }}>
                 {initials}
               </AvatarFallback>
             </Avatar>
-            <span className="absolute inset-0 rounded-full bg-black/45 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[11px] font-medium gap-1">
-              {uploadingAvatar ? <Loader2 className="h-4 w-4 animate-spin" /> : (<><Camera className="h-3.5 w-3.5" /> Change</>)}
-            </span>
-          </button>
-          <Avatar className="absolute -bottom-10 left-5 h-24 w-24 ring-4 ring-background shadow-md hidden print:block">
-            {avatarUrl && <AvatarImage src={avatarUrl} alt={`${fields.first} ${fields.last}`} />}
-            <AvatarFallback className="text-xl font-semibold" style={{ backgroundColor: "#6aa84f", color: "white" }}>
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleAvatarFile}
-          />
+            <button
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={uploading === "avatar"}
+              className="print:hidden absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-foreground text-background shadow-md ring-2 ring-background flex items-center justify-center hover:scale-105 transition"
+              title="Change photo"
+              aria-label="Change photo"
+            >
+              {uploading === "avatar" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+            </button>
+          </div>
+
+          <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile("avatar")} />
+          <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile("cover")} />
         </div>
 
         {/* Identity */}
