@@ -93,6 +93,45 @@ async function getImageFileKind(file: File): Promise<{ ok: boolean; ext: string;
   return { ok: false, ext: "", contentType: "" };
 }
 
+// Downscale + recompress large images in the browser so we don't upload 10MB phone photos.
+// Skips formats the browser can't decode (HEIC, SVG) — those upload as-is.
+async function compressImage(
+  file: File,
+  opts: { maxDim: number; quality: number; mime?: string }
+): Promise<{ blob: Blob; ext: string; contentType: string }> {
+  const skip = /heic|heif|svg|gif/i.test(file.type) || /\.(heic|heif|svg|gif)$/i.test(file.name);
+  if (skip) {
+    const ext = (file.name.split(".").pop() || "bin").toLowerCase();
+    return { blob: file, ext, contentType: file.type || `image/${ext}` };
+  }
+  try {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, opts.maxDim / Math.max(bmp.width, bmp.height));
+    const w = Math.round(bmp.width * scale);
+    const h = Math.round(bmp.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("no 2d context");
+    ctx.drawImage(bmp, 0, 0, w, h);
+    const outMime = opts.mime || "image/jpeg";
+    const blob: Blob = await new Promise((resolve, reject) =>
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob failed"))), outMime, opts.quality)
+    );
+    // If compression somehow made it bigger, keep the original.
+    if (blob.size >= file.size) {
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      return { blob: file, ext, contentType: file.type || `image/${ext}` };
+    }
+    const ext = outMime === "image/png" ? "png" : outMime === "image/webp" ? "webp" : "jpg";
+    return { blob, ext, contentType: outMime };
+  } catch {
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+    return { blob: file, ext, contentType: file.type || `image/${ext}` };
+  }
+}
+
 function ContactRow({ icon, label, href }: { icon: React.ReactNode; label: string; href?: string }) {
   const content = (
     <div className="flex items-center gap-3 text-sm">
