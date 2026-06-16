@@ -12,6 +12,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import companyLogo from "@/assets/company-logo-hosted.webp";
+import mbeSeal from "@/assets/mbe-seal.png";
 
 const COMPANY = {
   org: "Green Light Expediting",
@@ -349,64 +350,56 @@ export function BdMyCardTab() {
           }}
         >
           {coverUrl && <div className="absolute inset-0 bg-black/20" />}
-          {/* Cover image edit controls */}
-          <div className="absolute top-2 left-2 flex gap-1 print:hidden">
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              className="h-7 px-2 text-[11px] bg-white/85 hover:bg-white text-foreground shadow"
-              onClick={() => coverInputRef.current?.click()}
-              disabled={uploading === "cover"}
-            >
-              {uploading === "cover" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3 mr-1" />}
-              {coverUrl ? "Change cover" : "Add cover"}
-            </Button>
-            {coverUrl && (
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                className="h-7 px-2 text-[11px] bg-white/85 hover:bg-white text-foreground shadow"
-                onClick={clearCover}
-              >
-                Reset
-              </Button>
-            )}
-          </div>
 
-          {/* Avatar with always-visible edit button */}
+          {/* Cover hover overlay — camera icon appears on hover/tap */}
+          <button
+            type="button"
+            onClick={() => coverInputRef.current?.click()}
+            disabled={uploading === "cover"}
+            className="print:hidden absolute inset-0 group flex items-start justify-end p-2 focus:outline-none"
+            title="Change cover image"
+            aria-label="Change cover image"
+          >
+            <span className="opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity h-8 w-8 rounded-full bg-black/55 backdrop-blur-sm text-white flex items-center justify-center shadow">
+              {uploading === "cover" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+            </span>
+          </button>
+
+          {/* Avatar with hover camera overlay */}
           <div className="absolute -bottom-10 left-5">
-            <Avatar className="h-24 w-24 ring-4 ring-background shadow-md">
-              {avatarUrl && <AvatarImage src={avatarUrl} alt={`${fields.first} ${fields.last}`} />}
-              <AvatarFallback className="text-xl font-semibold" style={{ backgroundColor: "#6aa84f", color: "white" }}>
-                {initials}
-              </AvatarFallback>
-            </Avatar>
             <button
               type="button"
               onClick={() => avatarInputRef.current?.click()}
               disabled={uploading === "avatar"}
-              className="print:hidden absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-foreground text-background shadow-md ring-2 ring-background flex items-center justify-center hover:scale-105 transition"
-              title="Change photo"
-              aria-label="Change photo"
+              className="print:hidden relative group rounded-full focus:outline-none"
+              title="Change profile photo"
+              aria-label="Change profile photo"
             >
-              {uploading === "avatar" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+              <Avatar className="h-24 w-24 ring-4 ring-background shadow-md">
+                {avatarUrl && <AvatarImage src={avatarUrl} alt={`${fields.first} ${fields.last}`} />}
+                <AvatarFallback className="text-xl font-semibold" style={{ backgroundColor: "#6aa84f", color: "white" }}>
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <span className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity flex items-center justify-center text-white">
+                {uploading === "avatar" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
+              </span>
             </button>
           </div>
 
-          <input ref={avatarInputRef} type="file" className="hidden" onChange={handleImageFile("avatar")} />
-          <input ref={coverInputRef} type="file" className="hidden" onChange={handleImageFile("cover")} />
+          <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile("avatar")} />
+          <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile("cover")} />
         </div>
 
         {/* Identity */}
         <CardContent className="pt-12 pb-4 px-5 relative">
-          {/* Company logo — sits in white space to the right of the avatar */}
+          {/* Company logo — right of avatar, in white space below cover */}
           <img
             src={companyLogo}
             alt="Green Light Expediting"
-            className="absolute right-5 -top-2 h-7 w-auto"
+            className="absolute right-5 top-3 h-5 w-auto"
           />
+
           <h2 className="text-xl font-bold leading-tight">
             {fields.first} {fields.last}
           </h2>
@@ -442,9 +435,9 @@ export function BdMyCardTab() {
         {/* QR section */}
         <div className="border-t bg-muted/30 px-5 py-4 flex items-center gap-4">
           <div className="relative bg-white p-3 rounded-md shrink-0 border">
-            <QRCode value={card} size={160} level="H" />
+            <QRCode value={card} size={140} level="H" />
           </div>
-          <div className="text-xs">
+          <div className="flex-1 text-xs">
             <div className="flex items-center gap-1 font-semibold text-foreground">
               <QrCode className="h-3.5 w-3.5" /> Scan to save contact
             </div>
@@ -452,7 +445,17 @@ export function BdMyCardTab() {
               Opens directly in their phone's contacts app — no app required.
             </p>
           </div>
+          <img
+            src={mbeSeal}
+            alt="NYC Minority Business Enterprise certified"
+            title="NYC Minority Business Enterprise certified"
+            className="h-14 w-14 shrink-0 animate-spin-slow"
+            loading="lazy"
+            width={56}
+            height={56}
+          />
         </div>
+
       </Card>
 
       <div className="flex justify-end print:hidden">
