@@ -629,6 +629,14 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
         emailSubject={email.subject || undefined}
         emailForMatching={email}
       />
+
+      <ChatSlideOut
+        open={chatOpen}
+        onOpenChange={setChatOpen}
+        hideTrigger
+        initialText={chatPrefill}
+      />
     </>
   );
 }
+
