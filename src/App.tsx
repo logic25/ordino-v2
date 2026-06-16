@@ -196,6 +196,9 @@ function AppRoutes() {
       {/* Public change order page - client views & signs */}
       <Route path="/change-order/:token" element={<ClientChangeOrder />} />
 
+      {/* Public BD card - shareable visitor link */}
+      <Route path="/c/:slug" element={<PublicBdCard />} />
+
       {/* Legal pages - public, no auth required */}
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
