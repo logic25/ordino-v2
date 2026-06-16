@@ -189,6 +189,7 @@ function AppRoutes() {
       <Route path="/help" element={<ProtectedRoute><HelpDesk /></ProtectedRoute>} />
       <Route path="/welcome" element={<ProtectedRoute><Welcome /></ProtectedRoute>} />
       <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
+      <Route path="/beacon" element={<ProtectedRoute><BeaconHub /></ProtectedRoute>} />
 
       {/* Public RFI form - no auth required */}
       <Route path="/rfi" element={<RfiForm />} />
