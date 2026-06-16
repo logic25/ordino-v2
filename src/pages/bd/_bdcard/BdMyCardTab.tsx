@@ -435,9 +435,9 @@ export function BdMyCardTab() {
         {/* QR section */}
         <div className="border-t bg-muted/30 px-5 py-4 flex items-center gap-4">
           <div className="relative bg-white p-3 rounded-md shrink-0 border">
-            <QRCode value={card} size={160} level="H" />
+            <QRCode value={card} size={140} level="H" />
           </div>
-          <div className="text-xs">
+          <div className="flex-1 text-xs">
             <div className="flex items-center gap-1 font-semibold text-foreground">
               <QrCode className="h-3.5 w-3.5" /> Scan to save contact
             </div>
@@ -445,7 +445,17 @@ export function BdMyCardTab() {
               Opens directly in their phone's contacts app — no app required.
             </p>
           </div>
+          <img
+            src={mbeSeal}
+            alt="NYC Minority Business Enterprise certified"
+            title="NYC Minority Business Enterprise certified"
+            className="h-14 w-14 shrink-0 animate-spin-slow"
+            loading="lazy"
+            width={56}
+            height={56}
+          />
         </div>
+
       </Card>
 
       <div className="flex justify-end print:hidden">
