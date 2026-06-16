@@ -181,6 +181,8 @@ export function BdMyCardTab() {
     try { localStorage.setItem(LOGO_LS_KEY, JSON.stringify(logoCfg)); } catch {}
   }, [logoCfg]);
   const isEditing = editOpen;
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const coverInputRef = useRef<HTMLInputElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
 
   const uploadImage = async (
