@@ -627,6 +627,10 @@ export function BdMyCardTab() {
               icon={<MapPin className="h-4 w-4" />}
               label={addressDisplay.split("\n").join(" · ")}
             />
+            <ContactRow
+              icon={<img src={mbeSeal} alt="" className="h-4 w-4 object-contain" />}
+              label="NYC Certified Minority Business Enterprise (MBE)"
+            />
           </div>
         </CardContent>
 
