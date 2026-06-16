@@ -459,8 +459,8 @@ export function BdMyCardTab() {
   return (
     <div className="mx-auto w-full max-w-[440px] space-y-4">
       {/* Hidden file inputs — rendered at root so they remain reachable when the edit Sheet is open */}
-      <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile("avatar")} />
-      <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile("cover")} />
+      <input ref={avatarInputRef} type="file" accept="image/*,.heic,.heif" className="hidden" onChange={handleImageFile("avatar")} />
+      <input ref={coverInputRef} type="file" accept="image/*,.heic,.heif" className="hidden" onChange={handleImageFile("cover")} />
       <div className="flex justify-end print:hidden">
         <Button variant={isEditing ? "default" : "outline"} size="sm" onClick={() => setEditOpen((v) => !v)}>
           {isEditing ? <><Check className="mr-1.5 h-3.5 w-3.5" />Done</> : <><Pencil className="mr-1.5 h-3.5 w-3.5" />Edit</>}
