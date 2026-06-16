@@ -503,6 +503,17 @@ Deno.serve(async (req) => {
         result = await response.json();
         break;
       }
+      case "create_reaction": {
+        const { messageName, emojiUnicode } = params;
+        if (!messageName || !emojiUnicode) throw new Error("messageName and emojiUnicode required");
+        const { response } = await callChatApi(
+          `${chatApi}/${messageName}/reactions`,
+          { method: "POST", body: JSON.stringify({ emoji: { unicode: emojiUnicode } }) },
+          accessToken, connection, clientId, clientSecret, supabaseAdmin, profile.id
+        );
+        result = await response.json();
+        break;
+      }
       case "list_members": {
         const { spaceId } = params;
         if (!spaceId) throw new Error("spaceId required");
