@@ -565,9 +565,6 @@ export function BdMyCardTab() {
               height={48}
             />
             <div className="flex flex-col gap-1.5 print:hidden">
-              <Button size="sm" variant="outline" onClick={downloadVcf} className="h-8 text-xs justify-start">
-                <Download className="mr-1.5 h-3.5 w-3.5" />Save (.vcf)
-              </Button>
               <Button size="sm" variant="outline" onClick={shareCard} className="h-8 text-xs justify-start">
                 <Share2 className="mr-1.5 h-3.5 w-3.5" />Share
               </Button>
@@ -576,56 +573,6 @@ export function BdMyCardTab() {
         </div>
 
       </Card>
-
-      {/* Logo tuner — manual size/position controls (persisted locally) */}
-      <div className="print:hidden border rounded-md bg-muted/30">
-        <button
-          type="button"
-          onClick={() => setLogoTuner((v) => !v)}
-          className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground"
-        >
-          <span>Logo position & size</span>
-          <span className="text-[10px] opacity-70">
-              {logoTuner ? "hide" : "adjust"} · h{logoCfg.height} w{logoCfg.width} t{logoCfg.top} r{logoCfg.right}
-          </span>
-        </button>
-        {logoTuner && (
-          <div className="px-3 pb-3 space-y-2">
-            {([
-              { k: "height", label: "Height", min: 10, max: 60 },
-              { k: "width", label: "Width", min: 120, max: 380 },
-              { k: "top", label: "Top", min: -10, max: 40 },
-              { k: "right", label: "Right", min: 0, max: 200 },
-            ] as const).map(({ k, label, min, max }) => (
-              <div key={k} className="flex items-center gap-2 text-[11px]">
-                <span className="w-14 text-muted-foreground">{label}</span>
-                <input
-                  type="range"
-                  min={min}
-                  max={max}
-                  value={logoCfg[k]}
-                  onChange={(e) => setLogoCfg((c) => ({ ...c, [k]: Number(e.target.value) }))}
-                  className="flex-1"
-                />
-                <input
-                  type="number"
-                  min={min}
-                  max={max}
-                  value={logoCfg[k]}
-                  onChange={(e) => setLogoCfg((c) => ({ ...c, [k]: Number(e.target.value) }))}
-                  className="w-14 h-7 px-1.5 rounded border bg-background text-right tabular-nums"
-                />
-                <span className="text-muted-foreground">px</span>
-              </div>
-            ))}
-            <div className="flex justify-end">
-              <Button size="sm" variant="ghost" onClick={() => setLogoCfg(LOGO_DEFAULT)} className="h-7 text-xs">
-                Reset
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
 
 
       <Sheet open={editOpen} onOpenChange={setEditOpen}>
