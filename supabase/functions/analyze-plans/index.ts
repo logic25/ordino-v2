@@ -62,10 +62,17 @@ Examples:
       },
     ];
 
+    // Only allow URLs from our own Supabase Storage to prevent SSRF
+    const SUPABASE_STORAGE_PREFIX = `${Deno.env.get("SUPABASE_URL")!.replace(/\/$/, "")}/storage/v1/`;
+
     // For each file URL, download it and convert to base64 data URL
     // This handles PDFs which can't be sent as image_url
     for (const url of file_urls) {
       try {
+        if (typeof url !== "string" || !url.startsWith(SUPABASE_STORAGE_PREFIX)) {
+          console.error(`Rejected non-storage URL: ${url}`);
+          continue;
+        }
         const fileRes = await fetch(url);
         if (!fileRes.ok) {
           console.error(`Failed to fetch file: ${fileRes.status} ${url}`);
@@ -94,6 +101,7 @@ Examples:
         console.error(`Error fetching file ${url}:`, fetchErr);
       }
     }
+
 
     if (contentParts.length <= 1) {
       return new Response(

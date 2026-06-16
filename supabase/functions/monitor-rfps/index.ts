@@ -54,14 +54,26 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { company_id } = await req.json();
-    if (!company_id) throw new Error("company_id is required");
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
     const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
     const sb = createClient(supabaseUrl, supabaseKey);
+
+    // Derive company_id from the authenticated user — never trust body
+    const { data: profile } = await sb
+      .from("profiles")
+      .select("company_id")
+      .eq("user_id", user.id)
+      .single();
+    const company_id = profile?.company_id;
+    if (!company_id) {
+      return new Response(JSON.stringify({ error: "No company for user" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
 
     if (!firecrawlKey) {
       return new Response(
