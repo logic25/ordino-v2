@@ -69,6 +69,29 @@ function vCard(p: Fields) {
 
 const LS_KEY = "qr-card-fields";
 
+const imageExtensionPattern = /\.(png|jpe?g|gif|webp|heic|heif|bmp|svg)$/i;
+
+async function getImageFileKind(file: File): Promise<{ ok: boolean; ext: string; contentType: string }> {
+  const nameExt = file.name.split(".").pop()?.toLowerCase();
+  const mimeExt = file.type.split("/")[1]?.replace("jpeg", "jpg") || "";
+  if (file.type.startsWith("image/") || imageExtensionPattern.test(file.name)) {
+    return { ok: true, ext: nameExt || mimeExt || "png", contentType: file.type || `image/${nameExt || "png"}` };
+  }
+
+  const bytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  const isPng = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+  const isJpg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  const isGif = bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46;
+  const isWebp = bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50;
+  const isHeic = String.fromCharCode(...bytes.slice(4, 12)).includes("ftypheic") || String.fromCharCode(...bytes.slice(4, 12)).includes("ftypheif");
+  if (isPng) return { ok: true, ext: "png", contentType: "image/png" };
+  if (isJpg) return { ok: true, ext: "jpg", contentType: "image/jpeg" };
+  if (isGif) return { ok: true, ext: "gif", contentType: "image/gif" };
+  if (isWebp) return { ok: true, ext: "webp", contentType: "image/webp" };
+  if (isHeic) return { ok: true, ext: "heic", contentType: "image/heic" };
+  return { ok: false, ext: "", contentType: "" };
+}
+
 function ContactRow({ icon, label, href }: { icon: React.ReactNode; label: string; href?: string }) {
   const content = (
     <div className="flex items-center gap-3 text-sm">
@@ -100,12 +123,11 @@ export function BdMyCardTab() {
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
 
-  const uploadImage = async (file: File, kind: "avatar" | "cover"): Promise<string> => {
-    const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+  const uploadImage = async (file: File, kind: "avatar" | "cover", ext: string, contentType: string): Promise<string> => {
     const path = `${user!.id}/${kind}-${Date.now()}.${ext}`;
     const { error: upErr } = await supabase.storage
       .from("avatars")
-      .upload(path, file, { upsert: true, contentType: file.type });
+      .upload(path, file, { upsert: true, contentType });
     if (upErr) throw upErr;
     const { data: signed, error: signErr } = await supabase.storage
       .from("avatars")
@@ -119,14 +141,12 @@ export function BdMyCardTab() {
     e.target.value = "";
     if (!file) return;
     if (!user?.id || !profile?.id) { toast.error("You must be signed in"); return; }
-    const looksLikeImage =
-      (file.type && file.type.startsWith("image/")) ||
-      /\.(png|jpe?g|gif|webp|heic|heif|bmp|svg)$/i.test(file.name);
-    if (!looksLikeImage) { toast.error("Please choose an image file (PNG, JPG, HEIC, etc.)"); return; }
     if (file.size > 15 * 1024 * 1024) { toast.error("Image must be under 15 MB"); return; }
+    const imageKind = await getImageFileKind(file);
+    if (!imageKind.ok) { toast.error("That file is not an image. Choose a photo or screenshot."); return; }
     setUploading(kind);
     try {
-      const url = await uploadImage(file, kind);
+      const url = await uploadImage(file, kind, imageKind.ext, imageKind.contentType);
       if (kind === "avatar") {
         const { error } = await supabase.from("profiles").update({ avatar_url: url }).eq("id", profile.id);
         if (error) throw error;
@@ -320,10 +340,20 @@ export function BdMyCardTab() {
             >
               {uploading === "avatar" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
             </button>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="print:hidden absolute -bottom-10 left-0 h-7 px-2 text-[11px] shadow"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={uploading === "avatar"}
+            >
+              Edit photo
+            </Button>
           </div>
 
-          <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile("avatar")} />
-          <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile("cover")} />
+          <input ref={avatarInputRef} type="file" className="hidden" onChange={handleImageFile("avatar")} />
+          <input ref={coverInputRef} type="file" className="hidden" onChange={handleImageFile("cover")} />
         </div>
 
         {/* Identity */}
