@@ -10,11 +10,16 @@ import { BugFixDashboard } from "@/components/helpdesk/BugFixDashboard";
 import { ProductRoadmap } from "@/components/helpdesk/ProductRoadmap";
 import { AIUsageDashboard } from "@/components/helpdesk/AIUsageDashboard";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useSearchParams } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 
 export default function HelpDesk() {
   const { isAdmin } = usePermissions();
   const [searchParams] = useSearchParams();
+
+  // Legacy route: /help?tab=ai-usage now lives in the Beacon hub
+  if (searchParams.get("tab") === "ai-usage") {
+    return <Navigate to="/beacon?tab=usage" replace />;
+  }
 
   return (
     <AppLayout>
