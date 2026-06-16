@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Download, Save, Loader2, Mail, Phone, Smartphone, MapPin, Linkedin, QrCode, Camera, Pencil } from "lucide-react";
+import { Download, Save, Loader2, Mail, Phone, Smartphone, MapPin, Linkedin, QrCode, Camera, Pencil, Share2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
