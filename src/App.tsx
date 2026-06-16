@@ -105,6 +105,7 @@ const PlaybookEditor = lazyWithRetry(() => import("./pages/PlaybookEditor"), "pl
 const BdEventDetail = lazyWithRetry(() => import("./pages/bd/BdEventDetail"), "bd-event-detail");
 const BdEventCard = lazyWithRetry(() => import("./pages/bd/BdEventCard"), "bd-event-card");
 const PublicBdCard = lazyWithRetry(() => import("./pages/PublicBdCard"), "public-bd-card");
+const BdScorecard = lazyWithRetry(() => import("./pages/bd/BdScorecard"), "bd-scorecard");
 
 function PageSpinner() {
   return (
