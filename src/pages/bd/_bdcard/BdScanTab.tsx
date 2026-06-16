@@ -164,15 +164,17 @@ export function BdScanTab() {
         <Select value={defaultEventId} onValueChange={setEventId}>
           <SelectTrigger className="h-11"><SelectValue placeholder="Pick the event…" /></SelectTrigger>
           <SelectContent>
+            <SelectItem value={IN_PERSON}>In person (no event)</SelectItem>
             {(events as any[]).map((e) => (
               <SelectItem key={e.id} value={e.id}>
                 {e.name}{e.start_date ? ` — ${new Date(e.start_date + "T12:00:00").toLocaleDateString()}` : ""}
               </SelectItem>
             ))}
-            {events.length === 0 && <div className="px-3 py-2 text-xs text-muted-foreground">No approved events — add one in BD → Events</div>}
+            {events.length === 0 && <div className="px-3 py-2 text-xs text-muted-foreground">No approved events — pick "In person" above or add one in BD → Events</div>}
           </SelectContent>
         </Select>
       </div>
+
       <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhoto(f); e.target.value = ""; }} />
       <Button className="w-full h-14 text-base" onClick={() => fileRef.current?.click()} disabled={scanning}>
