@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, Loader2, CornerDownRight, X } from "lucide-react";
@@ -10,10 +10,17 @@ interface Props {
   /** When set, a banner shows above the composer indicating the reply target. */
   replyingTo?: { preview: string; senderName?: string } | null;
   onCancelReply?: () => void;
+  /** Optional initial text to seed the composer (e.g. prefill from another surface). */
+  initialText?: string;
 }
 
-export function ChatCompose({ onSend, isSending, placeholder = "Type a message...", replyingTo, onCancelReply }: Props) {
-  const [text, setText] = useState("");
+export function ChatCompose({ onSend, isSending, placeholder = "Type a message...", replyingTo, onCancelReply, initialText }: Props) {
+  const [text, setText] = useState(initialText ?? "");
+
+  useEffect(() => {
+    if (initialText !== undefined) setText(initialText);
+  }, [initialText]);
+
 
   const handleSend = () => {
     const trimmed = text.trim();
