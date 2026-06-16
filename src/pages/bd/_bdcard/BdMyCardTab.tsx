@@ -70,6 +70,9 @@ function vCard(p: Fields) {
 }
 
 const LS_KEY = "qr-card-fields";
+const LOGO_LS_KEY = "qr-card-logo-cfg";
+type LogoCfg = { height: number; top: number; right: number };
+const LOGO_DEFAULT: LogoCfg = { height: 20, top: 12, right: 70 };
 
 const imageExtensionPattern = /\.(png|jpe?g|gif|webp|heic|heif|bmp|svg)$/i;
 
