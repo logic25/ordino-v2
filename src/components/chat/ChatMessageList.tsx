@@ -106,6 +106,8 @@ function WidgetSources({ sources }: { sources: Array<{ title: string; score: num
   );
 }
 
+const QUICK_EMOJIS = ["👍", "❤️", "😂", "✅", "👎"];
+
 interface Props {
   messages: (GChatMessage & { source?: string; widgetMetadata?: any })[];
   isLoading: boolean;
