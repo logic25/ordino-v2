@@ -93,6 +93,48 @@ export function BdMyCardTab() {
     phone: "", extension: "", mobile: "", linkedin: "", address: "",
   });
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !user?.id || !profile?.id) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose an image file");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be under 5 MB");
+      return;
+    }
+    setUploadingAvatar(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+      const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("avatars")
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      // Long-lived signed URL (~10 years) since bucket is private.
+      const { data: signed, error: signErr } = await supabase.storage
+        .from("avatars")
+        .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+      if (signErr || !signed?.signedUrl) throw signErr || new Error("Could not sign URL");
+      const { error: updErr } = await supabase
+        .from("profiles")
+        .update({ avatar_url: signed.signedUrl })
+        .eq("id", profile.id);
+      if (updErr) throw updErr;
+      toast.success("Photo updated");
+      if (typeof refreshProfile === "function") await refreshProfile();
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to upload photo");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
 
   useEffect(() => {
     const saved = JSON.parse(localStorage.getItem(LS_KEY) ?? "{}");
