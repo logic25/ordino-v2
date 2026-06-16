@@ -627,6 +627,10 @@ export function BdMyCardTab() {
               icon={<MapPin className="h-4 w-4" />}
               label={addressDisplay.split("\n").join(" · ")}
             />
+            <ContactRow
+              icon={<img src={mbeSeal} alt="" className="h-4 w-4 object-contain" />}
+              label="NYC Certified Minority Business Enterprise (MBE)"
+            />
           </div>
         </CardContent>
 
@@ -640,10 +644,10 @@ export function BdMyCardTab() {
               src={mbeSeal}
               alt="NYC Minority Business Enterprise certified"
               title="NYC Minority Business Enterprise certified"
-              className="h-12 w-12 animate-spin-slow self-start"
+              className="h-20 w-20 animate-spin-slow self-start"
               loading="lazy"
-              width={48}
-              height={48}
+              width={80}
+              height={80}
             />
             <div className="flex flex-col gap-1.5 print:hidden">
               <Button size="sm" variant="outline" onClick={shareCard} className="h-8 text-xs justify-start">
