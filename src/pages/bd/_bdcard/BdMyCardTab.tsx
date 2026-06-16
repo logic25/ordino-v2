@@ -177,11 +177,10 @@ export function BdMyCardTab() {
     } catch {}
     return LOGO_DEFAULT;
   });
-  const [logoTuner, setLogoTuner] = useState(false);
   useEffect(() => {
     try { localStorage.setItem(LOGO_LS_KEY, JSON.stringify(logoCfg)); } catch {}
   }, [logoCfg]);
-  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const isEditing = editOpen;
   const coverInputRef = useRef<HTMLInputElement | null>(null);
 
   const uploadImage = async (
