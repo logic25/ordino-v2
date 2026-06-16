@@ -104,6 +104,7 @@ const BdFollowUps = lazyWithRetry(() => import("./pages/bd/BdFollowUps"), "bd-fo
 const PlaybookEditor = lazyWithRetry(() => import("./pages/PlaybookEditor"), "playbook-editor");
 const BdEventDetail = lazyWithRetry(() => import("./pages/bd/BdEventDetail"), "bd-event-detail");
 const BdEventCard = lazyWithRetry(() => import("./pages/bd/BdEventCard"), "bd-event-card");
+const PublicBdCard = lazyWithRetry(() => import("./pages/PublicBdCard"), "public-bd-card");
 
 function PageSpinner() {
   return (
@@ -194,6 +195,9 @@ function AppRoutes() {
 
       {/* Public change order page - client views & signs */}
       <Route path="/change-order/:token" element={<ClientChangeOrder />} />
+
+      {/* Public BD card - shareable visitor link */}
+      <Route path="/c/:slug" element={<PublicBdCard />} />
 
       {/* Legal pages - public, no auth required */}
       <Route path="/privacy" element={<Privacy />} />

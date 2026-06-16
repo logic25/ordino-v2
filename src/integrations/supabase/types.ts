@@ -822,6 +822,56 @@ export type Database = {
           },
         ]
       }
+      bd_cards: {
+        Row: {
+          company_id: string | null
+          cover_url: string | null
+          created_at: string
+          fields: Json
+          id: string
+          logo_cfg: Json
+          photo_url: string | null
+          published: boolean
+          slug: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          cover_url?: string | null
+          created_at?: string
+          fields?: Json
+          id?: string
+          logo_cfg?: Json
+          photo_url?: string | null
+          published?: boolean
+          slug: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string | null
+          cover_url?: string | null
+          created_at?: string
+          fields?: Json
+          id?: string
+          logo_cfg?: Json
+          photo_url?: string | null
+          published?: boolean
+          slug?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_cards_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bd_event_attendees: {
         Row: {
           attended: boolean

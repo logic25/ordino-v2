@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Download, Save, Loader2, Mail, Phone, Smartphone, MapPin, Linkedin, QrCode, Camera, Pencil, Share2 } from "lucide-react";
+import { Save, Loader2, Mail, Phone, Smartphone, MapPin, Linkedin, Camera, Pencil, Share2, Sliders, Check } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -164,6 +165,8 @@ export function BdMyCardTab() {
   const [editOpen, setEditOpen] = useState(false);
   const [uploading, setUploading] = useState<null | "avatar" | "cover">(null);
   const [coverUrl, setCoverUrl] = useState<string>("");
+  const [slug, setSlug] = useState<string>("");
+  const [published, setPublished] = useState<boolean>(false);
   const [logoCfg, setLogoCfg] = useState<LogoCfg>(() => {
     try {
       const raw = localStorage.getItem(LOGO_LS_KEY);
@@ -176,12 +179,15 @@ export function BdMyCardTab() {
     } catch {}
     return LOGO_DEFAULT;
   });
-  const [logoTuner, setLogoTuner] = useState(false);
   useEffect(() => {
     try { localStorage.setItem(LOGO_LS_KEY, JSON.stringify(logoCfg)); } catch {}
   }, [logoCfg]);
+  const isEditing = editOpen;
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
+
+  const publicUrl = slug ? `${window.location.origin}/c/${slug}` : "";
+
 
   const uploadImage = async (
     body: Blob,
@@ -285,6 +291,41 @@ export function BdMyCardTab() {
     setCoverUrl(prefs.cover_url ?? "");
   }, [profile?.id, user?.email]);
 
+  // Load/create the bd_cards row for this user
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("bd_cards")
+        .select("slug, published, logo_cfg")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (data) {
+        setSlug(data.slug);
+        setPublished(!!data.published);
+        if (data.logo_cfg) setLogoCfg((c) => ({ ...c, ...data.logo_cfg }));
+        return;
+      }
+      // Auto-create draft row with generated slug
+      const base = `${profile?.first_name ?? ""}-${profile?.last_name ?? ""}`
+        .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "card";
+      const rand = Math.random().toString(36).slice(2, 6);
+      const newSlug = `${base}-${rand}`;
+      const { data: created, error } = await (supabase as any)
+        .from("bd_cards")
+        .insert({ user_id: user.id, slug: newSlug, fields: {}, logo_cfg: logoCfg, published: false })
+        .select("slug, published")
+        .maybeSingle();
+      if (!cancelled && created && !error) {
+        setSlug(created.slug);
+        setPublished(!!created.published);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, profile?.first_name, profile?.last_name]);
+
   useEffect(() => {
     localStorage.setItem(LS_KEY, JSON.stringify({
       phone: fields.phone, extension: fields.extension,
@@ -293,6 +334,7 @@ export function BdMyCardTab() {
   }, [fields.phone, fields.extension, fields.mobile, fields.linkedin, fields.address]);
 
   const card = useMemo(() => vCard(fields), [fields]);
+  const qrValue = publicUrl || card;
 
   const downloadVcf = () => {
     const blob = new Blob([card], { type: "text/vcard" });
@@ -305,28 +347,53 @@ export function BdMyCardTab() {
   };
 
   const shareCard = async () => {
-    const fileName = `${fields.first}-${fields.last}-GLE.vcf`.replace(/\s+/g, "");
-    const file = new File([card], fileName, { type: "text/vcard" });
+    if (!publicUrl) {
+      toast.error("Publish your card first to share a link");
+      return;
+    }
     const shareData: ShareData = {
       title: `${fields.first} ${fields.last} — ${COMPANY.org}`,
       text: `Contact card for ${fields.first} ${fields.last}`,
+      url: publicUrl,
     };
     try {
-      // @ts-ignore
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await (navigator as any).share({ ...shareData, files: [file] });
-        return;
-      }
       if ((navigator as any).share) {
         await (navigator as any).share(shareData);
         return;
       }
-      await navigator.clipboard.writeText(card);
-      toast.success("vCard copied to clipboard");
+      await navigator.clipboard.writeText(publicUrl);
+      toast.success("Link copied");
     } catch (e: any) {
       if (e?.name !== "AbortError") toast.error(e?.message ?? "Share failed");
     }
   };
+
+  const togglePublish = async () => {
+    if (!user?.id || !slug) return;
+    // Sync latest fields + photos + logo before publishing
+    const avatarUrl = (profile as any)?.avatar_url ?? null;
+    const next = !published;
+    const { error } = await (supabase as any)
+      .from("bd_cards")
+      .update({
+        fields,
+        photo_url: avatarUrl,
+        cover_url: coverUrl || null,
+        logo_cfg: logoCfg,
+        published: next,
+      })
+      .eq("user_id", user.id);
+    if (error) { toast.error(error.message); return; }
+    setPublished(next);
+    toast.success(next ? "Card published" : "Card unpublished");
+  };
+
+  const copyPublicUrl = async () => {
+    if (!publicUrl) return;
+    await navigator.clipboard.writeText(publicUrl);
+    toast.success("Link copied");
+  };
+
 
 
   const saveToProfile = async () => {
@@ -356,6 +423,20 @@ export function BdMyCardTab() {
         })
         .eq("id", profile.id);
       if (error) throw error;
+
+      // Mirror to bd_cards so the public page reflects the latest values
+      if (user?.id && slug) {
+        await (supabase as any)
+          .from("bd_cards")
+          .update({
+            fields,
+            photo_url: (profile as any)?.avatar_url ?? null,
+            cover_url: coverUrl || null,
+            logo_cfg: logoCfg,
+          })
+          .eq("user_id", user.id);
+      }
+
       toast.success("Saved to your profile");
       if (typeof refreshProfile === "function") await refreshProfile();
     } catch (e: any) {
@@ -378,8 +459,8 @@ export function BdMyCardTab() {
   return (
     <div className="mx-auto w-full max-w-[440px] space-y-4">
       <div className="flex justify-end print:hidden">
-        <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-          <Pencil className="mr-1.5 h-3.5 w-3.5" />Edit
+        <Button variant={isEditing ? "default" : "outline"} size="sm" onClick={() => setEditOpen((v) => !v)}>
+          {isEditing ? <><Check className="mr-1.5 h-3.5 w-3.5" />Done</> : <><Pencil className="mr-1.5 h-3.5 w-3.5" />Edit</>}
         </Button>
       </div>
       {/* Card */}
@@ -395,40 +476,51 @@ export function BdMyCardTab() {
         >
           {coverUrl && <div className="absolute inset-0 bg-black/20" />}
 
-          {/* Cover hover overlay — camera icon appears on hover/tap */}
-          <button
-            type="button"
-            onClick={() => coverInputRef.current?.click()}
-            disabled={uploading === "cover"}
-            className="print:hidden absolute inset-0 group flex items-start justify-end p-2 focus:outline-none"
-            title="Change cover image"
-            aria-label="Change cover image"
-          >
-            <span className="opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity h-8 w-8 rounded-full bg-black/55 backdrop-blur-sm text-white flex items-center justify-center shadow">
-              {uploading === "cover" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-            </span>
-          </button>
-
-          {/* Avatar with hover camera overlay */}
-          <div className="absolute -bottom-10 left-5">
+          {/* Cover camera overlay — only in edit mode */}
+          {isEditing && (
             <button
               type="button"
-              onClick={() => avatarInputRef.current?.click()}
-              disabled={uploading === "avatar"}
-              className="print:hidden relative group rounded-full focus:outline-none"
-              title="Change profile photo"
-              aria-label="Change profile photo"
+              onClick={() => coverInputRef.current?.click()}
+              disabled={uploading === "cover"}
+              className="print:hidden absolute inset-0 group flex items-start justify-end p-2 focus:outline-none"
+              title="Change cover image"
+              aria-label="Change cover image"
             >
+              <span className="h-8 w-8 rounded-full bg-black/55 backdrop-blur-sm text-white flex items-center justify-center shadow">
+                {uploading === "cover" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+              </span>
+            </button>
+          )}
+
+          {/* Avatar with camera overlay (only in edit mode) */}
+          <div className="absolute -bottom-10 left-5">
+            {isEditing ? (
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={uploading === "avatar"}
+                className="print:hidden relative group rounded-full focus:outline-none"
+                title="Change profile photo"
+                aria-label="Change profile photo"
+              >
+                <Avatar className="h-24 w-24 ring-4 ring-background shadow-md">
+                  {avatarUrl && <AvatarImage src={avatarUrl} alt={`${fields.first} ${fields.last}`} />}
+                  <AvatarFallback className="text-xl font-semibold" style={{ backgroundColor: "#6aa84f", color: "white" }}>
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center text-white">
+                  {uploading === "avatar" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
+                </span>
+              </button>
+            ) : (
               <Avatar className="h-24 w-24 ring-4 ring-background shadow-md">
                 {avatarUrl && <AvatarImage src={avatarUrl} alt={`${fields.first} ${fields.last}`} />}
                 <AvatarFallback className="text-xl font-semibold" style={{ backgroundColor: "#6aa84f", color: "white" }}>
                   {initials}
                 </AvatarFallback>
               </Avatar>
-              <span className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity flex items-center justify-center text-white">
-                {uploading === "avatar" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
-              </span>
-            </button>
+            )}
           </div>
 
           <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile("avatar")} />
@@ -437,6 +529,56 @@ export function BdMyCardTab() {
 
         {/* Identity */}
         <CardContent className="pt-12 pb-4 px-5 relative">
+          {/* Logo position tuner — only in edit mode */}
+          {isEditing && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="print:hidden absolute -top-3 right-2 z-10 h-7 w-7 rounded-full bg-background border shadow flex items-center justify-center text-muted-foreground hover:text-foreground"
+                  title="Adjust logo position"
+                  aria-label="Adjust logo position"
+                >
+                  <Sliders className="h-3.5 w-3.5" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-72 p-3 space-y-2">
+                <div className="text-xs font-medium text-muted-foreground mb-1">Logo position &amp; size</div>
+                {([
+                  { k: "height", label: "Height", min: 10, max: 60 },
+                  { k: "width", label: "Width", min: 120, max: 380 },
+                  { k: "top", label: "Top", min: -10, max: 40 },
+                  { k: "right", label: "Right", min: 0, max: 200 },
+                ] as const).map(({ k, label, min, max }) => (
+                  <div key={k} className="flex items-center gap-2 text-[11px]">
+                    <span className="w-12 text-muted-foreground">{label}</span>
+                    <input
+                      type="range"
+                      min={min}
+                      max={max}
+                      value={logoCfg[k]}
+                      onChange={(e) => setLogoCfg((c) => ({ ...c, [k]: Number(e.target.value) }))}
+                      className="flex-1"
+                    />
+                    <input
+                      type="number"
+                      min={min}
+                      max={max}
+                      value={logoCfg[k]}
+                      onChange={(e) => setLogoCfg((c) => ({ ...c, [k]: Number(e.target.value) }))}
+                      className="w-12 h-7 px-1.5 rounded border bg-background text-right tabular-nums"
+                    />
+                  </div>
+                ))}
+                <div className="flex justify-end">
+                  <Button size="sm" variant="ghost" onClick={() => setLogoCfg(LOGO_DEFAULT)} className="h-7 text-xs">
+                    Reset
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
+
           {/* Company logo — right of avatar, in white space below cover */}
           <div
             className="absolute print:!h-5 print:!top-3 print:!right-[70px]"
@@ -490,7 +632,7 @@ export function BdMyCardTab() {
         {/* QR section */}
         <div className="border-t bg-muted/30 px-5 py-4 flex items-center gap-4">
           <div className="relative bg-white p-3 rounded-md shrink-0 border">
-            <QRCode value={card} size={132} level="H" />
+            <QRCode value={qrValue} size={132} level="H" />
           </div>
           <div className="flex-1 min-w-0 flex flex-col gap-2">
             <img
@@ -503,9 +645,6 @@ export function BdMyCardTab() {
               height={48}
             />
             <div className="flex flex-col gap-1.5 print:hidden">
-              <Button size="sm" variant="outline" onClick={downloadVcf} className="h-8 text-xs justify-start">
-                <Download className="mr-1.5 h-3.5 w-3.5" />Save (.vcf)
-              </Button>
               <Button size="sm" variant="outline" onClick={shareCard} className="h-8 text-xs justify-start">
                 <Share2 className="mr-1.5 h-3.5 w-3.5" />Share
               </Button>
@@ -515,56 +654,6 @@ export function BdMyCardTab() {
 
       </Card>
 
-      {/* Logo tuner — manual size/position controls (persisted locally) */}
-      <div className="print:hidden border rounded-md bg-muted/30">
-        <button
-          type="button"
-          onClick={() => setLogoTuner((v) => !v)}
-          className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground"
-        >
-          <span>Logo position & size</span>
-          <span className="text-[10px] opacity-70">
-              {logoTuner ? "hide" : "adjust"} · h{logoCfg.height} w{logoCfg.width} t{logoCfg.top} r{logoCfg.right}
-          </span>
-        </button>
-        {logoTuner && (
-          <div className="px-3 pb-3 space-y-2">
-            {([
-              { k: "height", label: "Height", min: 10, max: 60 },
-              { k: "width", label: "Width", min: 120, max: 380 },
-              { k: "top", label: "Top", min: -10, max: 40 },
-              { k: "right", label: "Right", min: 0, max: 200 },
-            ] as const).map(({ k, label, min, max }) => (
-              <div key={k} className="flex items-center gap-2 text-[11px]">
-                <span className="w-14 text-muted-foreground">{label}</span>
-                <input
-                  type="range"
-                  min={min}
-                  max={max}
-                  value={logoCfg[k]}
-                  onChange={(e) => setLogoCfg((c) => ({ ...c, [k]: Number(e.target.value) }))}
-                  className="flex-1"
-                />
-                <input
-                  type="number"
-                  min={min}
-                  max={max}
-                  value={logoCfg[k]}
-                  onChange={(e) => setLogoCfg((c) => ({ ...c, [k]: Number(e.target.value) }))}
-                  className="w-14 h-7 px-1.5 rounded border bg-background text-right tabular-nums"
-                />
-                <span className="text-muted-foreground">px</span>
-              </div>
-            ))}
-            <div className="flex justify-end">
-              <Button size="sm" variant="ghost" onClick={() => setLogoCfg(LOGO_DEFAULT)} className="h-7 text-xs">
-                Reset
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
-
 
       <Sheet open={editOpen} onOpenChange={setEditOpen}>
         <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
@@ -572,6 +661,49 @@ export function BdMyCardTab() {
             <SheetTitle>Edit my card</SheetTitle>
             <SheetDescription>Update what shows on your QR card and vCard.</SheetDescription>
           </SheetHeader>
+
+          {/* Public link & publish toggle */}
+          <div className="mt-5 rounded-md border bg-muted/30 p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-xs font-medium">Public card link</div>
+                <div className="text-[11px] text-muted-foreground truncate">
+                  {publicUrl || "Generating link…"}
+                </div>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant={published ? "outline" : "default"}
+                className="h-8 text-xs shrink-0"
+                onClick={togglePublish}
+                disabled={!slug}
+              >
+                {published ? "Unpublish" : "Publish"}
+              </Button>
+            </div>
+            {publicUrl && (
+              <div className="flex gap-2">
+                <Button type="button" size="sm" variant="ghost" className="h-7 text-xs px-2" onClick={copyPublicUrl}>
+                  Copy link
+                </Button>
+                <a
+                  href={publicUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs h-7 inline-flex items-center px-2 text-muted-foreground hover:text-foreground"
+                >
+                  Open
+                </a>
+              </div>
+            )}
+            <p className="text-[10px] text-muted-foreground">
+              {published
+                ? "Anyone with this link can view your card and save your contact."
+                : "Publish to share your card via QR code or a link. Save changes after editing."}
+            </p>
+          </div>
+
 
           {/* Photo & Cover editor */}
           <div className="mt-6 space-y-5">
