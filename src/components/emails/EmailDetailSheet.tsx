@@ -184,6 +184,9 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
   const [showCcBcc, setShowCcBcc] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [localQuickTags, setLocalQuickTags] = useState<string[]>([]);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatPrefill, setChatPrefill] = useState("");
+
   const untagEmail = useUntagEmail();
   const archiveEmail = useArchiveEmail();
   const snoozeEmail = useSnoozeEmail();
