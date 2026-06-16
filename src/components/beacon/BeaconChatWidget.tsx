@@ -316,6 +316,8 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
   const [viewingFile, setViewingFile] = useState<string | null>(null);
 
   const location = useLocation();
+  const navigate = useNavigate();
+  const isAdmin = useIsAdmin();
   const currentPage = getPageName(location.pathname);
 
   // Capture last 3 console errors for bug context
