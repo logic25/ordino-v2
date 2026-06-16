@@ -163,11 +163,16 @@ export function BdMyCardTab() {
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
 
-  const uploadImage = async (file: File, kind: "avatar" | "cover", ext: string, contentType: string): Promise<string> => {
+  const uploadImage = async (
+    body: Blob,
+    kind: "avatar" | "cover",
+    ext: string,
+    contentType: string
+  ): Promise<string> => {
     const path = `${user!.id}/${kind}-${Date.now()}.${ext}`;
     const { error: upErr } = await supabase.storage
       .from("avatars")
-      .upload(path, file, { upsert: true, contentType });
+      .upload(path, body, { upsert: true, contentType });
     if (upErr) throw upErr;
     const { data: signed, error: signErr } = await supabase.storage
       .from("avatars")
@@ -181,12 +186,18 @@ export function BdMyCardTab() {
     e.target.value = "";
     if (!file) return;
     if (!user?.id || !profile?.id) { toast.error("You must be signed in"); return; }
-    if (file.size > 15 * 1024 * 1024) { toast.error("Image must be under 15 MB"); return; }
+    if (file.size > 25 * 1024 * 1024) { toast.error("Image must be under 25 MB"); return; }
     const imageKind = await getImageFileKind(file);
     if (!imageKind.ok) { toast.error("That file is not an image. Choose a photo or screenshot."); return; }
     setUploading(kind);
     try {
-      const url = await uploadImage(file, kind, imageKind.ext, imageKind.contentType);
+      // Avatars: square-ish, max 800px. Covers: wide, max 1600px. Both as JPEG ~0.85.
+      const { blob, ext, contentType } = await compressImage(file, {
+        maxDim: kind === "avatar" ? 800 : 1600,
+        quality: 0.85,
+        mime: "image/jpeg",
+      });
+      const url = await uploadImage(blob, kind, ext, contentType);
       if (kind === "avatar") {
         const { error } = await supabase.from("profiles").update({ avatar_url: url }).eq("id", profile.id);
         if (error) throw error;
@@ -204,7 +215,12 @@ export function BdMyCardTab() {
         if (error) throw error;
         setCoverUrl(url);
       }
-      toast.success(kind === "avatar" ? "Photo updated" : "Cover image updated");
+      const savedKb = Math.max(0, Math.round((file.size - blob.size) / 1024));
+      toast.success(
+        kind === "avatar"
+          ? `Photo updated${savedKb > 50 ? ` · saved ${savedKb} KB` : ""}`
+          : `Cover image updated${savedKb > 50 ? ` · saved ${savedKb} KB` : ""}`
+      );
       if (typeof refreshProfile === "function") await refreshProfile();
     } catch (err: any) {
       toast.error(err?.message ?? "Upload failed");
