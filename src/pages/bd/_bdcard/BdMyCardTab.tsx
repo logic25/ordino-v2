@@ -183,7 +183,6 @@ export function BdMyCardTab() {
   const isEditing = editOpen;
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
-  const coverInputRef = useRef<HTMLInputElement | null>(null);
 
   const uploadImage = async (
     body: Blob,
