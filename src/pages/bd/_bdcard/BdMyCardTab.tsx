@@ -662,6 +662,49 @@ export function BdMyCardTab() {
             <SheetDescription>Update what shows on your QR card and vCard.</SheetDescription>
           </SheetHeader>
 
+          {/* Public link & publish toggle */}
+          <div className="mt-5 rounded-md border bg-muted/30 p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-xs font-medium">Public card link</div>
+                <div className="text-[11px] text-muted-foreground truncate">
+                  {publicUrl || "Generating link…"}
+                </div>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant={published ? "outline" : "default"}
+                className="h-8 text-xs shrink-0"
+                onClick={togglePublish}
+                disabled={!slug}
+              >
+                {published ? "Unpublish" : "Publish"}
+              </Button>
+            </div>
+            {publicUrl && (
+              <div className="flex gap-2">
+                <Button type="button" size="sm" variant="ghost" className="h-7 text-xs px-2" onClick={copyPublicUrl}>
+                  Copy link
+                </Button>
+                <a
+                  href={publicUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs h-7 inline-flex items-center px-2 text-muted-foreground hover:text-foreground"
+                >
+                  Open
+                </a>
+              </div>
+            )}
+            <p className="text-[10px] text-muted-foreground">
+              {published
+                ? "Anyone with this link can view your card and save your contact."
+                : "Publish to share your card via QR code or a link. Save changes after editing."}
+            </p>
+          </div>
+
+
           {/* Photo & Cover editor */}
           <div className="mt-6 space-y-5">
             {/* Cover preview */}
