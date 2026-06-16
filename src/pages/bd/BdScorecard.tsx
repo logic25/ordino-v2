@@ -55,7 +55,7 @@ export default function BdScorecard() {
               <SelectContent>
                 {personOptions.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
-                    {p.display_name ?? `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || "—"}
+                    {p.display_name ?? (`${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || "—")}
                   </SelectItem>
                 ))}
               </SelectContent>
