@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTelemetry } from "@/hooks/useTelemetry";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -86,6 +86,7 @@ function BeaconQuickStats() {
 }
 
 function BeaconSettingsSection() {
+  const navigate = useNavigate();
   const [backfilling, setBackfilling] = useState(false);
   const handleBackfill = async () => {
     setBackfilling(true);
@@ -131,9 +132,9 @@ function BeaconSettingsSection() {
           <Button
             variant="outline"
             className="w-full"
-            onClick={() => window.open("https://beaconrag.up.railway.app/dashboard", "_blank")}
+            onClick={() => navigate("/help?tab=ai-usage")}
           >
-            <ExternalLink className="h-4 w-4 mr-2" /> Open Beacon Dashboard
+            <ExternalLink className="h-4 w-4 mr-2" /> View Beacon Analytics
           </Button>
           <Separator />
           <div className="p-3 border rounded-lg space-y-2">
