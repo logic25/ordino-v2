@@ -164,6 +164,17 @@ export function BdMyCardTab() {
   const [editOpen, setEditOpen] = useState(false);
   const [uploading, setUploading] = useState<null | "avatar" | "cover">(null);
   const [coverUrl, setCoverUrl] = useState<string>("");
+  const [logoCfg, setLogoCfg] = useState<LogoCfg>(() => {
+    try {
+      const raw = localStorage.getItem(LOGO_LS_KEY);
+      if (raw) return { ...LOGO_DEFAULT, ...JSON.parse(raw) };
+    } catch {}
+    return LOGO_DEFAULT;
+  });
+  const [logoTuner, setLogoTuner] = useState(false);
+  useEffect(() => {
+    try { localStorage.setItem(LOGO_LS_KEY, JSON.stringify(logoCfg)); } catch {}
+  }, [logoCfg]);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
 
