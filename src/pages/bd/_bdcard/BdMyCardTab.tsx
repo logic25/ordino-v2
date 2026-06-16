@@ -165,6 +165,8 @@ export function BdMyCardTab() {
   const [editOpen, setEditOpen] = useState(false);
   const [uploading, setUploading] = useState<null | "avatar" | "cover">(null);
   const [coverUrl, setCoverUrl] = useState<string>("");
+  const [slug, setSlug] = useState<string>("");
+  const [published, setPublished] = useState<boolean>(false);
   const [logoCfg, setLogoCfg] = useState<LogoCfg>(() => {
     try {
       const raw = localStorage.getItem(LOGO_LS_KEY);
@@ -183,6 +185,9 @@ export function BdMyCardTab() {
   const isEditing = editOpen;
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
+
+  const publicUrl = slug ? `${window.location.origin}/c/${slug}` : "";
+
 
   const uploadImage = async (
     body: Blob,
