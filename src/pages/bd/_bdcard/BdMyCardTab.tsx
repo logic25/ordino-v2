@@ -349,9 +349,6 @@ export function BdMyCardTab() {
           }}
         >
           {coverUrl && <div className="absolute inset-0 bg-black/20" />}
-          <div className="absolute top-3 right-3 flex items-center gap-1.5 rounded-md bg-white/90 px-2 py-1 shadow-sm">
-            <img src={companyLogo} alt="Green Light Expediting" className="h-5 w-auto" />
-          </div>
           {/* Cover image edit controls */}
           <div className="absolute top-2 left-2 flex gap-1 print:hidden">
             <Button
