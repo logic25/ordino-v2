@@ -452,7 +452,7 @@ export function BdMyCardTab() {
                 height={32}
               />
             </div>
-            <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
+            <p className="text-[10px] text-muted-foreground mt-2 leading-snug pr-3">
               Opens in phone contacts. No app needed.
             </p>
             <div className="mt-2 grid grid-cols-2 gap-1.5 print:hidden">
