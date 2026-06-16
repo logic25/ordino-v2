@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "react-qr-code";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Download, Save, Loader2, Mail, Phone, Smartphone, MapPin, Linkedin, QrCode } from "lucide-react";
+import { Download, Save, Loader2, Mail, Phone, Smartphone, MapPin, Linkedin, QrCode, Camera } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -93,6 +93,48 @@ export function BdMyCardTab() {
     phone: "", extension: "", mobile: "", linkedin: "", address: "",
   });
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !user?.id || !profile?.id) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose an image file");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be under 5 MB");
+      return;
+    }
+    setUploadingAvatar(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+      const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("avatars")
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      // Long-lived signed URL (~10 years) since bucket is private.
+      const { data: signed, error: signErr } = await supabase.storage
+        .from("avatars")
+        .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+      if (signErr || !signed?.signedUrl) throw signErr || new Error("Could not sign URL");
+      const { error: updErr } = await supabase
+        .from("profiles")
+        .update({ avatar_url: signed.signedUrl })
+        .eq("id", profile.id);
+      if (updErr) throw updErr;
+      toast.success("Photo updated");
+      if (typeof refreshProfile === "function") await refreshProfile();
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to upload photo");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
 
   useEffect(() => {
     const saved = JSON.parse(localStorage.getItem(LS_KEY) ?? "{}");
@@ -176,7 +218,8 @@ export function BdMyCardTab() {
   const initials = `${(fields.first[0] ?? "").toUpperCase()}${(fields.last[0] ?? "").toUpperCase()}` || "GLE";
 
   return (
-    <div className="mx-auto w-full max-w-[400px] space-y-4">
+    <div className="mx-auto w-full max-w-[920px] grid gap-4 lg:grid-cols-[400px_1fr] lg:items-start">
+      <div className="space-y-4">
       {/* Card */}
       <Card className="overflow-hidden print:shadow-none print:border-2 shadow-lg">
         {/* Banner */}
@@ -190,12 +233,36 @@ export function BdMyCardTab() {
           <div className="absolute top-3 right-3 text-[10px] font-bold tracking-widest text-white/80">
             GREEN LIGHT EXPEDITING
           </div>
-          <Avatar className="absolute -bottom-10 left-5 h-24 w-24 ring-4 ring-background shadow-md">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="absolute -bottom-10 left-5 group rounded-full print:hidden"
+            title="Change photo"
+            disabled={uploadingAvatar}
+          >
+            <Avatar className="h-24 w-24 ring-4 ring-background shadow-md">
+              {avatarUrl && <AvatarImage src={avatarUrl} alt={`${fields.first} ${fields.last}`} />}
+              <AvatarFallback className="text-xl font-semibold" style={{ backgroundColor: "#6aa84f", color: "white" }}>
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <span className="absolute inset-0 rounded-full bg-black/45 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[11px] font-medium gap-1">
+              {uploadingAvatar ? <Loader2 className="h-4 w-4 animate-spin" /> : (<><Camera className="h-3.5 w-3.5" /> Change</>)}
+            </span>
+          </button>
+          <Avatar className="absolute -bottom-10 left-5 h-24 w-24 ring-4 ring-background shadow-md hidden print:block">
             {avatarUrl && <AvatarImage src={avatarUrl} alt={`${fields.first} ${fields.last}`} />}
             <AvatarFallback className="text-xl font-semibold" style={{ backgroundColor: "#6aa84f", color: "white" }}>
               {initials}
             </AvatarFallback>
           </Avatar>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleAvatarFile}
+          />
         </div>
 
         {/* Identity */}
@@ -253,10 +320,9 @@ export function BdMyCardTab() {
           <Download className="mr-1.5 h-3.5 w-3.5" />Save contact (.vcf)
         </Button>
       </div>
+      </div>
 
-
-
-      <Card className="print:hidden">
+      <Card className="print:hidden lg:sticky lg:top-4">
         <CardContent className="p-4 grid grid-cols-2 gap-3">
           <div className="space-y-1.5"><Label>First name</Label><Input value={fields.first} onChange={set("first")} /></div>
           <div className="space-y-1.5"><Label>Last name</Label><Input value={fields.last} onChange={set("last")} /></div>
