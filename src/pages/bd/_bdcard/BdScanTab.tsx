@@ -76,6 +76,7 @@ export function BdScanTab() {
     },
   });
 
+  const IN_PERSON = "__in_person__";
   const defaultEventId = useMemo(() => {
     if (eventId) return eventId;
     const today = new Date().toISOString().slice(0, 10);
@@ -84,6 +85,8 @@ export function BdScanTab() {
     const upcoming = (events as any[]).find((e) => e.start_date >= today);
     return upcoming?.id ?? "";
   }, [eventId, events]);
+  const isInPerson = defaultEventId === IN_PERSON;
+
 
   const resetForm = () => {
     setFullName(""); setCompany(""); setRole(""); setEmail(""); setPhone("");
@@ -131,8 +134,8 @@ export function BdScanTab() {
     try {
       await createLead.mutateAsync({
         full_name: fullName.trim(),
-        source_type: "EVENT",
-        event_id: defaultEventId || null,
+        source_type: isInPerson ? "IN_PERSON" : "EVENT",
+        event_id: isInPerson || !defaultEventId ? null : defaultEventId,
         company: company.trim() || null,
         role: role.trim() || null,
         contact_email: email.trim() || null,
@@ -161,15 +164,17 @@ export function BdScanTab() {
         <Select value={defaultEventId} onValueChange={setEventId}>
           <SelectTrigger className="h-11"><SelectValue placeholder="Pick the event…" /></SelectTrigger>
           <SelectContent>
+            <SelectItem value={IN_PERSON}>In person (no event)</SelectItem>
             {(events as any[]).map((e) => (
               <SelectItem key={e.id} value={e.id}>
                 {e.name}{e.start_date ? ` — ${new Date(e.start_date + "T12:00:00").toLocaleDateString()}` : ""}
               </SelectItem>
             ))}
-            {events.length === 0 && <div className="px-3 py-2 text-xs text-muted-foreground">No approved events — add one in BD → Events</div>}
+            {events.length === 0 && <div className="px-3 py-2 text-xs text-muted-foreground">No approved events — pick "In person" above or add one in BD → Events</div>}
           </SelectContent>
         </Select>
       </div>
+
       <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhoto(f); e.target.value = ""; }} />
       <Button className="w-full h-14 text-base" onClick={() => fileRef.current?.click()} disabled={scanning}>
