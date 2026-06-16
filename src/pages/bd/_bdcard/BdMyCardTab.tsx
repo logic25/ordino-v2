@@ -423,6 +423,20 @@ export function BdMyCardTab() {
         })
         .eq("id", profile.id);
       if (error) throw error;
+
+      // Mirror to bd_cards so the public page reflects the latest values
+      if (user?.id && slug) {
+        await (supabase as any)
+          .from("bd_cards")
+          .update({
+            fields,
+            photo_url: (profile as any)?.avatar_url ?? null,
+            cover_url: coverUrl || null,
+            logo_cfg: logoCfg,
+          })
+          .eq("user_id", user.id);
+      }
+
       toast.success("Saved to your profile");
       if (typeof refreshProfile === "function") await refreshProfile();
     } catch (e: any) {
