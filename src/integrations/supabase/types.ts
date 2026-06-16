@@ -1880,6 +1880,7 @@ export type Database = {
       }
       beacon_interactions: {
         Row: {
+          addressed_at: string | null
           answered: boolean
           command: string | null
           confidence: number | null
@@ -1899,6 +1900,7 @@ export type Database = {
           user_name: string | null
         }
         Insert: {
+          addressed_at?: string | null
           answered?: boolean
           command?: string | null
           confidence?: number | null
@@ -1918,6 +1920,7 @@ export type Database = {
           user_name?: string | null
         }
         Update: {
+          addressed_at?: string | null
           answered?: boolean
           command?: string | null
           confidence?: number | null
