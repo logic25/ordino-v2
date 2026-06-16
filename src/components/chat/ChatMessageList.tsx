@@ -329,9 +329,14 @@ export function ChatMessageList({ messages, isLoading, members = [], isWaitingFo
                 )}
                 {hasCard && (
                   <div className="mt-1 border rounded-lg p-2 bg-muted/30 text-xs text-muted-foreground">
-                    📋 Task Card
+                    Task Card
                   </div>
                 )}
+                <MessageReactionBar
+                  messageName={msg.name}
+                  reactions={msg.emojiReactionSummaries}
+                  isWidget={isWidget}
+                />
               </div>
               {onReplyInThread && threadKey && !isWidget && (
                 <button
