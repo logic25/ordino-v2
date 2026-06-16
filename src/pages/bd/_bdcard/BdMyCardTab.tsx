@@ -432,66 +432,28 @@ export function BdMyCardTab() {
           </div>
         </CardContent>
 
-        {/* QR + actions */}
-        <div className="border-t bg-muted/30 px-3 py-3 grid grid-cols-[auto,minmax(0,1fr)] items-start gap-2.5 overflow-hidden">
-          <div className="relative bg-white p-1.5 rounded-md shrink-0 border">
-            <QRCode value={card} size={108} level="H" />
+        {/* QR section */}
+        <div className="border-t bg-muted/30 px-5 py-4 flex items-center gap-4">
+          <div className="relative bg-white p-3 rounded-md shrink-0 border">
+            <QRCode value={card} size={140} level="H" />
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="grid grid-cols-[minmax(0,1fr),auto] items-start gap-2">
-              <div className="flex min-w-0 items-center gap-1 text-[11px] font-semibold leading-tight text-foreground">
-                <QrCode className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">Scan contact</span>
-              </div>
-              <img
-                src={mbeSeal}
-                alt="NYC Minority Business Enterprise certified"
-                title="NYC Minority Business Enterprise certified"
-                className="h-8 w-8 shrink-0 animate-spin-slow"
-                loading="lazy"
-                width={32}
-                height={32}
-              />
+          <div className="flex-1 text-xs">
+            <div className="flex items-center gap-1 font-semibold text-foreground">
+              <QrCode className="h-3.5 w-3.5" /> Scan to save contact
             </div>
-            <p className="text-[10px] text-muted-foreground mt-2 leading-snug pr-3">
-              Opens in phone contacts. No app needed.
+            <p className="text-muted-foreground mt-1 leading-snug">
+              Opens directly in their phone's contacts app — no app required.
             </p>
-            <div className="mt-2 grid grid-cols-2 gap-1.5 print:hidden">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-7 min-w-0 px-1.5 text-[11px]"
-                onClick={downloadVcf}
-              >
-                <Download className="mr-1 h-3.5 w-3.5 shrink-0" /><span className="truncate">Save</span>
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-7 min-w-0 px-1.5 text-[11px]"
-                onClick={async () => {
-                  const shareData = {
-                    title: `${fields.first} ${fields.last} — ${COMPANY.org}`,
-                    text: `${fields.first} ${fields.last}${fields.title ? ` · ${fields.title}` : ""} · ${COMPANY.org}`,
-                    url: COMPANY.url,
-                  };
-                  try {
-                    if (navigator.share) {
-                      await navigator.share(shareData);
-                    } else {
-                      await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
-                      toast.success("Card details copied to clipboard");
-                    }
-                  } catch (err: any) {
-                    if (err?.name !== "AbortError") toast.error("Couldn't share");
-                  }
-                }}
-              >
-                <Share2 className="mr-1 h-3.5 w-3.5 shrink-0" /><span className="truncate">Share</span>
-              </Button>
-            </div>
           </div>
+          <img
+            src={mbeSeal}
+            alt="NYC Minority Business Enterprise certified"
+            title="NYC Minority Business Enterprise certified"
+            className="h-14 w-14 shrink-0 animate-spin-slow"
+            loading="lazy"
+            width={56}
+            height={56}
+          />
         </div>
 
       </Card>
