@@ -397,7 +397,7 @@ export function BdMyCardTab() {
           <img
             src={companyLogo}
             alt="Green Light Expediting"
-            className="absolute right-5 top-3 h-5 w-auto"
+            className="absolute right-3 top-3 h-4 w-auto"
           />
 
           <h2 className="text-xl font-bold leading-tight">
