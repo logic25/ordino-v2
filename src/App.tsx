@@ -106,6 +106,7 @@ const BdEventDetail = lazyWithRetry(() => import("./pages/bd/BdEventDetail"), "b
 const BdEventCard = lazyWithRetry(() => import("./pages/bd/BdEventCard"), "bd-event-card");
 const PublicBdCard = lazyWithRetry(() => import("./pages/PublicBdCard"), "public-bd-card");
 const BdScorecard = lazyWithRetry(() => import("./pages/bd/BdScorecard"), "bd-scorecard");
+const BeaconHub = lazyWithRetry(() => import("./pages/BeaconHub"), "beacon-hub");
 
 function PageSpinner() {
   return (
