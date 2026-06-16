@@ -397,7 +397,7 @@ export function BdMyCardTab() {
           <img
             src={companyLogo}
             alt="Green Light Expediting"
-            className="absolute right-3 top-3 h-4 w-auto"
+            className="absolute right-2 top-3 h-3.5 w-auto max-w-[155px] object-contain"
           />
 
           <h2 className="text-xl font-bold leading-tight">
@@ -433,43 +433,43 @@ export function BdMyCardTab() {
         </CardContent>
 
         {/* QR + actions */}
-        <div className="border-t bg-muted/30 px-4 py-4 flex items-start gap-3">
-          <div className="relative bg-white p-2 rounded-md shrink-0 border">
-            <QRCode value={card} size={108} level="H" />
+        <div className="border-t bg-muted/30 px-3 py-3 grid grid-cols-[auto,minmax(0,1fr)] items-start gap-3 overflow-hidden">
+          <div className="relative bg-white p-1.5 rounded-md shrink-0 border">
+            <QRCode value={card} size={92} level="H" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1 text-xs font-semibold text-foreground">
-                <QrCode className="h-3.5 w-3.5" /> Scan to save contact
+            <div className="grid grid-cols-[minmax(0,1fr),auto] items-start gap-2">
+              <div className="flex min-w-0 items-center gap-1 text-[11px] font-semibold leading-tight text-foreground">
+                <QrCode className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">Scan contact</span>
               </div>
               <img
                 src={mbeSeal}
                 alt="NYC Minority Business Enterprise certified"
                 title="NYC Minority Business Enterprise certified"
-                className="h-10 w-10 shrink-0 animate-spin-slow"
+                className="h-8 w-8 shrink-0 animate-spin-slow"
                 loading="lazy"
-                width={40}
-                height={40}
+                width={32}
+                height={32}
               />
             </div>
-            <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
-              Opens in their phone's contacts — no app required.
+            <p className="text-[10px] text-muted-foreground mt-2 leading-snug pr-3">
+              Opens in phone contacts. No app needed.
             </p>
-            <div className="mt-2 flex gap-2 print:hidden">
+            <div className="mt-2 grid grid-cols-2 gap-1.5 print:hidden">
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                className="h-8 px-2 text-xs flex-1"
+                className="h-7 min-w-0 px-1.5 text-[11px]"
                 onClick={downloadVcf}
               >
-                <Download className="mr-1 h-3.5 w-3.5" />Save .vcf
+                <Download className="mr-1 h-3.5 w-3.5 shrink-0" /><span className="truncate">Save</span>
               </Button>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                className="h-8 px-2 text-xs flex-1"
+                className="h-7 min-w-0 px-1.5 text-[11px]"
                 onClick={async () => {
                   const shareData = {
                     title: `${fields.first} ${fields.last} — ${COMPANY.org}`,
@@ -488,7 +488,7 @@ export function BdMyCardTab() {
                   }
                 }}
               >
-                <Share2 className="mr-1 h-3.5 w-3.5" />Share
+                <Share2 className="mr-1 h-3.5 w-3.5 shrink-0" /><span className="truncate">Share</span>
               </Button>
             </div>
           </div>
