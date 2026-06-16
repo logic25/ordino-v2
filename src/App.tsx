@@ -106,6 +106,7 @@ const BdEventDetail = lazyWithRetry(() => import("./pages/bd/BdEventDetail"), "b
 const BdEventCard = lazyWithRetry(() => import("./pages/bd/BdEventCard"), "bd-event-card");
 const PublicBdCard = lazyWithRetry(() => import("./pages/PublicBdCard"), "public-bd-card");
 const BdScorecard = lazyWithRetry(() => import("./pages/bd/BdScorecard"), "bd-scorecard");
+const BeaconHub = lazyWithRetry(() => import("./pages/BeaconHub"), "beacon-hub");
 
 function PageSpinner() {
   return (
@@ -188,6 +189,7 @@ function AppRoutes() {
       <Route path="/help" element={<ProtectedRoute><HelpDesk /></ProtectedRoute>} />
       <Route path="/welcome" element={<ProtectedRoute><Welcome /></ProtectedRoute>} />
       <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
+      <Route path="/beacon" element={<ProtectedRoute><BeaconHub /></ProtectedRoute>} />
 
       {/* Public RFI form - no auth required */}
       <Route path="/rfi" element={<RfiForm />} />

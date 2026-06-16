@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Brain, FileText, Zap, X, ChevronDown, ChevronUp, ExternalLink, MessageSquarePlus, Bug, History, Trash2 } from "lucide-react";
+import { Send, Brain, FileText, Zap, X, ChevronDown, ChevronUp, ExternalLink, MessageSquarePlus, Bug, History, Trash2, Settings as SettingsIcon } from "lucide-react";
+import { useIsAdmin } from "@/hooks/useUserRoles";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -315,6 +316,8 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
   const [viewingFile, setViewingFile] = useState<string | null>(null);
 
   const location = useLocation();
+  const navigate = useNavigate();
+  const isAdmin = useIsAdmin();
   const currentPage = getPageName(location.pathname);
 
   // Capture last 3 console errors for bug context
@@ -857,6 +860,17 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
               title="New conversation"
             >
               <MessageSquarePlus className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {isAdmin && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20"
+              onClick={() => { setOpen(false); navigate("/beacon"); }}
+              title="Beacon admin"
+            >
+              <SettingsIcon className="h-3.5 w-3.5" />
             </Button>
           )}
           <Button
