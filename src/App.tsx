@@ -167,6 +167,7 @@ function AppRoutes() {
       <Route path="/bd/follow-ups" element={<Navigate to="/bd/leads?view=followups" replace />} />
       <Route path="/markets/:marketId/playbooks/:id" element={<ProtectedRoute><PlaybookEditor /></ProtectedRoute>} />
       <Route path="/bd/event-card" element={<ProtectedRoute><BdEventCard /></ProtectedRoute>} />
+      <Route path="/bd/scorecard" element={<ProtectedRoute><BdScorecard /></ProtectedRoute>} />
       <Route path="/bd/capture" element={<Navigate to="/bd/event-card?tab=scan" replace />} />
       <Route path="/bd/my-card" element={<Navigate to="/bd/event-card?tab=mycard" replace />} />
       <Route path="/bd/card" element={<Navigate to="/bd/event-card?tab=mycard" replace />} />
