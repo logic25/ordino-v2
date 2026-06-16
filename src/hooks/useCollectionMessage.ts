@@ -20,12 +20,12 @@ export function useGenerateCollectionMessage() {
       const { data, error } = await supabase.functions.invoke("generate-collection-message", {
         body: {
           invoice_id: input.invoiceId,
-          company_id: input.companyId,
           tone: input.tone,
           urgency: input.urgency,
           offer_payment_plan: input.offerPaymentPlan,
         },
       });
+
       if (error) throw error;
       return data as CollectionMessageResult;
     },

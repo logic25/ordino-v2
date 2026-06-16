@@ -41,11 +41,12 @@ export function useRefreshClientAnalytics() {
   return useMutation({
     mutationFn: async ({ clientId, companyId }: { clientId: string; companyId: string }) => {
       const { data, error } = await supabase.functions.invoke("analyze-client-payments", {
-        body: { client_id: clientId, company_id: companyId },
+        body: { client_id: clientId },
       });
       if (error) throw error;
       return data as ClientPaymentAnalytics;
     },
+
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["client-payment-analytics", data.client_id] });
     },
