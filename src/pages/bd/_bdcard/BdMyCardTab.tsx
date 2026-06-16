@@ -180,6 +180,7 @@ export function BdMyCardTab() {
       linkedin: prefs.linkedin ?? saved.linkedin ?? "",
       address: prefs.address ?? saved.address ?? "",
     });
+    setCoverUrl(prefs.cover_url ?? "");
   }, [profile?.id, user?.email]);
 
   useEffect(() => {
