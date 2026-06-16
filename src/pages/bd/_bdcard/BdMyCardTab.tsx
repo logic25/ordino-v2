@@ -632,7 +632,7 @@ export function BdMyCardTab() {
         {/* QR section */}
         <div className="border-t bg-muted/30 px-5 py-4 flex items-center gap-4">
           <div className="relative bg-white p-3 rounded-md shrink-0 border">
-            <QRCode value={card} size={132} level="H" />
+            <QRCode value={qrValue} size={132} level="H" />
           </div>
           <div className="flex-1 min-w-0 flex flex-col gap-2">
             <img
