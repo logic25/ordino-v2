@@ -71,8 +71,8 @@ function vCard(p: Fields) {
 
 const LS_KEY = "qr-card-fields";
 const LOGO_LS_KEY = "qr-card-logo-cfg";
-type LogoCfg = { height: number; top: number; right: number };
-const LOGO_DEFAULT: LogoCfg = { height: 20, top: 12, right: 70 };
+type LogoCfg = { height: number; top: number; right: number; width: number };
+const LOGO_DEFAULT: LogoCfg = { height: 16, top: 14, right: 16, width: 304 };
 
 const imageExtensionPattern = /\.(png|jpe?g|gif|webp|heic|heif|bmp|svg)$/i;
 
@@ -434,19 +434,18 @@ export function BdMyCardTab() {
         <CardContent className="pt-12 pb-4 px-5 relative">
           {/* Company logo — right of avatar, in white space below cover */}
           <div
-            className="absolute overflow-hidden print:!h-5 print:!top-3 print:!right-[70px]"
+            className="absolute print:!h-5 print:!top-3 print:!right-[70px]"
             style={{
               top: `${logoCfg.top}px`,
               right: `${logoCfg.right}px`,
               height: `${logoCfg.height}px`,
-              width: `${Math.round(logoCfg.height * 9)}px`,
+              width: `${logoCfg.width}px`,
             }}
           >
             <img
               src={companyLogo}
               alt="Green Light Expediting"
-              className="w-auto max-w-none"
-              style={{ height: `${logoCfg.height}px` }}
+              className="h-full w-full object-contain object-left"
             />
           </div>
 
@@ -520,13 +519,14 @@ export function BdMyCardTab() {
         >
           <span>Logo position & size</span>
           <span className="text-[10px] opacity-70">
-            {logoTuner ? "hide" : "adjust"} · h{logoCfg.height} t{logoCfg.top} r{logoCfg.right}
+              {logoTuner ? "hide" : "adjust"} · h{logoCfg.height} w{logoCfg.width} t{logoCfg.top} r{logoCfg.right}
           </span>
         </button>
         {logoTuner && (
           <div className="px-3 pb-3 space-y-2">
             {([
               { k: "height", label: "Height", min: 10, max: 60 },
+              { k: "width", label: "Width", min: 120, max: 380 },
               { k: "top", label: "Top", min: -10, max: 40 },
               { k: "right", label: "Right", min: 0, max: 200 },
             ] as const).map(({ k, label, min, max }) => (
