@@ -87,6 +87,10 @@ Deno.serve(async (req) => {
         return await getContentStats(supabase);
       case "persist_widget_messages":
         return await persistWidgetMessages(supabase, data);
+      case "get_interactions_for_reclass":
+        return await getInteractionsForReclass(supabase, data);
+      case "update_interaction_topic":
+        return await updateInteractionTopic(supabase, data);
       default:
         return jsonResponse({ error: `Unknown action: ${action}` }, 400);
     }
@@ -97,6 +101,31 @@ Deno.serve(async (req) => {
 });
 
 // ─── Actions ────────────────────────────────────────────────────────
+
+// One-time/maintenance: fetch interactions so Beacon (Railway) can re-classify
+// their topic with the real LLM classifier, then write the corrected topic back
+// via update_interaction_topic. Topic tagging lives in Beacon's Python
+// classifier (single source of truth), so we only read/write here.
+async function getInteractionsForReclass(sb: any, d: any) {
+  const limit = Math.min(Number(d?.limit ?? 5000), 10000);
+  const { data, error } = await sb
+    .from("beacon_interactions")
+    .select("id, question, response, topic")
+    .order("id", { ascending: true })
+    .limit(limit);
+  if (error) return jsonResponse({ error: error.message }, 500);
+  return jsonResponse(data ?? []);
+}
+
+async function updateInteractionTopic(sb: any, d: any) {
+  if (d?.id == null) return jsonResponse({ error: "id required" }, 400);
+  const { error } = await sb
+    .from("beacon_interactions")
+    .update({ topic: d.topic })
+    .eq("id", d.id);
+  if (error) return jsonResponse({ error: error.message }, 500);
+  return jsonResponse({ ok: true });
+}
 
 async function logInteraction(sb: any, d: any) {
   const { error } = await sb.from("beacon_interactions").insert({
