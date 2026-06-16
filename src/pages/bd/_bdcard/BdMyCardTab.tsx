@@ -234,23 +234,8 @@ export function BdMyCardTab() {
 
         {/* QR section */}
         <div className="border-t bg-muted/30 px-5 py-4 flex items-center gap-4">
-          <div className="relative bg-white p-2 rounded-md shrink-0 border">
-            <QRCode value={card} size={96} level="H" />
-            <div
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white p-0.5 shadow-sm"
-              style={{ width: 26, height: 26 }}
-            >
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="" className="w-full h-full rounded-full object-cover" />
-              ) : (
-                <div
-                  className="w-full h-full rounded-full flex items-center justify-center text-[8px] font-bold text-white"
-                  style={{ backgroundColor: "#6aa84f" }}
-                >
-                  {initials}
-                </div>
-              )}
-            </div>
+          <div className="relative bg-white p-3 rounded-md shrink-0 border">
+            <QRCode value={card} size={160} level="H" />
           </div>
           <div className="text-xs">
             <div className="flex items-center gap-1 font-semibold text-foreground">
