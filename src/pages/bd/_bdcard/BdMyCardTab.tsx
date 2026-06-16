@@ -72,7 +72,7 @@ function vCard(p: Fields) {
 const LS_KEY = "qr-card-fields";
 const LOGO_LS_KEY = "qr-card-logo-cfg";
 type LogoCfg = { height: number; top: number; right: number; width: number };
-const LOGO_DEFAULT: LogoCfg = { height: 16, top: 14, right: 16, width: 304 };
+const LOGO_DEFAULT: LogoCfg = { height: 18, top: 12, right: 16, width: 224 };
 
 const imageExtensionPattern = /\.(png|jpe?g|gif|webp|heic|heif|bmp|svg)$/i;
 
@@ -167,7 +167,12 @@ export function BdMyCardTab() {
   const [logoCfg, setLogoCfg] = useState<LogoCfg>(() => {
     try {
       const raw = localStorage.getItem(LOGO_LS_KEY);
-      if (raw) return { ...LOGO_DEFAULT, ...JSON.parse(raw) };
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const cfg = { ...LOGO_DEFAULT, ...parsed };
+          if (!parsed.width || parsed.width > 260) return LOGO_DEFAULT;
+          return cfg;
+        }
     } catch {}
     return LOGO_DEFAULT;
   });
