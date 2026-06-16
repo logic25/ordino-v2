@@ -862,6 +862,17 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
               <MessageSquarePlus className="h-3.5 w-3.5" />
             </Button>
           )}
+          {isAdmin && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20"
+              onClick={() => { setOpen(false); navigate("/beacon"); }}
+              title="Beacon admin"
+            >
+              <SettingsIcon className="h-3.5 w-3.5" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
