@@ -418,7 +418,74 @@ export function BdMyCardTab() {
             <SheetTitle>Edit my card</SheetTitle>
             <SheetDescription>Update what shows on your QR card and vCard.</SheetDescription>
           </SheetHeader>
-          <div className="mt-4 grid grid-cols-2 gap-3">
+
+          {/* Photo & Cover editor */}
+          <div className="mt-6 space-y-5">
+            {/* Cover preview */}
+            <div className="space-y-1.5">
+              <Label>Cover image</Label>
+              <div
+                className="relative h-24 rounded-lg bg-cover bg-center border overflow-hidden"
+                style={{
+                  backgroundImage: coverUrl
+                    ? `url("${coverUrl}")`
+                    : "linear-gradient(135deg, #1a2e1a 0%, #2d4a2d 40%, #6aa84f 100%)",
+                }}
+              >
+                {coverUrl && <div className="absolute inset-0 bg-black/20" />}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs"
+                  onClick={() => coverInputRef.current?.click()}
+                  disabled={uploading === "cover"}
+                >
+                  {uploading === "cover" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Camera className="h-3 w-3 mr-1" />}
+                  {coverUrl ? "Change cover" : "Add cover"}
+                </Button>
+                {coverUrl && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={clearCover}
+                  >
+                    Remove cover
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Avatar preview */}
+            <div className="space-y-1.5">
+              <Label>Profile photo</Label>
+              <div className="flex items-center gap-3">
+                <Avatar className="h-16 w-16 ring-2 ring-border">
+                  {avatarUrl && <AvatarImage src={avatarUrl} alt={`${fields.first} ${fields.last}`} />}
+                  <AvatarFallback className="text-base font-semibold" style={{ backgroundColor: "#6aa84f", color: "white" }}>
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={uploading === "avatar"}
+                >
+                  {uploading === "avatar" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Camera className="h-3 w-3 mr-1" />}
+                  Change photo
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-2 gap-3">
             <div className="space-y-1.5"><Label>First name</Label><Input value={fields.first} onChange={set("first")} /></div>
             <div className="space-y-1.5"><Label>Last name</Label><Input value={fields.last} onChange={set("last")} /></div>
             <div className="space-y-1.5 col-span-2"><Label>Title</Label><Input value={fields.title} onChange={set("title")} placeholder="e.g. Senior Project Manager" /></div>
