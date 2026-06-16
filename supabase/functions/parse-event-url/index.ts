@@ -15,12 +15,36 @@ function json(body: unknown, status = 200) {
   });
 }
 
+function isBlockedHost(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local") || h.endsWith(".internal")) return true;
+  // IPv6 loopback / link-local / unique-local
+  if (h === "::1" || h.startsWith("fe80:") || h.startsWith("fc") || h.startsWith("fd")) return true;
+  // IPv4 private / loopback / link-local / metadata
+  const m = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (m) {
+    const [a, b] = [parseInt(m[1]), parseInt(m[2])];
+    if (a === 10 || a === 127 || a === 0) return true;
+    if (a === 169 && b === 254) return true; // link-local + AWS/GCP metadata
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a >= 224) return true; // multicast/reserved
+  }
+  return false;
+}
+
 async function fetchPage(url: string): Promise<string> {
+  let parsed: URL;
+  try { parsed = new URL(url); } catch { throw new Error("invalid url"); }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw new Error("unsupported protocol");
+  if (isBlockedHost(parsed.hostname)) throw new Error("blocked host");
+
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 10_000);
   try {
-    const res = await fetch(url, {
+    const res = await fetch(parsed.toString(), {
       signal: ctrl.signal,
+      redirect: "manual",
       headers: { "User-Agent": "Mozilla/5.0 OrdinoBot/1.0 (event parser)" },
     });
     if (!res.ok) throw new Error(`status ${res.status}`);
@@ -37,6 +61,7 @@ async function fetchPage(url: string): Promise<string> {
     clearTimeout(t);
   }
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });

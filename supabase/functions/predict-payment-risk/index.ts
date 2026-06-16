@@ -29,20 +29,35 @@ Deno.serve(async (req) => {
     const lovableApiKey = Deno.env.get("LOVABLE_API_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    const { invoice_id, company_id } = await req.json();
+    const { invoice_id } = await req.json();
 
-    if (!invoice_id || !company_id) {
-      return new Response(JSON.stringify({ error: "invoice_id and company_id required" }), {
+    if (!invoice_id) {
+      return new Response(JSON.stringify({ error: "invoice_id required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Fetch invoice details
+    // Derive company_id from the authenticated user — never trust body
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("company_id")
+      .eq("user_id", user.id)
+      .single();
+    const company_id = profile?.company_id;
+    if (!company_id) {
+      return new Response(JSON.stringify({ error: "No company for user" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Fetch invoice details — scoped to caller's company
     const { data: invoice, error: invErr } = await supabase
       .from("invoices")
       .select("*, clients(id, name), projects(id, name)")
       .eq("id", invoice_id)
+      .eq("company_id", company_id)
       .single();
 
     if (invErr || !invoice) {
@@ -51,6 +66,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     // Fetch client analytics
     const { data: analytics } = await supabase

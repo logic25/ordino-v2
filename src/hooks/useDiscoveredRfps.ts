@@ -171,8 +171,9 @@ export function useTriggerRfpScan() {
     mutationFn: async () => {
       if (!profile?.company_id) throw new Error("No company");
       const { data, error } = await supabase.functions.invoke("monitor-rfps", {
-        body: { company_id: profile.company_id },
+        body: {},
       });
+
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       return data as { new_count: number; total_scanned: number; sources_checked: number };

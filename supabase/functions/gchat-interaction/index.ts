@@ -219,8 +219,13 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } else if (!projectNumber) {
-      console.warn("gchat-interaction: GOOGLE_CLOUD_PROJECT_NUMBER not set — skipping webhook verification (INSECURE)");
+      console.error("gchat-interaction: GOOGLE_CLOUD_PROJECT_NUMBER not configured — refusing request");
+      return new Response(JSON.stringify({ error: "Webhook not configured" }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
+
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
