@@ -288,7 +288,9 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
               isSending={isBeaconBotDm ? beaconSending : sendMutation.isPending}
               replyingTo={replyTarget ? { preview: replyTarget.preview, senderName: replyTarget.senderName } : null}
               onCancelReply={() => setReplyTarget(null)}
+              initialText={initialText}
             />
+
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
