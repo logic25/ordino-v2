@@ -432,37 +432,70 @@ export function BdMyCardTab() {
           </div>
         </CardContent>
 
-        {/* QR section */}
-        <div className="border-t bg-muted/30 px-5 py-4 flex items-center gap-4">
-          <div className="relative bg-white p-3 rounded-md shrink-0 border">
-            <QRCode value={card} size={140} level="H" />
+        {/* QR + actions */}
+        <div className="border-t bg-muted/30 px-4 py-4 flex items-start gap-3">
+          <div className="relative bg-white p-2 rounded-md shrink-0 border">
+            <QRCode value={card} size={108} level="H" />
           </div>
-          <div className="flex-1 text-xs">
-            <div className="flex items-center gap-1 font-semibold text-foreground">
-              <QrCode className="h-3.5 w-3.5" /> Scan to save contact
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1 text-xs font-semibold text-foreground">
+                <QrCode className="h-3.5 w-3.5" /> Scan to save contact
+              </div>
+              <img
+                src={mbeSeal}
+                alt="NYC Minority Business Enterprise certified"
+                title="NYC Minority Business Enterprise certified"
+                className="h-10 w-10 shrink-0 animate-spin-slow"
+                loading="lazy"
+                width={40}
+                height={40}
+              />
             </div>
-            <p className="text-muted-foreground mt-1 leading-snug">
-              Opens directly in their phone's contacts app — no app required.
+            <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+              Opens in their phone's contacts — no app required.
             </p>
+            <div className="mt-2 flex gap-2 print:hidden">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 px-2 text-xs flex-1"
+                onClick={downloadVcf}
+              >
+                <Download className="mr-1 h-3.5 w-3.5" />Save .vcf
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 px-2 text-xs flex-1"
+                onClick={async () => {
+                  const shareData = {
+                    title: `${fields.first} ${fields.last} — ${COMPANY.org}`,
+                    text: `${fields.first} ${fields.last}${fields.title ? ` · ${fields.title}` : ""} · ${COMPANY.org}`,
+                    url: COMPANY.url,
+                  };
+                  try {
+                    if (navigator.share) {
+                      await navigator.share(shareData);
+                    } else {
+                      await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
+                      toast.success("Card details copied to clipboard");
+                    }
+                  } catch (err: any) {
+                    if (err?.name !== "AbortError") toast.error("Couldn't share");
+                  }
+                }}
+              >
+                <Share2 className="mr-1 h-3.5 w-3.5" />Share
+              </Button>
+            </div>
           </div>
-          <img
-            src={mbeSeal}
-            alt="NYC Minority Business Enterprise certified"
-            title="NYC Minority Business Enterprise certified"
-            className="h-14 w-14 shrink-0 animate-spin-slow"
-            loading="lazy"
-            width={56}
-            height={56}
-          />
         </div>
 
       </Card>
 
-      <div className="flex justify-end print:hidden">
-        <Button variant="ghost" size="sm" onClick={downloadVcf} className="text-xs text-muted-foreground hover:text-foreground h-7">
-          <Download className="mr-1.5 h-3.5 w-3.5" />Save contact (.vcf)
-        </Button>
-      </div>
 
       <Sheet open={editOpen} onOpenChange={setEditOpen}>
         <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
