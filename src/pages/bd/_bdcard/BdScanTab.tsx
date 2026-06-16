@@ -134,8 +134,8 @@ export function BdScanTab() {
     try {
       await createLead.mutateAsync({
         full_name: fullName.trim(),
-        source_type: "EVENT",
-        event_id: defaultEventId || null,
+        source_type: isInPerson ? "IN_PERSON" : "EVENT",
+        event_id: isInPerson || !defaultEventId ? null : defaultEventId,
         company: company.trim() || null,
         role: role.trim() || null,
         contact_email: email.trim() || null,
