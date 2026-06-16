@@ -400,7 +400,13 @@ export function BdMyCardTab() {
         </div>
 
         {/* Identity */}
-        <CardContent className="pt-12 pb-4 px-5">
+        <CardContent className="pt-12 pb-4 px-5 relative">
+          {/* Company logo — sits in white space to the right of the avatar */}
+          <img
+            src={companyLogo}
+            alt="Green Light Expediting"
+            className="absolute right-5 -top-2 h-7 w-auto"
+          />
           <h2 className="text-xl font-bold leading-tight">
             {fields.first} {fields.last}
           </h2>
