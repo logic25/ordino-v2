@@ -94,6 +94,7 @@ export function BdMyCardTab() {
     phone: "", extension: "", mobile: "", linkedin: "", address: "",
   });
   const [saving, setSaving] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [uploading, setUploading] = useState<null | "avatar" | "cover">(null);
   const [coverUrl, setCoverUrl] = useState<string>("");
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
