@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Brain, FileText, Zap, X, ChevronDown, ChevronUp, ExternalLink, MessageSquarePlus, Bug, History, Trash2 } from "lucide-react";
+import { Send, Brain, FileText, Zap, X, ChevronDown, ChevronUp, ExternalLink, MessageSquarePlus, Bug, History, Trash2, Settings as SettingsIcon } from "lucide-react";
+import { useIsAdmin } from "@/hooks/useUserRoles";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
