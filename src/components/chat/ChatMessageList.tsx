@@ -130,6 +130,64 @@ function getThreadKey(msg: GChatMessage): string | null {
   return null;
 }
 
+function MessageReactionBar({ messageName, reactions, isWidget }: { messageName: string; reactions?: Array<{ emoji: { unicode: string }; reactionCount: number }>; isWidget?: boolean }) {
+  const addReaction = useAddGChatReaction();
+  const [showPicker, setShowPicker] = useState(false);
+
+  if (isWidget) return null;
+
+  const handleReact = (emoji: string) => {
+    addReaction.mutate({ messageName, emojiUnicode: emoji });
+    setShowPicker(false);
+  };
+
+  return (
+    <div className="flex items-center gap-1 mt-1">
+      {reactions?.map((r, i) => (
+        <button
+          key={i}
+          onClick={() => handleReact(r.emoji.unicode)}
+          className={cn(
+            "inline-flex items-center gap-0.5 text-[11px] px-1.5 py-0.5 rounded-full border transition-colors",
+            "bg-muted/40 border-border/60 hover:bg-muted"
+          )}
+          title={`React with ${r.emoji.unicode}`}
+        >
+          <span>{r.emoji.unicode}</span>
+          <span className="text-muted-foreground">{r.reactionCount}</span>
+        </button>
+      ))}
+      <div className="relative">
+        <button
+          onClick={() => setShowPicker((v) => !v)}
+          className={cn(
+            "inline-flex items-center justify-center h-5 w-5 rounded-full border transition-colors",
+            "bg-muted/30 border-border/50 text-muted-foreground hover:bg-muted hover:text-foreground",
+            showPicker && "bg-muted text-foreground"
+          )}
+          title="Add reaction"
+        >
+          <Smile className="h-3 w-3" />
+        </button>
+        {showPicker && (
+          <div className="absolute bottom-6 left-0 z-10 flex items-center gap-0.5 p-1 rounded-lg border bg-background shadow-lg">
+            {QUICK_EMOJIS.map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => handleReact(emoji)}
+                className="h-6 w-6 flex items-center justify-center text-sm rounded hover:bg-muted transition-colors"
+                title={emoji}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ChatMessageList({ messages, isLoading, members = [], isWaitingForBeacon, onReplyInThread, activeReplyThreadKey }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
