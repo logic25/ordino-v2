@@ -379,8 +379,8 @@ export function BdMyCardTab() {
   return (
     <div className="mx-auto w-full max-w-[440px] space-y-4">
       <div className="flex justify-end print:hidden">
-        <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-          <Pencil className="mr-1.5 h-3.5 w-3.5" />Edit
+        <Button variant={isEditing ? "default" : "outline"} size="sm" onClick={() => setEditOpen((v) => !v)}>
+          {isEditing ? <><Check className="mr-1.5 h-3.5 w-3.5" />Done</> : <><Pencil className="mr-1.5 h-3.5 w-3.5" />Edit</>}
         </Button>
       </div>
       {/* Card */}
