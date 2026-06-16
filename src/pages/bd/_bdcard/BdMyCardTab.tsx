@@ -299,6 +299,31 @@ export function BdMyCardTab() {
     URL.revokeObjectURL(url);
   };
 
+  const shareCard = async () => {
+    const fileName = `${fields.first}-${fields.last}-GLE.vcf`.replace(/\s+/g, "");
+    const file = new File([card], fileName, { type: "text/vcard" });
+    const shareData: ShareData = {
+      title: `${fields.first} ${fields.last} — ${COMPANY.org}`,
+      text: `Contact card for ${fields.first} ${fields.last}`,
+    };
+    try {
+      // @ts-ignore
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await (navigator as any).share({ ...shareData, files: [file] });
+        return;
+      }
+      if ((navigator as any).share) {
+        await (navigator as any).share(shareData);
+        return;
+      }
+      await navigator.clipboard.writeText(card);
+      toast.success("vCard copied to clipboard");
+    } catch (e: any) {
+      if (e?.name !== "AbortError") toast.error(e?.message ?? "Share failed");
+    }
+  };
+
+
   const saveToProfile = async () => {
     if (!profile?.id) {
       toast.error("Profile not loaded yet");
