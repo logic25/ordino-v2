@@ -251,8 +251,12 @@ export function BdMyCardTab() {
   const initials = `${(fields.first[0] ?? "").toUpperCase()}${(fields.last[0] ?? "").toUpperCase()}` || "GLE";
 
   return (
-    <div className="mx-auto w-full max-w-[920px] grid gap-4 lg:grid-cols-[400px_1fr] lg:items-start">
-      <div className="space-y-4">
+    <div className="mx-auto w-full max-w-[440px] space-y-4">
+      <div className="flex justify-end print:hidden">
+        <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+          <Pencil className="mr-1.5 h-3.5 w-3.5" />Edit
+        </Button>
+      </div>
       {/* Card */}
       <Card className="overflow-hidden print:shadow-none print:border-2 shadow-lg">
         {/* Banner */}
