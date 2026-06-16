@@ -396,40 +396,51 @@ export function BdMyCardTab() {
         >
           {coverUrl && <div className="absolute inset-0 bg-black/20" />}
 
-          {/* Cover hover overlay — camera icon appears on hover/tap */}
-          <button
-            type="button"
-            onClick={() => coverInputRef.current?.click()}
-            disabled={uploading === "cover"}
-            className="print:hidden absolute inset-0 group flex items-start justify-end p-2 focus:outline-none"
-            title="Change cover image"
-            aria-label="Change cover image"
-          >
-            <span className="opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity h-8 w-8 rounded-full bg-black/55 backdrop-blur-sm text-white flex items-center justify-center shadow">
-              {uploading === "cover" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-            </span>
-          </button>
-
-          {/* Avatar with hover camera overlay */}
-          <div className="absolute -bottom-10 left-5">
+          {/* Cover camera overlay — only in edit mode */}
+          {isEditing && (
             <button
               type="button"
-              onClick={() => avatarInputRef.current?.click()}
-              disabled={uploading === "avatar"}
-              className="print:hidden relative group rounded-full focus:outline-none"
-              title="Change profile photo"
-              aria-label="Change profile photo"
+              onClick={() => coverInputRef.current?.click()}
+              disabled={uploading === "cover"}
+              className="print:hidden absolute inset-0 group flex items-start justify-end p-2 focus:outline-none"
+              title="Change cover image"
+              aria-label="Change cover image"
             >
+              <span className="h-8 w-8 rounded-full bg-black/55 backdrop-blur-sm text-white flex items-center justify-center shadow">
+                {uploading === "cover" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+              </span>
+            </button>
+          )}
+
+          {/* Avatar with camera overlay (only in edit mode) */}
+          <div className="absolute -bottom-10 left-5">
+            {isEditing ? (
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={uploading === "avatar"}
+                className="print:hidden relative group rounded-full focus:outline-none"
+                title="Change profile photo"
+                aria-label="Change profile photo"
+              >
+                <Avatar className="h-24 w-24 ring-4 ring-background shadow-md">
+                  {avatarUrl && <AvatarImage src={avatarUrl} alt={`${fields.first} ${fields.last}`} />}
+                  <AvatarFallback className="text-xl font-semibold" style={{ backgroundColor: "#6aa84f", color: "white" }}>
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center text-white">
+                  {uploading === "avatar" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
+                </span>
+              </button>
+            ) : (
               <Avatar className="h-24 w-24 ring-4 ring-background shadow-md">
                 {avatarUrl && <AvatarImage src={avatarUrl} alt={`${fields.first} ${fields.last}`} />}
                 <AvatarFallback className="text-xl font-semibold" style={{ backgroundColor: "#6aa84f", color: "white" }}>
                   {initials}
                 </AvatarFallback>
               </Avatar>
-              <span className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity flex items-center justify-center text-white">
-                {uploading === "avatar" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
-              </span>
-            </button>
+            )}
           </div>
 
           <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile("avatar")} />
