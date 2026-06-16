@@ -291,6 +291,41 @@ export function BdMyCardTab() {
     setCoverUrl(prefs.cover_url ?? "");
   }, [profile?.id, user?.email]);
 
+  // Load/create the bd_cards row for this user
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("bd_cards")
+        .select("slug, published, logo_cfg")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (data) {
+        setSlug(data.slug);
+        setPublished(!!data.published);
+        if (data.logo_cfg) setLogoCfg((c) => ({ ...c, ...data.logo_cfg }));
+        return;
+      }
+      // Auto-create draft row with generated slug
+      const base = `${profile?.first_name ?? ""}-${profile?.last_name ?? ""}`
+        .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "card";
+      const rand = Math.random().toString(36).slice(2, 6);
+      const newSlug = `${base}-${rand}`;
+      const { data: created, error } = await (supabase as any)
+        .from("bd_cards")
+        .insert({ user_id: user.id, slug: newSlug, fields: {}, logo_cfg: logoCfg, published: false })
+        .select("slug, published")
+        .maybeSingle();
+      if (!cancelled && created && !error) {
+        setSlug(created.slug);
+        setPublished(!!created.published);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, profile?.first_name, profile?.last_name]);
+
   useEffect(() => {
     localStorage.setItem(LS_KEY, JSON.stringify({
       phone: fields.phone, extension: fields.extension,
@@ -299,6 +334,7 @@ export function BdMyCardTab() {
   }, [fields.phone, fields.extension, fields.mobile, fields.linkedin, fields.address]);
 
   const card = useMemo(() => vCard(fields), [fields]);
+  const qrValue = publicUrl || card;
 
   const downloadVcf = () => {
     const blob = new Blob([card], { type: "text/vcard" });
@@ -311,28 +347,53 @@ export function BdMyCardTab() {
   };
 
   const shareCard = async () => {
-    const fileName = `${fields.first}-${fields.last}-GLE.vcf`.replace(/\s+/g, "");
-    const file = new File([card], fileName, { type: "text/vcard" });
+    if (!publicUrl) {
+      toast.error("Publish your card first to share a link");
+      return;
+    }
     const shareData: ShareData = {
       title: `${fields.first} ${fields.last} — ${COMPANY.org}`,
       text: `Contact card for ${fields.first} ${fields.last}`,
+      url: publicUrl,
     };
     try {
-      // @ts-ignore
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await (navigator as any).share({ ...shareData, files: [file] });
-        return;
-      }
       if ((navigator as any).share) {
         await (navigator as any).share(shareData);
         return;
       }
-      await navigator.clipboard.writeText(card);
-      toast.success("vCard copied to clipboard");
+      await navigator.clipboard.writeText(publicUrl);
+      toast.success("Link copied");
     } catch (e: any) {
       if (e?.name !== "AbortError") toast.error(e?.message ?? "Share failed");
     }
   };
+
+  const togglePublish = async () => {
+    if (!user?.id || !slug) return;
+    // Sync latest fields + photos + logo before publishing
+    const avatarUrl = (profile as any)?.avatar_url ?? null;
+    const next = !published;
+    const { error } = await (supabase as any)
+      .from("bd_cards")
+      .update({
+        fields,
+        photo_url: avatarUrl,
+        cover_url: coverUrl || null,
+        logo_cfg: logoCfg,
+        published: next,
+      })
+      .eq("user_id", user.id);
+    if (error) { toast.error(error.message); return; }
+    setPublished(next);
+    toast.success(next ? "Card published" : "Card unpublished");
+  };
+
+  const copyPublicUrl = async () => {
+    if (!publicUrl) return;
+    await navigator.clipboard.writeText(publicUrl);
+    toast.success("Link copied");
+  };
+
 
 
   const saveToProfile = async () => {
