@@ -218,7 +218,8 @@ export function BdMyCardTab() {
   const initials = `${(fields.first[0] ?? "").toUpperCase()}${(fields.last[0] ?? "").toUpperCase()}` || "GLE";
 
   return (
-    <div className="mx-auto w-full max-w-[400px] space-y-4">
+    <div className="mx-auto w-full max-w-[920px] grid gap-4 lg:grid-cols-[400px_1fr] lg:items-start">
+      <div className="space-y-4">
       {/* Card */}
       <Card className="overflow-hidden print:shadow-none print:border-2 shadow-lg">
         {/* Banner */}
@@ -232,12 +233,36 @@ export function BdMyCardTab() {
           <div className="absolute top-3 right-3 text-[10px] font-bold tracking-widest text-white/80">
             GREEN LIGHT EXPEDITING
           </div>
-          <Avatar className="absolute -bottom-10 left-5 h-24 w-24 ring-4 ring-background shadow-md">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="absolute -bottom-10 left-5 group rounded-full print:hidden"
+            title="Change photo"
+            disabled={uploadingAvatar}
+          >
+            <Avatar className="h-24 w-24 ring-4 ring-background shadow-md">
+              {avatarUrl && <AvatarImage src={avatarUrl} alt={`${fields.first} ${fields.last}`} />}
+              <AvatarFallback className="text-xl font-semibold" style={{ backgroundColor: "#6aa84f", color: "white" }}>
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <span className="absolute inset-0 rounded-full bg-black/45 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[11px] font-medium gap-1">
+              {uploadingAvatar ? <Loader2 className="h-4 w-4 animate-spin" /> : (<><Camera className="h-3.5 w-3.5" /> Change</>)}
+            </span>
+          </button>
+          <Avatar className="absolute -bottom-10 left-5 h-24 w-24 ring-4 ring-background shadow-md hidden print:block">
             {avatarUrl && <AvatarImage src={avatarUrl} alt={`${fields.first} ${fields.last}`} />}
             <AvatarFallback className="text-xl font-semibold" style={{ backgroundColor: "#6aa84f", color: "white" }}>
               {initials}
             </AvatarFallback>
           </Avatar>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleAvatarFile}
+          />
         </div>
 
         {/* Identity */}
