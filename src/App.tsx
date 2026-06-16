@@ -104,6 +104,7 @@ const BdFollowUps = lazyWithRetry(() => import("./pages/bd/BdFollowUps"), "bd-fo
 const PlaybookEditor = lazyWithRetry(() => import("./pages/PlaybookEditor"), "playbook-editor");
 const BdEventDetail = lazyWithRetry(() => import("./pages/bd/BdEventDetail"), "bd-event-detail");
 const BdEventCard = lazyWithRetry(() => import("./pages/bd/BdEventCard"), "bd-event-card");
+const PublicBdCard = lazyWithRetry(() => import("./pages/PublicBdCard"), "public-bd-card");
 
 function PageSpinner() {
   return (
