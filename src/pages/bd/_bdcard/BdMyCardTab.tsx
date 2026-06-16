@@ -460,6 +460,11 @@ export function BdMyCardTab() {
 
       </Card>
 
+      <div className="flex justify-end print:hidden">
+        <Button variant="ghost" size="sm" onClick={downloadVcf} className="text-xs text-muted-foreground hover:text-foreground h-7">
+          <Download className="mr-1.5 h-3.5 w-3.5" />Save contact (.vcf)
+        </Button>
+      </div>
 
       <Sheet open={editOpen} onOpenChange={setEditOpen}>
         <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
