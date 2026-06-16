@@ -11,6 +11,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import companyLogo from "@/assets/company-logo-hosted.webp";
 
 const COMPANY = {
   org: "Green Light Expediting",
