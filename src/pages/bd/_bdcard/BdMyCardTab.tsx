@@ -394,7 +394,7 @@ export function BdMyCardTab() {
         {/* Identity */}
         <CardContent className="pt-12 pb-4 px-5 relative">
           {/* Company logo — right of avatar, in white space below cover */}
-          <div className="absolute right-4 top-3 h-5 w-[180px] overflow-hidden">
+          <div className="absolute right-[70px] top-3 h-5 w-[180px] overflow-hidden">
             <img
               src={companyLogo}
               alt="Green Light Expediting"
