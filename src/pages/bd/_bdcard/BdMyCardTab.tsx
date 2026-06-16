@@ -349,9 +349,6 @@ export function BdMyCardTab() {
           }}
         >
           {coverUrl && <div className="absolute inset-0 bg-black/20" />}
-          <div className="absolute top-3 right-3 flex items-center gap-1.5 rounded-md bg-white/90 px-2 py-1 shadow-sm">
-            <img src={companyLogo} alt="Green Light Expediting" className="h-5 w-auto" />
-          </div>
           {/* Cover image edit controls */}
           <div className="absolute top-2 left-2 flex gap-1 print:hidden">
             <Button
@@ -403,7 +400,13 @@ export function BdMyCardTab() {
         </div>
 
         {/* Identity */}
-        <CardContent className="pt-12 pb-4 px-5">
+        <CardContent className="pt-12 pb-4 px-5 relative">
+          {/* Company logo — sits in white space to the right of the avatar */}
+          <img
+            src={companyLogo}
+            alt="Green Light Expediting"
+            className="absolute right-5 -top-2 h-7 w-auto"
+          />
           <h2 className="text-xl font-bold leading-tight">
             {fields.first} {fields.last}
           </h2>

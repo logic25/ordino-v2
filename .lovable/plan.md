@@ -1,58 +1,17 @@
-# Discuss in Chat — wire-up plan
+## Logo placement on the BD card
 
-Reuse existing chat components and the `google-chat-api` `send_message` mutation. No DB changes, no new edge work. Four small frontend edits.
+Going with your original instinct — logo sits in the white space under the cover, to the right of the profile photo. Cleanest co-branding without crowding the cover image. (Skipping the byline-under-name and footer-band options for now; we can swap later if you want.)
 
-## 1. `src/components/chat/ChatCompose.tsx`
-- Add optional prop `initialText?: string`.
-- Initialize `useState(initialText ?? "")`.
-- Add `useEffect` that resets `text` whenever `initialText` changes (so reopening with a new email refills the box).
+### What changes
 
-## 2. `src/components/chat/ChatPanel.tsx`
-- Add optional prop `initialText?: string`.
-- Pass it through to `<ChatCompose initialText={initialText} ... />`.
-- Keep existing behavior: when no `spaceId` is fixed, `SpacesList` renders so the user picks the destination space/DM.
+1. **Remove** the white "GREEN LIGHT EXPEDITING" logo chip currently floating on the cover banner — frees the cover for the user's chosen background image.
+2. **Add** the logo into the identity row, aligned to the bottom-right of the avatar. Sits on a soft white background so it reads on any cover color.
+3. **Sizing:** logo ~28px tall, with the avatar staying 96px. Lock to the right edge of the card so the name still anchors left.
+4. **Print/PDF:** logo remains visible in print so the saved card carries the brand.
+5. **Hidden if there's no logo asset** (future-proof — for now we always show the GLE wordmark).
 
-## 3. `src/components/chat/ChatSlideOut.tsx`
-Make it externally controllable while preserving today's uncontrolled usage:
-- New optional props: `open?: boolean`, `onOpenChange?: (o: boolean) => void`, `initialText?: string`, `hideTrigger?: boolean`.
-- If `open` / `onOpenChange` are provided, render `<Sheet open={open} onOpenChange={onOpenChange}>` (controlled); otherwise render `<Sheet>` as today (uncontrolled).
-- If `hideTrigger` is true, do not render the `<SheetTrigger>` button.
-- Pass `initialText` into `<ChatPanel initialText={initialText} ... />`.
+### Files touched
 
-## 4. `src/components/emails/EmailDetailSheet.tsx`
-- Add `const [chatOpen, setChatOpen] = useState(false);`.
-- In the email's action row (near Reply / Reminder / mark-read controls around line ~349), add a "Discuss in Chat" `Button` with a `MessageSquare` icon (lucide).
-- On click, build prefill using the actual email fields present in this file:
+- `src/pages/bd/_bdcard/BdMyCardTab.tsx` — single file, ~10 lines net change. Remove the cover-chip block, add an `<img>` next to the `<Avatar>` inside the existing absolute-positioned identity wrapper.
 
-  ```ts
-  const sender = email.from_name
-    ? `${email.from_name} <${email.from_email}>`
-    : email.from_email || "unknown sender";
-  const summary = (email.snippet || email.body_text || "").replace(/\s+/g, " ").trim().slice(0, 160);
-  const prefill = `Re: "${email.subject || "(no subject)"}" (from ${sender})${summary ? ` — ${summary}` : ""} `;
-  ```
-
-  Then `setChatOpen(true)`.
-- Render the controlled instance somewhere in the sheet's JSX tree:
-
-  ```tsx
-  <ChatSlideOut
-    open={chatOpen}
-    onOpenChange={setChatOpen}
-    hideTrigger
-    initialText={prefill}
-  />
-  ```
-
-The user picks the space/DM inside the panel via `SpacesList`, types/edits the prefilled message, and sends through the existing `useSendGChatMessage` mutation — no new send path.
-
-## Out of scope
-- No DB migrations, no edge function changes.
-- No changes to `google-chat-api`, `useGoogleChat`, `SpacesList`, or `ChatMessageList`.
-- No changelog entry required by this wiring (purely composing existing pieces), unless you want one — say the word and I'll add it.
-
-## Verification
-- Open an email → "Discuss in Chat" button visible.
-- Click → side sheet opens with spaces list and composer prefilled with `Re: "<subject>" (from <sender>) — <snippet>`.
-- Pick a space → message sends via existing mutation; sheet stays open showing the new message.
-- Close and reopen on a different email → composer reflects the new email's prefill.
+No new dependencies, no schema changes, no logic changes. Purely presentational.
