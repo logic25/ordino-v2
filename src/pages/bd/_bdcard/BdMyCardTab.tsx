@@ -644,7 +644,7 @@ export function BdMyCardTab() {
               src={mbeSeal}
               alt="NYC Minority Business Enterprise certified"
               title="NYC Minority Business Enterprise certified"
-              className="h-20 w-20 animate-spin-slow self-start"
+              className="h-20 w-20 animate-spin-slow self-center"
               loading="lazy"
               width={80}
               height={80}
