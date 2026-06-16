@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
 import { Textarea } from "@/components/ui/textarea";
-import { Tag, Paperclip, X, Reply, Send, Loader2, ChevronDown, ChevronUp, MessageSquare, Download, Eye, Archive, ArchiveRestore, Forward, MailOpen, Mail } from "lucide-react";
+import { Tag, Paperclip, X, Reply, Send, Loader2, ChevronDown, ChevronUp, MessageSquare, MessagesSquare, Download, Eye, Archive, ArchiveRestore, Forward, MailOpen, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EmailWithTags } from "@/hooks/useEmails";
 import { useUntagEmail, useThreadEmails, useArchiveEmail, useSnoozeEmail, useMarkReadUnread } from "@/hooks/useEmails";
@@ -29,6 +29,8 @@ import { SnoozeMenu } from "./SnoozeMenu";
 import { ReminderButton } from "./ReminderButton";
 import { ScheduleSendDropdown } from "./ScheduleSendDropdown";
 import { useToast } from "@/hooks/use-toast";
+import { ChatSlideOut } from "@/components/chat/ChatSlideOut";
+
 
 interface EmailDetailSheetProps {
   email: EmailWithTags | null;
@@ -184,6 +186,9 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
   const [showCcBcc, setShowCcBcc] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [localQuickTags, setLocalQuickTags] = useState<string[]>([]);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatPrefill, setChatPrefill] = useState("");
+
   const untagEmail = useUntagEmail();
   const archiveEmail = useArchiveEmail();
   const snoozeEmail = useSnoozeEmail();
@@ -358,6 +363,25 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
             <Button
               variant="ghost"
               size="sm"
+              onClick={() => {
+                const sender = email.from_name
+                  ? `${email.from_name} <${email.from_email}>`
+                  : email.from_email || "unknown sender";
+                const summary = (email.snippet || (email as any).body_text || "")
+                  .replace(/\s+/g, " ")
+                  .trim()
+                  .slice(0, 160);
+                const prefill = `Re: "${email.subject || "(no subject)"}" (from ${sender})${summary ? ` — ${summary}` : ""} `;
+                setChatPrefill(prefill);
+                setChatOpen(true);
+              }}
+            >
+              <MessagesSquare className="h-4 w-4 mr-1.5" />
+              Discuss in Chat
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={async () => {
                 try {
                   await markReadUnread.mutateAsync({ emailId: email.id, isRead: !email.is_read });
@@ -374,6 +398,7 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
                 <><MailOpen className="h-4 w-4 mr-1.5" /> Read</>
               )}
             </Button>
+
           </div>
 
           <Separator />
@@ -604,6 +629,14 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
         emailSubject={email.subject || undefined}
         emailForMatching={email}
       />
+
+      <ChatSlideOut
+        open={chatOpen}
+        onOpenChange={setChatOpen}
+        hideTrigger
+        initialText={chatPrefill}
+      />
     </>
   );
 }
+

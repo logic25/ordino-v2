@@ -6,23 +6,32 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   className?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  initialText?: string;
+  hideTrigger?: boolean;
 }
 
-export function ChatSlideOut({ className }: Props) {
+export function ChatSlideOut({ className, open, onOpenChange, initialText, hideTrigger }: Props) {
+  const isControlled = open !== undefined && onOpenChange !== undefined;
+  const sheetProps = isControlled ? { open, onOpenChange } : {};
+
   return (
-    <Sheet>
-      <SheetTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn("h-9 w-9", className)}
-          title="Google Chat"
-        >
-          <MessageSquare className="h-5 w-5" />
-        </Button>
-      </SheetTrigger>
+    <Sheet {...sheetProps}>
+      {!hideTrigger && (
+        <SheetTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn("h-9 w-9", className)}
+            title="Google Chat"
+          >
+            <MessageSquare className="h-5 w-5" />
+          </Button>
+        </SheetTrigger>
+      )}
       <SheetContent side="right" className="w-[480px] sm:w-[540px] p-0 flex flex-col">
-        <ChatPanel compact className="h-full" />
+        <ChatPanel compact className="h-full" initialText={initialText} />
       </SheetContent>
     </Sheet>
   );
