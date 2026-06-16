@@ -377,39 +377,45 @@ export function BdMyCardTab() {
           <Download className="mr-1.5 h-3.5 w-3.5" />Save contact (.vcf)
         </Button>
       </div>
-      </div>
 
-      <Card className="print:hidden lg:sticky lg:top-4">
-        <CardContent className="p-4 grid grid-cols-2 gap-3">
-          <div className="space-y-1.5"><Label>First name</Label><Input value={fields.first} onChange={set("first")} /></div>
-          <div className="space-y-1.5"><Label>Last name</Label><Input value={fields.last} onChange={set("last")} /></div>
-          <div className="space-y-1.5 col-span-2"><Label>Title</Label><Input value={fields.title} onChange={set("title")} placeholder="e.g. Senior Project Manager" /></div>
-          <div className="space-y-1.5 col-span-2"><Label>Email</Label><Input value={fields.email} onChange={set("email")} /></div>
-          <div className="space-y-1.5"><Label>Office phone</Label><Input placeholder="(718) 392-1969" value={fields.phone} onChange={set("phone")} /></div>
-          <div className="space-y-1.5"><Label>Extension</Label><Input placeholder="12" value={fields.extension} onChange={set("extension")} /></div>
-          <div className="space-y-1.5 col-span-2"><Label>Cell</Label><Input placeholder="(347) 555-1234" value={fields.mobile} onChange={set("mobile")} /></div>
-          <div className="space-y-1.5 col-span-2"><Label>LinkedIn URL</Label>
-            <Input placeholder="https://linkedin.com/in/…" value={fields.linkedin} onChange={set("linkedin")} /></div>
-          <div className="space-y-1.5 col-span-2">
-            <Label>Address (leave blank to use GLE HQ)</Label>
-            <Textarea
-              rows={2}
-              placeholder={COMPANY.addressDisplay}
-              value={fields.address}
-              onChange={set("address")}
-            />
+      <Sheet open={editOpen} onOpenChange={setEditOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Edit my card</SheetTitle>
+            <SheetDescription>Update what shows on your QR card and vCard.</SheetDescription>
+          </SheetHeader>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="space-y-1.5"><Label>First name</Label><Input value={fields.first} onChange={set("first")} /></div>
+            <div className="space-y-1.5"><Label>Last name</Label><Input value={fields.last} onChange={set("last")} /></div>
+            <div className="space-y-1.5 col-span-2"><Label>Title</Label><Input value={fields.title} onChange={set("title")} placeholder="e.g. Senior Project Manager" /></div>
+            <div className="space-y-1.5 col-span-2"><Label>Email</Label><Input value={fields.email} onChange={set("email")} /></div>
+            <div className="space-y-1.5"><Label>Office phone</Label><Input placeholder="(718) 392-1969" value={fields.phone} onChange={set("phone")} /></div>
+            <div className="space-y-1.5"><Label>Extension</Label><Input placeholder="12" value={fields.extension} onChange={set("extension")} /></div>
+            <div className="space-y-1.5 col-span-2"><Label>Cell</Label><Input placeholder="(347) 555-1234" value={fields.mobile} onChange={set("mobile")} /></div>
+            <div className="space-y-1.5 col-span-2"><Label>LinkedIn URL</Label>
+              <Input placeholder="https://linkedin.com/in/…" value={fields.linkedin} onChange={set("linkedin")} /></div>
+            <div className="space-y-1.5 col-span-2">
+              <Label>Address (leave blank to use GLE HQ)</Label>
+              <Textarea
+                rows={2}
+                placeholder={COMPANY.addressDisplay}
+                value={fields.address}
+                onChange={set("address")}
+              />
+            </div>
+            <div className="col-span-2">
+              <Button className="w-full" onClick={async () => { await saveToProfile(); setEditOpen(false); }} disabled={saving}>
+                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Save to my profile
+              </Button>
+              <p className="text-xs text-muted-foreground mt-2 text-center">
+                Auto-saves to this browser as you type. Click Save to sync across all devices.
+              </p>
+            </div>
           </div>
-          <div className="col-span-2">
-            <Button className="w-full" onClick={saveToProfile} disabled={saving}>
-              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              Save to my profile
-            </Button>
-            <p className="text-xs text-muted-foreground mt-2 text-center">
-              Auto-saves to this browser as you type. Click Save to sync across all devices.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+        </SheetContent>
+      </Sheet>
     </div>
   );
+}
 }
