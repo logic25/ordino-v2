@@ -117,9 +117,13 @@ export function BdMyCardTab() {
   const handleImageFile = (kind: "avatar" | "cover") => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (!file || !user?.id || !profile?.id) return;
-    if (!file.type.startsWith("image/")) { toast.error("Please choose an image file"); return; }
-    if (file.size > 5 * 1024 * 1024) { toast.error("Image must be under 5 MB"); return; }
+    if (!file) return;
+    if (!user?.id || !profile?.id) { toast.error("You must be signed in"); return; }
+    const looksLikeImage =
+      (file.type && file.type.startsWith("image/")) ||
+      /\.(png|jpe?g|gif|webp|heic|heif|bmp|svg)$/i.test(file.name);
+    if (!looksLikeImage) { toast.error("Please choose an image file (PNG, JPG, HEIC, etc.)"); return; }
+    if (file.size > 15 * 1024 * 1024) { toast.error("Image must be under 15 MB"); return; }
     setUploading(kind);
     try {
       const url = await uploadImage(file, kind);
