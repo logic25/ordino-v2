@@ -29,6 +29,8 @@ import { SnoozeMenu } from "./SnoozeMenu";
 import { ReminderButton } from "./ReminderButton";
 import { ScheduleSendDropdown } from "./ScheduleSendDropdown";
 import { useToast } from "@/hooks/use-toast";
+import { ChatSlideOut } from "@/components/chat/ChatSlideOut";
+
 
 interface EmailDetailSheetProps {
   email: EmailWithTags | null;
