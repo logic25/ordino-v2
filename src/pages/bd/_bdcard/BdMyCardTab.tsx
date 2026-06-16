@@ -397,7 +397,7 @@ export function BdMyCardTab() {
           <img
             src={companyLogo}
             alt="Green Light Expediting"
-            className="absolute right-2 top-3 h-3.5 w-auto max-w-[155px] object-contain"
+            className="absolute right-2 top-2.5 h-4.5 w-auto max-w-[170px] object-contain"
           />
 
           <h2 className="text-xl font-bold leading-tight">
@@ -433,9 +433,9 @@ export function BdMyCardTab() {
         </CardContent>
 
         {/* QR + actions */}
-        <div className="border-t bg-muted/30 px-3 py-3 grid grid-cols-[auto,minmax(0,1fr)] items-start gap-3 overflow-hidden">
+        <div className="border-t bg-muted/30 px-3 py-3 grid grid-cols-[auto,minmax(0,1fr)] items-start gap-2.5 overflow-hidden">
           <div className="relative bg-white p-1.5 rounded-md shrink-0 border">
-            <QRCode value={card} size={92} level="H" />
+            <QRCode value={card} size={108} level="H" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="grid grid-cols-[minmax(0,1fr),auto] items-start gap-2">
