@@ -1,49 +1,72 @@
 
-## Batch 1 — My Card cleanup (frontend only)
+# BD Comp & Scorecard
 
-**File:** `src/pages/bd/_bdcard/BdMyCardTab.tsx`
+Adds a compensation + scorecard layer over the existing BD pipeline (events, leads, invoices). Reuses CaptureLeadModal, scan-business-card, auth, uploaders, toasts, and existing report/PMDailyView/Ask Ordino patterns. No new metrics service, no new scanner.
 
-- Remove the always-visible logo tuner panel and the standalone **Save (.vcf)** button below the card.
-- Add an **Edit** toggle in the tab header (pencil icon → "Done").
-- One `isEditing` state drives:
-  - Camera overlays on cover + avatar (tap to change photo) only show when editing.
-  - A small **Sliders** icon button appears top-right of the card opening a popover with the 4 logo sliders (height, width, top, right) + Reset, still persisted to `localStorage` under `qr-card-logo-cfg`.
-  - When not editing: clean card, no overlays, no tuner.
-- QR action row: remove **Save (.vcf)** (nonsensical on own card). Keep **Share** wired to `navigator.share({ title, text, url })` with fallback to `navigator.clipboard.writeText` + toast. On desktop (no `navigator.share`), label it **Copy link**.
+## 1. Schema (one migration)
 
-## Batch 2 — Public visitor card
+**Columns**
+- `leads.intro_sent_at timestamptz`
+- `profiles.is_comp_admin boolean default false` (seed `true` for Manny Russell + Chris Henry by name/email match in same migration)
 
-**Backend (one migration):**
+**Tables** (all with company_id, created_at, updated_at, RLS, GRANTs)
+- `bd_comp_plans` — `person_id uuid (profiles.id)`, `base_salary numeric`, `event_bonus_amount numeric default 250`, `new_client_bonus_amount numeric default 1000`, `small_contract_pct numeric default 50`, `small_contract_threshold numeric default 2000`, `revenue_bonus_pct numeric default 2`, `revenue_window_months int default 12`, `active boolean default true`. Unique `(company_id, person_id)`.
+- `bd_bonus_ledger` — `person_id uuid`, `type text check in ('EVENT','NEW_CLIENT','REVENUE')`, `source_ref jsonb` (event_id / lead_id / invoice_id / proposal_id), `amount numeric`, `status text check in ('ACCRUED','APPROVED','PAID') default 'ACCRUED'`, `accrued_at timestamptz default now()`, `due_at timestamptz`, `paid_at timestamptz`, `approved_by uuid`, `notes text`.
+- `bd_goals` — `person_id uuid`, `period_start date`, `period_end date`, `event_id uuid null`, `metric text` (e.g. `contacts`, `intros`, `qualified`), `target int`.
 
-- `bd_cards` table: `id`, `user_id`, `company_id`, `slug` (unique), `fields` (jsonb: name, title, phones, emails, address, etc.), `photo_url`, `cover_url`, `logo_cfg` (jsonb), `published` bool, timestamps.
-- GRANTs: `authenticated` full, `service_role` all, `anon` SELECT (needed for public read).
-- RLS:
-  - anon/authenticated SELECT where `published = true`
-  - authenticated INSERT/UPDATE/DELETE where `user_id = auth.uid()`
-- `updated_at` trigger.
+**RLS** for `bd_comp_plans` + `bd_bonus_ledger`: SELECT/UPDATE only when `person_id = (profiles where user_id=auth.uid())` OR caller `is_comp_admin`. INSERT for comp-admins only (ledger also writable by trigger via SECURITY DEFINER).
 
-**Frontend:**
+**Helper function** `public.is_comp_admin()` returns boolean (reads `profiles.is_comp_admin` for `auth.uid()`).
 
-- New route `/c/:slug` → `src/pages/PublicBdCard.tsx`, lazy, wrapped in `PublicRoute`.
-- Page fetches `bd_cards` by slug where `published = true`, renders read-only card visually identical to My Card (same logo/cover/avatar/QR-less layout), with a **Save contact** button that builds a `.vcf` blob client-side and downloads it. Also a **Share** button.
-- No Beacon, no auth UI, no edit affordances.
-- SEO: `<title>{name} — {company}</title>`, meta description, OG tags from fields.
+**Triggers** (SECURITY DEFINER, accrue to ledger — idempotent via unique partial indexes on `source_ref`):
+- After `leads.stage` → `QUALIFIED` AND `bd_sourced=true` AND `event_id` set → insert EVENT bonus (`event_bonus_amount`) for the lead's owner (assigned_to) once per `(person, event_id, lead_id)`.
+- After `proposals.status` → `executed` where originating lead `bd_sourced=true` and client is new (no prior executed proposal for that client) → NEW_CLIENT bonus: full `new_client_bonus_amount` if `total >= small_contract_threshold` else `small_contract_pct%` of total.
+- REVENUE accrual is computed on read (projected from PAID invoices in window) — only materialized to ledger when comp-admin clicks Approve.
 
-**My Card wiring after Batch 2:**
+**Notification** trigger: on `leads` insert where `bd_sourced=true` → notify all comp-admins.
 
-- On first load, ensure a `bd_cards` row exists for the user (auto-create draft with generated slug from name).
-- Edit mode gets a **Publish** toggle (writes `published`) and shows the public URL with copy button.
-- QR encodes `https://ordinopm.com/c/<slug>` instead of inline vCard.
-- Share button shares that URL.
+## 2. Frontend
 
-## Out of scope
+**Lead detail**
+- "Mark intro sent" button (LeadOutreachCard) → sets `intro_sent_at=now()` and if `stage='NEW'` → `'CONTACTED'`. Uses existing `useUpdateLead` + sonner toast.
 
-- Beacon on the public page
-- `BdScanTab` and other BD tabs
-- Analytics / view tracking (can add `bd_card_views` later)
+**BD Scorecard** — `src/pages/bd/BdScorecard.tsx`, accessible from existing BD nav
+- Person picker (defaults to self; comp-admins see all)
+- Cards (reuses existing report card components from `src/components/reports/`):
+  - Events attended (count from `bd_event_attendees`)
+  - Contacts captured (leads created where `created_by = person` in range)
+  - Speed-to-first-touch (avg `intro_sent_at - created_at` hours)
+  - Leads by stage (bar/list)
+  - Pipeline $ (sum `expected_value` where stage in NEW/CONTACTED/QUALIFIED)
+  - Funnel: scans → qualified → won %
+
+**Profile → "My Earnings" tab** (gated to self + comp-admin)
+- Period selector (month / quarter / YTD)
+- Three rows: Event bonuses, New-client bonuses, Projected revenue bonus (computed: 2% of PAID invoices within window for clients originating from this person's BD-sourced leads)
+- Ledger table (accrued/approved/paid)
+- **Never** renders `base_salary`
+
+**Admin "BD Comp" page** (`/settings/bd-comp`, comp-admins only)
+- Roster table: each person's accrued / approved / paid totals
+- Row actions: **Approve** (ACCRUED→APPROVED), **Mark Paid** (sets `paid_at`)
+- Edit plan inline (base, event, client, pct, threshold, revenue pct, window)
+
+## 3. Existing surfaces (extend, don't replace)
+
+- **PMDailyView / morning briefing**: add two existing-card-style rows — "Open follow-ups" (count of `leads.next_follow_up_at <= today` for viewer) and "BD-sourced this period" (count of viewer's `bd_sourced=true` leads this month).
+- **Reports page**: add "BD Sourced — last 90 days" card (count, conversion-to-QUALIFIED %, $ in active proposals). Uses existing report card pattern, single Supabase query.
+- **Ask Ordino prompt builder**: when caller `is_comp_admin` and intent matches "how is BD going / BD update / BD report", inject a context block: events this month, BD-sourced count + conversion, open follow-ups by person, top 3 scanners (by `contacts captured`), and `SUM(amount) WHERE status='ACCRUED'` from `bd_bonus_ledger`.
+
+## 4. Seed
+
+Insert `bd_comp_plans` row for Natalia: base 92500, event 250, client 1000, small_pct 50, threshold 2000, revenue 2%, window 12 (matched by profile name in seed data step).
 
 ## Technical notes
 
-- vCard build: small helper `buildVcf(fields)` reused between My Card preview download (if ever needed) and Public page Save contact.
-- Slug generation: `slugify(name) + '-' + 4 random chars`; uniqueness enforced by DB constraint with retry on conflict.
-- Logo cfg persistence migrates from localStorage to `bd_cards.logo_cfg` once the row exists; localStorage stays as fallback for unauthenticated render.
+- Hooks: `useBdCompPlans`, `useBdBonusLedger`, `useBdScorecard`, `useBdComp` (admin actions). All follow existing `useLeads.ts` shape.
+- All bonus math centralized in `src/lib/bdComp.ts` (pure functions, unit-tested).
+- Idempotency: unique partial indexes on `bd_bonus_ledger(person_id, type, (source_ref->>'lead_id'))` and same for `proposal_id`.
+- No new toast / uploader / auth wiring. No new edge functions (everything via RPC/triggers + client queries).
+
+## Out of scope (explicit)
+BD homepage, new lead capture UI, new scanner, Slack/QBO/Stripe, ML scoring, uploader changes.
