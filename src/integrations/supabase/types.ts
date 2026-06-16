@@ -822,6 +822,79 @@ export type Database = {
           },
         ]
       }
+      bd_bonus_ledger: {
+        Row: {
+          accrued_at: string
+          amount: number
+          approved_by: string | null
+          company_id: string
+          created_at: string
+          due_at: string | null
+          id: string
+          notes: string | null
+          paid_at: string | null
+          person_id: string
+          source_ref: Json
+          status: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          accrued_at?: string
+          amount?: number
+          approved_by?: string | null
+          company_id: string
+          created_at?: string
+          due_at?: string | null
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          person_id: string
+          source_ref?: Json
+          status?: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          accrued_at?: string
+          amount?: number
+          approved_by?: string | null
+          company_id?: string
+          created_at?: string
+          due_at?: string | null
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          person_id?: string
+          source_ref?: Json
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_bonus_ledger_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_bonus_ledger_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_bonus_ledger_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bd_cards: {
         Row: {
           company_id: string | null
@@ -868,6 +941,120 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bd_comp_plans: {
+        Row: {
+          active: boolean
+          base_salary: number
+          company_id: string
+          created_at: string
+          event_bonus_amount: number
+          id: string
+          new_client_bonus_amount: number
+          person_id: string
+          revenue_bonus_pct: number
+          revenue_window_months: number
+          small_contract_pct: number
+          small_contract_threshold: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          base_salary?: number
+          company_id: string
+          created_at?: string
+          event_bonus_amount?: number
+          id?: string
+          new_client_bonus_amount?: number
+          person_id: string
+          revenue_bonus_pct?: number
+          revenue_window_months?: number
+          small_contract_pct?: number
+          small_contract_threshold?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          base_salary?: number
+          company_id?: string
+          created_at?: string
+          event_bonus_amount?: number
+          id?: string
+          new_client_bonus_amount?: number
+          person_id?: string
+          revenue_bonus_pct?: number
+          revenue_window_months?: number
+          small_contract_pct?: number
+          small_contract_threshold?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_comp_plans_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_comp_plans_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bd_eligible_events: {
+        Row: {
+          active: boolean
+          cadence: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          organization: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          cadence?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          organization?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          cadence?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          organization?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_eligible_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_eligible_events_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1086,8 +1273,10 @@ export type Database = {
       }
       bd_events: {
         Row: {
+          bonus_eligible: boolean
           category: string | null
           company_id: string
+          contact_goal: number | null
           cost_actual: number | null
           cost_high: number | null
           cost_low: number | null
@@ -1122,8 +1311,10 @@ export type Database = {
           why_it_matters: string | null
         }
         Insert: {
+          bonus_eligible?: boolean
           category?: string | null
           company_id: string
+          contact_goal?: number | null
           cost_actual?: number | null
           cost_high?: number | null
           cost_low?: number | null
@@ -1158,8 +1349,10 @@ export type Database = {
           why_it_matters?: string | null
         }
         Update: {
+          bonus_eligible?: boolean
           category?: string | null
           company_id?: string
+          contact_goal?: number | null
           cost_actual?: number | null
           cost_high?: number | null
           cost_low?: number | null
@@ -1225,6 +1418,67 @@ export type Database = {
           {
             foreignKeyName: "bd_events_proposed_by_fkey"
             columns: ["proposed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bd_goals: {
+        Row: {
+          company_id: string
+          created_at: string
+          event_id: string | null
+          id: string
+          metric: string
+          period_end: string | null
+          period_start: string | null
+          person_id: string | null
+          target: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          metric: string
+          period_end?: string | null
+          period_start?: string | null
+          person_id?: string | null
+          target?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          metric?: string
+          period_end?: string | null
+          period_start?: string | null
+          person_id?: string | null
+          target?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_goals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_goals_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "bd_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_goals_person_id_fkey"
+            columns: ["person_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -5790,6 +6044,8 @@ export type Database = {
           architect_name: string | null
           architect_phone: string | null
           assigned_to: string | null
+          bd_sourced: boolean | null
+          bd_sourced_confirmed_by: string | null
           business_card_photo_url: string | null
           client_id: string | null
           client_type: string | null
@@ -5813,6 +6069,7 @@ export type Database = {
           gc_phone: string | null
           hot_opportunity: boolean
           id: string
+          intro_sent_at: string | null
           lead_kind: Database["public"]["Enums"]["lead_kind"]
           lost_reason: string | null
           next_follow_up_at: string | null
@@ -5848,6 +6105,8 @@ export type Database = {
           architect_name?: string | null
           architect_phone?: string | null
           assigned_to?: string | null
+          bd_sourced?: boolean | null
+          bd_sourced_confirmed_by?: string | null
           business_card_photo_url?: string | null
           client_id?: string | null
           client_type?: string | null
@@ -5871,6 +6130,7 @@ export type Database = {
           gc_phone?: string | null
           hot_opportunity?: boolean
           id?: string
+          intro_sent_at?: string | null
           lead_kind?: Database["public"]["Enums"]["lead_kind"]
           lost_reason?: string | null
           next_follow_up_at?: string | null
@@ -5908,6 +6168,8 @@ export type Database = {
           architect_name?: string | null
           architect_phone?: string | null
           assigned_to?: string | null
+          bd_sourced?: boolean | null
+          bd_sourced_confirmed_by?: string | null
           business_card_photo_url?: string | null
           client_id?: string | null
           client_type?: string | null
@@ -5931,6 +6193,7 @@ export type Database = {
           gc_phone?: string | null
           hot_opportunity?: boolean
           id?: string
+          intro_sent_at?: string | null
           lead_kind?: Database["public"]["Enums"]["lead_kind"]
           lost_reason?: string | null
           next_follow_up_at?: string | null
@@ -5964,6 +6227,13 @@ export type Database = {
           {
             foreignKeyName: "leads_assigned_to_fkey"
             columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_bd_sourced_confirmed_by_fkey"
+            columns: ["bd_sourced_confirmed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -6966,6 +7236,7 @@ export type Database = {
           hourly_rate: number | null
           id: string
           is_active: boolean | null
+          is_comp_admin: boolean
           job_title: string | null
           last_name: string | null
           monthly_goal: number | null
@@ -6996,6 +7267,7 @@ export type Database = {
           hourly_rate?: number | null
           id?: string
           is_active?: boolean | null
+          is_comp_admin?: boolean
           job_title?: string | null
           last_name?: string | null
           monthly_goal?: number | null
@@ -7026,6 +7298,7 @@ export type Database = {
           hourly_rate?: number | null
           id?: string
           is_active?: boolean | null
+          is_comp_admin?: boolean
           job_title?: string | null
           last_name?: string | null
           monthly_goal?: number | null
@@ -10412,6 +10685,7 @@ export type Database = {
         Args: { target_company_id: string }
         Returns: boolean
       }
+      is_comp_admin: { Args: { _user?: string }; Returns: boolean }
       is_company_admin: {
         Args: { target_company_id: string }
         Returns: boolean
