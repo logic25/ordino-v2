@@ -76,6 +76,7 @@ export function BdScanTab() {
     },
   });
 
+  const IN_PERSON = "__in_person__";
   const defaultEventId = useMemo(() => {
     if (eventId) return eventId;
     const today = new Date().toISOString().slice(0, 10);
@@ -84,6 +85,8 @@ export function BdScanTab() {
     const upcoming = (events as any[]).find((e) => e.start_date >= today);
     return upcoming?.id ?? "";
   }, [eventId, events]);
+  const isInPerson = defaultEventId === IN_PERSON;
+
 
   const resetForm = () => {
     setFullName(""); setCompany(""); setRole(""); setEmail(""); setPhone("");
