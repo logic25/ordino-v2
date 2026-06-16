@@ -36,6 +36,7 @@ export interface GChatMessage {
   cards?: any[];
   cardsV2?: any[];
   formattedText?: string;
+  emojiReactionSummaries?: Array<{ emoji: { unicode: string }; reactionCount: number }>;
 }
 
 async function chatApi(action: string, params: Record<string, any> = {}) {
