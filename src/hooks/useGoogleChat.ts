@@ -213,6 +213,19 @@ export function useSendGChatMessage() {
   });
 }
 
+export function useAddGChatReaction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ messageName, emojiUnicode }: { messageName: string; emojiUnicode: string }) => {
+      return chatApi("create_reaction", { messageName, emojiUnicode });
+    },
+    onSuccess: (_, vars) => {
+      // Reactions are tied to a message in a space; invalidate messages broadly
+      qc.invalidateQueries({ queryKey: ["gchat-messages"] });
+    },
+  });
+}
+
 export function useSearchPeople() {
   return useMutation({
     mutationFn: async (query: string) => {
