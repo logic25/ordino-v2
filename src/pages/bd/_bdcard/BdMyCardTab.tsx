@@ -449,6 +449,56 @@ export function BdMyCardTab() {
 
         {/* Identity */}
         <CardContent className="pt-12 pb-4 px-5 relative">
+          {/* Logo position tuner — only in edit mode */}
+          {isEditing && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="print:hidden absolute -top-3 right-2 z-10 h-7 w-7 rounded-full bg-background border shadow flex items-center justify-center text-muted-foreground hover:text-foreground"
+                  title="Adjust logo position"
+                  aria-label="Adjust logo position"
+                >
+                  <Sliders className="h-3.5 w-3.5" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-72 p-3 space-y-2">
+                <div className="text-xs font-medium text-muted-foreground mb-1">Logo position &amp; size</div>
+                {([
+                  { k: "height", label: "Height", min: 10, max: 60 },
+                  { k: "width", label: "Width", min: 120, max: 380 },
+                  { k: "top", label: "Top", min: -10, max: 40 },
+                  { k: "right", label: "Right", min: 0, max: 200 },
+                ] as const).map(({ k, label, min, max }) => (
+                  <div key={k} className="flex items-center gap-2 text-[11px]">
+                    <span className="w-12 text-muted-foreground">{label}</span>
+                    <input
+                      type="range"
+                      min={min}
+                      max={max}
+                      value={logoCfg[k]}
+                      onChange={(e) => setLogoCfg((c) => ({ ...c, [k]: Number(e.target.value) }))}
+                      className="flex-1"
+                    />
+                    <input
+                      type="number"
+                      min={min}
+                      max={max}
+                      value={logoCfg[k]}
+                      onChange={(e) => setLogoCfg((c) => ({ ...c, [k]: Number(e.target.value) }))}
+                      className="w-12 h-7 px-1.5 rounded border bg-background text-right tabular-nums"
+                    />
+                  </div>
+                ))}
+                <div className="flex justify-end">
+                  <Button size="sm" variant="ghost" onClick={() => setLogoCfg(LOGO_DEFAULT)} className="h-7 text-xs">
+                    Reset
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
+
           {/* Company logo — right of avatar, in white space below cover */}
           <div
             className="absolute print:!h-5 print:!top-3 print:!right-[70px]"
