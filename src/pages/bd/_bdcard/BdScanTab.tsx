@@ -144,9 +144,12 @@ export function BdScanTab() {
         assigned_to: profile?.id ?? null,
         notes: combinedNotes,
       });
+      const savedName = fullName.trim();
       setCapturedCount((n) => n + 1);
-      toast({ title: `Lead captured (${capturedCount + 1} this session)`, description: fullName.trim() });
       resetForm();
+      toast({ title: `Lead captured (${capturedCount + 1} this session)`, description: `${savedName} — ready for the next card` });
+      // "& next" → immediately reopen the camera so the user has clear forward motion.
+      setTimeout(() => fileRef.current?.click(), 150);
     } catch (e: any) {
       toast({ title: "Could not save lead", description: e?.message ?? "Unknown error", variant: "destructive" });
     }
