@@ -340,16 +340,6 @@ export function BdMyCardTab() {
             >
               {uploading === "avatar" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
             </button>
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              className="print:hidden absolute -bottom-10 left-0 h-7 px-2 text-[11px] shadow"
-              onClick={() => avatarInputRef.current?.click()}
-              disabled={uploading === "avatar"}
-            >
-              Edit photo
-            </Button>
           </div>
 
           <input ref={avatarInputRef} type="file" className="hidden" onChange={handleImageFile("avatar")} />
