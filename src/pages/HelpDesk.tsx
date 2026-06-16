@@ -10,9 +10,11 @@ import { BugFixDashboard } from "@/components/helpdesk/BugFixDashboard";
 import { ProductRoadmap } from "@/components/helpdesk/ProductRoadmap";
 import { AIUsageDashboard } from "@/components/helpdesk/AIUsageDashboard";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useSearchParams } from "react-router-dom";
 
 export default function HelpDesk() {
   const { isAdmin } = usePermissions();
+  const [searchParams] = useSearchParams();
 
   return (
     <AppLayout>
@@ -25,7 +27,7 @@ export default function HelpDesk() {
           </div>
         </div>
 
-        <Tabs defaultValue="training" className="space-y-4">
+        <Tabs defaultValue={searchParams.get("tab") ?? "training"} className="space-y-4">
           <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="training">Interactive Training</TabsTrigger>
             <TabsTrigger value="guides">How-To Guides</TabsTrigger>
