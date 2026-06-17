@@ -491,11 +491,12 @@ export function useMonthlyBillingByUser(year: number) {
       const start = `${year}-01-01`;
       const end = `${year + 1}-01-01`;
 
-      const [profilesRes, requestsRes, servicesRes] = await Promise.all([
+      const [profilesRes, goalsRes, requestsRes, servicesRes] = await Promise.all([
         supabase
           .from("profiles")
-          .select("id, first_name, last_name, display_name, role, monthly_goal, is_active")
+          .select("id, first_name, last_name, display_name, role, is_active")
           .eq("company_id", companyId),
+        supabase.rpc("get_company_goals" as any),
         supabase
           .from("billing_requests")
           .select("id, services, total_amount, created_at, created_by")
@@ -508,7 +509,15 @@ export function useMonthlyBillingByUser(year: number) {
           .select("id, is_reimbursable"),
       ]);
 
-      const profiles = profilesRes.data || [];
+      const goalMap = new Map<string, number>();
+      ((goalsRes.data as any[]) || []).forEach((g: any) => {
+        goalMap.set(g.id, Number(g.monthly_goal) || 0);
+      });
+      const profiles = ((profilesRes.data as any[]) || []).map((p: any) => ({
+        ...p,
+        monthly_goal: goalMap.get(p.id) || 0,
+      }));
+
       const requests = requestsRes.data || [];
       const reimbursableSet = new Set<string>(
         (servicesRes.data || [])
