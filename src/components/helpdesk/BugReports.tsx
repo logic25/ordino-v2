@@ -1354,7 +1354,9 @@ export function BugReports() {
                           </Button>
                         </div>
                       </div>
-                    )}
+                      );
+                    })()}
+
 
                     {/* Fix tracking fields when resolving */}
                     {editStatus === "resolved" && selectedBug.status !== "resolved" && (
