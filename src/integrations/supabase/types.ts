@@ -10818,7 +10818,6 @@ export type Database = {
         Args: { target_company_id: string }
         Returns: undefined
       }
-      set_my_hourly_rate: { Args: { _rate: number }; Returns: undefined }
       sign_change_order: {
         Args: {
           _document_hash?: string
