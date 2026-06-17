@@ -451,7 +451,7 @@ export function BugReports() {
     }
 
     // If a status comment is needed, post it as a comment first
-    if (needsComment && statusComment.trim()) {
+    if (statusChanged && hasNote) {
       // Upload status comment attachments if any
       let attachmentData: Array<{ url: string; name: string; type: string }> | null = null;
       if (statusCommentFiles.length > 0) {
