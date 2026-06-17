@@ -5,13 +5,12 @@ export function useGmailConnection() {
   return useQuery({
     queryKey: ["gmail-connection"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("gmail_connections")
-        .select("id, user_id, company_id, email_address, sync_enabled, last_sync_at, token_expires_at, history_id, created_at, updated_at")
-        .maybeSingle();
-
+      // gmail_connections is service-role only (it contains OAuth tokens).
+      // Read non-secret status fields via a SECURITY DEFINER RPC.
+      const { data, error } = await supabase.rpc("get_my_gmail_connection_status");
       if (error) throw error;
-      return data;
+      const row = Array.isArray(data) ? data[0] : data;
+      return row ?? null;
     },
   });
 }
