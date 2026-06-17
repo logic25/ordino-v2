@@ -1011,9 +1011,7 @@ export function BugReports() {
                     <Label className="text-xs text-muted-foreground">Screenshots</Label>
                     <div className="flex flex-wrap gap-2 mt-1">
                       {getAttachments(selectedBug).map((att, i) => (
-                        <a key={i} href={att.url} target="_blank" rel="noopener noreferrer">
-                          <img src={att.url} alt={att.name} className="h-24 w-auto rounded border hover:ring-2 ring-primary transition-all" />
-                        </a>
+                        <SignedImage key={i} src={att.url} alt={att.name} className="h-24 w-auto rounded border hover:ring-2 ring-primary transition-all" />
                       ))}
                     </div>
                   </div>
@@ -1095,13 +1093,9 @@ export function BugReports() {
                               <div className="flex flex-wrap gap-2 mt-2">
                                 {commentAttachments.map((att, i) =>
                                   att.type?.startsWith("image/") ? (
-                                    <a key={i} href={att.url} target="_blank" rel="noopener noreferrer">
-                                      <img src={att.url} alt={att.name} className="h-20 w-auto rounded border hover:ring-2 ring-primary transition-all" />
-                                    </a>
+                                    <SignedImage key={i} src={att.url} alt={att.name} className="h-20 w-auto rounded border hover:ring-2 ring-primary transition-all" />
                                   ) : (
-                                    <a key={i} href={att.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-primary underline">
-                                      <FileIcon className="h-3 w-3" />{att.name}
-                                    </a>
+                                    <SignedFileLink key={i} src={att.url} name={att.name} className="flex items-center gap-1 text-xs text-primary underline" />
                                   )
                                 )}
                               </div>
