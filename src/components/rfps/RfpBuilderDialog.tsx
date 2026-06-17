@@ -305,7 +305,11 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
 
           try {
             const { data, error: dlErr } = await supabase.storage.from("rfp-documents").download(resumeUrl);
-            if (dlErr || !data) { console.warn("[RFP submit] Failed to download resume:", resumeUrl, dlErr); continue; }
+            if (dlErr || !data) {
+              console.warn("[RFP submit] Failed to download resume:", resumeUrl, dlErr);
+              failedAttachments.push(`Resume for ${staffName}`);
+              continue;
+            }
             const arrayBuf = await data.arrayBuffer();
             const bytes = new Uint8Array(arrayBuf);
             let binary = "";
@@ -320,19 +324,14 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
             });
           } catch (e) {
             console.warn("[RFP submit] Failed to fetch resume for:", staffName, e);
+            failedAttachments.push(`Resume for ${staffName}`);
           }
         }
       }
 
       // Collect uploaded attachment files
-      // Attach any explicitly-selected library files, regardless of whether
-      // the "Attachments" section is enabled in the body (the section controls
-      // the in-document listing; the checkbox controls the actual file attach).
       console.log("[RFP submit] processing filtered library attachments", filteredRfpAttachments.map(a => ({
-        id: a.id,
-        title: a.title,
-        contentType: typeof a.content,
-        contentRaw: a.content,
+        id: a.id, title: a.title,
       })));
       if (filteredRfpAttachments.length > 0) {
         for (const att of filteredRfpAttachments) {
@@ -340,16 +339,26 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
           const filePath = c?.file_path as string | undefined;
           const attFilename = c?.filename as string | undefined;
           const mimeType = c?.mime_type as string | undefined;
-          console.log("[RFP submit] attachment iter", { id: att.id, filePath, attFilename, mimeType, hasContent: !!c });
+          const label = attFilename || att.title || filePath || "attachment";
           if (!filePath) {
             console.warn("[RFP submit] skipping attachment with no file_path", att.id, att.title);
+            failedAttachments.push(label);
             continue;
           }
           try {
             const { data, error: dlErr } = await supabase.storage.from("rfp-documents").download(filePath);
-            if (dlErr || !data) { console.warn("[RFP submit] Failed to download attachment:", filePath, dlErr); continue; }
+            if (dlErr || !data) {
+              console.warn("[RFP submit] Failed to download attachment:", filePath, dlErr);
+              failedAttachments.push(label);
+              continue;
+            }
             const arrayBuf = await data.arrayBuffer();
             const bytes = new Uint8Array(arrayBuf);
+            if (bytes.length === 0) {
+              console.warn("[RFP submit] Attachment downloaded as 0 bytes:", filePath);
+              failedAttachments.push(label);
+              continue;
+            }
             let binary = "";
             for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
             const base64 = btoa(binary);
@@ -362,9 +371,25 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
             });
             console.log("[RFP submit] attachment added", safeName, "size_bytes≈", bytes.length);
           } catch (e) {
-            console.warn("[RFP submit] Failed to fetch attachment:", attFilename || filePath, e);
+            console.warn("[RFP submit] Failed to fetch attachment:", label, e);
+            failedAttachments.push(label);
           }
         }
+      }
+
+      // If anything the user explicitly selected failed to load, ABORT
+      // rather than send an email missing the file. This is the regression
+      // guard for the "logo isn't on the email" bug that hid for months
+      // because the loop silently `continue`d past download failures.
+      if (failedAttachments.length > 0) {
+        const list = failedAttachments.join(", ");
+        toast({
+          title: "Couldn't attach files — RFP not sent",
+          description: `Failed to load: ${list}. Please re-upload these files and try again.`,
+          variant: "destructive",
+        });
+        setSubmitting(false);
+        return;
       }
 
       console.log("[RFP submit] invoking gmail-send with", attachments.length, "attachment(s)");
