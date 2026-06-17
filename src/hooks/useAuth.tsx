@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useState, ReactNode, useCallback,
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { PROFILE_COLUMNS_NO_GOALS } from "@/lib/profileColumns";
+
 
 type Profile = Tables<"profiles">;
 
