@@ -272,7 +272,7 @@ Deno.serve(async (req) => {
         .select("id, user_id")
         .eq("company_id", company_id)
         .eq("is_active", true)
-        .in("role", ["admin", "manager"]);
+        .eq("role", "admin");
       const emails: string[] = [];
       for (const p of adminProfiles || []) {
         const { data: { user: u } } = await supabase.auth.admin.getUserById(p.user_id);
