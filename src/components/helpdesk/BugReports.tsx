@@ -1278,26 +1278,43 @@ export function BugReports() {
                         </SelectContent>
                       </Select>
                     </div>
+                    <p className="text-xs text-muted-foreground -mt-1">
+                      <span className="font-medium">Open</span>: not yet being worked on. <span className="font-medium">In Progress</span>: actively investigating/fixing. <span className="font-medium">Ready for Review</span>: fix in place, waiting for reporter/QA to verify. <span className="font-medium">Resolved</span>: verified and closed.
+                    </p>
 
-                    {/* Required comment when transitioning to ready_for_review or resolved */}
-                    {((editStatus === "ready_for_review" && selectedBug.status !== "ready_for_review") ||
-                      (editStatus === "resolved" && selectedBug.status !== "resolved")) && (
+                    {/* Status change note — required for ready_for_review / resolved, optional otherwise */}
+                    {editStatus !== selectedBug.status && (() => {
+                      const required = editStatus === "ready_for_review" || editStatus === "resolved";
+                      const label =
+                        editStatus === "open" ? "Why is this being reopened?" :
+                        editStatus === "in_progress" ? "What are you working on? Anything blocking?" :
+                        editStatus === "ready_for_review" ? "What was done?" :
+                        "Resolution summary";
+                      const helper =
+                        editStatus === "open" ? "Optional. Posts as a comment so the team has context."
+                        : editStatus === "in_progress" ? "Optional. Share what you're tackling or any blockers."
+                        : editStatus === "ready_for_review" ? "Describe the fix so the reporter knows what to test. Posts as a comment and is included in the notification email."
+                        : "Summarize the resolution. Posts as a comment and notifies the reporter.";
+                      const placeholder =
+                        editStatus === "open" ? "e.g. Reopening — user reports the issue still happens on mobile..."
+                        : editStatus === "in_progress" ? "e.g. Looking into the scroll overflow; suspect the flex container..."
+                        : editStatus === "ready_for_review" ? "e.g. Fixed the scroll overflow on the review step by adding min-h-0 to the flex container..."
+                        : "e.g. Root cause was X, fixed by Y...";
+                      return (
                       <div className="space-y-2 rounded-lg border border-accent/30 bg-accent/5 p-3">
                         <Label className="text-sm font-medium">
-                          {editStatus === "ready_for_review" ? "What was done?" : "Resolution summary"} <span className="text-destructive">*</span>
+                          {label} {required && <span className="text-destructive">*</span>}
+                          {!required && <span className="text-xs text-muted-foreground font-normal">(optional)</span>}
                         </Label>
-                        <p className="text-xs text-muted-foreground">
-                          {editStatus === "ready_for_review"
-                            ? "Describe the fix so the reporter knows what to test. This posts as a comment and is included in the notification email."
-                            : "Summarize the resolution. This posts as a comment and notifies the reporter."}
-                        </p>
+                        <p className="text-xs text-muted-foreground">{helper}</p>
                         <Textarea
                           value={statusComment}
                           onChange={(e) => setStatusComment(e.target.value)}
-                          placeholder={editStatus === "ready_for_review" ? "e.g. Fixed the scroll overflow on the review step by adding min-h-0 to the flex container..." : "e.g. Root cause was X, fixed by Y..."}
+                          placeholder={placeholder}
                           rows={3}
                           className="resize-none"
                         />
+
                         {/* Status comment file previews */}
                         {statusCommentFiles.length > 0 && (
                           <div className="flex flex-wrap gap-2">
