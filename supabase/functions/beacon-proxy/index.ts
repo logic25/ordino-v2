@@ -92,6 +92,36 @@ Deno.serve(async (req) => {
       beaconUrl = `${BEACON_API_URL}/api/chat`;
       const body = await req.json();
 
+      // ── Server-side identity binding (anti-spoof) ──
+      // Derive company_id and user_id from the verified JWT, ignoring any client-supplied
+      // values. Without this, a caller can forge `company_id` in the body and Railway will
+      // scope KB retrieval + downstream beacon-data-proxy calls to the spoofed tenant.
+      {
+        const sbSvc = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+        );
+        const { data: prof } = await sbSvc
+          .from("profiles")
+          .select("id, company_id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (!prof?.company_id) {
+          return new Response(JSON.stringify({ error: "No company for user" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (body.company_id && body.company_id !== prof.company_id) {
+          console.warn(`beacon-proxy/chat: company_id spoof attempt — user=${user.id} sent=${body.company_id} verified=${prof.company_id}`);
+        }
+        if (body.user_id && body.user_id !== user.id && body.user_id !== prof.id) {
+          console.warn(`beacon-proxy/chat: user_id spoof attempt — auth=${user.id} sent=${body.user_id}`);
+        }
+        body.company_id = prof.company_id;
+        body.user_id = user.id;
+      }
+
       // ── Page & error context injection ──
       const projectCtx = body.project_context || {};
       const currentPage = projectCtx.currentPage || projectCtx.current_page || "";
@@ -408,8 +438,9 @@ Deno.serve(async (req) => {
 
       // Forward the end-user's Supabase JWT + company_id + jurisdiction to Railway /api/chat
       // so Railway can (eventually) forward the JWT to beacon-data-proxy for per-user company scoping.
-      // company_id and jurisdiction come straight from the client body (jurisdiction is intentionally
-      // null until KB docs are tagged in Pinecone AND Railway's jurisdiction handling ships).
+      // company_id and user_id are JWT-derived server-side above (anti-spoof); any client-supplied
+      // values were overwritten. jurisdiction stays client-supplied (intentionally null until KB
+      // docs are tagged in Pinecone AND Railway's jurisdiction handling ships).
       beaconReqInit = {
         method: "POST",
         headers: {
