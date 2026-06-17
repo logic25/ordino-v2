@@ -254,6 +254,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     try {
       // Collect certification file attachments from content.document_path or file_url
       const attachments: { filename: string; content: string; mime_type: string }[] = [];
+      const failedAttachments: string[] = [];
       for (const cert of certs) {
         const content = asObj(cert.content);
         const docPath = content?.document_path as string | undefined;
