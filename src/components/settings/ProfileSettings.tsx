@@ -58,10 +58,14 @@ export function ProfileSettings() {
           display_name: displayName.trim() || [firstName.trim(), lastName.trim()].filter(Boolean).join(" ") || null,
           phone: phone.trim() || null,
           phone_extension: phoneExtension.trim() || null,
-          hourly_rate: hourlyRate ? parseFloat(hourlyRate) : null,
         })
         .eq("id", profile.id);
       if (error) throw error;
+      // Hourly rate lives in employee_compensation now; update via RPC.
+      const { error: rateErr } = await supabase.rpc("set_my_hourly_rate", {
+        _rate: hourlyRate ? parseFloat(hourlyRate) : null,
+      });
+      if (rateErr) throw rateErr;
       await refreshProfile();
       toast({ title: "Profile updated" });
     } catch (err: any) {
