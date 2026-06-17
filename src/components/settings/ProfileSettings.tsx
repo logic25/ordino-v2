@@ -61,13 +61,9 @@ export function ProfileSettings() {
         })
         .eq("id", profile.id);
       if (error) throw error;
-      // Hourly rate lives in employee_compensation now; update via RPC.
-      const { error: rateErr } = await supabase.rpc("set_my_hourly_rate", {
-        _rate: hourlyRate ? parseFloat(hourlyRate) : null,
-      });
-      if (rateErr) throw rateErr;
       await refreshProfile();
       toast({ title: "Profile updated" });
+
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
