@@ -83,7 +83,14 @@ export function CertificationsTab() {
   const handleFileUpload = async (file: File) => {
     setUploading(true);
     try {
-      const path = `certifications/${Date.now()}-${file.name}`;
+      // rfp-documents RLS requires the first folder segment to be company_id.
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+      const { data: profile, error: profErr } = await supabase
+        .from("profiles").select("company_id").eq("user_id", user.id).single();
+      if (profErr || !profile?.company_id) throw new Error("No company found");
+
+      const path = `${profile.company_id}/certifications/${Date.now()}-${file.name}`;
       const { error } = await supabase.storage.from("rfp-documents").upload(path, file);
       if (error) throw error;
       setForm({ ...form, document_path: path, document_name: file.name });

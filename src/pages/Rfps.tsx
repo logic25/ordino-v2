@@ -70,8 +70,16 @@ export default function Rfps() {
     setAiExtracted(null);
 
     try {
-      // Upload to storage
-      const path = `uploads/${Date.now()}-${file.name}`;
+      // Upload to storage — must prefix with company_id to satisfy the
+      // rfp-documents bucket RLS INSERT policy (first folder segment must
+      // equal company_id). Uploading without the prefix is rejected by RLS.
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+      const { data: profile, error: profErr } = await supabase
+        .from("profiles").select("company_id").eq("user_id", user.id).single();
+      if (profErr || !profile?.company_id) throw new Error("No company found");
+
+      const path = `${profile.company_id}/uploads/${Date.now()}-${file.name}`;
       const { error: uploadError } = await supabase.storage
         .from("rfp-documents")
         .upload(path, file);
