@@ -374,7 +374,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
           to: submitEmail,
           cc: ccList || undefined,
           subject: `RFP Response: ${rfp.title}${rfp.rfp_number ? ` (#${rfp.rfp_number})` : ""}`,
-          html_body: buildEmailBody(),
+          html_body: await buildEmailBody(),
           attachments: attachments.length > 0 ? attachments : undefined,
         },
       });
@@ -395,8 +395,8 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     }
   };
 
-  const buildEmailBody = () => {
-    return buildRfpEmailHtml(assembledContent);
+  const buildEmailBody = async () => {
+    return await buildRfpEmailHtml(assembledContent);
   };
 
   // Filtered notable projects based on selection
