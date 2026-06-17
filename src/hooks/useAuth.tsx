@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useState, ReactNode, useCallback,
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { PROFILE_COLUMNS_NO_GOALS } from "@/lib/profileColumns";
+
 
 type Profile = Tables<"profiles">;
 
@@ -58,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchProfile = useCallback(async (userId: string) => {
     const { data, error } = await supabase
       .from("profiles")
-      .select("*")
+      .select(PROFILE_COLUMNS_NO_GOALS)
       .eq("user_id", userId)
       .maybeSingle();
 
@@ -66,8 +68,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("Error fetching profile:", error);
       return null;
     }
-    return data;
+    if (!data) return null;
+    // Goal columns are gated behind a SECURITY DEFINER RPC.
+    const { data: goals } = await supabase.rpc("get_my_goals" as any);
+    const g = (goals as any[] | null)?.[0] || null;
+    return {
+      ...(data as any),
+      monthly_goal: g?.monthly_goal ?? null,
+      weekly_goal: g?.weekly_goal ?? null,
+      accuracy_goal: g?.accuracy_goal ?? null,
+    };
   }, []);
+
 
   const refreshProfile = useCallback(async () => {
     if (!user) return;

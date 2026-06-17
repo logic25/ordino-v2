@@ -131,17 +131,16 @@ export function useUserBillingGoals() {
     queryKey: ["user-billing-goals", profile?.company_id],
     enabled: !!profile?.company_id,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, monthly_goal")
-        .eq("company_id", profile!.company_id!)
-        .eq("is_active", true);
+      const { data } = await supabase.rpc("get_company_goals" as any);
       const map: Record<string, number> = {};
-      (data || []).forEach((p: any) => {
-        map[p.id] = Number(p.monthly_goal) || 0;
-      });
+      ((data as any[]) || [])
+        .filter((p: any) => p.is_active)
+        .forEach((p: any) => {
+          map[p.id] = Number(p.monthly_goal) || 0;
+        });
       return map;
     },
+
   });
 }
 
@@ -492,11 +491,12 @@ export function useMonthlyBillingByUser(year: number) {
       const start = `${year}-01-01`;
       const end = `${year + 1}-01-01`;
 
-      const [profilesRes, requestsRes, servicesRes] = await Promise.all([
+      const [profilesRes, goalsRes, requestsRes, servicesRes] = await Promise.all([
         supabase
           .from("profiles")
-          .select("id, first_name, last_name, display_name, role, monthly_goal, is_active")
+          .select("id, first_name, last_name, display_name, role, is_active")
           .eq("company_id", companyId),
+        supabase.rpc("get_company_goals" as any),
         supabase
           .from("billing_requests")
           .select("id, services, total_amount, created_at, created_by")
@@ -509,7 +509,15 @@ export function useMonthlyBillingByUser(year: number) {
           .select("id, is_reimbursable"),
       ]);
 
-      const profiles = profilesRes.data || [];
+      const goalMap = new Map<string, number>();
+      ((goalsRes.data as any[]) || []).forEach((g: any) => {
+        goalMap.set(g.id, Number(g.monthly_goal) || 0);
+      });
+      const profiles = ((profilesRes.data as any[]) || []).map((p: any) => ({
+        ...p,
+        monthly_goal: goalMap.get(p.id) || 0,
+      }));
+
       const requests = requestsRes.data || [];
       const reimbursableSet = new Set<string>(
         (servicesRes.data || [])
@@ -777,11 +785,7 @@ export function useMonthGoalKpi() {
           .select("monthly_billing_goal_override")
           .eq("id", companyId)
           .maybeSingle(),
-        supabase
-          .from("profiles")
-          .select("monthly_goal, role")
-          .eq("company_id", companyId)
-          .eq("is_active", true),
+        supabase.rpc("get_company_goals" as any),
         supabase
           .from("billing_requests")
           .select("total_amount, created_at, status")
@@ -800,9 +804,10 @@ export function useMonthGoalKpi() {
 
       const monthGoal =
         (companyRow.data as any)?.monthly_billing_goal_override ??
-        (pmGoals.data || [])
-          .filter((p: any) => ["pm", "admin", "manager"].includes(p.role))
+        (((pmGoals as any).data as any[]) || [])
+          .filter((p: any) => p.is_active && ["pm", "admin", "manager"].includes(p.role))
           .reduce((s: number, p: any) => s + (Number(p.monthly_goal) || 0), 0);
+
 
       const billed = (brRows.data || []).reduce(
         (s: number, b: any) => s + (Number(b.total_amount) || 0),

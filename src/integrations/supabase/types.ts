@@ -10657,6 +10657,17 @@ export type Database = {
         Returns: Json
       }
       get_client_tax_id: { Args: { _client_id: string }; Returns: string }
+      get_company_goals: {
+        Args: never
+        Returns: {
+          accuracy_goal: number
+          id: string
+          is_active: boolean
+          monthly_goal: number
+          role: string
+          weekly_goal: number
+        }[]
+      }
       get_lead_connections: { Args: { _lead_id: string }; Returns: Json }
       get_my_compensation: {
         Args: never
@@ -10678,6 +10689,14 @@ export type Database = {
           token_expires_at: string
           updated_at: string
           user_id: string
+        }[]
+      }
+      get_my_goals: {
+        Args: never
+        Returns: {
+          accuracy_goal: number
+          monthly_goal: number
+          weekly_goal: number
         }[]
       }
       get_my_hourly_rate: { Args: never; Returns: number }
