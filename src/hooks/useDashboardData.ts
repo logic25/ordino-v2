@@ -785,11 +785,7 @@ export function useMonthGoalKpi() {
           .select("monthly_billing_goal_override")
           .eq("id", companyId)
           .maybeSingle(),
-        supabase
-          .from("profiles")
-          .select("monthly_goal, role")
-          .eq("company_id", companyId)
-          .eq("is_active", true),
+        supabase.rpc("get_company_goals" as any),
         supabase
           .from("billing_requests")
           .select("total_amount, created_at, status")
@@ -808,9 +804,10 @@ export function useMonthGoalKpi() {
 
       const monthGoal =
         (companyRow.data as any)?.monthly_billing_goal_override ??
-        (pmGoals.data || [])
-          .filter((p: any) => ["pm", "admin", "manager"].includes(p.role))
+        (((pmGoals as any).data as any[]) || [])
+          .filter((p: any) => p.is_active && ["pm", "admin", "manager"].includes(p.role))
           .reduce((s: number, p: any) => s + (Number(p.monthly_goal) || 0), 0);
+
 
       const billed = (brRows.data || []).reduce(
         (s: number, b: any) => s + (Number(b.total_amount) || 0),
