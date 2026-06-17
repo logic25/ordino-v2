@@ -584,6 +584,39 @@ export function BugReports() {
     });
   };
 
+  const copyToClipboard = async (text: string): Promise<boolean> => {
+    // navigator.clipboard.writeText throws "Document is not focused" or
+    // NotAllowedError in some browser states (dropdown just closed, iframe
+    // preview, insecure context). Fall back to a hidden textarea + execCommand
+    // so the user still gets the prompt instead of an error toast.
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (e) {
+      console.warn("clipboard.writeText failed, falling back", e);
+    }
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.top = "0";
+      ta.style.left = "0";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch (e) {
+      console.error("fallback copy failed", e);
+      return false;
+    }
+  };
+
   const generateFixPrompt = async (tool: FixPromptDestination) => {
     if (!selectedBug || generatingPrompt) return;
     setFixPromptDest(tool);
@@ -594,14 +627,24 @@ export function BugReports() {
         body: { bug_id: selectedBug.id, target_tool: tool },
       });
       if (error || !data?.prompt) throw error ?? new Error("No prompt returned");
-      await navigator.clipboard.writeText(data.prompt);
+      const copied = await copyToClipboard(data.prompt);
       const fileNote = data.github_configured
         ? `${data.files_included} file${data.files_included === 1 ? "" : "s"} of code included`
         : "Paths only (no GitHub token configured)";
-      toast({
-        title: `Fix prompt copied for ${DESTINATION_LABEL[tool]}`,
-        description: `${fileNote}. Paste into ${DESTINATION_LABEL[tool]}.`,
-      });
+      if (copied) {
+        toast({
+          title: `Fix prompt copied for ${DESTINATION_LABEL[tool]}`,
+          description: `${fileNote}. Paste into ${DESTINATION_LABEL[tool]}.`,
+        });
+      } else {
+        // Prompt is ready but the clipboard refused — surface it via a prompt()
+        // so the user can copy manually. No destructive error toast.
+        toast({
+          title: `Fix prompt ready for ${DESTINATION_LABEL[tool]}`,
+          description: `${fileNote}. Browser blocked auto-copy — copy from the popup.`,
+        });
+        window.prompt("Copy this fix prompt:", data.prompt);
+      }
     } catch (e) {
       console.error("generateFixPrompt failed", e);
       toast({
