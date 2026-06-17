@@ -234,14 +234,37 @@ export function BeaconDocumentModal({
 
   const displayTitle = metadata.title || sourceFile;
 
+  const isDirty = isEditing && editContent !== body;
+  const confirmDiscard = () => {
+    if (!isDirty) return true;
+    return window.confirm("You have unsaved changes. Discard them and close?");
+  };
+
   return (
     <Dialog
       open={open}
       onOpenChange={(o) => {
-        if (!o) onClose();
+        if (!o) {
+          if (confirmDiscard()) onClose();
+        }
       }}
     >
-      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+      <DialogContent
+        className="max-w-2xl max-h-[85vh] flex flex-col"
+        onPointerDownOutside={(e) => {
+          if (isEditing) e.preventDefault();
+        }}
+        onInteractOutside={(e) => {
+          if (isEditing) e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          if (isDirty) {
+            e.preventDefault();
+            if (confirmDiscard()) onClose();
+          }
+        }}
+      >
+
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 flex-wrap">
             <span className="truncate">{displayTitle}</span>
