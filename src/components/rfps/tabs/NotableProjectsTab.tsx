@@ -481,3 +481,28 @@ export function NotableProjectsTab() {
     </div>
   );
 }
+
+function SheetPhotoStrip({ paths }: { paths: string[] }) {
+  const urls = useProjectPhotoUrls(paths);
+  return (
+    <div className="flex gap-2 overflow-x-auto pb-1">
+      {paths.map((p) => {
+        const isPdf = p.endsWith(".pdf");
+        const url = urls.get(p);
+        return (
+          <div key={p} className="w-20 h-20 rounded-lg overflow-hidden border bg-muted flex-shrink-0">
+            {isPdf ? (
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                <FileText className="h-6 w-6" />
+              </div>
+            ) : url ? (
+              <img src={url} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full animate-pulse bg-muted" />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
