@@ -440,7 +440,13 @@ export default function Proposals() {
                 pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
                 
                 const pdfBlob = pdf.output("blob");
-                const storagePath = `proposals/${proposalId}/signed_proposal.pdf`;
+                // documents bucket RLS requires company_id as the first folder segment.
+                const { data: { user: pUser } } = await supabase.auth.getUser();
+                const { data: pProfile } = pUser
+                  ? await supabase.from("profiles").select("company_id").eq("user_id", pUser.id).single()
+                  : { data: null as any };
+                if (!pProfile?.company_id) throw new Error("No company found");
+                const storagePath = `${pProfile.company_id}/proposals/${proposalId}/signed_proposal.pdf`;
                 await supabase.storage.from("documents").upload(storagePath, pdfBlob, { upsert: true, contentType: "application/pdf" });
                 await (supabase.from("universal_documents") as any)
                   .update({ storage_path: storagePath, mime_type: "application/pdf", filename: `Proposal_${fullProposal.proposal_number}_Executed.pdf` })
