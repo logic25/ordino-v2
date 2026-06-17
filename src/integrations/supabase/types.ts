@@ -4805,6 +4805,48 @@ export type Database = {
           },
         ]
       }
+      employee_compensation: {
+        Row: {
+          company_id: string
+          created_at: string
+          hourly_rate: number | null
+          id: string
+          person_id: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          hourly_rate?: number | null
+          id?: string
+          person_id: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          hourly_rate?: number | null
+          id?: string
+          person_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_compensation_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_compensation_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_reviews: {
         Row: {
           category_ratings: Json | null
@@ -7236,7 +7278,6 @@ export type Database = {
           created_at: string | null
           display_name: string | null
           first_name: string | null
-          hourly_rate: number | null
           id: string
           is_active: boolean | null
           is_comp_admin: boolean
@@ -7267,7 +7308,6 @@ export type Database = {
           created_at?: string | null
           display_name?: string | null
           first_name?: string | null
-          hourly_rate?: number | null
           id?: string
           is_active?: boolean | null
           is_comp_admin?: boolean
@@ -7298,7 +7338,6 @@ export type Database = {
           created_at?: string | null
           display_name?: string | null
           first_name?: string | null
-          hourly_rate?: number | null
           id?: string
           is_active?: boolean | null
           is_comp_admin?: boolean
@@ -10626,6 +10665,22 @@ export type Database = {
           monthly_goal: number
         }[]
       }
+      get_my_gmail_connection_status: {
+        Args: never
+        Returns: {
+          company_id: string
+          created_at: string
+          email_address: string
+          history_id: string
+          id: string
+          last_sync_at: string
+          sync_enabled: boolean
+          token_expires_at: string
+          updated_at: string
+          user_id: string
+        }[]
+      }
+      get_my_hourly_rate: { Args: never; Returns: number }
       get_profile_compensation: {
         Args: { _profile_id: string }
         Returns: {
@@ -10657,6 +10712,13 @@ export type Database = {
       }
       get_user_app_roles: { Args: { _user_id: string }; Returns: string[] }
       get_user_company_id: { Args: never; Returns: string }
+      get_user_hourly_rates: {
+        Args: { _user_ids: string[] }
+        Returns: {
+          hourly_rate: number
+          user_id: string
+        }[]
+      }
       global_search: {
         Args: { _limit?: number; _q: string }
         Returns: {
@@ -10737,6 +10799,7 @@ export type Database = {
         Args: { target_company_id: string }
         Returns: undefined
       }
+      set_my_hourly_rate: { Args: { _rate: number }; Returns: undefined }
       sign_change_order: {
         Args: {
           _document_hash?: string
@@ -10777,6 +10840,10 @@ export type Database = {
       }
       track_proposal_view: { Args: { _token: string }; Returns: undefined }
       track_rfi_view: { Args: { _token: string }; Returns: undefined }
+      upsert_employee_hourly_rate: {
+        Args: { _person_id: string; _rate: number }
+        Returns: undefined
+      }
       user_has_app_role: {
         Args: { _role: string; _user_id: string }
         Returns: boolean

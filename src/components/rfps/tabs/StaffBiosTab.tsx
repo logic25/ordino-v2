@@ -195,7 +195,7 @@ export function StaffBiosTab() {
           years_experience: null,
           years_with_company: null,
           bio: profile.about || "",
-          hourly_rate: profile.hourly_rate ? Number(profile.hourly_rate) : null,
+          hourly_rate: null,
           percentage_on_project: null,
           certifications: [],
           education: [],

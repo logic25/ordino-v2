@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +26,19 @@ export function ProfileSettings() {
   const [displayName, setDisplayName] = useState(profile?.display_name || "");
   const [phone, setPhone] = useState(profile?.phone || "");
   const [phoneExtension, setPhoneExtension] = useState((profile as any)?.phone_extension || "");
-  const [hourlyRate, setHourlyRate] = useState((profile as any)?.hourly_rate ? String((profile as any).hourly_rate) : "");
+  const [hourlyRate, setHourlyRate] = useState("");
+
+  // Load own hourly rate from employee_compensation via RPC (compensation
+  // is no longer stored on profiles).
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const { data, error } = await supabase.rpc("get_my_hourly_rate");
+      if (!active || error) return;
+      if (data != null) setHourlyRate(String(data));
+    })();
+    return () => { active = false; };
+  }, []);
 
   const initials = [firstName, lastName]
     .filter(Boolean)
@@ -46,10 +58,14 @@ export function ProfileSettings() {
           display_name: displayName.trim() || [firstName.trim(), lastName.trim()].filter(Boolean).join(" ") || null,
           phone: phone.trim() || null,
           phone_extension: phoneExtension.trim() || null,
-          hourly_rate: hourlyRate ? parseFloat(hourlyRate) : null,
         })
         .eq("id", profile.id);
       if (error) throw error;
+      // Hourly rate lives in employee_compensation now; update via RPC.
+      const { error: rateErr } = await supabase.rpc("set_my_hourly_rate", {
+        _rate: hourlyRate ? parseFloat(hourlyRate) : null,
+      });
+      if (rateErr) throw rateErr;
       await refreshProfile();
       toast({ title: "Profile updated" });
     } catch (err: any) {
