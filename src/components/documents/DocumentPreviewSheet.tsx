@@ -125,7 +125,10 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
             .limit(1)
             .maybeSingle();
           const nextVersion = ((maxV?.version as number) || 0) + 1;
-          const versionPath = `versions/${doc.id}/v${nextVersion}-${doc.filename}`;
+          // Both universal-documents and documents buckets require the first
+          // folder segment to equal company_id (RLS INSERT policy). Without
+          // this prefix the upload is rejected and version history is lost.
+          const versionPath = `${doc.company_id}/versions/${doc.id}/v${nextVersion}-${doc.filename}`;
           const oldBlob = new Blob([originalContent], { type: doc.mime_type || "text/plain" });
           await supabase.storage.from(bucket).upload(versionPath, oldBlob, { upsert: true });
           await (supabase as any).from("document_versions").insert({
