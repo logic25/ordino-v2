@@ -26,14 +26,11 @@ function useCompanyMonthlyGoal() {
         .eq("id", profile.company_id)
         .maybeSingle();
       if ((c as any)?.monthly_billing_goal_override) return Number((c as any).monthly_billing_goal_override);
-      const { data: pms } = await supabase
-        .from("profiles")
-        .select("monthly_goal, role, is_active")
-        .eq("company_id", profile.company_id)
-        .eq("is_active", true);
-      return (pms || [])
-        .filter((p: any) => ["pm", "admin", "manager"].includes(p.role))
+      const { data: pms } = await supabase.rpc("get_company_goals" as any);
+      return ((pms as any[]) || [])
+        .filter((p: any) => p.is_active && ["pm", "admin", "manager"].includes(p.role))
         .reduce((s: number, p: any) => s + (Number(p.monthly_goal) || 0), 0);
+
     },
   });
 }
