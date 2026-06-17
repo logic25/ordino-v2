@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { getProjectPhotoUrl } from "@/hooks/useProjectSheets";
+import { getProjectPhotoEmailUrls } from "@/hooks/useProjectSheets";
 import type { Rfp } from "@/hooks/useRfps";
 
 interface AssembledContent {
@@ -128,7 +128,7 @@ function staffBiosHtml(bios: any[]): string {
   return `${heading("Key Personnel")}${items.join("")}`;
 }
 
-function notableProjectsHtml(projects: any[]): string {
+function notableProjectsHtml(projects: any[], photoUrls: Map<string, string>): string {
   if (!projects.length) return "";
   const items = projects.map((proj) => {
     const props = proj.properties as any;
@@ -146,7 +146,7 @@ function notableProjectsHtml(projects: any[]): string {
     if (completionDate) metaParts.push(`Completed ${format(new Date(completionDate), "MMM yyyy")}`);
 
     const photoHtml = photos.filter((p: string) => !p.endsWith(".pdf")).slice(0, 4).map((p: string) => {
-      const url = getProjectPhotoUrl(p);
+      const url = photoUrls.get(p) || "";
       return `<td style="width:25%;padding:4px"><img src="${url}" alt="Project photo" style="width:100%;border-radius:8px;display:block" /></td>`;
     });
 
@@ -226,8 +226,16 @@ function certsHtml(certs: any[]): string {
 
 /* ── Main builder ── */
 
-export function buildRfpEmailHtml(data: AssembledContent): string {
+export async function buildRfpEmailHtml(data: AssembledContent): Promise<string> {
   const { rfp, sections, companyInfo, staffBios, notableProjects, narratives, firmHistory, pricing, certs, coverLetter, logoUrl, companyName, companyAddress, companyPhone, companyEmail, companyWebsite } = data;
+
+  // Pre-resolve signed URLs for all notable-project photos. The bucket is
+  // private; emails go to external partners, so we mint year-long signed URLs.
+  const allPhotoPaths = Array.from(new Set(
+    (notableProjects || []).flatMap((p: any) => (p.photos || []) as string[])
+      .filter((p: string) => p && !p.endsWith(".pdf"))
+  ));
+  const photoUrls = await getProjectPhotoEmailUrls(allPhotoPaths);
 
   const sectionRenderers: Record<string, () => string> = {
     cover_letter: () => (coverLetter ? coverLetterHtml(coverLetter) : ""),
@@ -235,7 +243,7 @@ export function buildRfpEmailHtml(data: AssembledContent): string {
     company_info: () => companyInfoHtml(companyInfo),
     staff_bios: () => staffBiosHtml(staffBios),
     org_chart: () => "",
-    notable_projects: () => notableProjectsHtml(notableProjects),
+    notable_projects: () => notableProjectsHtml(notableProjects, photoUrls),
     narratives: () => narrativesHtml(narratives),
     pricing: () => pricingHtml(pricing),
     certifications: () => certsHtml(certs),

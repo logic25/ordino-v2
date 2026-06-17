@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Upload, X, Loader2, Image as ImageIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useCreateProjectSheet, uploadProjectPhoto, getProjectPhotoUrl } from "@/hooks/useProjectSheets";
+import { useCreateProjectSheet, uploadProjectPhoto, useProjectPhotoUrls } from "@/hooks/useProjectSheets";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +35,7 @@ export function AddProjectSheetDialog({ open, onOpenChange }: Props) {
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const photoUrls = useProjectPhotoUrls(photos);
 
   const reset = () => {
     setTitle(""); setDescription(""); setClientName(""); setLocation("");
@@ -175,7 +176,7 @@ export function AddProjectSheetDialog({ open, onOpenChange }: Props) {
             {photos.length > 0 && (
               <div className="grid grid-cols-3 gap-2">
                 {photos.map((p) => {
-                  const url = getProjectPhotoUrl(p);
+                  const url = photoUrls.get(p);
                   const isPdf = p.endsWith(".pdf");
                   return (
                     <div key={p} className="relative group rounded-lg overflow-hidden border bg-muted aspect-square">
@@ -183,8 +184,10 @@ export function AddProjectSheetDialog({ open, onOpenChange }: Props) {
                         <div className="flex items-center justify-center h-full text-muted-foreground">
                           <ImageIcon className="h-8 w-8" />
                         </div>
-                      ) : (
+                      ) : url ? (
                         <img src={url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full animate-pulse bg-muted" />
                       )}
                       <button
                         onClick={(e) => { e.stopPropagation(); removePhoto(p); }}
