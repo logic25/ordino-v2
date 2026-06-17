@@ -885,6 +885,25 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
   const metricKind = getMetricProfile(user.role as string);
   const goalLabel = metricKind === "accounting" ? "Monthly Invoices Goal" : "Monthly Goal ($)";
 
+  // Hourly rate lives in employee_compensation now. RLS allows self or comp admin
+  // to see this; others get null.
+  const { data: userHourlyRate } = useQuery({
+    queryKey: ["employee-comp-hourly-rate", user.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("employee_compensation")
+        .select("hourly_rate")
+        .eq("person_id", user.id)
+        .maybeSingle();
+      return data?.hourly_rate ?? null;
+    },
+  });
+
+  // Sync into edit form when rate loads / user switches.
+  useEffect(() => {
+    setEditForm((f) => ({ ...f, hourly_rate: userHourlyRate != null ? String(userHourlyRate) : "" }));
+  }, [userHourlyRate, user.id]);
+
   const { data: stats, isLoading: statsLoading } = useUserBillingStats(user.id, period, monthlyGoal, bonusTiers);
   const { data: acctStats, isLoading: acctStatsLoading } = useAccountingStats(user.id, period, metricKind === "accounting" ? monthlyGoal : null);
   const { data: proposals = [], isLoading: proposalsLoading } = useUserProposals(user.id);
