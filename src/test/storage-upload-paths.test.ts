@@ -1,6 +1,4 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "fs";
-import { resolve } from "path";
 
 /**
  * Regression guard for the "storage upload path doesn't match RLS folder"
@@ -10,26 +8,43 @@ import { resolve } from "path";
  * stored under a wrong path that no other code can read) and downstream
  * features break in subtle ways — e.g. an RFP email going out with no logo.
  *
- * Each entry asserts the upload-path expression on a known line still derives
- * from a company_id. If a future refactor removes the prefix, this test fails
- * loudly instead of leaking another silent-attachment bug into production.
+ * Each entry asserts the upload-path expression in a known file still
+ * derives from a company_id. If a future refactor removes the prefix, this
+ * test fails loudly instead of leaking another silent-attachment bug.
+ *
+ * Sources are loaded via Vite's import.meta.glob (raw) so the test has no
+ * Node fs/path dependency and runs identically in CI and the editor.
  */
-const SITES = [
-  { file: "src/components/rfps/tabs/AttachmentsTab.tsx", needle: "${profile.company_id}/attachments/" },
-  { file: "src/components/rfps/tabs/CertificationsTab.tsx", needle: "${profile.company_id}/certifications/" },
-  { file: "src/components/rfps/tabs/StaffBiosTab.tsx", needle: "${profile.company_id}/resumes/" },
-  { file: "src/pages/Rfps.tsx", needle: "${profile.company_id}/uploads/" },
-  { file: "src/pages/Proposals.tsx", needle: "${pProfile.company_id}/proposals/" },
-  { file: "src/components/documents/DocumentPreviewSheet.tsx", needle: "${doc.company_id}/versions/" },
+const sources = import.meta.glob(
+  [
+    "../components/rfps/tabs/AttachmentsTab.tsx",
+    "../components/rfps/tabs/CertificationsTab.tsx",
+    "../components/rfps/tabs/StaffBiosTab.tsx",
+    "../pages/Rfps.tsx",
+    "../pages/Proposals.tsx",
+    "../components/documents/DocumentPreviewSheet.tsx",
+  ],
+  { eager: true, query: "?raw", import: "default" },
+) as Record<string, string>;
+
+const SITES: Array<{ match: RegExp; needle: string; label: string }> = [
+  { label: "AttachmentsTab", match: /AttachmentsTab\.tsx$/, needle: "${profile.company_id}/attachments/" },
+  { label: "CertificationsTab", match: /CertificationsTab\.tsx$/, needle: "${profile.company_id}/certifications/" },
+  { label: "StaffBiosTab", match: /StaffBiosTab\.tsx$/, needle: "${profile.company_id}/resumes/" },
+  { label: "Rfps page", match: /pages\/Rfps\.tsx$/, needle: "${profile.company_id}/uploads/" },
+  { label: "Proposals page (signed PDF)", match: /pages\/Proposals\.tsx$/, needle: "${pProfile.company_id}/proposals/" },
+  { label: "DocumentPreviewSheet (versions)", match: /DocumentPreviewSheet\.tsx$/, needle: "${doc.company_id}/versions/" },
 ];
 
 describe("storage upload paths are company-scoped", () => {
-  for (const { file, needle } of SITES) {
-    it(`${file} prefixes its storage upload path with company_id`, () => {
-      const src = readFileSync(resolve(process.cwd(), file), "utf8");
+  for (const site of SITES) {
+    it(`${site.label} prefixes its storage upload path with company_id`, () => {
+      const entry = Object.entries(sources).find(([k]) => site.match.test(k));
+      expect(entry, `Could not load source matching ${site.match}`).toBeTruthy();
+      const [, src] = entry!;
       expect(
-        src.includes(needle),
-        `Expected ${file} to construct an upload path starting with "${needle}". ` +
+        src.includes(site.needle),
+        `Expected ${site.label} to construct an upload path containing "${site.needle}". ` +
         `Storage RLS requires the first folder segment to equal company_id; ` +
         `removing this prefix will cause uploads to fail silently.`,
       ).toBe(true);
