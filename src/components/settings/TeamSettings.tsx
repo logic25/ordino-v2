@@ -858,7 +858,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
     last_name: user.last_name || "",
     phone: user.phone || "",
     phone_extension: profileAny.phone_extension || "",
-    hourly_rate: profileAny.hourly_rate ? String(profileAny.hourly_rate) : "",
+    hourly_rate: "",
     role: (user.role as string) || "pm",
     job_title: profileAny.job_title || "",
     about: profileAny.about || "",
