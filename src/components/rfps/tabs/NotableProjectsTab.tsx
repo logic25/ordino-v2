@@ -8,7 +8,7 @@ import {
   Calendar, FileText, Building2, DollarSign, Image as ImageIcon, Trash2,
 } from "lucide-react";
 import { useNotableApplications, useUpdateApplicationRfpInfo } from "@/hooks/useRfpContent";
-import { useProjectSheets, useDeleteProjectSheet, getProjectPhotoUrl, type ProjectSheet } from "@/hooks/useProjectSheets";
+import { useProjectSheets, useDeleteProjectSheet, useProjectPhotoUrls, type ProjectSheet } from "@/hooks/useProjectSheets";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
 import { AddProjectSheetDialog } from "./AddProjectSheetDialog";
@@ -197,23 +197,7 @@ export function NotableProjectsTab() {
 
                     {/* Photos preview */}
                     {sheet.photos.length > 0 && (
-                      <div className="flex gap-2 overflow-x-auto pb-1">
-                        {sheet.photos.map((p) => {
-                          const url = getProjectPhotoUrl(p);
-                          const isPdf = p.endsWith(".pdf");
-                          return (
-                            <div key={p} className="w-20 h-20 rounded-lg overflow-hidden border bg-muted flex-shrink-0">
-                              {isPdf ? (
-                                <div className="flex items-center justify-center h-full text-muted-foreground">
-                                  <FileText className="h-6 w-6" />
-                                </div>
-                              ) : (
-                                <img src={url} alt="" className="w-full h-full object-cover" />
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
+                      <SheetPhotoStrip paths={sheet.photos} />
                     )}
 
                     {/* Expanded details */}
