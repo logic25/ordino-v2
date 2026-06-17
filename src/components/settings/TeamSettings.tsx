@@ -1020,10 +1020,10 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                     <Mail className="h-4 w-4" />
                     <span className="italic text-xs">Email available via auth</span>
                   </div>
-                  {isViewerAdmin && profileAny.hourly_rate && (
+                  {isViewerAdmin && userHourlyRate != null && (
                     <div className="flex items-center gap-2">
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
-                      <span>${Number(profileAny.hourly_rate).toFixed(2)}/hr</span>
+                      <span>${Number(userHourlyRate).toFixed(2)}/hr</span>
                     </div>
                   )}
                   {isViewerAdmin && monthlyGoal && (
