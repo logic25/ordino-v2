@@ -131,17 +131,16 @@ export function useUserBillingGoals() {
     queryKey: ["user-billing-goals", profile?.company_id],
     enabled: !!profile?.company_id,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, monthly_goal")
-        .eq("company_id", profile!.company_id!)
-        .eq("is_active", true);
+      const { data } = await supabase.rpc("get_company_goals" as any);
       const map: Record<string, number> = {};
-      (data || []).forEach((p: any) => {
-        map[p.id] = Number(p.monthly_goal) || 0;
-      });
+      ((data as any[]) || [])
+        .filter((p: any) => p.is_active)
+        .forEach((p: any) => {
+          map[p.id] = Number(p.monthly_goal) || 0;
+        });
       return map;
     },
+
   });
 }
 
