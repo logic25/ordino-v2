@@ -97,7 +97,9 @@ export function CompanyInfoTab() {
   ];
 
   return (
-    <Card>
+    <div className="space-y-4">
+      <CompanyLogoCard />
+      <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-lg">Company Information</CardTitle>
         {!editing ? (
