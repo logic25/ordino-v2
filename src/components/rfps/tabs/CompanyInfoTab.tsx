@@ -149,5 +149,6 @@ export function CompanyInfoTab() {
         )}
       </CardContent>
     </Card>
+    </div>
   );
 }
