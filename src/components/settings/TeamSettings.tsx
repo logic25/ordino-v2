@@ -928,7 +928,6 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
           last_name: editForm.last_name.trim() || null,
           phone: editForm.phone.trim() || null,
           phone_extension: editForm.phone_extension.trim() || null,
-          hourly_rate: editForm.hourly_rate ? parseFloat(editForm.hourly_rate) : null,
           role: editForm.role,
           job_title: editForm.job_title.trim() || null,
           about: editForm.about.trim() || null,
@@ -939,6 +938,18 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
         } as any)
         .eq("id", user.id);
       if (error) throw error;
+
+      // Compensation is stored separately. Comp admins use the RPC; if the
+      // viewer is not a comp admin the RPC will reject — silently skip.
+      const newRate = editForm.hourly_rate ? parseFloat(editForm.hourly_rate) : null;
+      if (newRate !== (userHourlyRate ?? null)) {
+        const { error: rateErr } = await supabase.rpc("upsert_employee_hourly_rate", {
+          _person_id: user.id,
+          _rate: newRate,
+        });
+        if (rateErr) throw rateErr;
+        await queryClient.invalidateQueries({ queryKey: ["employee-comp-hourly-rate", user.id] });
+      }
 
       // Role mirroring into user_roles is handled by the trg_sync_profile_role
       // database trigger (covers all roles: admin, manager, pm, production, accounting).
