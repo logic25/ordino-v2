@@ -403,15 +403,19 @@ export function BugReports() {
     if (!selectedBug || !profile || savingRef.current) return;
     savingRef.current = true;
 
+    const statusChanged = editStatus !== selectedBug.status;
     const isReadyForReview = editStatus === "ready_for_review" && selectedBug.status !== "ready_for_review";
     const isNewlyResolved = editStatus === "resolved" && selectedBug.status !== "resolved";
-    const needsComment = isReadyForReview || isNewlyResolved;
+    const requiresNote = isReadyForReview || isNewlyResolved;
+    const hasNote = statusComment.trim().length > 0;
 
-    // If transitioning to ready_for_review or resolved, require a status comment
-    if (needsComment && !statusComment.trim()) {
+    // Require a status comment only when transitioning to ready_for_review or resolved
+    if (requiresNote && !hasNote) {
       toast({ title: "Comment required", description: `Please describe what was done before marking as ${isReadyForReview ? "Ready for Review" : "Resolved"}.`, variant: "destructive" });
+      savingRef.current = false;
       return;
     }
+
 
     const updates: Record<string, any> = {
       status: editStatus,
