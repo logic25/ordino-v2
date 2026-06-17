@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Pencil, Save, X } from "lucide-react";
 import { useRfpContent, useCreateRfpContent, useUpdateRfpContent } from "@/hooks/useRfpContent";
 import { useToast } from "@/hooks/use-toast";
+import { CompanyLogoCard } from "./CompanyLogoCard";
 
 export function CompanyInfoTab() {
   const { data: items = [], isLoading } = useRfpContent("company_info");
