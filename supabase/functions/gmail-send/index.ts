@@ -682,7 +682,7 @@ Deno.serve(async (req) => {
         thread_id: sendData.threadId || null,
         subject,
         from_email: connection.email_address,
-        from_name: connection.email_address,
+        from_name: from_name || connection.email_address,
         to_emails: toEmails,
         date: new Date().toISOString(),
         body_text: plainTextBody || null,
