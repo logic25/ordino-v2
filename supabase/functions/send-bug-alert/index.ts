@@ -320,6 +320,12 @@ Deno.serve(async (req) => {
       return emails;
     };
 
+    // Display name on the From header — keeps the apparent sender = reporter
+    // even when the underlying Gmail account is a shared inbox.
+    const fromDisplayName = reporter_name
+      ? `${reporter_name} (Bug Report)`
+      : `${companyName} (Bug Report)`;
+
     const sendEmails = async (recipients: string[], subject: string, html: string) => {
       let sentCount = 0;
       for (const email of recipients) {
@@ -327,7 +333,14 @@ Deno.serve(async (req) => {
           const res = await fetch(`${supabaseUrl}/functions/v1/gmail-send`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
-            body: JSON.stringify({ user_id: sender.user_id, to: email, subject, html_body: html }),
+            body: JSON.stringify({
+              user_id: sender.user_id,
+              to: email,
+              subject,
+              html_body: html,
+              from_name: fromDisplayName,
+              append_signature: false,
+            }),
           });
           if (res.ok) sentCount++;
         } catch (e) {
@@ -336,6 +349,7 @@ Deno.serve(async (req) => {
       }
       return sentCount;
     };
+
 
     const buildBody = (greetingText: string, bodyText: string, contentHtml: string, ctaText: string, signoffText: string) => {
       const greetingHtml = `<p style="margin:0 0 16px;font-size:${style.bodyFontSize};color:${style.headingColor};line-height:1.6;">${greetingText}</p>`;
