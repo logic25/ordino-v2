@@ -170,7 +170,7 @@ Deno.serve(async (req) => {
         filed_at, objections_received_at,
         projects:project_id(
           id, project_number, name, assigned_pm_id, created_at, project_complexity_tier,
-          properties:property_id(address, bldgclass),
+          properties:property_id(address, bis_profile_data),
           clients:client_id(id, client_tier)
         )
       `)
