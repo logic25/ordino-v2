@@ -317,6 +317,84 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
   const { user, profile } = useAuth();
   const [beaconOnline, setBeaconOnline] = useState(true);
   const [viewingFile, setViewingFile] = useState<string | null>(null);
+  // Per-message feedback state: "up" | "down" | "done" (logged, locked).
+  const [feedback, setFeedback] = useState<Record<number, "up" | "down" | "done">>({});
+  const [correctionDraft, setCorrectionDraft] = useState<Record<number, string>>({});
+  const [correctionSubmitting, setCorrectionSubmitting] = useState<Record<number, boolean>>({});
+
+  const findPriorQuestion = (idx: number): string => {
+    for (let j = idx - 1; j >= 0; j--) {
+      if (messages[j].role === "user") return messages[j].text;
+    }
+    return "";
+  };
+
+  const submitFeedback = async (idx: number, type: "up" | "down") => {
+    if (feedback[idx]) return;
+    const msg = messages[idx];
+    if (!msg || msg.role !== "beacon") return;
+    const question = findPriorQuestion(idx);
+    const answerPreview = (msg.text || "").slice(0, 200);
+    const emoji = type === "up" ? "👍" : "👎";
+    setFeedback((s) => ({ ...s, [idx]: type }));
+    try {
+      await supabase.functions.invoke("beacon-proxy?action=feedback", {
+        body: {
+          data: {
+            feedback_type: type === "up" ? "positive" : "negative",
+            feedback_text: `${emoji} on Beacon answer — Q: ${question} | A: ${answerPreview}`,
+            user_id: user?.id,
+            user_name: profile?.full_name || user?.email,
+          },
+        },
+      });
+      if (type === "up") {
+        setFeedback((s) => ({ ...s, [idx]: "done" }));
+        toast.success("Thanks — logged");
+      }
+    } catch (e) {
+      console.warn("[beacon] log_feedback failed", e);
+      toast.error("Couldn't log feedback");
+      setFeedback((s) => {
+        const n = { ...s };
+        delete n[idx];
+        return n;
+      });
+    }
+  };
+
+  const submitCorrection = async (idx: number) => {
+    const correct = (correctionDraft[idx] || "").trim();
+    const msg = messages[idx];
+    if (!msg) return;
+    setCorrectionSubmitting((s) => ({ ...s, [idx]: true }));
+    try {
+      if (correct) {
+        await supabase.functions.invoke("beacon-proxy?action=correction", {
+          body: {
+            data: {
+              wrong_answer: msg.text,
+              correct_answer: correct,
+              topics: [],
+              user_id: user?.id,
+              user_name: profile?.full_name || user?.email,
+            },
+          },
+        });
+      }
+      setFeedback((s) => ({ ...s, [idx]: "done" }));
+      toast.success(correct ? "Thanks — correction logged" : "Thanks — logged");
+    } catch (e) {
+      console.warn("[beacon] log_correction failed", e);
+      toast.error("Couldn't log correction");
+    } finally {
+      setCorrectionSubmitting((s) => ({ ...s, [idx]: false }));
+    }
+  };
+
+  const skipCorrection = (idx: number) => {
+    setFeedback((s) => ({ ...s, [idx]: "done" }));
+  };
 
   const location = useLocation();
   const navigate = useNavigate();
