@@ -198,7 +198,8 @@ Deno.serve(async (req) => {
     for (const svc of (services || []) as any[]) {
       const proj = svc.projects;
       if (!proj) continue;
-      const propClass = (proj.properties?.bldgclass || "").slice(0, 1) || null; // class letter only
+      const bldgClassRaw = (proj.properties?.bis_profile_data as any)?.bldgclass || (proj.properties?.bis_profile_data as any)?.building_class || "";
+      const propClass = String(bldgClassRaw).slice(0, 1) || null; // class letter only
       const complexity = proj.project_complexity_tier || null;
       const clientTier = proj.clients?.client_tier || null;
       const type = normalizeServiceName(svc.name);
