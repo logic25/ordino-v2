@@ -85,6 +85,44 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ── Feedback / correction proxy ──
+    // Forwards a single analytics action (log_feedback / log_correction) to the
+    // beacon-analytics function using the shared BEACON_ANALYTICS_KEY, so the
+    // browser never needs to hold that secret. Identity is rebound from the JWT.
+    if (action === "feedback" || action === "correction") {
+      const body = await req.json().catch(() => ({}));
+      const sbSvc = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+      const { data: prof } = await sbSvc
+        .from("profiles")
+        .select("id, full_name, company_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      const data = {
+        ...(body?.data || {}),
+        user_id: user.id,
+        user_name: body?.data?.user_name || prof?.full_name || user.email || "Unknown",
+        company_id: prof?.company_id,
+      };
+      const analyticsAction = action === "feedback" ? "log_feedback" : "log_correction";
+      const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/beacon-analytics`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-beacon-key": BEACON_API_KEY,
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+        body: JSON.stringify({ action: analyticsAction, data }),
+      });
+      const text = await res.text();
+      return new Response(text, {
+        status: res.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     let beaconUrl: string;
     let beaconReqInit: RequestInit;
 
