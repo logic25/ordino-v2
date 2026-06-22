@@ -344,7 +344,7 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
             feedback_type: type === "up" ? "positive" : "negative",
             feedback_text: `${emoji} on Beacon answer — Q: ${question} | A: ${answerPreview}`,
             user_id: user?.id,
-            user_name: profile?.full_name || user?.email,
+            user_name: profile?.display_name || `${profile?.first_name ?? ""}`.trim() || user?.email,
           },
         },
       });
@@ -377,7 +377,7 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
               correct_answer: correct,
               topics: [],
               user_id: user?.id,
-              user_name: profile?.full_name || user?.email,
+              user_name: profile?.display_name || `${profile?.first_name ?? ""}`.trim() || user?.email,
             },
           },
         });
