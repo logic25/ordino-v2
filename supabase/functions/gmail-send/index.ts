@@ -560,25 +560,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (forward_from_email_id) {
-      const originalForwardEmail = await fetchOriginalMessageContent({
-        supabaseAdmin,
-        accessToken,
-        emailId: forward_from_email_id,
-      });
 
-      if (originalForwardEmail) {
-        finalHtmlBody = buildForwardHtml({
-          userMessage: html_body,
-          fromName: originalForwardEmail.from_name,
-          fromEmail: originalForwardEmail.from_email,
-          subject: originalForwardEmail.subject,
-          sentAt: originalForwardEmail.date,
-          originalHtml: originalForwardEmail.body_html,
-          originalText: originalForwardEmail.body_text,
-        });
-      }
-    }
+
 
     // Auto-append the Gmail signature unless caller opted out, the body
     // already contains a signature marker, or this is a reply/forward where
