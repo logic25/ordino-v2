@@ -1205,12 +1205,23 @@ async function listSchema(_sb: any) {
 
 // ── Describe Table ───────────────────────────────────────
 
-const DESCRIBE_BLOCKED_PATTERN = /auth|secret|password|key|token|user_roles/i;
+// Allowlist-only: schema introspection is restricted to non-sensitive business tables.
+// Tables containing OAuth tokens, secrets, signatures, or auth metadata are NOT listed.
+const DESCRIBE_ALLOWED_TABLES = new Set<string>([
+  "projects", "properties", "proposals", "proposal_items", "invoices",
+  "services", "clients", "client_contacts", "rfi_requests", "rfi_templates",
+  "change_orders", "project_checklist_items", "project_action_items",
+  "project_notes", "project_timeline_events", "project_expenses",
+  "dob_applications", "universal_documents", "document_folders",
+  "emails", "email_project_tags", "calendar_events",
+  "rfps", "rfp_sections", "leads", "markets",
+]);
 
 async function describeTable(params: any) {
   const table = params?.table;
   if (!table || typeof table !== "string") return fail("Missing 'table' param");
-  if (DESCRIBE_BLOCKED_PATTERN.test(table)) return fail("Access denied for that table");
+  if (!DESCRIBE_ALLOWED_TABLES.has(table)) return fail("Access denied for that table");
+
 
   const dbUrl = Deno.env.get("SUPABASE_DB_URL");
   if (!dbUrl) return fail("Database URL not configured");
