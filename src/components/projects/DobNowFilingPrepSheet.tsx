@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import {
   Copy, CheckCircle2, AlertTriangle, MapPin, Building2,
@@ -124,8 +124,12 @@ export function DobNowFilingPrepSheet({
   allServices,
 }: DobNowFilingPrepSheetProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { data: companyData } = useCompanySettings();
-  const [jobNumber, setJobNumber] = useState(service.application?.jobNumber || "");
+  const [jobNumber, setJobNumber] = useState(
+    (service as any).jobNumber || service.application?.jobNumber || ""
+  );
+  const [savingJobNumber, setSavingJobNumber] = useState(false);
   const [showAddItem, setShowAddItem] = useState(false);
   const [newItemLabel, setNewItemLabel] = useState("");
   const [checklistInitialized, setChecklistInitialized] = useState(false);
@@ -265,9 +269,61 @@ export function DobNowFilingPrepSheet({
     setChecklistWarning(false);
   };
 
-  const saveJobNumber = () => {
-    if (!jobNumber.trim()) return;
-    toast({ title: "Job Number Saved", description: `Application #${jobNumber} linked to ${service.name}.` });
+  const saveJobNumber = async () => {
+    const trimmed = jobNumber.trim();
+    if (!trimmed) return;
+    setSavingJobNumber(true);
+    try {
+      const applicationId = (service as any).applicationId as string | null | undefined;
+      if (applicationId) {
+        // Update existing dob_applications row linked to this service
+        const { error } = await supabase
+          .from("dob_applications")
+          .update({ job_number: trimmed } as any)
+          .eq("id", applicationId);
+        if (error) throw error;
+      } else {
+        // No application yet — create one and link the service to it
+        const propertyId = project.properties?.id || (project as any).property_id;
+        const companyId = (project as any).company_id;
+        if (!propertyId || !companyId) {
+          throw new Error("Missing project property or company — cannot create application.");
+        }
+        const { data: newApp, error: insertErr } = await supabase
+          .from("dob_applications")
+          .insert({
+            company_id: companyId,
+            property_id: propertyId,
+            project_id: project.id,
+            job_number: trimmed,
+            status: "filed" as any,
+          } as any)
+          .select("id")
+          .single();
+        if (insertErr) throw insertErr;
+        if (newApp?.id) {
+          const { error: linkErr } = await supabase
+            .from("services")
+            .update({ application_id: newApp.id } as any)
+            .eq("id", service.id);
+          if (linkErr) throw linkErr;
+        }
+      }
+      await queryClient.invalidateQueries({ queryKey: ["project-services-full"] });
+      toast({
+        title: "Job Number Saved",
+        description: `Application #${trimmed} linked to ${service.name}.`,
+      });
+    } catch (err: any) {
+      console.error("[saveJobNumber] failed", err);
+      toast({
+        title: "Could not save job number",
+        description: err?.message || "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingJobNumber(false);
+    }
   };
 
   // Build DOB field mapping from project data + PIS
@@ -1139,8 +1195,8 @@ export function DobNowFilingPrepSheet({
                       onChange={(e) => setJobNumber(e.target.value)}
                       className="h-9 font-mono"
                     />
-                    <Button size="sm" className="gap-1.5 shrink-0" onClick={saveJobNumber} disabled={!jobNumber.trim()}>
-                      <Save className="h-3.5 w-3.5" /> Save
+                    <Button size="sm" className="gap-1.5 shrink-0" onClick={saveJobNumber} disabled={!jobNumber.trim() || savingJobNumber}>
+                      {savingJobNumber ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save
                     </Button>
                   </div>
                 </div>
