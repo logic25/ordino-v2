@@ -10697,6 +10697,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_my_gmail_signature: { Args: never; Returns: string }
       get_my_goals: {
         Args: never
         Returns: {
