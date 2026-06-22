@@ -119,6 +119,7 @@ export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defau
         ).replace(/<\/font>/gi, "</span>");
         setBody((prev) => {
           if (prev && prev.trim() !== "" && prev.trim() !== "<p></p>") return prev;
+          setSignatureInjected(true);
           return `<p></p><p></p><div data-signature="1">${sig}</div>`;
         });
       } catch {
