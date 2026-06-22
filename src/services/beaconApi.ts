@@ -15,6 +15,7 @@ export interface BeaconChatResponse {
   response_time_ms: number;
   is_bug_report?: boolean;
   bug_auto_logged?: boolean;
+  bug_id?: string;
 }
 
 export interface BeaconProjectContext {

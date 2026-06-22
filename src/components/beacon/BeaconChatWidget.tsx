@@ -10,6 +10,7 @@ import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { askBeacon, checkBeaconHealth, type BeaconSource, type BeaconProjectContext } from "@/services/beaconApi";
+import { captureSnapshot, looksLikeBug, type BeaconSnapshot } from "@/lib/beaconCapture";
 import { lazy, Suspense } from "react";
 const BeaconDocumentModal = lazy(() => import("../documents/BeaconDocumentModal").then(m => ({ default: m.BeaconDocumentModal })));
 import { supabase } from "@/integrations/supabase/client";
@@ -564,6 +565,17 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
           recentErrors: recentErrorsRef.current.length > 0 ? recentErrorsRef.current : undefined,
         };
 
+        // Client-side bug pre-check: if the user's message looks like a bug report,
+        // capture evidence BEFORE sending so the screenshot reflects the broken state.
+        let pendingSnapshot: BeaconSnapshot | null = null;
+        if (looksLikeBug(q)) {
+          try {
+            pendingSnapshot = await captureSnapshot();
+          } catch (e) {
+            console.warn("[beacon] snapshot failed", e);
+          }
+        }
+
         // Use current messages state for conversation history
         const currentMessages = await new Promise<ChatMessage[]>(resolve => {
           setMessages(prev => { resolve(prev); return prev; });
@@ -594,6 +606,21 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
             timestamp: new Date().toISOString(),
           },
         ]);
+
+        // Fire-and-forget: attach auto-captured evidence if Beacon auto-logged a bug.
+        if (res.bug_auto_logged && res.bug_id && pendingSnapshot) {
+          supabase.functions.invoke("attach-bug-evidence", {
+            body: {
+              bug_id: res.bug_id,
+              screenshot_b64: pendingSnapshot.screenshot_b64,
+              html_gz_b64: pendingSnapshot.html_gz_b64,
+              network: pendingSnapshot.network,
+              ua: pendingSnapshot.ua,
+              viewport: pendingSnapshot.viewport,
+              url: pendingSnapshot.url,
+            },
+          }).catch((e) => console.warn("[beacon] attach-bug-evidence failed", e));
+        }
 
         // Save bot response to widget_messages with session_id
         const emailForSave = user?.email;
