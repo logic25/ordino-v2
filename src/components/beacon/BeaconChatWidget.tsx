@@ -392,9 +392,6 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
     }
   };
 
-  const skipCorrection = (idx: number) => {
-    setFeedback((s) => ({ ...s, [idx]: "done" }));
-  };
 
   const location = useLocation();
   const navigate = useNavigate();
