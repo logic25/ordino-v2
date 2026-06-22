@@ -10,6 +10,7 @@ import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { askBeacon, checkBeaconHealth, type BeaconSource, type BeaconProjectContext } from "@/services/beaconApi";
+import { captureSnapshot, looksLikeBug, type BeaconSnapshot } from "@/lib/beaconCapture";
 import { lazy, Suspense } from "react";
 const BeaconDocumentModal = lazy(() => import("../documents/BeaconDocumentModal").then(m => ({ default: m.BeaconDocumentModal })));
 import { supabase } from "@/integrations/supabase/client";
@@ -563,6 +564,17 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
           currentPage,
           recentErrors: recentErrorsRef.current.length > 0 ? recentErrorsRef.current : undefined,
         };
+
+        // Client-side bug pre-check: if the user's message looks like a bug report,
+        // capture evidence BEFORE sending so the screenshot reflects the broken state.
+        let pendingSnapshot: BeaconSnapshot | null = null;
+        if (looksLikeBug(q)) {
+          try {
+            pendingSnapshot = await captureSnapshot();
+          } catch (e) {
+            console.warn("[beacon] snapshot failed", e);
+          }
+        }
 
         // Use current messages state for conversation history
         const currentMessages = await new Promise<ChatMessage[]>(resolve => {
