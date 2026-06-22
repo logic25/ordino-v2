@@ -31,7 +31,8 @@ export function RichTextEditor({
         blockquote: false,
         horizontalRule: false,
       }),
-      TextStyleKit,
+      TextStyle,
+      Color,
       Link.configure({
         openOnClick: false,
         HTMLAttributes: { class: "text-primary underline" },
