@@ -1,48 +1,56 @@
-## Plan: Capture pg_policies rule + close remaining security pass (#2 and #3)
+## Scope (revised)
 
-You're right — let's finish the security pass instead of stopping at #1. Here's the full scope.
+Three connected bugs, all to fix in this batch:
 
-### Part A — Memory rule (option 2: memory + repo note)
+### A. Bug‑alert email "From" should match the reporter
 
-1. **Save `mem://preferences/security-migrations`** with the rule:
-   - Every RLS migration must end with a `pg_policies` verification query against the affected table.
-   - Always `DROP POLICY` by the actual `pg_policies.policyname` — never a guessed label.
-   - Reason: `DROP POLICY IF EXISTS` on a wrong name fails silently; permissive policies OR together, so a stale self-write policy survives a "fix" migration.
-2. **Add one line to `mem://index.md` Core section** so it applies to every future action.
-3. **Add `docs/security-migrations.md`** — short checklist (≤30 lines) mirroring the memory rule, with the exact `pg_policies` query to copy-paste.
+**Today:** `send-bug-alert` picks `gmail_connections` row by caller, otherwise falls back to `connections[0]` — usually Don. Recipient sees "From: don@…" even though body says "Reporter: Sheri".
 
-### Part B — Issue #2: Beacon cross-tenant leak
+**Fix:**
+- Resolve sender connection in this order:
+  1. `gmail_connections` row whose `user_id` (profile id) = reporter's profile id, or whose `email_address` matches the reporter's auth email.
+  2. `gmail_connections` row whose `email_address` = `info@greenlightexpediting.com` (or, generalised, the company's configured `companies.email` / `settings.company_email`).
+  3. Hard fallback: `connections[0]` (current behaviour) — only if neither of the above exists.
+- Also pass a display name to `gmail-send` so the From header reads `"Sheri Quinones (Bug Report)" <…>` even when the connection account differs. (Requires adding an optional `from_name` field to `gmail-send`; other callers unaffected.)
 
-Investigate first, then fix. I need to read these before writing the migration:
-- `src/services/beaconApi.ts` and `supabase/functions/beacon-*` — confirm which edge function(s) accept a `company_id` from the client vs deriving it from the JWT.
-- The RLS policies on whatever tables Beacon reads (likely `documents`, `projects`, `properties`, embeddings tables).
+### B. Email signature inheritance
 
-Likely fix shape (subject to what I find):
-- Derive `company_id` server-side from `auth.uid()` → `profiles.company_id` inside the edge function, ignore any client-supplied value.
-- Add an RLS policy or function-level guard that rejects queries where the derived `company_id` doesn't match the row.
-- Verify with `pg_policies` per the new rule.
+**Today:** Composed and bug‑alert emails contain no signature. There's no per‑user signature field anywhere in the app — users assumed the Gmail signature would carry over, but Gmail's `users.settings.sendAs` signature is only auto‑appended by the Gmail web client, not by API sends.
 
-### Part C — Issue #3: `user_roles` cleanup (functions still reading `profiles.role`)
+**Fix:**
+- On Gmail connect (and once per day on send), call `GET https://gmail.googleapis.com/gmail/v1/users/me/settings/sendAs`, pull the matching `sendAs` entry's `signature` HTML, and cache it on `gmail_connections.signature_html` (new nullable text column).
+- In `gmail-send`, when the request does not already contain a signature marker (`<!-- signature -->`), append `<br><br>--<br>{signature_html}` before building the MIME body.
+- In `ComposeEmailDialog`, pre‑fill the editor with the cached signature on open (skip when replying/forwarding so it isn't duplicated).
+- Add a small "Email signature" panel in Settings → Profile that shows the synced Gmail signature read‑only with a "Resync from Gmail" button. (Editing is out of scope — keep Gmail as the source of truth so it stays consistent across surfaces.)
 
-Investigate first:
-- `grep` for functions referencing `profiles.role` (e.g. `is_manager`, `is_pm`, `is_production`).
-- Compare `app_role` enum values (`admin`, `production`, `accounting`) against the role strings those functions check (`manager`, `pm`, `production`).
-- Inspect `sync_profile_role_to_user_roles` trigger to see which roles it actually mirrors.
+### C. Beacon bug‑report subject leaks the system prompt
 
-Then either:
-- **If the enum covers every checked role:** migrate the functions to read from `user_roles` via `has_role()`, drop the `profiles.role` reads, keep the trigger as a safety net for one release, then drop it.
-- **If there's a gap (e.g. `manager`/`pm` aren't in `app_role`):** extend the enum first in a separate migration, backfill `user_roles` from `profiles.role`, verify counts match, then migrate the functions. No behavior change.
+**Today:** Subjects like `[INSTRUCTIONS: Respond conversationally like a knowledgeable colleague. Lead wit…]` and `[Email] [Page: Email] emails only show…` end up in the email subject/body because Beacon is shoving its own system prompt into the title.
 
-This is cleanup, not a live hole, so I'll show you the function-by-function diff before applying.
+**Fix (just the title sanitisation — Beacon prompt cleanup is a separate ticket):** In the bug‑report capture path (`src/components/helpdesk/BugReports.tsx` / the function that writes the row), strip any leading bracketed `[INSTRUCTIONS: …]` / `[Context: …]` blocks and the `[Page: X]` page tag from `title` before save, and store the page name in the existing `page` column. Apply the same strip to legacy rows on read in `send-bug-alert` as a belt‑and‑braces guard so existing un‑fixed bugs also email cleanly.
 
-### Order of operations
+## Out of scope (filed as separate tickets)
 
-1. Land Part A (memory + repo note) — no DB changes, safe to ship immediately.
-2. Investigate Part B, show you the edge-function + migration diff, ship after approval.
-3. Investigate Part C, show you the enum/backfill/function diff, ship after approval.
+- **Email list "no name, no signature" rendering bug** (Natalia's screenshot of the Emails page): different bug — the Emails list view isn't resolving contact display names or rendering inbound signatures. Needs its own investigation in `EmailList.tsx` / `EmailDetailSheet.tsx`.
+- **Beacon assistant leaking its full system prompt into bug‑report titles**: root cause is in the Beacon "Report a bug" prompt construction, not in Ordino. We sanitise the title on intake (C above) but the underlying Beacon prompt should also stop dumping instructions.
+- **General per‑user editable signatures** (rich‑text editor, multiple signatures, per‑project signatures): defer — current request is just "inherit from Gmail", which B covers.
 
-Each DB migration ends with the `pg_policies` (or equivalent `pg_proc` for function changes) verification query, per the new rule.
+## Technical changes
 
-### Why I paused instead of just doing all three earlier
+| File | Change |
+|---|---|
+| `supabase/migrations/<new>.sql` | Add `gmail_connections.signature_html text`, `gmail_connections.signature_synced_at timestamptz`. |
+| `supabase/functions/gmail-send/index.ts` | Accept optional `from_name`; build `From: "name" <addr>` (RFC‑2047 encode non‑ASCII). Append `signature_html` to body when not already present. |
+| `supabase/functions/send-bug-alert/index.ts` | Reporter→sender resolution chain; pass `from_name`; sanitise legacy titles. |
+| `supabase/functions/gmail-sync/index.ts` (or a new `gmail-sync-signature`) | Fetch `sendAs` signature and persist on connection. Trigger on connect + on send when stale (>24h). |
+| `src/components/emails/ComposeEmailDialog.tsx` | Pre‑fill editor with cached signature on new compose. |
+| `src/components/helpdesk/BugReports.tsx` (or the bug‑creation hook/function) | Strip `[INSTRUCTIONS …]` / `[Context …]` / `[Page: X]` from title at write time; persist page separately. |
+| `src/pages/Settings.tsx` (Profile section) | Read‑only signature preview + "Resync from Gmail" button calling the sync function. |
 
-Your last message framed #2 and #3 as "latent / cleanup" and asked whether to capture the lesson — I read that as "stop the sprint, just write the note." Re-reading now: you want the note **and** the remaining fixes. Plan above covers both.
+## Verification
+
+1. File a bug as Sheri (no Gmail connection) → email arrives From `info@greenlightexpediting.com` with display name `Sheri Quinones (Bug Report)`.
+2. File a bug as Don (Gmail connected) → email arrives From `don@greenlightexpediting.com` with display name `Don … (Bug Report)`.
+3. Compose a new email in the app → editor shows the current Gmail signature; recipient sees it once (not twice).
+4. Send a reply → signature is not duplicated.
+5. Existing bug rows with `[INSTRUCTIONS …]` titles → next email notification has the cleaned title.
