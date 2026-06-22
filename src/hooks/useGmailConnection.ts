@@ -99,6 +99,7 @@ export function useSendEmail() {
       attachments,
       project_id,
       tag_category,
+      append_signature,
     }: {
       to: string;
       cc?: string;
@@ -110,9 +111,10 @@ export function useSendEmail() {
       attachments?: Array<{ filename: string; content: string; mime_type: string }>;
       project_id?: string;
       tag_category?: string;
+      append_signature?: boolean;
     }) => {
       const { data, error } = await supabase.functions.invoke("gmail-send", {
-        body: { to, cc, bcc, subject, html_body, reply_to_email_id, forward_from_email_id, attachments, project_id, tag_category },
+        body: { to, cc, bcc, subject, html_body, reply_to_email_id, forward_from_email_id, attachments, project_id, tag_category, append_signature },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);

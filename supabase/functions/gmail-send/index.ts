@@ -567,7 +567,8 @@ Deno.serve(async (req) => {
     // already contains a signature marker, or this is a reply/forward where
     // the existing thread already includes one.
     const wantsSignature = append_signature !== false && !reply_to_email_id && !forward_from_email_id;
-    if (wantsSignature && !/<!--\s*signature\s*-->/i.test(finalHtmlBody)) {
+    const hasSignatureMarker = /<!--\s*signature\s*-->/i.test(finalHtmlBody) || /data-signature=/i.test(finalHtmlBody);
+    if (wantsSignature && !hasSignatureMarker) {
       let sig: string | null = (connection as any).signature_html || null;
       const lastSync = (connection as any).signature_synced_at
         ? new Date((connection as any).signature_synced_at).getTime()
