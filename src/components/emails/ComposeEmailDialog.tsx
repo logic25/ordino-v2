@@ -96,8 +96,26 @@ export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defau
     (async () => {
       try {
         const { data } = await supabase.rpc("get_my_gmail_signature");
-        const sig = (typeof data === "string" ? data : "")?.trim();
-        if (cancelled || !sig) return;
+        const raw = (typeof data === "string" ? data : "")?.trim();
+        if (cancelled || !raw) return;
+        // Convert legacy Gmail <font color size face> tags to <span style="...">
+        // so TipTap's TextStyle/Color marks preserve them.
+        const sig = raw.replace(
+          /<font([^>]*)>/gi,
+          (_m, attrs: string) => {
+            const styles: string[] = [];
+            const color = /\bcolor=["']?([^"'\s>]+)/i.exec(attrs)?.[1];
+            const face = /\bface=["']?([^"'>]+?)["']?(?=\s|>|$)/i.exec(attrs)?.[1];
+            const size = /\bsize=["']?(\d+)/i.exec(attrs)?.[1];
+            if (color) styles.push(`color:${color}`);
+            if (face) styles.push(`font-family:${face}`);
+            if (size) {
+              const px = { "1": 10, "2": 13, "3": 16, "4": 18, "5": 24, "6": 32, "7": 48 }[size];
+              if (px) styles.push(`font-size:${px}px`);
+            }
+            return `<span style="${styles.join(";")}">`;
+          }
+        ).replace(/<\/font>/gi, "</span>");
         setBody((prev) => {
           if (prev && prev.trim() !== "" && prev.trim() !== "<p></p>") return prev;
           return `<p></p><p></p><!-- signature --><div>${sig}</div>`;
