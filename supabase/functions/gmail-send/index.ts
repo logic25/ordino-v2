@@ -462,7 +462,7 @@ Deno.serve(async (req) => {
 
     const reqBody = isServiceRole ? (req as any)._parsedBody : await req.json();
     console.log("gmail-send: body keys", Object.keys(reqBody || {}), "attachments_in_body:", Array.isArray(reqBody?.attachments) ? reqBody.attachments.length : typeof reqBody?.attachments);
-    const { to, cc, bcc, subject, html_body, reply_to_email_id, forward_from_email_id, attachments, project_id, proposal_id, change_order_id, invoice_id, tag_category } = reqBody;
+    const { to, cc, bcc, subject, html_body, reply_to_email_id, forward_from_email_id, attachments, project_id, proposal_id, change_order_id, invoice_id, tag_category, from_name, append_signature } = reqBody;
 
     if (!to || !subject || !html_body) {
       console.error("Missing required fields", { to: !!to, subject: !!subject, html_body: !!html_body });
