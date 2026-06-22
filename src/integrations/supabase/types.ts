@@ -5286,6 +5286,8 @@ export type Database = {
           id: string
           last_sync_at: string | null
           refresh_token: string | null
+          signature_html: string | null
+          signature_synced_at: string | null
           sync_enabled: boolean
           token_expires_at: string | null
           updated_at: string
@@ -5300,6 +5302,8 @@ export type Database = {
           id?: string
           last_sync_at?: string | null
           refresh_token?: string | null
+          signature_html?: string | null
+          signature_synced_at?: string | null
           sync_enabled?: boolean
           token_expires_at?: string | null
           updated_at?: string
@@ -5314,6 +5318,8 @@ export type Database = {
           id?: string
           last_sync_at?: string | null
           refresh_token?: string | null
+          signature_html?: string | null
+          signature_synced_at?: string | null
           sync_enabled?: boolean
           token_expires_at?: string | null
           updated_at?: string
