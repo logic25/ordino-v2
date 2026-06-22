@@ -49,6 +49,7 @@ export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defau
   const [bcc, setBcc] = useState<string[]>([]);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  const [signatureInjected, setSignatureInjected] = useState(false);
   const [showCcBcc, setShowCcBcc] = useState(false);
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
