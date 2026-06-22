@@ -249,6 +249,16 @@ async function fetchOriginalMessageContent({
   };
 }
 
+function buildFromHeader(emailAddress: string, displayName?: string | null): string {
+  if (!displayName) return emailAddress;
+  // Escape quotes/backslashes and RFC 2047-encode non-ASCII display names.
+  const safe = displayName.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const encoded = /[^\x20-\x7E]/.test(safe)
+    ? `=?UTF-8?B?${btoa(unescape(encodeURIComponent(safe)))}?=`
+    : `"${safe}"`;
+  return `${encoded} <${emailAddress}>`;
+}
+
 function createMimeMessage({
   to,
   cc,
@@ -404,7 +414,7 @@ Deno.serve(async (req) => {
 
     if (isServiceRole) {
       const reqBody = await req.json();
-      const { to, cc, bcc, subject, html_body, reply_to_email_id, forward_from_email_id, attachments, user_id: bodyUserId } = reqBody;
+      const { to, cc, bcc, subject, html_body, reply_to_email_id, forward_from_email_id, attachments, user_id: bodyUserId, from_name, append_signature } = reqBody;
 
       if (!bodyUserId) {
         return new Response(JSON.stringify({ error: "user_id required for service-role calls" }), {
@@ -414,7 +424,7 @@ Deno.serve(async (req) => {
       }
 
       profileId = bodyUserId;
-      (req as any)._parsedBody = { to, cc, bcc, subject, html_body, reply_to_email_id, forward_from_email_id, attachments };
+      (req as any)._parsedBody = { to, cc, bcc, subject, html_body, reply_to_email_id, forward_from_email_id, attachments, from_name, append_signature };
     } else {
       const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
       const supabaseUser = createClient(supabaseUrl, anonKey, {
@@ -452,7 +462,7 @@ Deno.serve(async (req) => {
 
     const reqBody = isServiceRole ? (req as any)._parsedBody : await req.json();
     console.log("gmail-send: body keys", Object.keys(reqBody || {}), "attachments_in_body:", Array.isArray(reqBody?.attachments) ? reqBody.attachments.length : typeof reqBody?.attachments);
-    const { to, cc, bcc, subject, html_body, reply_to_email_id, forward_from_email_id, attachments, project_id, proposal_id, change_order_id, invoice_id, tag_category } = reqBody;
+    const { to, cc, bcc, subject, html_body, reply_to_email_id, forward_from_email_id, attachments, project_id, proposal_id, change_order_id, invoice_id, tag_category, from_name, append_signature } = reqBody;
 
     if (!to || !subject || !html_body) {
       console.error("Missing required fields", { to: !!to, subject: !!subject, html_body: !!html_body });
@@ -550,6 +560,48 @@ Deno.serve(async (req) => {
       }
     }
 
+
+
+
+    // Auto-append the Gmail signature unless caller opted out, the body
+    // already contains a signature marker, or this is a reply/forward where
+    // the existing thread already includes one.
+    const wantsSignature = append_signature !== false && !reply_to_email_id && !forward_from_email_id;
+    if (wantsSignature && !/<!--\s*signature\s*-->/i.test(finalHtmlBody)) {
+      let sig: string | null = (connection as any).signature_html || null;
+      const lastSync = (connection as any).signature_synced_at
+        ? new Date((connection as any).signature_synced_at).getTime()
+        : 0;
+      const stale = Date.now() - lastSync > 24 * 60 * 60 * 1000;
+      if (!sig || stale) {
+        try {
+          const res = await fetch(
+            "https://gmail.googleapis.com/gmail/v1/users/me/settings/sendAs",
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const sendAs = Array.isArray(data?.sendAs) ? data.sendAs : [];
+            const match =
+              sendAs.find((s: any) => s.isPrimary && s.sendAsEmail?.toLowerCase() === connection.email_address.toLowerCase()) ||
+              sendAs.find((s: any) => s.isDefault) ||
+              sendAs.find((s: any) => s.sendAsEmail?.toLowerCase() === connection.email_address.toLowerCase()) ||
+              sendAs[0];
+            sig = match?.signature || sig || "";
+            await supabaseAdmin
+              .from("gmail_connections")
+              .update({ signature_html: sig || null, signature_synced_at: new Date().toISOString() })
+              .eq("id", connection.id);
+          }
+        } catch (e) {
+          console.warn("gmail-send: sendAs signature fetch failed", e);
+        }
+      }
+      if (sig && sig.trim().length > 0) {
+        finalHtmlBody = `${finalHtmlBody}<br><!-- signature --><div>${sig}</div>`;
+      }
+    }
+
     if (attachments && attachments.length > 0) {
       console.log(`gmail-send: ${attachments.length} attachment(s) included:`,
         attachments.map((a: any) => ({ filename: a.filename, mime_type: a.mime_type, size_bytes: Math.round((a.content?.length || 0) * 3 / 4) }))
@@ -572,7 +624,7 @@ Deno.serve(async (req) => {
       to,
       cc: cc || undefined,
       bcc: bcc || undefined,
-      from: connection.email_address,
+      from: buildFromHeader(connection.email_address, from_name),
       subject,
       body: finalHtmlBody,
       in_reply_to,

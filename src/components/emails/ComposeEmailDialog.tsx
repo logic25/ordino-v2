@@ -20,6 +20,7 @@ import { RichTextEditor } from "./RichTextEditor";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useTelemetry } from "@/hooks/useTelemetry";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AttachmentFile {
   file: File;
@@ -84,6 +85,29 @@ export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defau
       if (defaultAttachments && defaultAttachments.length > 0) setAttachments(defaultAttachments);
     }
   }, [open, draft, defaultTo, defaultSubject, defaultBody, defaultAttachments]);
+
+  // Pre-fill the user's Gmail signature for fresh compositions. Skip when
+  // editing a draft, replying, or when the caller already supplied a body —
+  // those paths either include the signature in the prior content or expect
+  // an exact template.
+  useEffect(() => {
+    if (!open || draft || defaultBody) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase.rpc("get_my_gmail_signature");
+        const sig = (typeof data === "string" ? data : "")?.trim();
+        if (cancelled || !sig) return;
+        setBody((prev) => {
+          if (prev && prev.trim() !== "" && prev.trim() !== "<p></p>") return prev;
+          return `<p></p><p></p><!-- signature --><div>${sig}</div>`;
+        });
+      } catch {
+        // Signature is best-effort — never block compose.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, draft, defaultBody]);
 
   // Auto-save draft every 5 seconds when content changes
   useEffect(() => {

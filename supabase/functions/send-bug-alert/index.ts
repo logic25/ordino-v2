@@ -220,7 +220,22 @@ Deno.serve(async (req) => {
       : { data: null as { id: string } | null };
 
     const body = await req.json();
-    const { action, bug_id, bug_title, bug_description, bug_priority, company_id, reporter_name } = body;
+    const { action, bug_id, bug_description, bug_priority, company_id, reporter_name, reporter_user_id } = body;
+    let { bug_title } = body;
+
+    // Strip Beacon system-prompt leakage and the noisy "[Page: X]" tag
+    // from the title.  These slip in from the Beacon bug-report flow and
+    // make the email subject unreadable.
+    const sanitizeTitle = (raw: string | undefined | null): string => {
+      if (!raw) return "";
+      let t = String(raw);
+      // Remove leading "[INSTRUCTIONS: ...]" / "[Context: ...]" blocks (may be unbalanced).
+      t = t.replace(/\[\s*(INSTRUCTIONS|Context|SYSTEM INSTRUCTION)[^\]]*\]?\s*/gi, "");
+      // Collapse the "[Page: X]" tag — the email template already shows the page.
+      t = t.replace(/\[\s*Page:[^\]]*\]\s*/gi, "");
+      return t.replace(/\s{2,}/g, " ").trim();
+    };
+    bug_title = sanitizeTitle(bug_title);
     const bugTag = bug_id ? ` [BUG-${bug_id.substring(0, 8)}]` : "";
 
     if (!company_id || !bug_title) {
@@ -256,7 +271,31 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const sender = (callerProfile && connections.find(c => c.user_id === callerProfile.id)) || connections[0];
+
+    // Pick the From-account in priority order:
+    //   1. The reporter's own Gmail connection (matches by profile id, then by auth email).
+    //   2. The company info inbox (companies.email — falls back to info@<domain>).
+    //   3. The caller's connection.
+    //   4. First available.
+    let sender = reporter_user_id
+      ? connections.find(c => c.user_id === reporter_user_id) || null
+      : null;
+    if (!sender && reporter_user_id) {
+      const { data: rp } = await supabase.from("profiles").select("user_id").eq("id", reporter_user_id).single();
+      if (rp?.user_id) {
+        const { data: { user: ru } } = await supabase.auth.admin.getUserById(rp.user_id);
+        if (ru?.email) {
+          sender = connections.find(c => c.email_address?.toLowerCase() === ru.email!.toLowerCase()) || null;
+        }
+      }
+    }
+    if (!sender && companyEmail) {
+      sender = connections.find(c => c.email_address?.toLowerCase() === String(companyEmail).toLowerCase()) || null;
+    }
+    if (!sender && callerProfile) {
+      sender = connections.find(c => c.user_id === callerProfile.id) || null;
+    }
+    if (!sender) sender = connections[0];
 
     // ── Helper ──
     const getEmailByProfileId = async (profileId: string): Promise<string | null> => {
@@ -281,6 +320,12 @@ Deno.serve(async (req) => {
       return emails;
     };
 
+    // Display name on the From header — keeps the apparent sender = reporter
+    // even when the underlying Gmail account is a shared inbox.
+    const fromDisplayName = reporter_name
+      ? `${reporter_name} (Bug Report)`
+      : `${companyName} (Bug Report)`;
+
     const sendEmails = async (recipients: string[], subject: string, html: string) => {
       let sentCount = 0;
       for (const email of recipients) {
@@ -288,7 +333,14 @@ Deno.serve(async (req) => {
           const res = await fetch(`${supabaseUrl}/functions/v1/gmail-send`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
-            body: JSON.stringify({ user_id: sender.user_id, to: email, subject, html_body: html }),
+            body: JSON.stringify({
+              user_id: sender.user_id,
+              to: email,
+              subject,
+              html_body: html,
+              from_name: fromDisplayName,
+              append_signature: false,
+            }),
           });
           if (res.ok) sentCount++;
         } catch (e) {
@@ -297,6 +349,7 @@ Deno.serve(async (req) => {
       }
       return sentCount;
     };
+
 
     const buildBody = (greetingText: string, bodyText: string, contentHtml: string, ctaText: string, signoffText: string) => {
       const greetingHtml = `<p style="margin:0 0 16px;font-size:${style.bodyFontSize};color:${style.headingColor};line-height:1.6;">${greetingText}</p>`;

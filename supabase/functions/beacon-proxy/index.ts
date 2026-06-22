@@ -483,16 +483,19 @@ Deno.serve(async (req) => {
             if (profile) {
               const originalMsg = lastMessage
                 .replace(/\[User is on the "[^"]*" page in Ordino\]\n?/g, "")
-                .replace(/\[SYSTEM INSTRUCTION:.*?\]/gs, "")
+                .replace(/\[\s*(INSTRUCTIONS|Context|SYSTEM INSTRUCTION)[^\]]*\]?/gis, "")
+                .replace(/\[\s*Page:[^\]]*\]\s*/gi, "")
+                .replace(/\s{2,}/g, " ")
                 .trim();
               const pageName = currentPage || "Unknown";
+              const bugTitle = `[${pageName}] ${originalMsg.slice(0, 80)}`;
 
               const { data: inserted, error: insertErr } = await sb
                 .from("feature_requests")
                 .insert({
                   company_id: profile.company_id,
                   user_id: profile.id,
-                  title: `[${pageName}] ${originalMsg.slice(0, 80)}`,
+                  title: bugTitle,
                   description: `**Reported via Beacon on ${pageName} page:**\n${originalMsg}\n\n**Beacon response:**\n${(responseJson.response || "").slice(0, 500)}`,
                   category: "bug_report",
                   priority: "medium",
@@ -535,11 +538,12 @@ Deno.serve(async (req) => {
                     },
                     body: JSON.stringify({
                       bug_id: inserted.id,
-                      bug_title: `[${pageName}] ${originalMsg.slice(0, 80)}`,
+                      bug_title: bugTitle,
                       bug_description: `**Reported via Beacon on ${pageName} page:**\n${originalMsg}\n\n**Beacon response:**\n${(responseJson.response || "").slice(0, 500)}`,
                       bug_priority: "medium",
                       company_id: profile.company_id,
                       reporter_name: reporterName,
+                      reporter_user_id: profile.id,
                     }),
                   }).catch(e => console.error("Bug alert trigger failed:", e));
                 } catch (e) {
