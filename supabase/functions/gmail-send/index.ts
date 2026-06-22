@@ -414,7 +414,7 @@ Deno.serve(async (req) => {
 
     if (isServiceRole) {
       const reqBody = await req.json();
-      const { to, cc, bcc, subject, html_body, reply_to_email_id, forward_from_email_id, attachments, user_id: bodyUserId } = reqBody;
+      const { to, cc, bcc, subject, html_body, reply_to_email_id, forward_from_email_id, attachments, user_id: bodyUserId, from_name, append_signature } = reqBody;
 
       if (!bodyUserId) {
         return new Response(JSON.stringify({ error: "user_id required for service-role calls" }), {
@@ -424,7 +424,7 @@ Deno.serve(async (req) => {
       }
 
       profileId = bodyUserId;
-      (req as any)._parsedBody = { to, cc, bcc, subject, html_body, reply_to_email_id, forward_from_email_id, attachments };
+      (req as any)._parsedBody = { to, cc, bcc, subject, html_body, reply_to_email_id, forward_from_email_id, attachments, from_name, append_signature };
     } else {
       const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
       const supabaseUser = createClient(supabaseUrl, anonKey, {
