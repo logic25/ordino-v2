@@ -246,6 +246,7 @@ export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defau
         attachments: buildAttachmentsPayload(),
         project_id: projectId,
         tag_category: "other",
+        append_signature: !signatureInjected,
       },
       async () => {
         await cleanupDraftOnSend();
