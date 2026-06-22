@@ -490,13 +490,29 @@ Deno.serve(async (req) => {
               const pageName = currentPage || "Unknown";
               const bugTitle = `[${pageName}] ${originalMsg.slice(0, 80)}`;
 
+              // Build a readable description: user's actual message first,
+              // then page + project context (from structured fields, not the
+              // raw `[Context: ...]` blob), then Beacon's response.
+              const projectBits: string[] = [];
+              if (projectCtx?.projectAddress) projectBits.push(projectCtx.projectAddress);
+              if (projectCtx?.projectNumber) projectBits.push(`#${projectCtx.projectNumber}`);
+              if (projectCtx?.projectName) projectBits.push(projectCtx.projectName);
+              if (projectCtx?.clientName) projectBits.push(`Client: ${projectCtx.clientName}`);
+              const projectLine = projectBits.length ? `**Project:** ${projectBits.join(" — ")}\n` : "";
+              const beaconReply = (responseJson.response || "").slice(0, 500);
+              const description =
+                `**What the user said:**\n${originalMsg || "(empty)"}\n\n` +
+                `**Where:** ${pageName} page\n` +
+                projectLine +
+                `\n**Beacon's response:**\n${beaconReply}`;
+
               const { data: inserted, error: insertErr } = await sb
                 .from("feature_requests")
                 .insert({
                   company_id: profile.company_id,
                   user_id: profile.id,
                   title: bugTitle,
-                  description: `**Reported via Beacon on ${pageName} page:**\n${originalMsg}\n\n**Beacon response:**\n${(responseJson.response || "").slice(0, 500)}`,
+                  description,
                   category: "bug_report",
                   priority: "medium",
                   status: "open",
@@ -504,6 +520,7 @@ Deno.serve(async (req) => {
                 } as any)
                 .select("id")
                 .single();
+
 
               if (!insertErr && inserted) {
                 responseJson.bug_auto_logged = true;
