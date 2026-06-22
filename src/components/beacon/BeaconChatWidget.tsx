@@ -607,6 +607,21 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
           },
         ]);
 
+        // Fire-and-forget: attach auto-captured evidence if Beacon auto-logged a bug.
+        if (res.bug_auto_logged && res.bug_id && pendingSnapshot) {
+          supabase.functions.invoke("attach-bug-evidence", {
+            body: {
+              bug_id: res.bug_id,
+              screenshot_b64: pendingSnapshot.screenshot_b64,
+              html_gz_b64: pendingSnapshot.html_gz_b64,
+              network: pendingSnapshot.network,
+              ua: pendingSnapshot.ua,
+              viewport: pendingSnapshot.viewport,
+              url: pendingSnapshot.url,
+            },
+          }).catch((e) => console.warn("[beacon] attach-bug-evidence failed", e));
+        }
+
         // Save bot response to widget_messages with session_id
         const emailForSave = user?.email;
         if (emailForSave && res.response) {
