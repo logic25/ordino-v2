@@ -30,11 +30,13 @@ export function RichTextEditor({
         blockquote: false,
         horizontalRule: false,
       }),
+      TextStyleKit,
       Link.configure({
         openOnClick: false,
         HTMLAttributes: { class: "text-primary underline" },
       }),
       Underline,
+      Image.configure({ inline: true, allowBase64: true }),
     ],
     content,
     editorProps: {
