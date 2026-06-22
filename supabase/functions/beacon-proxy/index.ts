@@ -507,6 +507,7 @@ Deno.serve(async (req) => {
 
               if (!insertErr && inserted) {
                 responseJson.bug_auto_logged = true;
+                responseJson.bug_id = inserted.id;
                 console.log("Auto-logged bug for page:", pageName, "id:", inserted.id);
 
                 // Fire-and-forget triage

@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import * as Sentry from "@sentry/react";
 import App from "./App.tsx";
 import "./index.css";
+import "./lib/beaconCapture"; // installs network failure recorder
 
 Sentry.init({
   enabled: import.meta.env.PROD,
