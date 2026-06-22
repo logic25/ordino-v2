@@ -791,6 +791,7 @@ async function createBugFromConversation(ctx: Ctx, params: any) {
         bug_priority: "medium",
         company_id,
         reporter_name: reporterName,
+        reporter_user_id: reporter_id,
       }),
     }).catch(e => console.error("Bug alert trigger failed:", e));
   } catch (e) {
