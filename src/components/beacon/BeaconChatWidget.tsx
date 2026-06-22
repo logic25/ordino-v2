@@ -1092,6 +1092,51 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
                               <Bug className="h-3 w-3" /> Bug logged ✓
                             </span>
                           )}
+                          {!msg.isHistory && !msg.isBugReport && (
+                            <div className="mt-1">
+                              {feedback[i] === "done" ? (
+                                <span className="text-[10px] text-muted-foreground">Thanks — logged</span>
+                              ) : feedback[i] === "down" ? (
+                                <div className="flex items-center gap-1.5">
+                                  <Input
+                                    autoFocus
+                                    value={correctionDraft[i] ?? ""}
+                                    onChange={(e) => setCorrectionDraft((s) => ({ ...s, [i]: e.target.value }))}
+                                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submitCorrection(i); } }}
+                                    placeholder="What's the right answer? (optional)"
+                                    className="h-7 text-[11px] flex-1"
+                                    disabled={!!correctionSubmitting[i]}
+                                  />
+                                  <button
+                                    onClick={() => submitCorrection(i)}
+                                    disabled={!!correctionSubmitting[i]}
+                                    className="text-[10px] text-primary hover:underline disabled:opacity-50"
+                                  >
+                                    {(correctionDraft[i] ?? "").trim() ? "Send" : "Skip"}
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => submitFeedback(i, "up")}
+                                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                    title="Helpful"
+                                    aria-label="Mark answer helpful"
+                                  >
+                                    <ThumbsUp className="h-3 w-3" />
+                                  </button>
+                                  <button
+                                    onClick={() => submitFeedback(i, "down")}
+                                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                    title="Not helpful"
+                                    aria-label="Mark answer not helpful"
+                                  >
+                                    <ThumbsDown className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <p className="text-sm">{msg.text}</p>
