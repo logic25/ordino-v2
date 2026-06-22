@@ -303,12 +303,20 @@ export function BugReports() {
       if (transcript.trim()) {
         description += `\n\n**Transcript / Context:**\n${transcript.trim()}`;
       }
-      
+
+      // Keep titles short and free of system-prompt leakage from the Beacon flow.
+      const cleanAction = action
+        .replace(/\[\s*(INSTRUCTIONS|Context|SYSTEM INSTRUCTION)[^\]]*\]?\s*/gi, "")
+        .replace(/\[\s*Page:[^\]]*\]\s*/gi, "")
+        .replace(/\s{2,}/g, " ")
+        .trim();
+      const title = `[${page}] ${cleanAction.slice(0, 80)}`;
+
       // Insert bug first to get ID
       const { data: inserted, error } = await supabase.from("feature_requests").insert({
         company_id: profile.company_id,
         user_id: profile.id,
-        title: `[${page}] ${action.slice(0, 80)}`,
+        title,
         description,
         category: reportCategory,
         priority,
@@ -328,11 +336,12 @@ export function BugReports() {
         supabase.functions.invoke("send-bug-alert", {
           body: {
             bug_id: inserted.id,
-            bug_title: `[${page}] ${action.slice(0, 80)}`,
+            bug_title: title,
             bug_description: description,
             bug_priority: priority,
             company_id: profile.company_id,
             reporter_name: profile.display_name || `${profile.first_name} ${profile.last_name}`,
+            reporter_user_id: profile.id,
           },
         }).catch(() => {});
 
