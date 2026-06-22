@@ -293,6 +293,8 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  // User-pasted screenshot (base64 data URL stripped to b64-only) — sent as evidence with the next bug report.
+  const [pastedScreenshot, setPastedScreenshot] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const processingRef = useRef(false);
   const queueRef = useRef<string[]>([]);
@@ -608,19 +610,22 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
         ]);
 
         // Fire-and-forget: attach auto-captured evidence if Beacon auto-logged a bug.
-        if (res.bug_auto_logged && res.bug_id && pendingSnapshot) {
+        if (res.bug_auto_logged && res.bug_id && (pendingSnapshot || pastedScreenshot)) {
           supabase.functions.invoke("attach-bug-evidence", {
             body: {
               bug_id: res.bug_id,
-              screenshot_b64: pendingSnapshot.screenshot_b64,
-              html_gz_b64: pendingSnapshot.html_gz_b64,
-              network: pendingSnapshot.network,
-              ua: pendingSnapshot.ua,
-              viewport: pendingSnapshot.viewport,
-              url: pendingSnapshot.url,
+              // Prefer the user's pasted screenshot if provided — it's the one they meant to share.
+              screenshot_b64: pastedScreenshot || pendingSnapshot?.screenshot_b64,
+              html_gz_b64: pendingSnapshot?.html_gz_b64,
+              network: pendingSnapshot?.network,
+              ua: pendingSnapshot?.ua,
+              viewport: pendingSnapshot?.viewport,
+              url: pendingSnapshot?.url,
             },
           }).catch((e) => console.warn("[beacon] attach-bug-evidence failed", e));
         }
+        // Clear pasted screenshot after send regardless of bug-log outcome.
+        if (pastedScreenshot) setPastedScreenshot(null);
 
         // Save bot response to widget_messages with session_id
         const emailForSave = user?.email;
@@ -1058,11 +1063,54 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
 
           {/* Input */}
           <div className="border-t p-3">
+            {pastedScreenshot && (
+              <div className="mb-2 flex items-center justify-between gap-2 rounded-md border bg-muted/40 px-2 py-1.5 text-xs">
+                <div className="flex items-center gap-2 min-w-0">
+                  <img
+                    src={`data:image/png;base64,${pastedScreenshot}`}
+                    alt="Pasted screenshot preview"
+                    className="h-8 w-8 rounded object-cover border"
+                  />
+                  <span className="truncate text-muted-foreground">
+                    Screenshot attached — will be included if a bug is logged.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPastedScreenshot(null)}
+                  className="text-muted-foreground hover:text-foreground shrink-0"
+                  aria-label="Remove screenshot"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
             <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="flex gap-2">
               <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={loading ? "Type your next message..." : "Ask Beacon..."}
+                onPaste={(e) => {
+                  const items = e.clipboardData?.items;
+                  if (!items) return;
+                  for (let i = 0; i < items.length; i++) {
+                    const it = items[i];
+                    if (it.kind === "file" && it.type.startsWith("image/")) {
+                      const file = it.getAsFile();
+                      if (!file) continue;
+                      e.preventDefault();
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        const result = String(reader.result || "");
+                        // Strip "data:image/...;base64," prefix to match attach-bug-evidence contract.
+                        const b64 = result.includes(",") ? result.split(",")[1] : result;
+                        setPastedScreenshot(b64);
+                      };
+                      reader.readAsDataURL(file);
+                      break;
+                    }
+                  }
+                }}
+                placeholder={loading ? "Type your next message..." : "Ask Beacon... (paste screenshots too)"}
                 className="flex-1 h-9 text-sm"
               />
               <Button
