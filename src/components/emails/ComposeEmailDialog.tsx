@@ -20,6 +20,7 @@ import { RichTextEditor } from "./RichTextEditor";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useTelemetry } from "@/hooks/useTelemetry";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AttachmentFile {
   file: File;
