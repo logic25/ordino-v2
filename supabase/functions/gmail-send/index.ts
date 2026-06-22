@@ -249,6 +249,16 @@ async function fetchOriginalMessageContent({
   };
 }
 
+function buildFromHeader(emailAddress: string, displayName?: string | null): string {
+  if (!displayName) return emailAddress;
+  // Escape quotes/backslashes and RFC 2047-encode non-ASCII display names.
+  const safe = displayName.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const encoded = /[^\x20-\x7E]/.test(safe)
+    ? `=?UTF-8?B?${btoa(unescape(encodeURIComponent(safe)))}?=`
+    : `"${safe}"`;
+  return `${encoded} <${emailAddress}>`;
+}
+
 function createMimeMessage({
   to,
   cc,
