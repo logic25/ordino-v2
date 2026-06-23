@@ -240,9 +240,8 @@ export function BeaconDocumentModal({
     }
   };
 
-  // Re-ingest with updated metadata while keeping the body untouched.
-  // Used by the "Properties" panel for rename (title) / move (category) /
-  // jurisdiction edits without touching document text.
+  // In-place metadata update via Beacon backend (NO re-ingest, NO duplicates).
+  // Used by the "Properties" panel for title / folder / jurisdiction edits.
   const handleSaveProperties = async () => {
     setIsSaving(true);
     try {
@@ -251,16 +250,17 @@ export function BeaconDocumentModal({
       for (const k of Object.keys(nextMetadata)) {
         if (!String(nextMetadata[k] ?? "").trim()) delete nextMetadata[k];
       }
-      const frontmatterLines = Object.entries(nextMetadata)
-        .map(([k, v]) => `${k}: ${v}`)
-        .join("\n");
-      const fullContent =
-        frontmatterLines.length > 0
-          ? `---\n${frontmatterLines}\n---\n\n${body}`
-          : body;
 
+      // Snapshot prior content for the version log (non-fatal).
       try {
-        if (profile?.company_id && originalContent && originalContent !== fullContent) {
+        const frontmatterLines = Object.entries(nextMetadata)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join("\n");
+        const projectedContent =
+          frontmatterLines.length > 0
+            ? `---\n${frontmatterLines}\n---\n\n${body}`
+            : body;
+        if (profile?.company_id && originalContent && originalContent !== projectedContent) {
           const { data: maxV } = await (supabase as any)
             .from("kb_document_versions")
             .select("version")
@@ -281,24 +281,37 @@ export function BeaconDocumentModal({
         console.warn("[KbDocumentVersion] snapshot failed", e);
       }
 
-      const blob = new Blob([fullContent], { type: "text/markdown" });
-      const file = new File([blob], `${sourceFile}.md`, { type: "text/markdown" });
-      const { syncDocumentToBeacon } = await import("@/services/beaconApi");
-      await syncDocumentToBeacon(
-        file,
-        file.name,
-        nextMetadata.category || metadata.category || "filing_guides",
-        nextMetadata.jurisdiction || metadata.jurisdiction || "NYC",
-      );
+      // ✨ In-place backend update — no re-ingest, no duplicate chunks.
+      const { updateBeaconMetadata } = await import("@/services/beaconApi");
+      const updatePayload: Record<string, string> = {};
+      if (propsDraft.title !== undefined && propsDraft.title !== metadata.title) {
+        updatePayload.title = nextMetadata.title || "";
+      }
+      if (propsDraft.jurisdiction !== undefined && propsDraft.jurisdiction !== metadata.jurisdiction) {
+        updatePayload.jurisdiction = nextMetadata.jurisdiction || "";
+      }
+      if (propsDraft.category !== undefined && propsDraft.category !== metadata.category) {
+        updatePayload.folder = nextMetadata.category || "";
+      }
+      if (Object.keys(updatePayload).length > 0) {
+        await updateBeaconMetadata({ source_file: sourceFile, ...updatePayload });
+      }
 
       setMetadata(nextMetadata);
-      setOriginalContent(fullContent);
+      // Rebuild the displayed originalContent so future diffs are accurate.
+      const frontmatterLines = Object.entries(nextMetadata)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join("\n");
+      setOriginalContent(
+        frontmatterLines.length > 0 ? `---\n${frontmatterLines}\n---\n\n${body}` : body
+      );
       setPanel("doc");
+      setPropsDraft({});
       qc.invalidateQueries({ queryKey: ["kb-document-versions", sourceFile] });
       qc.invalidateQueries({ queryKey: ["beacon-knowledge"] });
       toast({
         title: "Properties updated",
-        description: "Re-ingested with new title / folder / jurisdiction.",
+        description: "Saved in place — no duplicate chunks created.",
       });
     } catch (err: any) {
       toast({ title: "Save failed", description: err.message, variant: "destructive" });
