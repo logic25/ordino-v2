@@ -160,17 +160,10 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
     [canAccess]
   );
 
-  const filteredSecondaryNav = useMemo(() => {
-    const items = secondaryNav.filter((item) => canAccess(item.resource));
-    if (isAdmin || isManager) {
-      // Place Beacon Hub adjacent to Help (admin/manager tooling)
-      const helpIdx = items.findIndex((i) => i.href === "/help");
-      const beacon = { title: "Beacon", icon: Brain, href: "/beacon", resource: "dashboard" as ResourceKey };
-      if (helpIdx >= 0) items.splice(helpIdx, 0, beacon);
-      else items.push(beacon);
-    }
-    return items;
-  }, [canAccess, isAdmin, isManager]);
+  const filteredSecondaryNav = useMemo(
+    () => secondaryNav.filter((item) => canAccess(item.resource)),
+    [canAccess]
+  );
 
   const initials = getInitials(profile, user?.email);
   const displayName =
