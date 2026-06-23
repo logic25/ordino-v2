@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUpdateInvoice, type InvoiceWithRelations } from "@/hooks/useInvoices";
 import { useGenerateCollectionMessage } from "@/hooks/useCollectionMessage";
+import { useGenerateDemandLetter, type DemandLetterResult } from "@/hooks/useDemandLetter";
 import { useExtractTasks } from "@/hooks/useExtractTasks";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { toast } from "@/hooks/use-toast";
