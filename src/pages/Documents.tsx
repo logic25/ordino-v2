@@ -115,6 +115,7 @@ export default function Documents() {
   const [renameTarget, setRenameTarget] = useState<DocumentFolder | null>(null);
   const [renameName, setRenameName] = useState("");
   const [previewDoc, setPreviewDoc] = useState<UniversalDocument | null>(null);
+  const [moveTarget, setMoveTarget] = useState<UniversalDocument | null>(null);
 
   // Upload form state
   const [title, setTitle] = useState("");
