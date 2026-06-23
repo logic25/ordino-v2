@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { useAuth } from "@/hooks/useAuth";
 import { useKbDocumentVersions, kbVersionChangerName, type KbDocumentVersion } from "@/hooks/useKbDocumentVersions";
 
