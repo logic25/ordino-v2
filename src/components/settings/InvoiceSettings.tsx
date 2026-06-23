@@ -153,6 +153,13 @@ export function InvoiceSettings() {
   // Demand letter
   const [demandTemplate, setDemandTemplate] = useState(DEFAULT_DEMAND_TEMPLATE);
   const [showDemandPreview, setShowDemandPreview] = useState(false);
+  // Late-payment interest (off by default until reviewed)
+  const [interestEnabled, setInterestEnabled] = useState(false);
+  const [interestRate, setInterestRate] = useState("18.00");
+  const [interestGraceDays, setInterestGraceDays] = useState("0");
+  const [interestCompounding, setInterestCompounding] = useState<"simple" | "monthly">("monthly");
+  const [interestEffectiveFrom, setInterestEffectiveFrom] = useState("");
+  const [managingMember, setManagingMember] = useState("");
   // ACH template
   const [achTemplate, setAchTemplate] = useState(DEFAULT_ACH_TEMPLATE);
   const [showAchPreview, setShowAchPreview] = useState(false);
