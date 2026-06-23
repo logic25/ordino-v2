@@ -1,4 +1,4 @@
-import { Mail, Link2Off, RefreshCw, AlertCircle } from "lucide-react";
+import { Mail, Link2Off, RefreshCw, AlertCircle, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   useGmailConnection,
@@ -8,6 +8,10 @@ import {
 } from "@/hooks/useGmailConnection";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export function GmailConnectButton() {
   const { data: connection, isLoading } = useGmailConnection();
@@ -15,6 +19,9 @@ export function GmailConnectButton() {
   const disconnect = useDisconnectGmail();
   const sync = useSyncGmail();
   const { toast } = useToast();
+  const { isAdmin } = usePermissions();
+  const qc = useQueryClient();
+  const [reconciling, setReconciling] = useState(false);
 
   const handleConnect = async () => {
     try {
@@ -41,6 +48,28 @@ export function GmailConnectButton() {
       });
     } catch (err: any) {
       toast({ title: "Sync Failed", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleReconcileAll = async () => {
+    setReconciling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("gmail-reconcile-all", { body: {} });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const results = (data?.results || []) as any[];
+      const totalRead = results.reduce((s, r) => s + (r.marked_read || 0), 0);
+      const totalStripped = results.reduce((s, r) => s + (r.stripped_inbox || 0), 0);
+      qc.invalidateQueries({ queryKey: ["emails"] });
+      qc.invalidateQueries({ queryKey: ["email-unread-count"] });
+      toast({
+        title: "Reconciled All Inboxes",
+        description: `${results.length} account(s) · marked ${totalRead} read · stripped ${totalStripped} stale inbox labels`,
+      });
+    } catch (err: any) {
+      toast({ title: "Reconcile Failed", description: err.message, variant: "destructive" });
+    } finally {
+      setReconciling(false);
     }
   };
 
@@ -83,9 +112,22 @@ export function GmailConnectButton() {
         <RefreshCw className={`h-4 w-4 ${sync.isPending ? "animate-spin" : ""}`} />
         <span className="hidden sm:inline ml-1">Sync</span>
       </Button>
+      {isAdmin && (
+        <Button
+          onClick={handleReconcileAll}
+          disabled={reconciling}
+          variant="outline"
+          size="sm"
+          title="Re-align local inbox/unread state with Gmail for every connected user in this company"
+        >
+          <RotateCw className={`h-4 w-4 ${reconciling ? "animate-spin" : ""}`} />
+          <span className="hidden sm:inline ml-1">Reconcile All</span>
+        </Button>
+      )}
       <Button onClick={handleDisconnect} disabled={disconnect.isPending} variant="ghost" size="sm">
         <Link2Off className="h-4 w-4" />
       </Button>
     </div>
   );
 }
+
