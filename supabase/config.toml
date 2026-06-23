@@ -134,3 +134,7 @@ verify_jwt = false
 
 [functions.kb-deleted-backup]
 verify_jwt = false
+
+[functions.stock-photos]
+verify_jwt = true
+
