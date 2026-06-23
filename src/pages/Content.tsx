@@ -107,6 +107,7 @@ function CoverImagePicker({
   onApply: (nextBody: string, url: string, attribution: string) => void;
 }) {
   const { toast } = useToast();
+  const { profile } = useAuth();
   const setCover = useSetCoverImage();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
