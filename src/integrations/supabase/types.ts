@@ -1947,6 +1947,50 @@ export type Database = {
         }
         Relationships: []
       }
+      beacon_kb_folder_overrides: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          display_folder: string
+          hidden_from_original: boolean
+          id: string
+          notes: string | null
+          source_file: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          display_folder: string
+          hidden_from_original?: boolean
+          id?: string
+          notes?: string | null
+          source_file: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          display_folder?: string
+          hidden_from_original?: boolean
+          id?: string
+          notes?: string | null
+          source_file?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beacon_kb_folder_overrides_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       beacon_research_feedback: {
         Row: {
           comment: string | null
