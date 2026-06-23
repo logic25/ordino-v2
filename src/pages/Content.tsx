@@ -11,14 +11,20 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Loader2, Sparkles, Check, X, Send, FileText, Mail, Eye, Copy, Pencil,
-  TrendingUp, Users, ExternalLink, HelpCircle, Plus, LayoutTemplate,
+  Users, ExternalLink, HelpCircle, Plus, LayoutTemplate, Trash2, ImagePlus, Upload, Target,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/usePermissions";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   useContentCandidates, useGeneratedFor, useGeneratedForMany, usePublishedContent,
   useUpdateCandidateStatus, useGenerateDraft, useSaveDraft, usePublish, useComposeContent,
-  useQuickGenerate,
+  useQuickGenerate, useDeleteCandidate, useSetCoverImage,
   type ContentCandidate, type GeneratedContent,
 } from "@/hooks/useContent";
 import { CONTENT_TEMPLATES, type ContentTemplate } from "@/lib/contentTemplates";
