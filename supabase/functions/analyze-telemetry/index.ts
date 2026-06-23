@@ -209,7 +209,7 @@ Stress-test this idea and return a JSON array with 1 structured suggestion.`;
   } catch (e) {
     console.error("analyze-telemetry error:", e);
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
