@@ -14,10 +14,11 @@ interface FolderNodeProps {
   onRename?: (folder: DocumentFolder) => void;
   onCreateSubfolder?: (parentId: string) => void;
   onDelete?: (folder: DocumentFolder) => void;
+  onDropDocument?: (docId: string, folderId: string) => void;
   depth?: number;
 }
 
-function FolderNode({ folder, selectedId, onSelect, onRename, onCreateSubfolder, onDelete, depth = 0 }: FolderNodeProps) {
+function FolderNode({ folder, selectedId, onSelect, onRename, onCreateSubfolder, onDelete, onDropDocument, depth = 0 }: FolderNodeProps) {
   const [expanded, setExpanded] = useState(depth === 0);
   const hasChildren = folder.children.length > 0;
   const isSelected = selectedId === folder.id;
