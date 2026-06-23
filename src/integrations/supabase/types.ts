@@ -10920,6 +10920,13 @@ export type Database = {
       }
     }
     Functions: {
+      admin_set_profile_role: {
+        Args: {
+          _new_role: Database["public"]["Enums"]["user_role"]
+          _profile_id: string
+        }
+        Returns: Json
+      }
       auto_join_existing_company: {
         Args: { first_name: string; last_name: string }
         Returns: string
