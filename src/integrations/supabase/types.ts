@@ -5271,6 +5271,8 @@ export type Database = {
           company_id: string
           content: string | null
           content_type: string | null
+          cover_image_attribution: string | null
+          cover_image_url: string | null
           generated_at: string | null
           id: string
           published_at: string | null
@@ -5286,6 +5288,8 @@ export type Database = {
           company_id?: string
           content?: string | null
           content_type?: string | null
+          cover_image_attribution?: string | null
+          cover_image_url?: string | null
           generated_at?: string | null
           id: string
           published_at?: string | null
@@ -5301,6 +5305,8 @@ export type Database = {
           company_id?: string
           content?: string | null
           content_type?: string | null
+          cover_image_attribution?: string | null
+          cover_image_url?: string | null
           generated_at?: string | null
           id?: string
           published_at?: string | null
