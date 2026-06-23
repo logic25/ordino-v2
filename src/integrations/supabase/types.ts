@@ -94,6 +94,13 @@ export type Database = {
             foreignKeyName: "ach_authorizations_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "ach_authorizations_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -656,6 +663,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_logs_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
           },
           {
             foreignKeyName: "automation_logs_invoice_id_fkey"
@@ -2311,6 +2325,13 @@ export type Database = {
             foreignKeyName: "billing_requests_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "billing_requests_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -3256,6 +3277,13 @@ export type Database = {
             foreignKeyName: "claimflow_referrals_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "claimflow_referrals_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -3807,6 +3835,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_tasks_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
           },
           {
             foreignKeyName: "collection_tasks_invoice_id_fkey"
@@ -5459,6 +5494,13 @@ export type Database = {
             foreignKeyName: "invoice_activity_log_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "invoice_activity_log_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -5467,6 +5509,80 @@ export type Database = {
             columns: ["performed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_certified_mailings: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          delivered_date: string | null
+          demand_letter_activity_id: string | null
+          id: string
+          invoice_id: string
+          mailed_date: string
+          notes: string | null
+          return_receipt_storage_path: string | null
+          updated_at: string
+          usps_tracking_number: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          delivered_date?: string | null
+          demand_letter_activity_id?: string | null
+          id?: string
+          invoice_id: string
+          mailed_date?: string
+          notes?: string | null
+          return_receipt_storage_path?: string | null
+          updated_at?: string
+          usps_tracking_number: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          delivered_date?: string | null
+          demand_letter_activity_id?: string | null
+          id?: string
+          invoice_id?: string
+          mailed_date?: string
+          notes?: string | null
+          return_receipt_storage_path?: string | null
+          updated_at?: string
+          usps_tracking_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_certified_mailings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_certified_mailings_demand_letter_activity_id_fkey"
+            columns: ["demand_letter_activity_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_activity_log"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_certified_mailings_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "invoice_certified_mailings_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
         ]
@@ -5546,6 +5662,13 @@ export type Database = {
             foreignKeyName: "invoice_disputes_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "invoice_disputes_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -5599,6 +5722,77 @@ export type Database = {
           },
           {
             foreignKeyName: "invoice_follow_ups_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "invoice_follow_ups_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_interest_snapshots: {
+        Row: {
+          accrued_interest: number
+          as_of_date: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          days_overdue_for_interest: number
+          id: string
+          invoice_id: string
+          principal: number
+          rate_apr: number
+          source: string
+        }
+        Insert: {
+          accrued_interest: number
+          as_of_date?: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          days_overdue_for_interest: number
+          id?: string
+          invoice_id: string
+          principal: number
+          rate_apr: number
+          source: string
+        }
+        Update: {
+          accrued_interest?: number
+          as_of_date?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          days_overdue_for_interest?: number
+          id?: string
+          invoice_id?: string
+          principal?: number
+          rate_apr?: number
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_interest_snapshots_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_interest_snapshots_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "invoice_interest_snapshots_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
@@ -5747,6 +5941,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_parent_invoice_id_fkey"
+            columns: ["parent_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
           },
           {
             foreignKeyName: "invoices_parent_invoice_id_fkey"
@@ -6816,6 +7017,13 @@ export type Database = {
             foreignKeyName: "payment_plans_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "payment_plans_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -6875,6 +7083,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_predictions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
           },
           {
             foreignKeyName: "payment_predictions_invoice_id_fkey"
@@ -6968,6 +7183,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "invoice_follow_ups"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_promises_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
           },
           {
             foreignKeyName: "payment_promises_invoice_id_fkey"
@@ -8525,12 +8747,15 @@ export type Database = {
           gc_name: string | null
           gc_phone: string | null
           id: string
+          interest_compounding: string | null
+          interest_grace_days: number | null
           internal_signature_data: string | null
           internal_signed_at: string | null
           internal_signed_by: string | null
           is_pro_cert: boolean
           job_description: string | null
           last_follow_up_at: string | null
+          late_interest_rate_apr: number | null
           lead_id: string | null
           lead_source: string | null
           metadata: Json | null
@@ -8609,12 +8834,15 @@ export type Database = {
           gc_name?: string | null
           gc_phone?: string | null
           id?: string
+          interest_compounding?: string | null
+          interest_grace_days?: number | null
           internal_signature_data?: string | null
           internal_signed_at?: string | null
           internal_signed_by?: string | null
           is_pro_cert?: boolean
           job_description?: string | null
           last_follow_up_at?: string | null
+          late_interest_rate_apr?: number | null
           lead_id?: string | null
           lead_source?: string | null
           metadata?: Json | null
@@ -8693,12 +8921,15 @@ export type Database = {
           gc_name?: string | null
           gc_phone?: string | null
           id?: string
+          interest_compounding?: string | null
+          interest_grace_days?: number | null
           internal_signature_data?: string | null
           internal_signed_at?: string | null
           internal_signed_by?: string | null
           is_pro_cert?: boolean
           job_description?: string | null
           last_follow_up_at?: string | null
+          late_interest_rate_apr?: number | null
           lead_id?: string | null
           lead_source?: string | null
           metadata?: Json | null
@@ -9017,6 +9248,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retainer_transactions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
           },
           {
             foreignKeyName: "retainer_transactions_invoice_id_fkey"
@@ -10661,7 +10899,25 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      invoice_balances_with_interest: {
+        Row: {
+          accrued_interest_to_date: number | null
+          company_id: string | null
+          interest_rate_apr: number | null
+          interest_start_date: string | null
+          invoice_id: string | null
+          principal: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       auto_join_existing_company: {
