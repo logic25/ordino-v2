@@ -150,13 +150,16 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
     mainNav.reduce<NavEntry[]>((acc, entry) => {
       if ("kind" in entry && entry.kind === "group") {
         const items = entry.items.filter((i) => canAccess(i.resource));
+        if (entry.label === "BD" && (isAdmin || isManager)) {
+          items.push({ title: "Beacon", icon: Brain, href: "/beacon", resource: "dashboard" as ResourceKey });
+        }
         if (items.length > 0) acc.push({ ...entry, items });
       } else if (canAccess((entry as NavItem).resource)) {
         acc.push(entry);
       }
       return acc;
     }, []),
-    [canAccess]
+    [canAccess, isAdmin, isManager]
   );
 
   const filteredSecondaryNav = useMemo(() =>
