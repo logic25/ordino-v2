@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Loader2, Sparkles, Check, X, Send, FileText, Mail, Eye, Copy, Pencil,
   TrendingUp, Users, ExternalLink, HelpCircle, Plus, LayoutTemplate,
@@ -131,22 +133,60 @@ function PreviewDialog({
 }
 
 // ── Source badge: where did this idea come from? ────────────────────────────
+// "From N questions" is now a popover button that shows the actual team questions
+// that clustered into this idea (when we have them).
 function SourceBadge({ c }: { c: ContentCandidate }) {
   const src = (c.source_type || "").toLowerCase();
   const qCount = c.team_questions_count || 0;
-  // "From questions" if the source is a question cluster OR we have team_questions.
-  if (src === "question_cluster" || src === "questions" || qCount > 0) {
+  const isQuestionCluster = src === "question_cluster" || src === "questions" || qCount > 0;
+  const isManual = src === "manual" || src === "scratch" || src === "from_scratch";
+
+  if (isQuestionCluster) {
+    const label = `📊 ${qCount > 0 ? `From ${qCount} question${qCount === 1 ? "" : "s"}` : "From questions"}`;
+    const questions = c.team_questions || [];
+    const badgeClass =
+      "cursor-pointer text-[11px] border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-400 dark:hover:bg-emerald-950/50";
+
     return (
-      <Badge
-        variant="outline"
-        className="text-[11px] border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-400"
-        title="Derived from your team's real Beacon chat questions"
-      >
-        📊 {qCount > 0 ? `From ${qCount} question${qCount === 1 ? "" : "s"}` : "From questions"}
-      </Badge>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            onClick={(e) => e.stopPropagation()}
+            title="Click to see the actual team questions behind this idea"
+          >
+            <Badge variant="outline" className={badgeClass}>{label}</Badge>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-[420px] max-h-[60vh] overflow-y-auto">
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+            Team questions ({qCount || questions.length})
+          </div>
+          {questions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {qCount > 0
+                ? `Beacon counted ${qCount} questions in this cluster but the originals weren't saved with this candidate. Re-run the question-clustering job to attach them.`
+                : "No team questions recorded for this idea."}
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {questions.map((q, i) => (
+                <li key={i} className="text-sm text-foreground/90 flex gap-2">
+                  <span className="text-muted-foreground/60 select-none">{i + 1}.</span>
+                  <span className="break-words">{q}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-3 pt-2 border-t text-[11px] text-muted-foreground">
+            Sourced from your team's real Beacon chat history. Higher counts → stronger client demand signal.
+          </p>
+        </PopoverContent>
+      </Popover>
     );
   }
-  if (src === "manual" || src === "scratch" || src === "from_scratch") {
+
+  if (isManual) {
     return (
       <Badge
         variant="outline"
