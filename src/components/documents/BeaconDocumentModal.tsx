@@ -361,7 +361,7 @@ export function BeaconDocumentModal({
             />
           ) : (
             <div className="prose prose-sm max-w-none dark:prose-invert overflow-y-auto max-h-[60vh] px-1">
-              <ReactMarkdown>{body}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>
             </div>
           )}
         </div>
