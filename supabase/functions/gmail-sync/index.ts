@@ -634,17 +634,28 @@ Deno.serve(async (req) => {
 
     // Make Gmail's exact unread-inbox set authoritative: first clear all local inbox
     // unread bits, then re-apply unread only to Gmail's current set.
+    let clearedLocalUnread = 0;
     for (const ids of chunk(localInbox.map((row: any) => row.id), 200)) {
       if (ids.length === 0) continue;
-      await supabaseAdmin.from("emails").update({ is_read: true }).in("id", ids);
+      const { data: cleared, error: clearError } = await supabaseAdmin
+        .from("emails")
+        .update({ is_read: true })
+        .in("id", ids)
+        .select("id");
+      if (clearError) console.error("[gmail-sync] failed to clear local unread state", clearError);
+      clearedLocalUnread += cleared?.length || 0;
     }
+    let appliedGmailUnread = 0;
     for (const ids of chunk(Array.from(gmailUnreadInboxSet), 200)) {
       if (ids.length === 0) continue;
-      await supabaseAdmin
+      const { data: applied, error: applyError } = await supabaseAdmin
         .from("emails")
         .update({ is_read: false, archived_at: null })
         .eq("user_id", profile.id)
-        .in("gmail_message_id", ids);
+        .in("gmail_message_id", ids)
+        .select("id");
+      if (applyError) console.error("[gmail-sync] failed to apply Gmail unread state", applyError);
+      appliedGmailUnread += applied?.length || 0;
     }
     const markedUnread = toMarkUnread.length;
 
@@ -710,6 +721,9 @@ Deno.serve(async (req) => {
           updated: updatedCount,
           new_unread: newUnreadInbox.length,
           gmail_unread_inbox: gmailUnreadInboxSet.size,
+          local_inbox: localInbox.length,
+          cleared_local_unread: clearedLocalUnread,
+          applied_gmail_unread: appliedGmailUnread,
           ordino_unread_before: ordinoUnreadBefore,
           ordino_unread_after: ordinoUnreadAfter,
           at: new Date().toISOString(),
@@ -729,6 +743,9 @@ Deno.serve(async (req) => {
         history_synced: historySynced,
         partial,
         gmail_unread_inbox: gmailUnreadInboxSet.size,
+        local_inbox: localInbox.length,
+        cleared_local_unread: clearedLocalUnread,
+        applied_gmail_unread: appliedGmailUnread,
         ordino_unread_before: ordinoUnreadBefore,
         ordino_unread_after: ordinoUnreadAfter,
         imported_unread: importedUnread,
