@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { QuickTeachForm } from "./QuickTeachForm";
 import { TeachCard } from "./TeachCard";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   useKbGaps,
   useNegativeFeedback,
