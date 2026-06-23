@@ -42,6 +42,7 @@ interface KnowledgeBaseViewProps {
 
 export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: KnowledgeBaseViewProps) {
   const { toast } = useToast();
+  const qc = useQueryClient();
   const { data, isLoading, isError } = useBeaconKnowledge();
   const { data: overrides = [] } = useBeaconKbOverrides();
   const upsertOverride = useUpsertBeaconKbOverride();
@@ -55,6 +56,9 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   const [viewingFile, setViewingFile] = useState<string | null>(null);
   const [moveTarget, setMoveTarget] = useState<string | null>(null);
   const [moveFolderInput, setMoveFolderInput] = useState("");
+  const [moveSaving, setMoveSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
 
   // Build override map: source_file -> { display_folder, hidden_from_original }
   const overrideMap = useMemo(() => {
