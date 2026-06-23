@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
