@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Pencil, Save, History, RotateCcw, Settings2, AlertTriangle } from "lucide-react";
+import { Loader2, Pencil, Save, History, RotateCcw, Settings2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchBeaconFileContent, FOLDER_TO_SOURCE_TYPE } from "@/services/beaconApi";
 import { useToast } from "@/hooks/use-toast";
