@@ -87,27 +87,42 @@ export function BeaconConfigPanel() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-3 border rounded-lg">
-            <div>
-              <p className="text-sm font-medium">Connection Status</p>
-              <p className="text-xs text-muted-foreground font-mono">https://beaconrag.up.railway.app</p>
-            </div>
-            <Badge className="bg-[hsl(142,71%,45%)] text-white text-[10px]">Connected</Badge>
-          </div>
-          <div className="flex items-center justify-between p-3 border rounded-lg">
-            <div>
-              <p className="text-sm font-medium">Bot Name</p>
-              <p className="text-xs text-muted-foreground">Google Chat App</p>
-            </div>
-            <span className="text-sm font-medium">Beacon</span>
-          </div>
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => navigate("/beacon?tab=usage")}
-          >
-            <ExternalLink className="h-4 w-4 mr-2" /> View Beacon Analytics
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center justify-between p-3 border rounded-lg cursor-help">
+                <div>
+                  <p className="text-sm font-medium">Connection Status</p>
+                  <p className="text-xs text-muted-foreground font-mono">https://beaconrag.up.railway.app</p>
+                </div>
+                <Badge className="bg-[hsl(142,71%,45%)] text-white text-[10px]">Connected</Badge>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>Beacon's RAG backend on Railway. If this goes red, the chat widget and Teach pipeline stop working.</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center justify-between p-3 border rounded-lg cursor-help">
+                <div>
+                  <p className="text-sm font-medium">Bot Name</p>
+                  <p className="text-xs text-muted-foreground">Google Chat App</p>
+                </div>
+                <span className="text-sm font-medium">Beacon</span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>Display name used when Beacon posts into Google Chat spaces.</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => navigate("/beacon?tab=usage")}
+              >
+                <ExternalLink className="h-4 w-4 mr-2" /> View Beacon Analytics
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Token spend, request volume, and per-user activity.</TooltipContent>
+          </Tooltip>
           <Separator />
           <div className="p-3 border rounded-lg space-y-2">
             <p className="text-sm font-medium">Backfill Project AI Notes</p>
