@@ -297,6 +297,29 @@ export default function Documents() {
     }
   };
 
+  const moveDocumentTo = async (doc: UniversalDocument, targetFolderId: string | null) => {
+    if ((doc.folder_id ?? null) === targetFolderId) return;
+    try {
+      const targetFolder = targetFolderId ? folders.find((f) => f.id === targetFolderId) : null;
+      await moveDoc.mutateAsync({
+        doc: { id: doc.id, folder_id: doc.folder_id, jurisdiction: doc.jurisdiction },
+        targetFolderId,
+        folders,
+      });
+      toast({
+        title: targetFolder ? `Moved to "${targetFolder.name}"` : "Moved to All Documents",
+      });
+      setMoveTarget(null);
+    } catch (err: any) {
+      toast({ title: "Move failed", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleDropOnFolder = (docId: string, folderId: string) => {
+    const doc = documents.find((d) => d.id === docId);
+    if (!doc) return;
+    moveDocumentTo(doc, folderId || null);
+
   const resetForm = () => {
     setTitle(""); setDescription(""); setCategory("general");
     setSelectedFile(null);
