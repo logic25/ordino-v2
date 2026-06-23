@@ -327,7 +327,7 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                                     <MoreVertical className="h-3.5 w-3.5" />
                                   </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuContent align="end" className="w-52">
                                   <DropdownMenuItem
                                     onClick={() => {
                                       setMoveTarget(filename);
@@ -337,15 +337,19 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                                     <FolderInput className="h-3.5 w-3.5 mr-2" /> Move to folder…
                                   </DropdownMenuItem>
                                   {ov && (
-                                    <>
-                                      <DropdownMenuSeparator />
-                                      <DropdownMenuItem
-                                        onClick={() => clearOverride.mutate(filename)}
-                                      >
-                                        <RotateCcw className="h-3.5 w-3.5 mr-2" /> Reset to original folder
-                                      </DropdownMenuItem>
-                                    </>
+                                    <DropdownMenuItem
+                                      onClick={() => clearOverride.mutate(filename)}
+                                    >
+                                      <RotateCcw className="h-3.5 w-3.5 mr-2" /> Reset to original folder
+                                    </DropdownMenuItem>
                                   )}
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={() => setDeleteTarget(filename)}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete…
+                                  </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
