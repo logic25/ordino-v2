@@ -295,7 +295,15 @@ function PreviewDialog({
         {draft?.content && (
           <div className="flex items-center justify-between gap-2 pt-1">
             <Button variant="ghost" size="sm" onClick={onClose}><X className="h-3.5 w-3.5 mr-1" /> Close</Button>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {candidate && draft && (
+                <CoverImagePicker
+                  candidate={candidate}
+                  draft={draft}
+                  body={body}
+                  onApply={(next) => { setBody(next); if (!editing) setEditing(true); }}
+                />
+              )}
               <Button variant="outline" size="sm" onClick={copy}><Copy className="h-3.5 w-3.5 mr-1" /> Copy</Button>
               {editing ? (
                 <Button variant="outline" size="sm" onClick={save} disabled={saveDraft.isPending}>
