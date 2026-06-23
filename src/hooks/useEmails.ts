@@ -166,7 +166,7 @@ export function useThreadEmails(threadId: string | null | undefined) {
           )
         `)
         .eq("thread_id", threadId)
-        .order("date", { ascending: true });
+        .order("date", { ascending: false });
 
       if (error) throw error;
       return data as unknown as EmailWithTags[];
