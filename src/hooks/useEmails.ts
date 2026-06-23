@@ -119,7 +119,6 @@ export function useEmails(filters: EmailFilters = {}) {
       return results;
     },
     staleTime: 10_000,
-    refetchInterval: 15_000,
     refetchOnWindowFocus: true,
   });
 }
