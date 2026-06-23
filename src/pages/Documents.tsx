@@ -319,6 +319,7 @@ export default function Documents() {
     const doc = documents.find((d) => d.id === docId);
     if (!doc) return;
     moveDocumentTo(doc, folderId || null);
+  };
 
   const resetForm = () => {
     setTitle(""); setDescription(""); setCategory("general");
