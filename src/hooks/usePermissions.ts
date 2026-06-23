@@ -37,6 +37,7 @@ export const ALL_RESOURCES: { key: ResourceKey; label: string }[] = [
   { key: "roles", label: "Roles" },
   { key: "reports", label: "Reports" },
   { key: "rfps", label: "RFPs" },
+  { key: "content", label: "Content" },
 ];
 
 // Fetch all role_permissions for the company
