@@ -43,6 +43,43 @@ function priorityClasses(p?: string | null) {
   }
 }
 
+// Hover-explained priority tier. Tiers are editorial — derived from team-question
+// volume + client value (manual on seed; Beacon recomputes for auto candidates).
+const PRIORITY_TOOLTIPS: Record<string, { label: string; body: string }> = {
+  high: {
+    label: "High priority",
+    body: "Many real team questions (typically 40+) and high client value. Write this next — strong demand signal from your Beacon chat history.",
+  },
+  medium: {
+    label: "Medium priority",
+    body: "Consistent but lower-volume team interest (roughly 15–40 questions). Worth writing once the High pile is clear.",
+  },
+  low: {
+    label: "Low priority",
+    body: "Niche topics with few team questions (under ~15). Still on-brand for the firm — good for breadth, not urgency.",
+  },
+};
+
+function PriorityBadge({ priority }: { priority: string }) {
+  const key = (priority || "").toLowerCase();
+  const info = PRIORITY_TOOLTIPS[key];
+  const badge = (
+    <Badge variant="outline" className={`text-[11px] capitalize cursor-help ${priorityClasses(priority)}`}>
+      {priority}
+    </Badge>
+  );
+  if (!info) return badge;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild><span>{badge}</span></TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs">
+        <div className="font-semibold text-xs mb-0.5">{info.label}</div>
+        <div className="text-xs text-muted-foreground">{info.body}</div>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 // ── Preview / Review modal with inline edit + publish ───────────────────────
 function PreviewDialog({
   candidate, open, onClose,
@@ -284,7 +321,7 @@ function IdeaCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
-            {c.priority && <Badge variant="outline" className={`text-[11px] ${priorityClasses(c.priority)}`}>{c.priority}</Badge>}
+            {c.priority && <PriorityBadge priority={c.priority} />}
             <Badge variant="outline" className="gap-1 text-[11px]"><TypeIcon t={c.content_type} className="h-3 w-3" /> {typeLabel(c.content_type)}</Badge>
             <SourceBadge c={c} />
           </div>
