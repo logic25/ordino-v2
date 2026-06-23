@@ -164,7 +164,7 @@ Deno.serve(async (req) => {
         status: res.status,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
-
+    }
 
     let beaconUrl: string;
     let beaconReqInit: RequestInit;
