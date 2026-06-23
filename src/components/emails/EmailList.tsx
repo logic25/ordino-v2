@@ -6,6 +6,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import type { EmailWithTags } from "@/hooks/useEmails";
 import { getTagColor } from "@/hooks/useQuickTags";
 import { useAllPendingReminders } from "@/hooks/useEmailReminders";
+import { decodeHtmlEntities } from "@/lib/decodeHtmlEntities";
 
 interface EmailListProps {
   emails: EmailWithTags[];
@@ -118,10 +119,10 @@ export function EmailList({ emails, selectedId, highlightedIndex, onSelect }: Em
                   )}
                 </div>
                 <p className={cn("text-sm truncate", (unread || !email.is_read) ? "font-medium text-foreground" : "text-foreground/80")}>
-                  {email.subject || "(no subject)"}
+                  {decodeHtmlEntities(email.subject) || "(no subject)"}
                 </p>
                 <p className="text-xs text-muted-foreground truncate mt-0.5">
-                  {email.snippet}
+                  {decodeHtmlEntities(email.snippet)}
                 </p>
                 {/* Quick tags */}
                 {quickTags.length > 0 && (
