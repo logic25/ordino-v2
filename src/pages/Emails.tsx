@@ -18,6 +18,7 @@ import { useEmailDrafts, useDeleteDraft, type EmailDraft } from "@/hooks/useEmai
 import { useEmailKeyboardShortcuts } from "@/hooks/useEmailKeyboardShortcuts";
 import { useConnectGmail, useGmailConnection } from "@/hooks/useGmailConnection";
 import { useNewEmailNotifications } from "@/hooks/useNewEmailNotifications";
+import { useInboxUnreadCount } from "@/hooks/useInboxUnreadCount";
 import { useGmailSearch } from "@/hooks/useGmailSearch";
 import { useToast } from "@/hooks/use-toast";
 import { useTelemetry } from "@/hooks/useTelemetry";
@@ -88,7 +89,11 @@ export default function Emails() {
     [allEmails, activeTab]
   );
 
-  const tabCounts = useMemo(() => getTabCounts(allEmails, scheduledEmails.length, drafts.length), [allEmails, scheduledEmails.length, drafts.length]);
+  const { data: inboxUnreadCount = 0 } = useInboxUnreadCount();
+  const tabCounts = useMemo(
+    () => getTabCounts(allEmails, scheduledEmails.length, drafts.length, inboxUnreadCount),
+    [allEmails, scheduledEmails.length, drafts.length, inboxUnreadCount]
+  );
 
   // Auto-scroll highlighted email into view
   useEffect(() => {

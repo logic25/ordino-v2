@@ -690,6 +690,24 @@ Deno.serve(async (req) => {
       `[gmail-sync] done synced=${syncedCount} checked=${totalChecked} pages=${pagesProcessed + 1} partial=${partial} elapsed=${elapsedMs}ms`
     );
 
+    // Broadcast sync-complete so clients can refresh email lists & unread badge
+    // the instant sync finishes (Option C: no Realtime on the emails table).
+    try {
+      const channel = supabaseAdmin.channel(`gmail-sync:${profile.id}`);
+      await channel.send({
+        type: "broadcast",
+        event: "sync_complete",
+        payload: {
+          synced: syncedCount,
+          new_unread: newUnreadInbox.length,
+          at: new Date().toISOString(),
+        },
+      });
+      await supabaseAdmin.removeChannel(channel);
+    } catch (e) {
+      console.warn("[gmail-sync] broadcast failed:", e);
+    }
+
     return new Response(
       JSON.stringify({
         synced: syncedCount,
