@@ -34,7 +34,7 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions, type ResourceKey } from "@/hooks/usePermissions";
-import { useIsAdmin } from "@/hooks/useUserRoles";
+
 import { useUnreadIndicators } from "@/hooks/useUnreadIndicators";
 
 type NavItem = { title: string; icon: any; href: string; resource: ResourceKey };
