@@ -78,6 +78,7 @@ export function BeaconConfigPanel() {
   };
 
   return (
+    <TooltipProvider delayDuration={200}>
     <div className="space-y-6">
       <Card>
         <CardHeader>
