@@ -189,9 +189,19 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
         setDemandStep={actions.setDemandStep}
         demandLetterText={actions.demandLetterText}
         setDemandLetterText={actions.setDemandLetterText}
+        demandScope={actions.demandScope}
+        setDemandScope={actions.setDemandScope}
+        demandResult={actions.demandResult}
+        demandLoading={actions.demandLoading}
+        demandCc={actions.demandCc}
+        setDemandCc={actions.setDemandCc}
+        demandSubject={actions.demandSubject}
+        setDemandSubject={actions.setDemandSubject}
+        onRegenerateDemand={actions.openDemandLetter}
         onAction={actions.handleAction}
         onGenerateAi={actions.generateAiMessage}
       />
+
 
       <ClaimFlowDialog
         open={claimFlowOpen}
