@@ -48,32 +48,64 @@ export function useInvoiceActions(invoice: InvoiceWithRelations | null) {
       .replace(/\{\{project_name\}\}/g, invoice.projects?.name || "—");
   };
 
-  const logFollowUp = async (method: string, notes: string) => {
+  const logFollowUp = async (method: string, notes: string, opts?: { invoiceIds?: string[] }) => {
     const { data: profile } = await supabase.from("profiles").select("id, company_id").single();
     if (!profile || !invoice) return;
-    await supabase.from("invoice_follow_ups").insert({
-      company_id: profile.company_id,
-      invoice_id: invoice.id,
-      follow_up_date: new Date().toISOString().split("T")[0],
-      contact_method: method,
-      notes,
-      contacted_by: profile.id,
-    } as any);
-    await supabase.from("invoice_activity_log").insert({
-      company_id: profile.company_id,
-      invoice_id: invoice.id,
-      action: method,
-      details: notes,
-      performed_by: profile.id,
-    } as any);
+    const ids = opts?.invoiceIds && opts.invoiceIds.length ? opts.invoiceIds : [invoice.id];
+    for (const id of ids) {
+      await supabase.from("invoice_follow_ups").insert({
+        company_id: profile.company_id,
+        invoice_id: id,
+        follow_up_date: new Date().toISOString().split("T")[0],
+        contact_method: method,
+        notes,
+        contacted_by: profile.id,
+      } as any);
+      await supabase.from("invoice_activity_log").insert({
+        company_id: profile.company_id,
+        invoice_id: id,
+        action: method,
+        details: notes,
+        performed_by: profile.id,
+      } as any);
+    }
   };
 
-  const openDemandLetter = () => {
-    const defaultTemplate = `Dear {{client_name}},\n\nThis letter serves as a formal demand for payment of the outstanding balance on invoice {{invoice_number}}, dated {{invoice_date}}, in the amount of {{amount_due}}.\n\nPayment was due on {{due_date}} and is now {{days_overdue}} days past due.\n\nDespite previous reminders, we have not received payment or a response regarding this matter. We respectfully request that full payment be remitted within ten (10) business days of the date of this letter.\n\nFailure to remit payment may result in further collection action, including but not limited to referral to a collections agency or legal proceedings.\n\nSincerely,\nYour Company`;
-    const template = companyData?.settings?.demand_letter_template || defaultTemplate;
-    setDemandLetterText(mergeDemandTemplate(template));
-    setDemandStep("preview");
+  const openDemandLetter = async (scope: "client" | "property" = "client") => {
+    if (!invoice) return;
+    setDemandScope(scope);
     setActiveAction("demand");
+    setDemandStep("preview");
+    setDemandLoading(true);
+    setDemandResult(null);
+    setDemandLetterText("Drafting demand letter from invoice + agreement context…");
+    setDemandSubject("");
+    try {
+      const result = await generateDemand.mutateAsync({ invoiceId: invoice.id, scope });
+      setDemandResult(result);
+      setDemandLetterText(result.body);
+      setDemandSubject(result.subject);
+      // Resolve admin CC recipients
+      const { data: profile } = await supabase.from("profiles").select("company_id").single();
+      if (profile?.company_id) {
+        const { data: admins } = await supabase
+          .from("user_roles")
+          .select("user_id, profiles:profiles!user_roles_user_id_fkey(email)")
+          .eq("role", "admin");
+        const emails = (admins || [])
+          .map((r: any) => r.profiles?.email)
+          .filter(Boolean);
+        setDemandCc(Array.from(new Set(emails)).join(", "));
+      }
+      if (result.warning) toast({ title: "Heads up", description: result.warning });
+    } catch (err: any) {
+      // Fallback to old template
+      const fallback = companyData?.settings?.demand_letter_template || `Dear {{client_name}},\n\nThis letter serves as a formal demand for payment of the outstanding balance on invoice {{invoice_number}}, in the amount of {{amount_due}}.\n\nPayment is overdue by {{days_overdue}} days. Please remit payment within ten (10) business days of the date of this letter.\n\nSincerely,\n{{company_name}}`;
+      setDemandLetterText(mergeDemandTemplate(fallback));
+      toast({ title: "AI generation failed", description: err.message + " — using fallback template.", variant: "destructive" });
+    } finally {
+      setDemandLoading(false);
+    }
   };
 
   const handleAction = async () => {
