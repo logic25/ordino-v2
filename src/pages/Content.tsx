@@ -460,7 +460,7 @@ export default function Content() {
                 <div key={s.key} className="space-y-2">
                   <div className={`text-xs font-semibold uppercase tracking-wide ${s.tone}`}>{s.label} ({byStage[s.key].length})</div>
                   {byStage[s.key].map((c) => (
-                    <IdeaCard key={c.id} c={c} generatingId={generatingId}
+                    <IdeaCard key={c.id} c={c} draft={draftsByCandidate[c.id]} generatingId={generatingId}
                       onGenerate={doGenerate} onView={setViewing} onStatus={setStatus} />
                   ))}
                 </div>
