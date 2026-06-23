@@ -245,14 +245,16 @@ function SourceBadge({ c }: { c: ContentCandidate }) {
 
 // ── Idea card ───────────────────────────────────────────────────────────────
 function IdeaCard({
-  c, draft, generatingId, onGenerate, onView, onStatus,
+  c, draft, generatingId, canDelete, onGenerate, onView, onStatus, onDelete,
 }: {
   c: ContentCandidate;
   draft?: GeneratedContent;
   generatingId: string | null;
+  canDelete: boolean;
   onGenerate: (c: ContentCandidate) => void;
   onView: (c: ContentCandidate) => void;
   onStatus: (c: ContentCandidate, status: string, label: string) => void;
+  onDelete: (c: ContentCandidate) => void;
 }) {
   const { toast } = useToast();
 
