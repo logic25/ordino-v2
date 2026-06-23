@@ -185,11 +185,9 @@ Stress-test this idea and return a JSON array with 1 structured suggestion.`;
       const totalTokens = usage.total_tokens || (promptTokens + completionTokens);
       // Gemini Flash pricing: $0.075/1M input, $0.30/1M output
       const estimatedCost = (promptTokens * 0.075 + completionTokens * 0.30) / 1_000_000;
-      const userId = user.id;
-      const { data: prof } = await sbAdmin.from("profiles").select("id").eq("user_id", userId).maybeSingle();
       await sbAdmin.from("ai_usage_logs").insert({
         company_id,
-        user_id: prof?.id || null,
+        user_id: callerProfileId,
         feature: mode === "telemetry" ? "telemetry_analysis" : "stress_test",
         model: MODEL,
         prompt_tokens: promptTokens,
