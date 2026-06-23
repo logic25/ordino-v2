@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Pencil, Save, History, RotateCcw, Settings2, AlertTriangle } from "lucide-react";
+import { Loader2, Pencil, Save, History, RotateCcw, Settings2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchBeaconFileContent, FOLDER_TO_SOURCE_TYPE } from "@/services/beaconApi";
 import { useToast } from "@/hooks/use-toast";
@@ -240,9 +240,8 @@ export function BeaconDocumentModal({
     }
   };
 
-  // Re-ingest with updated metadata while keeping the body untouched.
-  // Used by the "Properties" panel for rename (title) / move (category) /
-  // jurisdiction edits without touching document text.
+  // In-place metadata update via Beacon backend (NO re-ingest, NO duplicates).
+  // Used by the "Properties" panel for title / folder / jurisdiction edits.
   const handleSaveProperties = async () => {
     setIsSaving(true);
     try {
@@ -251,16 +250,17 @@ export function BeaconDocumentModal({
       for (const k of Object.keys(nextMetadata)) {
         if (!String(nextMetadata[k] ?? "").trim()) delete nextMetadata[k];
       }
-      const frontmatterLines = Object.entries(nextMetadata)
-        .map(([k, v]) => `${k}: ${v}`)
-        .join("\n");
-      const fullContent =
-        frontmatterLines.length > 0
-          ? `---\n${frontmatterLines}\n---\n\n${body}`
-          : body;
 
+      // Snapshot prior content for the version log (non-fatal).
       try {
-        if (profile?.company_id && originalContent && originalContent !== fullContent) {
+        const frontmatterLines = Object.entries(nextMetadata)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join("\n");
+        const projectedContent =
+          frontmatterLines.length > 0
+            ? `---\n${frontmatterLines}\n---\n\n${body}`
+            : body;
+        if (profile?.company_id && originalContent && originalContent !== projectedContent) {
           const { data: maxV } = await (supabase as any)
             .from("kb_document_versions")
             .select("version")
@@ -281,24 +281,37 @@ export function BeaconDocumentModal({
         console.warn("[KbDocumentVersion] snapshot failed", e);
       }
 
-      const blob = new Blob([fullContent], { type: "text/markdown" });
-      const file = new File([blob], `${sourceFile}.md`, { type: "text/markdown" });
-      const { syncDocumentToBeacon } = await import("@/services/beaconApi");
-      await syncDocumentToBeacon(
-        file,
-        file.name,
-        nextMetadata.category || metadata.category || "filing_guides",
-        nextMetadata.jurisdiction || metadata.jurisdiction || "NYC",
-      );
+      // ✨ In-place backend update — no re-ingest, no duplicate chunks.
+      const { updateBeaconMetadata } = await import("@/services/beaconApi");
+      const updatePayload: Record<string, string> = {};
+      if (propsDraft.title !== undefined && propsDraft.title !== metadata.title) {
+        updatePayload.title = nextMetadata.title || "";
+      }
+      if (propsDraft.jurisdiction !== undefined && propsDraft.jurisdiction !== metadata.jurisdiction) {
+        updatePayload.jurisdiction = nextMetadata.jurisdiction || "";
+      }
+      if (propsDraft.category !== undefined && propsDraft.category !== metadata.category) {
+        updatePayload.folder = nextMetadata.category || "";
+      }
+      if (Object.keys(updatePayload).length > 0) {
+        await updateBeaconMetadata({ source_file: sourceFile, ...updatePayload });
+      }
 
       setMetadata(nextMetadata);
-      setOriginalContent(fullContent);
+      // Rebuild the displayed originalContent so future diffs are accurate.
+      const frontmatterLines = Object.entries(nextMetadata)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join("\n");
+      setOriginalContent(
+        frontmatterLines.length > 0 ? `---\n${frontmatterLines}\n---\n\n${body}` : body
+      );
       setPanel("doc");
+      setPropsDraft({});
       qc.invalidateQueries({ queryKey: ["kb-document-versions", sourceFile] });
       qc.invalidateQueries({ queryKey: ["beacon-knowledge"] });
       toast({
         title: "Properties updated",
-        description: "Re-ingested with new title / folder / jurisdiction.",
+        description: "Saved in place — no duplicate chunks created.",
       });
     } catch (err: any) {
       toast({ title: "Save failed", description: err.message, variant: "destructive" });
@@ -423,14 +436,12 @@ export function BeaconDocumentModal({
             </div>
           ) : panel === "properties" ? (
             <div className="space-y-4 px-1">
-              <div className="rounded-md border border-[#f59e0b]/40 bg-[#f59e0b]/5 px-3 py-2 text-xs text-foreground flex items-start gap-2">
-                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 text-[#f59e0b] shrink-0" />
+              <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 px-3 py-2 text-xs text-foreground flex items-start gap-2">
+                <Settings2 className="h-3.5 w-3.5 mt-0.5 text-emerald-600 shrink-0" />
                 <div>
-                  Edits below re-ingest this document into Beacon. The underlying
-                  filename (<code className="text-[10px]">{sourceFile}</code>) can't be
-                  renamed yet — Beacon's backend doesn't expose a rename/delete API.
-                  Changing the folder writes a new chunk under the new folder; the
-                  original chunk persists until backend delete ships.
+                  Title / folder / jurisdiction edits save <strong>in place</strong> on the
+                  Beacon backend — no re-ingest, no duplicate chunks. The underlying source
+                  file id (<code className="text-[10px]">{sourceFile}</code>) stays the same.
                 </div>
               </div>
 

@@ -14,9 +14,9 @@ import {
 import ReactMarkdown from "react-markdown";
 import { useToast } from "@/hooks/use-toast";
 import {
-  useContentCandidates, useGeneratedFor, usePublishedContent,
+  useContentCandidates, useGeneratedFor, useGeneratedForMany, usePublishedContent,
   useUpdateCandidateStatus, useGenerateDraft, useSaveDraft, usePublish, useComposeContent,
-  type ContentCandidate,
+  type ContentCandidate, type GeneratedContent,
 } from "@/hooks/useContent";
 import { CONTENT_TEMPLATES, type ContentTemplate } from "@/lib/contentTemplates";
 
@@ -129,16 +129,62 @@ function PreviewDialog({
   );
 }
 
+// ── Source badge: where did this idea come from? ────────────────────────────
+function SourceBadge({ c }: { c: ContentCandidate }) {
+  const src = (c.source_type || "").toLowerCase();
+  const qCount = c.team_questions_count || 0;
+  // "From questions" if the source is a question cluster OR we have team_questions.
+  if (src === "question_cluster" || src === "questions" || qCount > 0) {
+    return (
+      <Badge
+        variant="outline"
+        className="text-[11px] border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-400"
+        title="Derived from your team's real Beacon chat questions"
+      >
+        📊 {qCount > 0 ? `From ${qCount} question${qCount === 1 ? "" : "s"}` : "From questions"}
+      </Badge>
+    );
+  }
+  if (src === "manual" || src === "scratch" || src === "from_scratch") {
+    return (
+      <Badge
+        variant="outline"
+        className="text-[11px] text-muted-foreground"
+        title="Composed manually, not derived from team questions"
+      >
+        ✍️ From scratch
+      </Badge>
+    );
+  }
+  return null;
+}
+
 // ── Idea card ───────────────────────────────────────────────────────────────
 function IdeaCard({
-  c, generatingId, onGenerate, onView, onStatus,
+  c, draft, generatingId, onGenerate, onView, onStatus,
 }: {
   c: ContentCandidate;
+  draft?: GeneratedContent;
   generatingId: string | null;
   onGenerate: (c: ContentCandidate) => void;
   onView: (c: ContentCandidate) => void;
   onStatus: (c: ContentCandidate, status: string, label: string) => void;
 }) {
+  const { toast } = useToast();
+
+  const copyDraft = async () => {
+    if (!draft?.content) {
+      toast({ title: "Nothing to copy yet", description: "Generate a draft first." });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(draft.content);
+      toast({ title: "Copied", description: "Paste it into your site / LinkedIn / newsletter to publish." });
+    } catch {
+      toast({ title: "Copy failed", description: "Browser blocked clipboard access.", variant: "destructive" });
+    }
+  };
+
   const actions = () => {
     switch (c.status) {
       case "pending": return (
@@ -164,19 +210,45 @@ function IdeaCard({
   };
 
   const si = (c.search_interest || "").toLowerCase();
+  // Inline excerpt of the latest draft body (strip leading markdown header).
+  const excerpt = useMemo(() => {
+    const raw = draft?.content || "";
+    if (!raw) return "";
+    const cleaned = raw
+      .replace(/^#{1,6}\s+.*$/m, "")
+      .replace(/^\s*\n+/, "")
+      .replace(/[*_`>#]/g, "")
+      .trim();
+    return cleaned.length > 240 ? cleaned.slice(0, 240).trimEnd() + "…" : cleaned;
+  }, [draft?.content]);
+
   return (
     <Card className="p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {c.priority && <Badge variant="outline" className={`text-[11px] ${priorityClasses(c.priority)}`}>{c.priority}</Badge>}
             <Badge variant="outline" className="gap-1 text-[11px]"><TypeIcon t={c.content_type} className="h-3 w-3" /> {typeLabel(c.content_type)}</Badge>
+            <SourceBadge c={c} />
           </div>
           <div className="font-semibold leading-snug">{c.title}</div>
           {c.reasoning && <div className="text-sm text-muted-foreground">{c.reasoning}</div>}
         </div>
         <div className="flex flex-col items-end gap-1.5 shrink-0">
-          <div className="flex items-center gap-1.5">{actions()}</div>
+          <div className="flex items-center gap-1.5">
+            {draft?.content && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 w-8 p-0"
+                onClick={copyDraft}
+                title="Copy draft body to clipboard"
+              >
+                <Copy className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {actions()}
+          </div>
           {c.source_url && (
             <a href={c.source_url} target="_blank" rel="noreferrer"
                className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
@@ -197,7 +269,26 @@ function IdeaCard({
         {!!c.team_questions_count && (
           <span className="inline-flex items-center gap-1"><Users className="h-3 w-3 text-purple-500" /><strong className="text-foreground">{c.team_questions_count}</strong> team questions</span>
         )}
+        {draft?.word_count != null && (
+          <span className="inline-flex items-center gap-1"><FileText className="h-3 w-3" /><strong className="text-foreground">{draft.word_count}</strong> words</span>
+        )}
       </div>
+
+      {/* Inline draft excerpt — makes generated posts actually render on the page */}
+      {excerpt && (
+        <div className="rounded-md border bg-muted/30 px-3 py-2">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Latest draft preview</span>
+            <button
+              onClick={() => onView(c)}
+              className="text-[10px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+            >
+              <Eye className="h-3 w-3" /> Open full draft
+            </button>
+          </div>
+          <p className="text-[13px] text-foreground/80 whitespace-pre-wrap break-words leading-snug">{excerpt}</p>
+        </div>
+      )}
 
       {/* topic tags */}
       {!!c.key_topics?.length && (
@@ -312,6 +403,11 @@ export default function Content() {
   const [composeOpen, setComposeOpen] = useState(false);
   const [composePreset, setComposePreset] = useState<ContentTemplate | null>(null);
 
+  // Pull all latest drafts for visible candidates so each card can show
+  // an inline excerpt + Copy button without N round-trips.
+  const candidateIds = useMemo(() => candidates.map((c) => c.id), [candidates]);
+  const { data: draftsByCandidate = {} } = useGeneratedForMany(candidateIds);
+
   const openCompose = (preset: ContentTemplate | null = null) => { setComposePreset(preset); setComposeOpen(true); };
 
   const byStage = useMemo(() => {
@@ -364,7 +460,7 @@ export default function Content() {
                 <div key={s.key} className="space-y-2">
                   <div className={`text-xs font-semibold uppercase tracking-wide ${s.tone}`}>{s.label} ({byStage[s.key].length})</div>
                   {byStage[s.key].map((c) => (
-                    <IdeaCard key={c.id} c={c} generatingId={generatingId}
+                    <IdeaCard key={c.id} c={c} draft={draftsByCandidate[c.id]} generatingId={generatingId}
                       onGenerate={doGenerate} onView={setViewing} onStatus={setStatus} />
                   ))}
                 </div>

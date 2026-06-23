@@ -17,11 +17,12 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
-  FileText, FolderOpen, Upload, Loader2, AlertCircle, File, MoreVertical, FolderInput, RotateCcw,
+  FileText, FolderOpen, Upload, Loader2, AlertCircle, File, MoreVertical, FolderInput, RotateCcw, Trash2,
 } from "lucide-react";
 import { useBeaconKnowledge, useUploadToBeaconKB } from "@/hooks/useBeaconKnowledge";
 import { useBeaconKbOverrides, useUpsertBeaconKbOverride, useClearBeaconKbOverride } from "@/hooks/useBeaconKbOverrides";
-import { FOLDER_TO_SOURCE_TYPE } from "@/services/beaconApi";
+import { FOLDER_TO_SOURCE_TYPE, assignBeaconFolders, deleteBeaconDoc } from "@/services/beaconApi";
+import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { RecentlyDeletedKb } from "./RecentlyDeletedKb";
 import { lazy, Suspense } from "react";
@@ -41,6 +42,7 @@ interface KnowledgeBaseViewProps {
 
 export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: KnowledgeBaseViewProps) {
   const { toast } = useToast();
+  const qc = useQueryClient();
   const { data, isLoading, isError } = useBeaconKnowledge();
   const { data: overrides = [] } = useBeaconKbOverrides();
   const upsertOverride = useUpsertBeaconKbOverride();
@@ -54,6 +56,9 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   const [viewingFile, setViewingFile] = useState<string | null>(null);
   const [moveTarget, setMoveTarget] = useState<string | null>(null);
   const [moveFolderInput, setMoveFolderInput] = useState("");
+  const [moveSaving, setMoveSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
 
   // Build override map: source_file -> { display_folder, hidden_from_original }
   const overrideMap = useMemo(() => {
@@ -159,13 +164,62 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
 
   const handleConfirmMove = async () => {
     if (!moveTarget || !moveFolderInput.trim()) return;
-    await upsertOverride.mutateAsync({
-      source_file: moveTarget,
-      display_folder: moveFolderInput.trim(),
-      hidden_from_original: true,
-    });
-    setMoveTarget(null);
-    setMoveFolderInput("");
+    setMoveSaving(true);
+    const target = moveFolderInput.trim();
+    // Convert humanized folder name back to slug when it matches a known Beacon folder.
+    const slugFromHuman = Object.keys(FOLDER_TO_SOURCE_TYPE).find((slug) => humanize(slug) === target);
+    const backendFolder = slugFromHuman || target;
+    try {
+      // 1. Real backend move — in-place, no re-ingest, no duplicates.
+      await assignBeaconFolders({ [moveTarget]: backendFolder });
+      // 2. Clear any prior display-layer override (the backend is now source of truth).
+      try {
+        await clearOverride.mutateAsync(moveTarget);
+      } catch {
+        /* no-op — override may not exist */
+      }
+      qc.invalidateQueries({ queryKey: ["beacon-knowledge"] });
+      toast({ title: "Moved", description: `Now in "${target}"` });
+      setMoveTarget(null);
+      setMoveFolderInput("");
+    } catch (err: any) {
+      // Fallback: if the backend rejects (older deploy), fall back to display-only override
+      // so the user still sees the file in the chosen folder.
+      try {
+        await upsertOverride.mutateAsync({
+          source_file: moveTarget,
+          display_folder: target,
+          hidden_from_original: true,
+          notes: `fallback (backend error: ${err.message || "unknown"})`,
+        });
+        toast({
+          title: "Moved (display only)",
+          description: "Backend rejected the request — applied display-layer override instead.",
+        });
+        setMoveTarget(null);
+        setMoveFolderInput("");
+      } catch (e: any) {
+        toast({ title: "Move failed", description: e.message || err.message, variant: "destructive" });
+      }
+    } finally {
+      setMoveSaving(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteSaving(true);
+    try {
+      await deleteBeaconDoc(deleteTarget);
+      qc.invalidateQueries({ queryKey: ["beacon-knowledge"] });
+      qc.invalidateQueries({ queryKey: ["kb-deleted-documents"] });
+      toast({ title: "Deleted", description: "Backed up — restorable from Recently Deleted." });
+      setDeleteTarget(null);
+    } catch (err: any) {
+      toast({ title: "Delete failed", description: err.message, variant: "destructive" });
+    } finally {
+      setDeleteSaving(false);
+    }
   };
 
   if (isLoading) {
@@ -273,7 +327,7 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                                     <MoreVertical className="h-3.5 w-3.5" />
                                   </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuContent align="end" className="w-52">
                                   <DropdownMenuItem
                                     onClick={() => {
                                       setMoveTarget(filename);
@@ -283,15 +337,19 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                                     <FolderInput className="h-3.5 w-3.5 mr-2" /> Move to folder…
                                   </DropdownMenuItem>
                                   {ov && (
-                                    <>
-                                      <DropdownMenuSeparator />
-                                      <DropdownMenuItem
-                                        onClick={() => clearOverride.mutate(filename)}
-                                      >
-                                        <RotateCcw className="h-3.5 w-3.5 mr-2" /> Reset to original folder
-                                      </DropdownMenuItem>
-                                    </>
+                                    <DropdownMenuItem
+                                      onClick={() => clearOverride.mutate(filename)}
+                                    >
+                                      <RotateCcw className="h-3.5 w-3.5 mr-2" /> Reset to original folder
+                                    </DropdownMenuItem>
                                   )}
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={() => setDeleteTarget(filename)}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete…
+                                  </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
@@ -363,8 +421,8 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
           <DialogHeader>
             <DialogTitle>Move to folder</DialogTitle>
             <DialogDescription className="text-xs">
-              Changes where this file appears in the Knowledge Base view. The Beacon backend keeps the
-              original chunks indexed (no re-ingest, no duplicates) — this only changes how it's displayed here.
+              Reassigns this file to a new folder on the Beacon backend — in-place, no re-ingest,
+              no duplicate chunks. Beacon search results update immediately.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -391,9 +449,33 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setMoveTarget(null); setMoveFolderInput(""); }}>Cancel</Button>
-            <Button onClick={handleConfirmMove} disabled={!moveFolderInput.trim() || upsertOverride.isPending}>
-              {upsertOverride.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FolderInput className="h-4 w-4 mr-2" />}
+            <Button onClick={handleConfirmMove} disabled={!moveFolderInput.trim() || moveSaving}>
+              {moveSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FolderInput className="h-4 w-4 mr-2" />}
               Move
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirm dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete from Beacon knowledge base?</DialogTitle>
+            <DialogDescription className="text-xs">
+              Removes this file's chunks from Beacon search. The original is backed up and
+              restorable from <strong>Recently Deleted</strong> below.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">File</Label>
+            <p className="text-sm font-medium break-all">{deleteTarget}</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleConfirmDelete} disabled={deleteSaving}>
+              {deleteSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>

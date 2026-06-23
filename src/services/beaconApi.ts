@@ -208,3 +208,53 @@ export async function checkBeaconHealth(): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * In-place metadata update on the Railway Beacon backend.
+ * NO re-ingest, NO duplicate chunks. Use this for title / jurisdiction / folder edits.
+ * Admin/manager gated via beacon-proxy.
+ */
+export async function updateBeaconMetadata(params: {
+  source_file: string;
+  title?: string;
+  jurisdiction?: string;
+  folder?: string;
+}): Promise<{ success: boolean; updated?: string[] }> {
+  const { data, error } = await supabase.functions.invoke(
+    "beacon-proxy?action=update-metadata",
+    { body: params }
+  );
+  if (error) throw new Error(`Beacon update-metadata error: ${error.message}`);
+  return data;
+}
+
+/**
+ * Reassign one or more KB files to new folders without re-ingest.
+ * Admin/manager gated via beacon-proxy.
+ */
+export async function assignBeaconFolders(
+  assignments: Record<string, string>,
+): Promise<{ success: boolean; assigned?: number }> {
+  const { data, error } = await supabase.functions.invoke(
+    "beacon-proxy?action=assign-folders",
+    { body: { assignments } }
+  );
+  if (error) throw new Error(`Beacon assign-folders error: ${error.message}`);
+  return data;
+}
+
+/**
+ * Delete a KB document from the Beacon backend (backed up, restorable).
+ * Admin/manager gated via beacon-proxy.
+ */
+export async function deleteBeaconDoc(
+  source_file: string,
+): Promise<{ success: boolean; restorable?: boolean }> {
+  const { data, error } = await supabase.functions.invoke(
+    "beacon-proxy?action=delete-doc",
+    { body: { source_file } }
+  );
+  if (error) throw new Error(`Beacon delete error: ${error.message}`);
+  return data;
+}
+
