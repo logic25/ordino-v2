@@ -202,9 +202,11 @@ Deno.serve(async (req) => {
     
     // Parse optional maxPages from request body
     let maxPages = isFirstSync ? 10 : 3; // First sync: 10 pages (~500 msgs), subsequent: 3 pages (~150 msgs)
+    let reconcileOnly = false;
     try {
       const body = await req.json();
       if (body?.maxPages) maxPages = Math.min(body.maxPages, 20);
+      reconcileOnly = body?.reconcileOnly === true;
     } catch { /* no body is fine */ }
     
     // Wall-clock budget — always return before the edge runtime kills us
@@ -528,9 +530,104 @@ Deno.serve(async (req) => {
     };
 
     const ordinoUnreadBefore = await countOrdinoInboxUnread();
+    let gmailUnreadInboxSet = new Set<string>();
+    let importedUnread = 0;
+    let localUnreadInbox: any[] = [];
+    let clearedLocalUnread = 0;
+    let appliedGmailUnread = 0;
+    let markedRead = 0;
+    let markedUnread = 0;
+    let ordinoUnreadAfter = ordinoUnreadBefore;
+
+    const runUnreadReconcile = async () => {
+      // REQUIRED: run this every sync, independent of history/backfill walks.
+      // Gmail's exact `is:unread in:inbox` ID set is authoritative.
+      gmailUnreadInboxSet = await listGmailIds("is:unread in:inbox", 20);
+      const existingUnreadRowsById = new Map<string, any>();
+
+      for (const ids of chunk(Array.from(gmailUnreadInboxSet), 200)) {
+        if (ids.length === 0) continue;
+        const { data: existingRows, error: existingError } = await supabaseAdmin
+          .from("emails")
+          .select("id, gmail_message_id, labels")
+          .eq("user_id", profile.id)
+          .in("gmail_message_id", ids);
+        if (existingError) {
+          console.error("[gmail-sync] failed to load existing unread ids", existingError);
+          continue;
+        }
+        for (const row of existingRows || []) existingUnreadRowsById.set(row.gmail_message_id, row);
+      }
+
+      for (const messageId of gmailUnreadInboxSet) {
+        if (existingUnreadRowsById.has(messageId)) continue;
+        try {
+          const result = await syncGmailMessage(messageId);
+          if (result.isNew) importedUnread++;
+        } catch (e) {
+          console.warn("[gmail-sync] skipped unread reconcile message", messageId, e);
+        }
+        if (partial) break;
+      }
+
+      // If a Gmail-unread row already exists locally but has stale labels, make
+      // it count in the same INBOX scope the UI uses.
+      for (const row of existingUnreadRowsById.values()) {
+        const labels = Array.isArray(row.labels) ? row.labels as string[] : [];
+        if (labels.includes("INBOX") && labels.includes("UNREAD")) continue;
+        await supabaseAdmin
+          .from("emails")
+          .update({ labels: Array.from(new Set([...labels, "INBOX", "UNREAD"])) })
+          .eq("id", row.id);
+      }
+
+      const { data: localUnreadInboxRows } = await supabaseAdmin
+        .from("emails")
+        .select("id, gmail_message_id")
+        .eq("user_id", profile.id)
+        .eq("is_read", false)
+        .filter("labels", "cs", '["INBOX"]')
+        .is("archived_at", null)
+        .not("gmail_message_id", "is", null);
+
+      localUnreadInbox = localUnreadInboxRows || [];
+      markedRead = localUnreadInbox.filter(
+        (row: any) => row.gmail_message_id && !gmailUnreadInboxSet.has(row.gmail_message_id),
+      ).length;
+
+      // Clear local unread inbox bits, then re-apply unread only to Gmail's set.
+      for (const ids of chunk(localUnreadInbox.map((row: any) => row.id), 200)) {
+        if (ids.length === 0) continue;
+        const { error: clearError } = await supabaseAdmin
+          .from("emails")
+          .update({ is_read: true })
+          .in("id", ids);
+        if (clearError) console.error("[gmail-sync] failed to clear local unread state", clearError);
+        else clearedLocalUnread += ids.length;
+      }
+
+      for (const ids of chunk(Array.from(gmailUnreadInboxSet), 200)) {
+        if (ids.length === 0) continue;
+        const { error: applyError } = await supabaseAdmin
+          .from("emails")
+          .update({ is_read: false, archived_at: null })
+          .eq("user_id", profile.id)
+          .in("gmail_message_id", ids);
+        if (applyError) console.error("[gmail-sync] failed to apply Gmail unread state", applyError);
+        else appliedGmailUnread += ids.length;
+      }
+
+      markedUnread = Math.max(0, appliedGmailUnread - (gmailUnreadInboxSet.size - importedUnread));
+      ordinoUnreadAfter = await countOrdinoInboxUnread();
+      console.log(
+        `[gmail-sync] unread reconcile gmail=${gmailUnreadInboxSet.size} ordino_before=${ordinoUnreadBefore} ordino_after=${ordinoUnreadAfter} imported=${importedUnread} marked_read=${markedRead} marked_unread=${markedUnread}`
+      );
+    };
+
+    await runUnreadReconcile();
 
     // True incremental sync: process only messages Gmail says changed since the saved history id.
-    if (connection.history_id) {
+    if (!reconcileOnly && connection.history_id) {
       try {
         const changedMessageIds = new Set<string>();
         let historyPageToken: string | undefined = undefined;
@@ -571,12 +668,12 @@ Deno.serve(async (req) => {
         historySynced = true;
         console.log(`[gmail-sync] history sync changed=${changedMessageIds.size}`);
       } catch (e: any) {
-        console.warn("[gmail-sync] history sync unavailable; unread reconcile will still run", e?.message || e);
+        console.warn("[gmail-sync] history sync unavailable after unread reconcile", e?.message || e);
       }
     }
 
     // First-time backfill only. Subsequent syncs use Gmail History API + unread reconcile.
-    if (!connection.history_id) {
+    if (!reconcileOnly && !connection.history_id) {
       let pageToken: string | undefined = undefined;
       while (pagesProcessed < maxPages) {
         if (Date.now() - startedAt > TIME_BUDGET_MS) {
@@ -602,80 +699,6 @@ Deno.serve(async (req) => {
         if (!pageToken) break;
       }
     }
-
-    // Authoritative unread reconcile: Gmail's current `is:unread in:inbox` set wins.
-    const gmailUnreadInboxSet = await listGmailIds("is:unread in:inbox", 20);
-    let importedUnread = 0;
-    const existingUnreadIds = new Set<string>();
-    for (const ids of chunk(Array.from(gmailUnreadInboxSet), 200)) {
-      if (ids.length === 0) continue;
-      const { data: existingUnreadRows, error: existingUnreadError } = await supabaseAdmin
-        .from("emails")
-        .select("gmail_message_id")
-        .eq("user_id", profile.id)
-        .in("gmail_message_id", ids);
-      if (existingUnreadError) {
-        console.error("[gmail-sync] failed to load existing unread ids", existingUnreadError);
-        continue;
-      }
-      for (const row of existingUnreadRows || []) existingUnreadIds.add(row.gmail_message_id);
-    }
-    for (const messageId of gmailUnreadInboxSet) {
-      if (existingUnreadIds.has(messageId)) continue;
-      try {
-        const result = await syncGmailMessage(messageId);
-        if (result.isNew) importedUnread++;
-      } catch (e) {
-        console.warn("[gmail-sync] skipped unread reconcile message", messageId, e);
-      }
-      if (partial) break;
-    }
-
-    const { data: localUnreadInboxRows } = await supabaseAdmin
-      .from("emails")
-      .select("id, gmail_message_id, is_read")
-      .eq("user_id", profile.id)
-      .eq("is_read", false)
-      .filter("labels", "cs", '["INBOX"]')
-      .is("archived_at", null)
-      .not("gmail_message_id", "is", null);
-
-    const localUnreadInbox = localUnreadInboxRows || [];
-    const toMarkRead = localUnreadInbox.filter(
-      (row: any) => row.gmail_message_id && !gmailUnreadInboxSet.has(row.gmail_message_id),
-    );
-
-    // Make Gmail's exact unread-inbox set authoritative: first clear all local
-    // unread inbox bits, then re-apply unread only to Gmail's current set.
-    let clearedLocalUnread = 0;
-    for (const ids of chunk(localUnreadInbox.map((row: any) => row.id), 200)) {
-      if (ids.length === 0) continue;
-      const { data: cleared, error: clearError } = await supabaseAdmin
-        .from("emails")
-        .update({ is_read: true })
-        .in("id", ids)
-        .select("id");
-      if (clearError) console.error("[gmail-sync] failed to clear local unread state", clearError);
-      clearedLocalUnread += cleared?.length || 0;
-    }
-    let appliedGmailUnread = 0;
-    for (const ids of chunk(Array.from(gmailUnreadInboxSet), 200)) {
-      if (ids.length === 0) continue;
-      const { data: applied, error: applyError } = await supabaseAdmin
-        .from("emails")
-        .update({ is_read: false, archived_at: null })
-        .eq("user_id", profile.id)
-        .in("gmail_message_id", ids)
-        .select("id");
-      if (applyError) console.error("[gmail-sync] failed to apply Gmail unread state", applyError);
-      appliedGmailUnread += applied?.length || 0;
-    }
-    const markedUnread = Math.max(0, appliedGmailUnread - (gmailUnreadInboxSet.size - importedUnread));
-
-    const ordinoUnreadAfter = await countOrdinoInboxUnread();
-    console.log(
-      `[gmail-sync] unread reconcile gmail=${gmailUnreadInboxSet.size} ordino_before=${ordinoUnreadBefore} ordino_after=${ordinoUnreadAfter} imported=${importedUnread} marked_read=${toMarkRead.length} marked_unread=${markedUnread}`
-    );
 
     try {
       const gmailProfile = await gmailJson("https://www.googleapis.com/gmail/v1/users/me/profile");
@@ -762,7 +785,7 @@ Deno.serve(async (req) => {
         ordino_unread_before: ordinoUnreadBefore,
         ordino_unread_after: ordinoUnreadAfter,
         imported_unread: importedUnread,
-        marked_read: toMarkRead.length,
+        marked_read: markedRead,
         marked_unread: markedUnread,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
