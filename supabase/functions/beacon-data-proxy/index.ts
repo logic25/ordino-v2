@@ -206,7 +206,7 @@ Deno.serve(async (req) => {
     } catch (e: any) {
       success = false;
       errorMessage = e?.message ?? String(e);
-      response = fail(errorMessage ?? "Internal server error", 500);
+      response = fail("Internal server error", 500);
     }
 
     // Fire-and-forget audit log
@@ -265,7 +265,7 @@ async function queryProjects(ctx: Ctx, params: any) {
   const { data, error } = await q;
   if (error) {
     console.error("query_projects error:", error.message, error.details, error.hint);
-    return fail(error.message, 500);
+    return fail("Internal server error", 500);
   }
   return ok(data);
 }
@@ -298,7 +298,7 @@ async function queryProjectDetail(ctx: Ctx, params: any) {
   ).maybeSingle();
   if (error) {
     console.error("query_project_detail error:", error.message, error.details, error.hint);
-    return fail(error.message, 500);
+    return fail("Internal server error", 500);
   }
   if (!project) return fail("Project not found", 404);
 
@@ -354,7 +354,7 @@ async function queryPropertyViolations(ctx: Ctx, params: any) {
   const { data, error } = await q;
   if (error) {
     console.error("query_property_violations error:", error.message, error.details, error.hint);
-    return fail(error.message, 500);
+    return fail("Internal server error", 500);
   }
 
   const totalPenalty = (data || []).reduce(
@@ -377,7 +377,7 @@ async function queryPmWorkload(ctx: Ctx, params: any) {
   const { data: profiles, error } = await q;
   if (error) {
     console.error("query_pm_workload error:", error.message, error.details, error.hint);
-    return fail(error.message, 500);
+    return fail("Internal server error", 500);
   }
 
   const results = [];
@@ -414,7 +414,7 @@ async function checkFilingReadiness(ctx: Ctx, params: any) {
   const { data: projects, error } = await q.limit(200);
   if (error) {
     console.error("check_filing_readiness error:", error.message, error.details, error.hint);
-    return fail(error.message, 500);
+    return fail("Internal server error", 500);
   }
 
   const results = [];
@@ -468,7 +468,7 @@ async function queryProposals(ctx: Ctx, params: any) {
   const { data, error } = await q;
   if (error) {
     console.error("query_proposals error:", error.message, error.details, error.hint);
-    return fail(error.message, 500);
+    return fail("Internal server error", 500);
   }
 
   const totalPipeline = (data || []).reduce(
@@ -493,7 +493,7 @@ async function queryInvoices(ctx: Ctx, params: any) {
   const { data, error } = await q;
   if (error) {
     console.error("query_invoices error:", error.message, error.details, error.hint);
-    return fail(error.message, 500);
+    return fail("Internal server error", 500);
   }
 
   const outstanding = (data || [])
@@ -679,7 +679,7 @@ async function queryBugPatterns(ctx: Ctx, params: any) {
   const { data, error } = await q;
   if (error) {
     console.error("query_bug_patterns error:", error.message);
-    return fail(error.message, 500);
+    return fail("Internal server error", 500);
   }
 
   let results = data || [];
@@ -745,7 +745,7 @@ async function createBugFromConversation(ctx: Ctx, params: any) {
 
   if (error) {
     console.error("create_bug_from_conversation error:", error.message);
-    return fail(error.message, 500);
+    return fail("Internal server error", 500);
   }
 
   const SB_URL = Deno.env.get("SUPABASE_URL");
@@ -866,8 +866,8 @@ async function vendorLookup(ctx: Ctx, params: any) {
 
 
   const [firmRes, contactRes] = await Promise.all([firmQ, contactQ]);
-  if (firmRes.error) return fail(firmRes.error.message, 500);
-  if (contactRes.error) return fail(contactRes.error.message, 500);
+  if (firmRes.error) return fail("Internal server error", 500);
+  if (contactRes.error) return fail("Internal server error", 500);
 
   const allFirms: any[] = firmRes.data || [];
   const allContacts: any[] = contactRes.data || [];

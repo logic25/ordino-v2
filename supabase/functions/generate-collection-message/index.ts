@@ -201,7 +201,7 @@ Respond in JSON only:
     });
   } catch (err) {
     console.error("generate-collection-message error:", err);
-    return new Response(JSON.stringify({ error: err.message }), {
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
