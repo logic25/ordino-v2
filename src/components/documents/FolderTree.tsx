@@ -130,18 +130,37 @@ interface FolderTreeProps {
   onRenameFolder?: (folder: DocumentFolder) => void;
   onCreateSubfolder?: (parentId: string) => void;
   onDeleteFolder?: (folder: DocumentFolder) => void;
+  onDropDocument?: (docId: string, folderId: string) => void;
 }
 
-export function FolderTree({ folders, selectedFolderId, onSelectFolder, onRenameFolder, onCreateSubfolder, onDeleteFolder }: FolderTreeProps) {
+export function FolderTree({ folders, selectedFolderId, onSelectFolder, onRenameFolder, onCreateSubfolder, onDeleteFolder, onDropDocument }: FolderTreeProps) {
   const tree = buildFolderTree(folders);
+  const [rootDragOver, setRootDragOver] = useState(false);
 
   return (
     <div className="space-y-0.5">
       <button
         onClick={() => onSelectFolder(null)}
+        onDragOver={(e) => {
+          if (!onDropDocument) return;
+          if (!e.dataTransfer.types.includes("application/x-ordino-doc")) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          if (!rootDragOver) setRootDragOver(true);
+        }}
+        onDragLeave={() => setRootDragOver(false)}
+        onDrop={(e) => {
+          if (!onDropDocument) return;
+          const docId = e.dataTransfer.getData("application/x-ordino-doc");
+          setRootDragOver(false);
+          if (!docId) return;
+          e.preventDefault();
+          onDropDocument(docId, "");
+        }}
         className={cn(
           "w-full flex items-center gap-1.5 px-2 py-1.5 text-sm rounded-md hover:bg-muted transition-colors",
-          selectedFolderId === null && "bg-muted font-medium"
+          selectedFolderId === null && "bg-muted font-medium",
+          rootDragOver && "ring-2 ring-primary bg-primary/10",
         )}
       >
         <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -156,6 +175,7 @@ export function FolderTree({ folders, selectedFolderId, onSelectFolder, onRename
           onRename={onRenameFolder}
           onCreateSubfolder={onCreateSubfolder}
           onDelete={onDeleteFolder}
+          onDropDocument={onDropDocument}
         />
       ))}
     </div>
