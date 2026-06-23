@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { QuickTeachForm } from "./QuickTeachForm";
 import { TeachCard } from "./TeachCard";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   useKbGaps,
   useNegativeFeedback,
@@ -23,14 +24,31 @@ export function BeaconTeachPanel() {
   const total = gapCount + fbCount + sgCount;
 
   return (
+    <TooltipProvider delayDuration={200}>
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <Badge variant="secondary" className="bg-[#f59e0b]/15 text-[#92400e] border-[#f59e0b]/30">
-          {gapCount} gap{gapCount === 1 ? "" : "s"}
-        </Badge>
-        <Badge variant="destructive">{fbCount} flagged</Badge>
-        <Badge variant="secondary">{sgCount} suggestion{sgCount === 1 ? "" : "s"}</Badge>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge variant="secondary" className="bg-[#f59e0b]/15 text-[#92400e] border-[#f59e0b]/30 cursor-help">
+              {gapCount} gap{gapCount === 1 ? "" : "s"}
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent>Questions Beacon answered with low confidence and missing-knowledge wording.</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge variant="destructive" className="cursor-help">{fbCount} flagged</Badge>
+          </TooltipTrigger>
+          <TooltipContent>Answers users gave 👎 in the Beacon chat widget.</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge variant="secondary" className="cursor-help">{sgCount} suggestion{sgCount === 1 ? "" : "s"}</Badge>
+          </TooltipTrigger>
+          <TooltipContent>Corrections Beacon proposed for itself, waiting on your approval.</TooltipContent>
+        </Tooltip>
       </div>
+
 
       <QuickTeachForm />
 
@@ -97,6 +115,7 @@ export function BeaconTeachPanel() {
         </Section>
       )}
     </div>
+    </TooltipProvider>
   );
 }
 

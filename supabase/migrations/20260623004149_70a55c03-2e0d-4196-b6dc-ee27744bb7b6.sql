@@ -1,0 +1,1 @@
+ALTER TABLE public.beacon_interactions ADD COLUMN IF NOT EXISTS addressed_note text; ALTER TABLE public.beacon_interactions ADD COLUMN IF NOT EXISTS addressed_by uuid;
