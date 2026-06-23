@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -105,6 +107,7 @@ function CoverImagePicker({
   onApply: (nextBody: string, url: string, attribution: string) => void;
 }) {
   const { toast } = useToast();
+  const { profile } = useAuth();
   const setCover = useSetCoverImage();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -149,10 +152,15 @@ function CoverImagePicker({
   };
 
   const handleUpload = async (file: File) => {
+    if (!profile?.company_id) {
+      toast({ title: "Upload failed", description: "Missing company context.", variant: "destructive" });
+      return;
+    }
     setUploading(true);
     try {
       const ext = file.name.split(".").pop() || "jpg";
-      const path = `${candidate.id}/${Date.now()}.${ext}`;
+      // Path MUST start with the company_id — storage RLS enforces it.
+      const path = `${profile.company_id}/${candidate.id}/${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage.from("content-images").upload(path, file, { upsert: true });
       if (upErr) throw upErr;
       const { data: signed, error: sErr } = await supabase.storage.from("content-images").createSignedUrl(path, 60 * 60 * 24 * 365);
@@ -665,12 +673,12 @@ function ComposeDialog({
 
 export default function Content() {
   const { toast } = useToast();
+  const { isAdmin, userRoles, canAccess, loading: permsLoading } = usePermissions();
   const { data: candidates = [], isLoading } = useContentCandidates();
   const { data: published = [] } = usePublishedContent();
   const updateStatus = useUpdateCandidateStatus();
   const generate = useGenerateDraft();
   const deleteCandidate = useDeleteCandidate();
-  const { isAdmin, userRoles } = usePermissions();
   // Gate hard-delete to admin/manager only, consistent with the other write actions.
   const canDelete = isAdmin || userRoles.some((r) => /manager/i.test(r));
   const [viewing, setViewing] = useState<ContentCandidate | null>(null);
@@ -721,6 +729,11 @@ export default function Content() {
 
   const setStatus = (c: ContentCandidate, status: string, label: string) =>
     updateStatus.mutate({ id: c.id, status }, { onSuccess: () => toast({ title: label }) });
+
+  // Admin-only by default; configurable per role in Settings → Roles ("Content" resource).
+  if (!permsLoading && !canAccess("content")) {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <AppLayout>

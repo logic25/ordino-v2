@@ -64,7 +64,7 @@ const mainNav: NavEntry[] = [
   { title: "Calendar", icon: CalendarDays, href: "/calendar", resource: "calendar" as ResourceKey },
   { title: "RFPs", icon: ScrollText, href: "/rfps", resource: "rfps" as ResourceKey },
   { title: "Chat", icon: MessageSquare, href: "/chat", resource: "dashboard" as ResourceKey },
-  { title: "Content", icon: Sparkles, href: "/content", resource: "dashboard" as ResourceKey },
+  { title: "Content", icon: Sparkles, href: "/content", resource: "content" as ResourceKey },
   { title: "Reports", icon: BarChart3, href: "/reports", resource: "reports" as ResourceKey },
 ];
 

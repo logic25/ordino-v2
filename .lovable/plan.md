@@ -1,85 +1,54 @@
-## What broke
-The "Teach Beacon" edit to `supabase/functions/beacon-proxy/index.ts` left the new admin/manager passthrough `if (action === "get_kb_gaps" || action === "dismiss_kb_gap" || action === "update_feedback_roadmap") { ... }` block (lines 130–166) without its closing `}`. As a result, every subsequent action handler (`chat`, `ingest`, `knowledge-list`, `file-content`, `content-generate`, and the final `else`/dispatch) is syntactically nested inside that `if`. Any non-Teach action falls through to the `fetch(beaconUrl!, ...)` at line 768 with `beaconUrl` undefined and errors out, which is why the Documents → Beacon Knowledge view shows "Beacon API Unreachable" (the upstream Railway service is fine — I curl'd it and it returns 200).
+# Gate Content to admins via `role_permissions`
 
-Brace audit of the file: 341 open `{` vs 340 close `}` — exactly one missing.
+Recommendation: **add `content` as a real resource in `role_permissions`**. It's the same pattern as every other page, costs one extra row per role in the already-cached single query (5 min staleTime, ~zero perf impact), and lets you grant Content to a Manager later from Settings → Roles without touching code.
 
-## Fix
-Add the missing `}` to close the `if (action === "get_kb_gaps" || ...)` block right after its `return new Response(...)` at line 166, before the blank lines preceding `let beaconUrl`.
+## Why not the hard-coded `isAdmin` shortcut
 
-Concretely, change:
+It works, but you'd be the only page in the app that bypasses the permissions table. Next time someone says "let the Marketing Manager use Content too," it's a code change + deploy instead of a checkbox in Settings. Not worth the savings, since there are no savings — the permissions query is one round-trip per session either way.
 
-```
-      return new Response(text, {
-        status: res.status,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+## Changes
 
+### 1. Add the resource (frontend constants)
+`src/hooks/usePermissions.ts`
+- Extend `ResourceKey` union with `"content"`.
+- Add `{ key: "content", label: "Content" }` to `ALL_RESOURCES` so it shows up in the Settings → Roles grid.
 
-    let beaconUrl: string;
-```
+### 2. Seed `role_permissions` rows (migration — DDL-free, pure inserts)
+Per the project's data-vs-schema rule, I'll do this with the **insert tool**, not a schema migration:
+- For every existing `(company_id, role)` pair, insert one row with `resource = 'content'`:
+  - `admin`: `enabled = true`, all CRUD true
+  - everyone else: `enabled = false`, all CRUD false
+- Use `ON CONFLICT DO NOTHING` (or equivalent) so re-running is safe.
 
-to:
+Also need the seed to fire for **new companies/roles created after this change**. Two options:
+- (a) extend the existing role-seeding trigger/function (whichever already seeds default permissions for a new role) to include `content`, or
+- (b) leave new roles to inherit the default-false behavior and rely on the Settings UI.
 
-```
-      return new Response(text, {
-        status: res.status,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+I'll check whether a seeder function exists during build and pick (a) if it does, (b) otherwise. No new triggers invented.
 
-    let beaconUrl: string;
-```
+### 3. Gate the sidebar
+`src/components/layout/AppSidebar.tsx` line 67
+- Change `resource: "dashboard"` → `resource: "content"` on the Content nav item. Existing sidebar filter (`canAccess(resource)`) does the rest — non-admins stop seeing it.
 
-That's the entire fix — one character. Deploy is automatic.
+### 4. Gate the route
+`src/pages/Content.tsx`
+- At the top: `const { canAccess, loading } = usePermissions();`
+- If `!loading && !canAccess("content")` → redirect to `/` (or render a small "Not authorized" state, matching how other gated pages handle it — I'll match the existing convention found in the codebase).
 
-## Verify
-1. `curl` `beacon-proxy?action=knowledge-list` with a valid session — expect 200 + folder list (not 401/500).
-2. Reload `/documents` → Beacon Knowledge Base view → folders/files render instead of the unreachable error.
-3. Confirm the Teach Beacon tab still works (gaps load, dismiss works) — same code path, just now properly scoped.
+### 5. Verify
+- Log in as admin → Content visible + accessible.
+- Log in as a non-admin role → Content hidden in sidebar, direct nav to `/content` redirects.
+- Settings → Roles → toggle Content on for "Manager" → that user sees it without a deploy.
 
-## Not changing
-- No frontend changes.
-- No other edge function or RLS changes.
-- No revert of the Teach Beacon work — it stays, just correctly braced.
+## Cost note
+The `useRolePermissions` query is already cached for 5 minutes per session and pulls all rows in one call. Adding one row per role per company is well within noise. No new queries, no new round-trips, no schema migration.
 
----
+## Files touched
+- `src/hooks/usePermissions.ts` (add `content` to union + `ALL_RESOURCES`)
+- `src/components/layout/AppSidebar.tsx` (change resource key on Content item)
+- `src/pages/Content.tsx` (route-level gate)
+- Data seed via insert tool (rows in `role_permissions`); optional edit to existing role-seed function if one exists
 
-# Beacon Agents (Parked Roadmap)
-
-A running section grouping AI-agent ideas that share the same archetype: **Beacon + Ordino data + a specific workflow, human-reviewed**. All are parked until prerequisites are met.
-
-## Shared prerequisites
-1. Beacon hardened and trusted (KB gaps closed, teaching loop working, accuracy proven).
-2. Human-in-the-loop review required for every agent action — no autonomous writes.
-3. Clear input pipeline chosen per agent (no in-house commodity layer).
-4. Consent / audit / rollback policy in place.
-
-## Shared anti-pattern (do NOT build)
-Never build the commodity layer underneath these agents:
-- Filing Agent → don't build DOB-NOW submission.
-- Lead → Proposal Agent → don't build a pricing engine.
-- Meeting Intelligence → don't build transcription/summarization (use Google Meet/Gemini notes).
-
-The moat is the **thin differentiated layer** that only works because Beacon reads Ordino.
-
-## Agents
-
-### 1. Filing Agent
-Cross-references filing requirements against project state; surfaces missing docs, stale filings, and next-action gaps. Human PM approves before submission to DOB-NOW (which stays manual or via existing Railway agent).
-
-### 2. Lead → Proposal Agent
-Takes a qualified lead + Ordino historical pricing/scope and drafts a proposal skeleton (services, fees, narrative) for PM review. Does NOT auto-send; does NOT replace pricing judgment.
-
-### 3. Meeting Intelligence (Beacon Meeting ↔ Ordino)
-Ingests meeting notes/transcripts from Google Meet / Gemini notes and cross-references them against live Ordino data — projects, action items, invoices, leads. Surfaces gaps:
-- Unfulfilled commitments ("you said you'd file Rudin ALT-2 this week — still not_started")
-- Decisions discussed but not logged
-- Projects raised in meeting but stalled (no activity in N days)
-- At-risk clients mentioned vs. their real status (overdue invoices, etc.)
-- Action items never converted to tasks
-
-**Do NOT build:** transcription/summarization. Consume Google Meet/Gemini output.
-**Depends on:** Beacon trusted; meeting-notes input pipeline chosen; consent/recording policy.
-
-## Next agent candidates
-Add new ideas here as one-liners; promote to a numbered entry once scoped.
+## Out of scope
+- No changes to `role_permissions` schema.
+- No changes to RLS on content tables (those already check `company_id` + role server-side; this PR is UI-layer gating, which is the same layer every other resource uses).
