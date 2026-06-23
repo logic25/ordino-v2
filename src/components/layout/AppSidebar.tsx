@@ -103,6 +103,7 @@ const routePrefetchMap: Record<string, () => Promise<unknown>> = {
   "/documents": () => import("@/pages/Documents"),
   "/settings": () => import("@/pages/Settings"),
   "/help": () => import("@/pages/HelpDesk"),
+  "/beacon": () => import("@/pages/BeaconHub"),
 };
 
 const prefetchedRoutes = new Set<string>();
