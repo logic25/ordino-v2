@@ -79,6 +79,7 @@ export function useSyncGmail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["emails"] });
+      queryClient.invalidateQueries({ queryKey: ["email-unread-count"] });
       queryClient.invalidateQueries({ queryKey: ["gmail-connection"] });
     },
   });
