@@ -27,6 +27,7 @@ import {
   ClipboardList,
   QrCode,
   Sparkles,
+  Brain,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -34,7 +35,7 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions, type ResourceKey } from "@/hooks/usePermissions";
-import { useIsAdmin } from "@/hooks/useUserRoles";
+import { useIsAdmin, useHasRole } from "@/hooks/useUserRoles";
 import { useUnreadIndicators } from "@/hooks/useUnreadIndicators";
 
 type NavItem = { title: string; icon: any; href: string; resource: ResourceKey };
@@ -133,6 +134,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { canAccess, loading: permLoading } = usePermissions();
   const { user, profile, signOut } = useAuth();
   const isAdmin = useIsAdmin();
+  const isManager = useHasRole("manager");
   const { chatHasUnread, emailHasUnread, emailUnreadCount, billingPendingCount } = useUnreadIndicators();
 
   const unreadDotMap: Record<string, boolean> = {
@@ -148,13 +150,16 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
     mainNav.reduce<NavEntry[]>((acc, entry) => {
       if ("kind" in entry && entry.kind === "group") {
         const items = entry.items.filter((i) => canAccess(i.resource));
+        if (entry.label === "BD" && (isAdmin || isManager)) {
+          items.push({ title: "Beacon", icon: Brain, href: "/beacon", resource: "dashboard" as ResourceKey });
+        }
         if (items.length > 0) acc.push({ ...entry, items });
       } else if (canAccess((entry as NavItem).resource)) {
         acc.push(entry);
       }
       return acc;
     }, []),
-    [canAccess]
+    [canAccess, isAdmin, isManager]
   );
 
   const filteredSecondaryNav = useMemo(() =>
