@@ -631,26 +631,24 @@ Deno.serve(async (req) => {
       if (partial) break;
     }
 
-    const { data: localInboxRows } = await supabaseAdmin
+    const { data: localUnreadInboxRows } = await supabaseAdmin
       .from("emails")
       .select("id, gmail_message_id, is_read")
       .eq("user_id", profile.id)
+      .eq("is_read", false)
       .filter("labels", "cs", '["INBOX"]')
       .is("archived_at", null)
       .not("gmail_message_id", "is", null);
 
-    const localInbox = localInboxRows || [];
-    const toMarkRead = localInbox.filter(
-      (row: any) => row.gmail_message_id && !gmailUnreadInboxSet.has(row.gmail_message_id) && row.is_read === false,
-    );
-    const toMarkUnread = localInbox.filter(
-      (row: any) => row.gmail_message_id && gmailUnreadInboxSet.has(row.gmail_message_id) && row.is_read === true,
+    const localUnreadInbox = localUnreadInboxRows || [];
+    const toMarkRead = localUnreadInbox.filter(
+      (row: any) => row.gmail_message_id && !gmailUnreadInboxSet.has(row.gmail_message_id),
     );
 
-    // Make Gmail's exact unread-inbox set authoritative: first clear all local inbox
-    // unread bits, then re-apply unread only to Gmail's current set.
+    // Make Gmail's exact unread-inbox set authoritative: first clear all local
+    // unread inbox bits, then re-apply unread only to Gmail's current set.
     let clearedLocalUnread = 0;
-    for (const ids of chunk(localInbox.map((row: any) => row.id), 200)) {
+    for (const ids of chunk(localUnreadInbox.map((row: any) => row.id), 200)) {
       if (ids.length === 0) continue;
       const { data: cleared, error: clearError } = await supabaseAdmin
         .from("emails")
@@ -672,7 +670,7 @@ Deno.serve(async (req) => {
       if (applyError) console.error("[gmail-sync] failed to apply Gmail unread state", applyError);
       appliedGmailUnread += applied?.length || 0;
     }
-    const markedUnread = toMarkUnread.length;
+    const markedUnread = Math.max(0, appliedGmailUnread - (gmailUnreadInboxSet.size - importedUnread));
 
     const ordinoUnreadAfter = await countOrdinoInboxUnread();
     console.log(
@@ -736,7 +734,7 @@ Deno.serve(async (req) => {
           updated: updatedCount,
           new_unread: newUnreadInbox.length,
           gmail_unread_inbox: gmailUnreadInboxSet.size,
-          local_inbox: localInbox.length,
+          local_unread_inbox: localUnreadInbox.length,
           cleared_local_unread: clearedLocalUnread,
           applied_gmail_unread: appliedGmailUnread,
           ordino_unread_before: ordinoUnreadBefore,
@@ -758,7 +756,7 @@ Deno.serve(async (req) => {
         history_synced: historySynced,
         partial,
         gmail_unread_inbox: gmailUnreadInboxSet.size,
-        local_inbox: localInbox.length,
+        local_unread_inbox: localUnreadInbox.length,
         cleared_local_unread: clearedLocalUnread,
         applied_gmail_unread: appliedGmailUnread,
         ordino_unread_before: ordinoUnreadBefore,
