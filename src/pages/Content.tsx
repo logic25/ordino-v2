@@ -673,12 +673,12 @@ function ComposeDialog({
 
 export default function Content() {
   const { toast } = useToast();
+  const { isAdmin, userRoles, canAccess, loading: permsLoading } = usePermissions();
   const { data: candidates = [], isLoading } = useContentCandidates();
   const { data: published = [] } = usePublishedContent();
   const updateStatus = useUpdateCandidateStatus();
   const generate = useGenerateDraft();
   const deleteCandidate = useDeleteCandidate();
-  const { isAdmin, userRoles } = usePermissions();
   // Gate hard-delete to admin/manager only, consistent with the other write actions.
   const canDelete = isAdmin || userRoles.some((r) => /manager/i.test(r));
   const [viewing, setViewing] = useState<ContentCandidate | null>(null);
