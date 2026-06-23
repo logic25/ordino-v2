@@ -133,7 +133,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { toast } = useToast();
   const { canAccess, loading: permLoading } = usePermissions();
   const { user, profile, signOut } = useAuth();
-  const isAdmin = useIsAdmin();
+  
   const { chatHasUnread, emailHasUnread, emailUnreadCount, billingPendingCount } = useUnreadIndicators();
 
   const unreadDotMap: Record<string, boolean> = {
