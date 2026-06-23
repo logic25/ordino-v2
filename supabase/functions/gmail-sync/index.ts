@@ -785,7 +785,7 @@ Deno.serve(async (req) => {
         ordino_unread_before: ordinoUnreadBefore,
         ordino_unread_after: ordinoUnreadAfter,
         imported_unread: importedUnread,
-        marked_read: toMarkRead.length,
+        marked_read: markedRead,
         marked_unread: markedUnread,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
