@@ -150,7 +150,8 @@ export function BeaconDocumentModal({
   const [editContent, setEditContent] = useState("");
   const [originalContent, setOriginalContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [panel, setPanel] = useState<"doc" | "history">("doc");
+  const [panel, setPanel] = useState<"doc" | "history" | "properties">("doc");
+  const [propsDraft, setPropsDraft] = useState<Record<string, string>>({});
   const versions = useKbDocumentVersions(sourceFile);
   const versionCount = versions.data?.length || 0;
 
