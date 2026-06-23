@@ -532,8 +532,8 @@ export function InvoiceSettings() {
 
       {/* Demand Letter Template */}
       <CollapsibleSettingsCard
-        title="Demand Letter Template"
-        description="Customize the formal demand letter sent to clients"
+        title="Demand Letter Fallback Template"
+        description="Used only if AI demand-letter generation fails. The AI generator pulls live invoice + signed-agreement context — this template is the safety net."
         isOpen={sectionStates.demand ?? true}
         onOpenChange={(o) => setSectionOpen("demand", o)}
         headerAction={
