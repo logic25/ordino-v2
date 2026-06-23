@@ -123,6 +123,49 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── Teach-Beacon admin passthroughs ──
+    // Admin OR manager can drive the review queue. We forward to beacon-analytics
+    // using the shared BEACON_ANALYTICS_KEY (kept server-side). Identity is NOT
+    // accepted from the client for write paths — derived from JWT.
+    if (
+      action === "get_kb_gaps" ||
+      action === "dismiss_kb_gap" ||
+      action === "update_feedback_roadmap"
+    ) {
+      const sbSvc = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+      const { data: roles } = await sbSvc
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+      const allowed = (roles || []).some(
+        (r: any) => r.role === "admin" || r.role === "manager"
+      );
+      if (!allowed) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const body = await req.json().catch(() => ({}));
+      const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/beacon-analytics`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-beacon-key": BEACON_API_KEY,
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+        body: JSON.stringify({ action, data: body?.data || {} }),
+      });
+      const text = await res.text();
+      return new Response(text, {
+        status: res.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+
+
     let beaconUrl: string;
     let beaconReqInit: RequestInit;
 
