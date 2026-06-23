@@ -111,6 +111,8 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
           </SheetHeader>
 
           <div className="mt-6 space-y-6">
+            <CertifiedMailBanner invoiceId={invoice.id} />
+
             {/* Project Info */}
             <section>
               <h4 className="text-sm font-medium text-muted-foreground mb-2">Project</h4>
