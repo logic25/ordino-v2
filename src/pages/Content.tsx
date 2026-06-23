@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Loader2, Sparkles, Check, X, Send, FileText, Mail, Eye, Copy, Pencil,
   TrendingUp, Users, ExternalLink, HelpCircle, Plus, LayoutTemplate,
@@ -39,6 +41,43 @@ function priorityClasses(p?: string | null) {
     case "medium": return "bg-amber-50 text-amber-700 border-amber-200";
     default: return "bg-muted text-muted-foreground";
   }
+}
+
+// Hover-explained priority tier. Tiers are editorial — derived from team-question
+// volume + client value (manual on seed; Beacon recomputes for auto candidates).
+const PRIORITY_TOOLTIPS: Record<string, { label: string; body: string }> = {
+  high: {
+    label: "High priority",
+    body: "Many real team questions (typically 40+) and high client value. Write this next — strong demand signal from your Beacon chat history.",
+  },
+  medium: {
+    label: "Medium priority",
+    body: "Consistent but lower-volume team interest (roughly 15–40 questions). Worth writing once the High pile is clear.",
+  },
+  low: {
+    label: "Low priority",
+    body: "Niche topics with few team questions (under ~15). Still on-brand for the firm — good for breadth, not urgency.",
+  },
+};
+
+function PriorityBadge({ priority }: { priority: string }) {
+  const key = (priority || "").toLowerCase();
+  const info = PRIORITY_TOOLTIPS[key];
+  const badge = (
+    <Badge variant="outline" className={`text-[11px] capitalize cursor-help ${priorityClasses(priority)}`}>
+      {priority}
+    </Badge>
+  );
+  if (!info) return badge;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild><span>{badge}</span></TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs">
+        <div className="font-semibold text-xs mb-0.5">{info.label}</div>
+        <div className="text-xs text-muted-foreground">{info.body}</div>
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 // ── Preview / Review modal with inline edit + publish ───────────────────────
@@ -131,22 +170,60 @@ function PreviewDialog({
 }
 
 // ── Source badge: where did this idea come from? ────────────────────────────
+// "From N questions" is now a popover button that shows the actual team questions
+// that clustered into this idea (when we have them).
 function SourceBadge({ c }: { c: ContentCandidate }) {
   const src = (c.source_type || "").toLowerCase();
   const qCount = c.team_questions_count || 0;
-  // "From questions" if the source is a question cluster OR we have team_questions.
-  if (src === "question_cluster" || src === "questions" || qCount > 0) {
+  const isQuestionCluster = src === "question_cluster" || src === "questions" || qCount > 0;
+  const isManual = src === "manual" || src === "scratch" || src === "from_scratch";
+
+  if (isQuestionCluster) {
+    const label = `📊 ${qCount > 0 ? `From ${qCount} question${qCount === 1 ? "" : "s"}` : "From questions"}`;
+    const questions = c.team_questions || [];
+    const badgeClass =
+      "cursor-pointer text-[11px] border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-400 dark:hover:bg-emerald-950/50";
+
     return (
-      <Badge
-        variant="outline"
-        className="text-[11px] border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-400"
-        title="Derived from your team's real Beacon chat questions"
-      >
-        📊 {qCount > 0 ? `From ${qCount} question${qCount === 1 ? "" : "s"}` : "From questions"}
-      </Badge>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            onClick={(e) => e.stopPropagation()}
+            title="Click to see the actual team questions behind this idea"
+          >
+            <Badge variant="outline" className={badgeClass}>{label}</Badge>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-[420px] max-h-[60vh] overflow-y-auto">
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+            Team questions ({qCount || questions.length})
+          </div>
+          {questions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {qCount > 0
+                ? `Beacon counted ${qCount} questions in this cluster but the originals weren't saved with this candidate. Re-run the question-clustering job to attach them.`
+                : "No team questions recorded for this idea."}
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {questions.map((q, i) => (
+                <li key={i} className="text-sm text-foreground/90 flex gap-2">
+                  <span className="text-muted-foreground/60 select-none">{i + 1}.</span>
+                  <span className="break-words">{q}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-3 pt-2 border-t text-[11px] text-muted-foreground">
+            Sourced from your team's real Beacon chat history. Higher counts → stronger client demand signal.
+          </p>
+        </PopoverContent>
+      </Popover>
     );
   }
-  if (src === "manual" || src === "scratch" || src === "from_scratch") {
+
+  if (isManual) {
     return (
       <Badge
         variant="outline"
@@ -244,7 +321,7 @@ function IdeaCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
-            {c.priority && <Badge variant="outline" className={`text-[11px] ${priorityClasses(c.priority)}`}>{c.priority}</Badge>}
+            {c.priority && <PriorityBadge priority={c.priority} />}
             <Badge variant="outline" className="gap-1 text-[11px]"><TypeIcon t={c.content_type} className="h-3 w-3" /> {typeLabel(c.content_type)}</Badge>
             <SourceBadge c={c} />
           </div>
