@@ -27,9 +27,22 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
     }
 
-    const { mode, raw_idea, company_id, exclude_item_id } = await req.json();
+    const { mode, raw_idea, exclude_item_id } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+
+    // Derive company_id server-side from the authenticated user — never trust client input
+    const sbAdminEarly = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const { data: callerProfile } = await sbAdminEarly
+      .from("profiles")
+      .select("id, company_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const company_id = callerProfile?.company_id;
+    const callerProfileId = callerProfile?.id ?? null;
+    if (!company_id) {
+      return new Response(JSON.stringify({ error: "No company for user" }), { status: 403, headers: corsHeaders });
+    }
 
     // Fetch current roadmap items for duplicate detection, excluding the item being tested
     const roadmapQuery = supabase
