@@ -421,8 +421,8 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
           <DialogHeader>
             <DialogTitle>Move to folder</DialogTitle>
             <DialogDescription className="text-xs">
-              Changes where this file appears in the Knowledge Base view. The Beacon backend keeps the
-              original chunks indexed (no re-ingest, no duplicates) — this only changes how it's displayed here.
+              Reassigns this file to a new folder on the Beacon backend — in-place, no re-ingest,
+              no duplicate chunks. Beacon search results update immediately.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -449,9 +449,33 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setMoveTarget(null); setMoveFolderInput(""); }}>Cancel</Button>
-            <Button onClick={handleConfirmMove} disabled={!moveFolderInput.trim() || upsertOverride.isPending}>
-              {upsertOverride.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FolderInput className="h-4 w-4 mr-2" />}
+            <Button onClick={handleConfirmMove} disabled={!moveFolderInput.trim() || moveSaving}>
+              {moveSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FolderInput className="h-4 w-4 mr-2" />}
               Move
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirm dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete from Beacon knowledge base?</DialogTitle>
+            <DialogDescription className="text-xs">
+              Removes this file's chunks from Beacon search. The original is backed up and
+              restorable from <strong>Recently Deleted</strong> below.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">File</Label>
+            <p className="text-sm font-medium break-all">{deleteTarget}</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleConfirmDelete} disabled={deleteSaving}>
+              {deleteSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>
