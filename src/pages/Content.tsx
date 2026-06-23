@@ -311,7 +311,6 @@ function IdeaCard({
     }
   };
 
-  const si = (c.search_interest || "").toLowerCase();
   // Inline excerpt of the latest draft body (strip leading markdown header).
   const excerpt = useMemo(() => {
     const raw = draft?.content || "";
@@ -350,6 +349,17 @@ function IdeaCard({
               </Button>
             )}
             {actions()}
+            {canDelete && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                onClick={() => onDelete(c)}
+                title="Delete idea and all of its drafts (permanent)"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </div>
           {c.source_url && (
             <a href={c.source_url} target="_blank" rel="noreferrer"
@@ -360,13 +370,23 @@ function IdeaCard({
         </div>
       </div>
 
-      {/* metric row */}
+      {/* Metric row — only honest signals. relevance is editorial ("fit"),
+          team_questions_count is real Beacon chat volume. search_interest
+          was manual/fake and is intentionally NOT rendered anymore. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-muted-foreground">
         {c.relevance_score != null && (
-          <span className="inline-flex items-center gap-1"><Sparkles className="h-3 w-3 text-orange-500" /><strong className="text-foreground">{c.relevance_score}%</strong> relevance</span>
-        )}
-        {si && si !== "unknown" && (
-          <span className="inline-flex items-center gap-1"><TrendingUp className="h-3 w-3 text-blue-500" /><strong className="text-foreground capitalize">{si}</strong> search interest</span>
+          <Tooltip delayDuration={150}>
+            <TooltipTrigger asChild>
+              <span className="inline-flex items-center gap-1 cursor-help">
+                <Target className="h-3 w-3 text-orange-500" />
+                <strong className="text-foreground">{c.relevance_score}%</strong> fit
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs z-[100]">
+              Editorial "fit for Green Light" score — manual heuristic on the seed,
+              not a live SEO metric.
+            </TooltipContent>
+          </Tooltip>
         )}
         {!!c.team_questions_count && (
           <span className="inline-flex items-center gap-1"><Users className="h-3 w-3 text-purple-500" /><strong className="text-foreground">{c.team_questions_count}</strong> team questions</span>
@@ -375,6 +395,7 @@ function IdeaCard({
           <span className="inline-flex items-center gap-1"><FileText className="h-3 w-3" /><strong className="text-foreground">{draft.word_count}</strong> words</span>
         )}
       </div>
+
 
       {/* Inline draft excerpt — makes generated posts actually render on the page */}
       {excerpt && (
