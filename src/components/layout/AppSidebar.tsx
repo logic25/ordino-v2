@@ -150,22 +150,26 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
     mainNav.reduce<NavEntry[]>((acc, entry) => {
       if ("kind" in entry && entry.kind === "group") {
         const items = entry.items.filter((i) => canAccess(i.resource));
-        if (entry.label === "BD" && (isAdmin || isManager)) {
-          items.push({ title: "Beacon", icon: Brain, href: "/beacon", resource: "dashboard" as ResourceKey });
-        }
         if (items.length > 0) acc.push({ ...entry, items });
       } else if (canAccess((entry as NavItem).resource)) {
         acc.push(entry);
       }
       return acc;
     }, []),
-    [canAccess, isAdmin, isManager]
-  );
-
-  const filteredSecondaryNav = useMemo(() =>
-    secondaryNav.filter((item) => canAccess(item.resource)),
     [canAccess]
   );
+
+  const filteredSecondaryNav = useMemo(() => {
+    const items = secondaryNav.filter((item) => canAccess(item.resource));
+    if (isAdmin || isManager) {
+      // Place Beacon Hub adjacent to Help (admin/manager tooling)
+      const helpIdx = items.findIndex((i) => i.href === "/help");
+      const beacon = { title: "Beacon", icon: Brain, href: "/beacon", resource: "dashboard" as ResourceKey };
+      if (helpIdx >= 0) items.splice(helpIdx, 0, beacon);
+      else items.push(beacon);
+    }
+    return items;
+  }, [canAccess, isAdmin, isManager]);
 
   const initials = getInitials(profile, user?.email);
   const displayName =
