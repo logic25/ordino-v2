@@ -421,6 +421,62 @@ export function BeaconDocumentModal({
                 ))
               )}
             </div>
+          ) : panel === "properties" ? (
+            <div className="space-y-4 px-1">
+              <div className="rounded-md border border-[#f59e0b]/40 bg-[#f59e0b]/5 px-3 py-2 text-xs text-foreground flex items-start gap-2">
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 text-[#f59e0b] shrink-0" />
+                <div>
+                  Edits below re-ingest this document into Beacon. The underlying
+                  filename (<code className="text-[10px]">{sourceFile}</code>) can't be
+                  renamed yet — Beacon's backend doesn't expose a rename/delete API.
+                  Changing the folder writes a new chunk under the new folder; the
+                  original chunk persists until backend delete ships.
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium">Display title</label>
+                <input
+                  className="w-full px-3 py-2 border rounded-md text-sm bg-background"
+                  value={propsDraft.title ?? metadata.title ?? ""}
+                  onChange={(e) => setPropsDraft((p) => ({ ...p, title: e.target.value }))}
+                  placeholder="e.g. Spring Valley Filing Guide"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  This is what shows as the document heading and in Beacon search results.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium">Folder (Beacon category)</label>
+                <select
+                  className="w-full px-3 py-2 border rounded-md text-sm bg-background"
+                  value={propsDraft.category ?? metadata.category ?? ""}
+                  onChange={(e) => setPropsDraft((p) => ({ ...p, category: e.target.value }))}
+                >
+                  <option value="">— select folder —</option>
+                  {Object.keys(FOLDER_TO_SOURCE_TYPE).map((slug) => (
+                    <option key={slug} value={slug}>
+                      {slug.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium">Jurisdiction</label>
+                <input
+                  className="w-full px-3 py-2 border rounded-md text-sm bg-background"
+                  value={propsDraft.jurisdiction ?? metadata.jurisdiction ?? ""}
+                  onChange={(e) => setPropsDraft((p) => ({ ...p, jurisdiction: e.target.value }))}
+                  placeholder="e.g. Spring Valley, NY"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Free-form. Use the local jurisdiction this document applies to (e.g.
+                  "NYC", "Spring Valley, NY", "Yonkers, NY").
+                </p>
+              </div>
+            </div>
           ) : isEditing ? (
             <textarea
               className="w-full h-[55vh] font-mono text-sm p-3 border rounded-md resize-none bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
