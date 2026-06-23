@@ -20,6 +20,7 @@ interface FolderNodeProps {
 
 function FolderNode({ folder, selectedId, onSelect, onRename, onCreateSubfolder, onDelete, onDropDocument, depth = 0 }: FolderNodeProps) {
   const [expanded, setExpanded] = useState(depth === 0);
+  const [dragOver, setDragOver] = useState(false);
   const hasChildren = folder.children.length > 0;
   const isSelected = selectedId === folder.id;
   const canDelete = !folder.is_system;
