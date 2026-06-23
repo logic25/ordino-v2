@@ -60,11 +60,14 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
 
-  // Build override map: source_file -> { display_folder, hidden_from_original }
+  // Build override map: source_file -> { display_folder, hidden_from_original, notes }
+  // notes prefixed with "__orig__:<slug>" means a real backend move; the slug is
+  // the original Beacon folder so "Reset to original folder" can call the backend
+  // to put it back, not just clear a display-only override.
   const overrideMap = useMemo(() => {
-    const m = new Map<string, { display_folder: string; hidden: boolean }>();
+    const m = new Map<string, { display_folder: string; hidden: boolean; notes: string | null }>();
     for (const o of overrides) {
-      m.set(o.source_file, { display_folder: o.display_folder, hidden: o.hidden_from_original });
+      m.set(o.source_file, { display_folder: o.display_folder, hidden: o.hidden_from_original, notes: o.notes });
     }
     return m;
   }, [overrides]);
@@ -162,6 +165,15 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
     if (fileRef.current) fileRef.current.value = "";
   };
 
+  // Find which slug the file CURRENTLY lives in on the Beacon backend (before move).
+  const findOriginalSlug = (filename: string): string | null => {
+    if (!data?.folders) return null;
+    for (const [slug, files] of Object.entries(data.folders)) {
+      if ((files as string[]).includes(filename)) return slug;
+    }
+    return null;
+  };
+
   const handleConfirmMove = async () => {
     if (!moveTarget || !moveFolderInput.trim()) return;
     setMoveSaving(true);
@@ -169,15 +181,19 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
     // Convert humanized folder name back to slug when it matches a known Beacon folder.
     const slugFromHuman = Object.keys(FOLDER_TO_SOURCE_TYPE).find((slug) => humanize(slug) === target);
     const backendFolder = slugFromHuman || target;
+    const originalSlug = findOriginalSlug(moveTarget);
     try {
       // 1. Real backend move — in-place, no re-ingest, no duplicates.
       await assignBeaconFolders({ [moveTarget]: backendFolder });
-      // 2. Clear any prior display-layer override (the backend is now source of truth).
-      try {
-        await clearOverride.mutateAsync(moveTarget);
-      } catch {
-        /* no-op — override may not exist */
-      }
+      // 2. Record the move so the UI shows a "moved" badge and "Reset to original
+      //    folder" can call the backend to put it back. hidden_from_original=false
+      //    because the backend has already removed it from the original slug.
+      await upsertOverride.mutateAsync({
+        source_file: moveTarget,
+        display_folder: target,
+        hidden_from_original: false,
+        notes: originalSlug ? `__orig__:${originalSlug}` : null,
+      });
       qc.invalidateQueries({ queryKey: ["beacon-knowledge"] });
       toast({ title: "Moved", description: `Now in "${target}"` });
       setMoveTarget(null);
@@ -205,6 +221,24 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
       setMoveSaving(false);
     }
   };
+
+  // Reset a moved file back to its original Beacon folder. For real backend moves
+  // (notes prefixed "__orig__:<slug>"), this calls assignBeaconFolders to restore;
+  // for display-only overrides it just clears the override row.
+  const handleResetToOriginal = async (filename: string) => {
+    const ov = overrideMap.get(filename);
+    const origSlug = ov?.notes?.startsWith("__orig__:") ? ov.notes.slice("__orig__:".length) : null;
+    try {
+      if (origSlug) {
+        await assignBeaconFolders({ [filename]: origSlug });
+      }
+      await clearOverride.mutateAsync(filename);
+      qc.invalidateQueries({ queryKey: ["beacon-knowledge"] });
+    } catch (err: any) {
+      toast({ title: "Reset failed", description: err.message, variant: "destructive" });
+    }
+  };
+
 
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
