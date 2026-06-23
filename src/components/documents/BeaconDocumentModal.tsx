@@ -511,19 +511,38 @@ export function BeaconDocumentModal({
                   Save & Re-sync
                 </Button>
               </>
+            ) : panel === "properties" ? (
+              <>
+                <Button variant="outline" size="sm" onClick={() => { setPanel("doc"); setPropsDraft({}); }}>
+                  Cancel
+                </Button>
+                <Button size="sm" onClick={handleSaveProperties} disabled={isSaving || Object.keys(propsDraft).length === 0}>
+                  {isSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+                  Save Properties
+                </Button>
+              </>
             ) : (
               <>
                 {panel === "doc" && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setIsEditing(true);
-                      setEditContent(body);
-                    }}
-                  >
-                    <Pencil className="h-4 w-4 mr-1" /> Edit
-                  </Button>
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setIsEditing(true);
+                        setEditContent(body);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4 mr-1" /> Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => { setPropsDraft({}); setPanel("properties"); }}
+                    >
+                      <Settings2 className="h-4 w-4 mr-1" /> Properties
+                    </Button>
+                  </>
                 )}
                 <Button
                   variant="outline"
