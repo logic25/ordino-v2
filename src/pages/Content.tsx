@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   useContentCandidates, useGeneratedFor, useGeneratedForMany, usePublishedContent,
   useUpdateCandidateStatus, useGenerateDraft, useSaveDraft, usePublish, useComposeContent,
+  useQuickGenerate,
   type ContentCandidate, type GeneratedContent,
 } from "@/hooks/useContent";
 import { CONTENT_TEMPLATES, type ContentTemplate } from "@/lib/contentTemplates";
@@ -186,6 +187,18 @@ function IdeaCard({
   };
 
   const actions = () => {
+    const regenerate = draft?.content ? (
+      <Button
+        size="sm"
+        variant="ghost"
+        className="h-8 w-8 p-0"
+        disabled={generatingId === c.id}
+        onClick={() => onGenerate(c)}
+        title="Regenerate draft from Beacon"
+      >
+        {generatingId === c.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+      </Button>
+    ) : null;
     switch (c.status) {
       case "pending": return (
         <>
@@ -197,12 +210,16 @@ function IdeaCard({
       );
       case "drafted": return (
         <>
+          {regenerate}
           <Button size="sm" variant="outline" onClick={() => onView(c)}><Eye className="h-3.5 w-3.5 mr-1" />Review</Button>
           <Button size="sm" onClick={() => onStatus(c, "approved", "Approved")}><Check className="h-3.5 w-3.5 mr-1" />Approve</Button>
         </>
       );
       case "approved": return (
-        <Button size="sm" onClick={() => onView(c)}><Send className="h-3.5 w-3.5 mr-1" />Review &amp; Publish</Button>
+        <>
+          {regenerate}
+          <Button size="sm" onClick={() => onView(c)}><Send className="h-3.5 w-3.5 mr-1" />Review &amp; Publish</Button>
+        </>
       );
       case "published": return <Button size="sm" variant="outline" onClick={() => onView(c)}><Eye className="h-3.5 w-3.5 mr-1" />View</Button>;
       default: return <Button size="sm" variant="ghost" onClick={() => onStatus(c, "pending", "Restored")}>Restore</Button>;
@@ -410,6 +427,22 @@ export default function Content() {
 
   const openCompose = (preset: ContentTemplate | null = null) => { setComposePreset(preset); setComposeOpen(true); };
 
+  // "+ Write about…" — ad-hoc topic + immediate Beacon generation.
+  const quickGen = useQuickGenerate();
+  const [quickTopic, setQuickTopic] = useState("");
+  const submitQuick = async () => {
+    const title = quickTopic.trim();
+    if (!title) return;
+    try {
+      const cand = await quickGen.mutateAsync({ title, content_type: "blog_post" });
+      setQuickTopic("");
+      toast({ title: "Draft generated", description: `"${title}" is ready to review.` });
+      setViewing(cand);
+    } catch (e: any) {
+      toast({ title: "Generate failed", description: e.message, variant: "destructive" });
+    }
+  };
+
   const byStage = useMemo(() => {
     const g: Record<string, ContentCandidate[]> = { pending: [], drafted: [], approved: [], published: [], skipped: [] };
     for (const c of candidates) (g[c.status] ?? (g[c.status] = [])).push(c);
@@ -440,6 +473,23 @@ export default function Content() {
           </div>
           <Button onClick={() => openCompose(null)}><Plus className="h-4 w-4 mr-1" /> Compose from Scratch</Button>
         </div>
+
+        {/* "+ Write about…" — ad-hoc topic that creates a manual candidate and drafts it immediately via Beacon */}
+        <Card className="p-3 flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-orange-500 shrink-0" />
+          <Input
+            value={quickTopic}
+            onChange={(e) => setQuickTopic(e.target.value)}
+            placeholder="+ Write about…  (e.g. New DOB NOW filing requirement, FDNY sprinkler shop drawings)"
+            className="border-0 focus-visible:ring-0 shadow-none px-1"
+            onKeyDown={(e) => { if (e.key === "Enter") submitQuick(); }}
+            disabled={quickGen.isPending}
+          />
+          <Button size="sm" onClick={submitQuick} disabled={!quickTopic.trim() || quickGen.isPending}>
+            {quickGen.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
+            Generate
+          </Button>
+        </Card>
 
         <Tabs defaultValue="pipeline">
           <TabsList>

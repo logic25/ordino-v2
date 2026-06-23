@@ -561,10 +561,23 @@ async function updateFeedbackRoadmap(sb: any, d: any) {
 // ─── Content Pipeline Actions ───────────────────────────────────────
 
 async function saveContentCandidate(sb: any, d: any) {
+  // Resolve company_id: prefer payload, else first company in DB (same fallback
+  // pattern as logFeedback). content_candidates.company_id is NOT NULL — without
+  // this, upserts from the Beacon backend seeder silently fail.
+  let companyId = d.company_id;
+  if (!companyId) {
+    const { data: companyRow } = await sb.from("companies").select("id").limit(1).single();
+    companyId = companyRow?.id;
+  }
+  if (!companyId) {
+    return jsonResponse({ error: "No company_id available for content candidate" }, 400);
+  }
+
   const { data, error } = await sb
     .from("content_candidates")
     .upsert({
       id: d.id,
+      company_id: companyId,
       title: d.title,
       content_type: d.content_type ?? "blog_post",
       priority: d.priority ?? "medium",
@@ -624,10 +637,26 @@ async function updateContentCandidate(sb: any, d: any) {
 }
 
 async function saveGeneratedContent(sb: any, d: any) {
+  // Resolve company_id: prefer payload, else inherit from candidate, else first company.
+  let companyId = d.company_id;
+  if (!companyId && d.candidate_id) {
+    const { data: cand } = await sb
+      .from("content_candidates")
+      .select("company_id")
+      .eq("id", d.candidate_id)
+      .maybeSingle();
+    companyId = cand?.company_id;
+  }
+  if (!companyId) {
+    const { data: companyRow } = await sb.from("companies").select("id").limit(1).single();
+    companyId = companyRow?.id;
+  }
+
   const { data, error } = await sb
     .from("generated_content")
     .insert({
       id: d.id,
+      company_id: companyId,
       candidate_id: d.candidate_id,
       content_type: d.content_type ?? "blog_post",
       title: d.title,
@@ -639,7 +668,6 @@ async function saveGeneratedContent(sb: any, d: any) {
     .single();
   if (error) throw error;
 
-  // Update candidate status to drafted
   if (d.candidate_id) {
     await sb
       .from("content_candidates")
