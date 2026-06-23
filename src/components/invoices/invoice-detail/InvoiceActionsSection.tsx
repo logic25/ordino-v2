@@ -59,7 +59,7 @@ export function InvoiceActionsSection({ invoice, actions, onSendInvoice, onOpenC
               <Button variant="outline" size="sm" className="flex-1" onClick={() => { actions.setActiveAction("reminder"); actions.setActionNote(""); }}>
                 <Mail className="h-3.5 w-3.5 mr-1.5" /> Send Reminder
               </Button>
-              <Button variant="outline" size="sm" className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={actions.openDemandLetter}>
+              <Button variant="outline" size="sm" className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => actions.openDemandLetter("client")}>
                 <FileWarning className="h-3.5 w-3.5 mr-1.5" /> Demand Letter
               </Button>
             </div>

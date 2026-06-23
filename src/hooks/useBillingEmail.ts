@@ -1,33 +1,31 @@
 import { supabase } from "@/integrations/supabase/client";
 import { buildBrandedEmailHtml, type TemplateOverride } from "@/lib/buildBrandedEmailHtml";
 
+export interface BillingEmailAttachment {
+  filename: string;
+  /** Base64-encoded file contents (no data: prefix). */
+  content: string;
+  mime_type: string;
+}
+
 interface SendBillingEmailParams {
   to: string;
   cc?: string;
   subject: string;
   htmlBody: string;
-  /** Auto-tag the sent email to a project so it appears on the project's Emails tab. */
   projectId?: string;
-  /** Auto-tag the sent email to a proposal so its detail view can show the thread. */
   proposalId?: string;
-  /** Auto-tag the sent email to a change order. */
   changeOrderId?: string;
-  /** Auto-tag the sent email to an invoice. */
   invoiceId?: string;
-  /** Category for the tag — defaults to 'client' for billing-style emails. */
   tagCategory?: string;
+  attachments?: BillingEmailAttachment[];
 }
 
 export async function sendBillingEmail({
-  to,
-  cc,
-  subject,
-  htmlBody,
-  projectId,
-  proposalId,
-  changeOrderId,
-  invoiceId,
+  to, cc, subject, htmlBody,
+  projectId, proposalId, changeOrderId, invoiceId,
   tagCategory = "client",
+  attachments,
 }: SendBillingEmailParams) {
   const { data, error } = await supabase.functions.invoke("gmail-send", {
     body: {
@@ -40,6 +38,7 @@ export async function sendBillingEmail({
       change_order_id: changeOrderId,
       invoice_id: invoiceId,
       tag_category: tagCategory,
+      attachments: attachments && attachments.length ? attachments : undefined,
     },
   });
   if (error) throw error;
