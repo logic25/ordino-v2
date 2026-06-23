@@ -118,6 +118,9 @@ export function useEmails(filters: EmailFilters = {}) {
 
       return results;
     },
+    staleTime: 10_000,
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -281,14 +284,30 @@ export function useMarkReadUnread() {
 
   return useMutation({
     mutationFn: async ({ emailId, isRead }: { emailId: string; isRead: boolean }) => {
+      // 1) Write Ordino state immediately for snappy UI.
       const { error } = await supabase
         .from("emails")
         .update({ is_read: isRead })
         .eq("id", emailId);
       if (error) throw error;
+
+      // 2) Push the change to Gmail so the two never drift.
+      //    Fire-and-forget — if Gmail is unreachable the next sync will reconcile.
+      try {
+        await supabase.functions.invoke("gmail-modify-labels", {
+          body: {
+            email_id: emailId,
+            remove: isRead ? ["UNREAD"] : [],
+            add: isRead ? [] : ["UNREAD"],
+          },
+        });
+      } catch (e) {
+        console.warn("[gmail-modify-labels] push failed (will reconcile on next sync):", e);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["emails"] });
+      queryClient.invalidateQueries({ queryKey: ["email-unread-count"] });
     },
   });
 }
