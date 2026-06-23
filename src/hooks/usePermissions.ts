@@ -6,7 +6,7 @@ import { useUserRoles } from "./useUserRoles";
 export type ResourceKey =
   | "dashboard" | "projects" | "properties" | "proposals" | "invoices"
   | "time_logs" | "emails" | "calendar" | "documents" | "clients"
-  | "settings" | "users" | "roles" | "reports" | "rfps";
+  | "settings" | "users" | "roles" | "reports" | "rfps" | "content";
 
 export interface RolePermission {
   id: string;
