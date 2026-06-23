@@ -34,7 +34,10 @@ export interface GeneratedContent {
   content_type: string;
   generated_at: string;
   published_url: string | null;
+  cover_image_url?: string | null;
+  cover_image_attribution?: string | null;
 }
+
 
 export function useContentCandidates() {
   return useQuery({
