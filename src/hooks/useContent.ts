@@ -34,7 +34,10 @@ export interface GeneratedContent {
   content_type: string;
   generated_at: string;
   published_url: string | null;
+  cover_image_url?: string | null;
+  cover_image_attribution?: string | null;
 }
+
 
 export function useContentCandidates() {
   return useQuery({
@@ -212,6 +215,50 @@ export function useSaveDraft() {
     },
   });
 }
+
+// Hard-delete a candidate and ALL of its generated drafts. Used by the trash
+// icon on each idea card (admin/manager gated in the UI). The "skip" status
+// remains the soft-hide path; this one is for actually removing junk ideas.
+export function useDeleteCandidate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (candidateId: string) => {
+      // Drafts first (no FK cascade is assumed) so we don't orphan rows.
+      const { error: dErr } = await (supabase as any)
+        .from("generated_content").delete().eq("candidate_id", candidateId);
+      if (dErr) throw dErr;
+      const { error: cErr } = await (supabase as any)
+        .from("content_candidates").delete().eq("id", candidateId);
+      if (cErr) throw cErr;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["content-candidates"] });
+      qc.invalidateQueries({ queryKey: ["generated-content-many"] });
+      qc.invalidateQueries({ queryKey: ["published-content"] });
+    },
+  });
+}
+
+// Persist the chosen cover image (Unsplash/Pexels/manual upload) on the draft.
+// Stored alongside the content so we can re-render the post anywhere later.
+export function useSetCoverImage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ draftId, candidateId, url, attribution }: { draftId: string; candidateId: string; url: string; attribution: string }) => {
+      const { error } = await (supabase as any)
+        .from("generated_content")
+        .update({ cover_image_url: url, cover_image_attribution: attribution })
+        .eq("id", draftId);
+      if (error) throw error;
+      return { candidateId };
+    },
+    onSuccess: ({ candidateId }) => {
+      qc.invalidateQueries({ queryKey: ["generated-content", candidateId] });
+      qc.invalidateQueries({ queryKey: ["generated-content-many"] });
+    },
+  });
+}
+
 
 // Publish: mark both the draft row and its candidate as published.
 export function usePublish() {

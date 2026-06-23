@@ -11,14 +11,20 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Loader2, Sparkles, Check, X, Send, FileText, Mail, Eye, Copy, Pencil,
-  TrendingUp, Users, ExternalLink, HelpCircle, Plus, LayoutTemplate,
+  Users, ExternalLink, HelpCircle, Plus, LayoutTemplate, Trash2, ImagePlus, Upload, Target,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/usePermissions";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   useContentCandidates, useGeneratedFor, useGeneratedForMany, usePublishedContent,
   useUpdateCandidateStatus, useGenerateDraft, useSaveDraft, usePublish, useComposeContent,
-  useQuickGenerate,
+  useQuickGenerate, useDeleteCandidate, useSetCoverImage,
   type ContentCandidate, type GeneratedContent,
 } from "@/hooks/useContent";
 import { CONTENT_TEMPLATES, type ContentTemplate } from "@/lib/contentTemplates";
@@ -70,15 +76,155 @@ function PriorityBadge({ priority }: { priority: string }) {
   );
   if (!info) return badge;
   return (
-    <Tooltip>
-      <TooltipTrigger asChild><span>{badge}</span></TooltipTrigger>
-      <TooltipContent side="top" className="max-w-xs">
+    <Tooltip delayDuration={150}>
+      <TooltipTrigger asChild><span tabIndex={0}>{badge}</span></TooltipTrigger>
+      <TooltipContent side="top" align="start" className="max-w-xs z-[100]" sideOffset={6}>
         <div className="font-semibold text-xs mb-0.5">{info.label}</div>
         <div className="text-xs text-muted-foreground">{info.body}</div>
       </TooltipContent>
     </Tooltip>
   );
 }
+
+// ── Cover image picker: searches free Unsplash/Pexels via stock-photos edge
+// function (server holds the keys). On pick, prepends ![alt](url) to the
+// draft body and appends the required photographer attribution line.
+// Falls back to a manual upload into the `content-images` storage bucket.
+type StockPhoto = {
+  id: string; source: "unsplash" | "pexels";
+  thumb: string; full: string;
+  photographer: string; photographer_url: string;
+  attribution: string; alt: string;
+};
+function CoverImagePicker({
+  candidate, draft, body, onApply,
+}: {
+  candidate: ContentCandidate;
+  draft: GeneratedContent;
+  body: string;
+  onApply: (nextBody: string, url: string, attribution: string) => void;
+}) {
+  const { toast } = useToast();
+  const setCover = useSetCoverImage();
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [photos, setPhotos] = useState<StockPhoto[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [warning, setWarning] = useState<string | undefined>();
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    if (open && !query) {
+      // seed query from key_topics or title
+      const seed = (candidate.key_topics?.[0] || candidate.title || "construction").toString();
+      setQuery(seed);
+      runSearch(seed);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const runSearch = async (q: string) => {
+    if (!q.trim()) return;
+    setLoading(true); setWarning(undefined);
+    try {
+      const { data, error } = await supabase.functions.invoke(`stock-photos?q=${encodeURIComponent(q)}`, { method: "GET" as any });
+      if (error) throw new Error(error.message);
+      setPhotos((data as any)?.photos || []);
+      setWarning((data as any)?.warning);
+    } catch (e: any) {
+      setWarning(e.message || "Search failed");
+      setPhotos([]);
+    } finally { setLoading(false); }
+  };
+
+  const insertImage = (url: string, alt: string, attribution: string) => {
+    // Strip any prior cover-image block we previously inserted (idempotent re-apply).
+    const stripped = body
+      .replace(/^!\[[^\]]*\]\([^)]+\)\n+(\*Photo by [^\n]+\*\n+)?/m, "");
+    const next = `![${alt}](${url})\n\n*${attribution}*\n\n${stripped}`;
+    onApply(next, url, attribution);
+    setCover.mutate({ draftId: draft.id, candidateId: candidate.id, url, attribution });
+    toast({ title: "Cover image added", description: "Photographer credit was appended to the post." });
+    setOpen(false);
+  };
+
+  const handleUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${candidate.id}/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("content-images").upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data: signed, error: sErr } = await supabase.storage.from("content-images").createSignedUrl(path, 60 * 60 * 24 * 365);
+      if (sErr) throw sErr;
+      insertImage(signed.signedUrl, candidate.title || "Cover image", `Image uploaded by Green Light Expediting`);
+    } catch (e: any) {
+      toast({ title: "Upload failed", description: e.message, variant: "destructive" });
+    } finally { setUploading(false); }
+  };
+
+  return (
+    <>
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+        <ImagePlus className="h-3.5 w-3.5 mr-1" />
+        {draft.cover_image_url ? "Change cover" : "Add cover image"}
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><ImagePlus className="h-4 w-4" /> Cover image</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <Input value={query} onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search free photos — Unsplash + Pexels"
+                onKeyDown={(e) => { if (e.key === "Enter") runSearch(query); }} />
+              <Button size="sm" onClick={() => runSearch(query)} disabled={loading}>
+                {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Search"}
+              </Button>
+              <Button size="sm" variant="outline" asChild disabled={uploading}>
+                <label className="cursor-pointer">
+                  {uploading ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1" />}
+                  Upload
+                  <input type="file" accept="image/*" className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); }} />
+                </label>
+              </Button>
+            </div>
+
+            {warning && (
+              <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 rounded px-2 py-1.5">
+                {warning}
+              </p>
+            )}
+
+            {loading ? (
+              <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            ) : photos.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                No results yet. Try a search above or upload your own image.
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2 max-h-[55vh] overflow-y-auto">
+                {photos.map((p) => (
+                  <button key={p.id} type="button"
+                    onClick={() => insertImage(p.full, p.alt, p.attribution)}
+                    className="group relative rounded-md overflow-hidden border hover:ring-2 hover:ring-orange-400 transition">
+                    <img src={p.thumb} alt={p.alt} className="w-full h-32 object-cover" loading="lazy" />
+                    <div className="absolute bottom-0 inset-x-0 bg-black/55 text-white text-[10px] px-1.5 py-1 truncate text-left">
+                      {p.photographer} · {p.source}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 
 // ── Preview / Review modal with inline edit + publish ───────────────────────
 function PreviewDialog({
@@ -149,7 +295,15 @@ function PreviewDialog({
         {draft?.content && (
           <div className="flex items-center justify-between gap-2 pt-1">
             <Button variant="ghost" size="sm" onClick={onClose}><X className="h-3.5 w-3.5 mr-1" /> Close</Button>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {candidate && draft && (
+                <CoverImagePicker
+                  candidate={candidate}
+                  draft={draft}
+                  body={body}
+                  onApply={(next) => { setBody(next); if (!editing) setEditing(true); }}
+                />
+              )}
               <Button variant="outline" size="sm" onClick={copy}><Copy className="h-3.5 w-3.5 mr-1" /> Copy</Button>
               {editing ? (
                 <Button variant="outline" size="sm" onClick={save} disabled={saveDraft.isPending}>
@@ -239,14 +393,16 @@ function SourceBadge({ c }: { c: ContentCandidate }) {
 
 // ── Idea card ───────────────────────────────────────────────────────────────
 function IdeaCard({
-  c, draft, generatingId, onGenerate, onView, onStatus,
+  c, draft, generatingId, canDelete, onGenerate, onView, onStatus, onDelete,
 }: {
   c: ContentCandidate;
   draft?: GeneratedContent;
   generatingId: string | null;
+  canDelete: boolean;
   onGenerate: (c: ContentCandidate) => void;
   onView: (c: ContentCandidate) => void;
   onStatus: (c: ContentCandidate, status: string, label: string) => void;
+  onDelete: (c: ContentCandidate) => void;
 }) {
   const { toast } = useToast();
 
@@ -303,7 +459,6 @@ function IdeaCard({
     }
   };
 
-  const si = (c.search_interest || "").toLowerCase();
   // Inline excerpt of the latest draft body (strip leading markdown header).
   const excerpt = useMemo(() => {
     const raw = draft?.content || "";
@@ -342,6 +497,17 @@ function IdeaCard({
               </Button>
             )}
             {actions()}
+            {canDelete && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                onClick={() => onDelete(c)}
+                title="Delete idea and all of its drafts (permanent)"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </div>
           {c.source_url && (
             <a href={c.source_url} target="_blank" rel="noreferrer"
@@ -352,13 +518,23 @@ function IdeaCard({
         </div>
       </div>
 
-      {/* metric row */}
+      {/* Metric row — only honest signals. relevance is editorial ("fit"),
+          team_questions_count is real Beacon chat volume. search_interest
+          was manual/fake and is intentionally NOT rendered anymore. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-muted-foreground">
         {c.relevance_score != null && (
-          <span className="inline-flex items-center gap-1"><Sparkles className="h-3 w-3 text-orange-500" /><strong className="text-foreground">{c.relevance_score}%</strong> relevance</span>
-        )}
-        {si && si !== "unknown" && (
-          <span className="inline-flex items-center gap-1"><TrendingUp className="h-3 w-3 text-blue-500" /><strong className="text-foreground capitalize">{si}</strong> search interest</span>
+          <Tooltip delayDuration={150}>
+            <TooltipTrigger asChild>
+              <span className="inline-flex items-center gap-1 cursor-help">
+                <Target className="h-3 w-3 text-orange-500" />
+                <strong className="text-foreground">{c.relevance_score}%</strong> fit
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs z-[100]">
+              Editorial "fit for Green Light" score — manual heuristic on the seed,
+              not a live SEO metric.
+            </TooltipContent>
+          </Tooltip>
         )}
         {!!c.team_questions_count && (
           <span className="inline-flex items-center gap-1"><Users className="h-3 w-3 text-purple-500" /><strong className="text-foreground">{c.team_questions_count}</strong> team questions</span>
@@ -367,6 +543,7 @@ function IdeaCard({
           <span className="inline-flex items-center gap-1"><FileText className="h-3 w-3" /><strong className="text-foreground">{draft.word_count}</strong> words</span>
         )}
       </div>
+
 
       {/* Inline draft excerpt — makes generated posts actually render on the page */}
       {excerpt && (
@@ -492,10 +669,15 @@ export default function Content() {
   const { data: published = [] } = usePublishedContent();
   const updateStatus = useUpdateCandidateStatus();
   const generate = useGenerateDraft();
+  const deleteCandidate = useDeleteCandidate();
+  const { isAdmin, userRoles } = usePermissions();
+  // Gate hard-delete to admin/manager only, consistent with the other write actions.
+  const canDelete = isAdmin || userRoles.some((r) => /manager/i.test(r));
   const [viewing, setViewing] = useState<ContentCandidate | null>(null);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
   const [composePreset, setComposePreset] = useState<ContentTemplate | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<ContentCandidate | null>(null);
 
   // Pull all latest drafts for visible candidates so each card can show
   // an inline excerpt + Copy button without N round-trips.
@@ -588,7 +770,10 @@ export default function Content() {
                   <div className={`text-xs font-semibold uppercase tracking-wide ${s.tone}`}>{s.label} ({byStage[s.key].length})</div>
                   {byStage[s.key].map((c) => (
                     <IdeaCard key={c.id} c={c} draft={draftsByCandidate[c.id]} generatingId={generatingId}
-                      onGenerate={doGenerate} onView={setViewing} onStatus={setStatus} />
+                      canDelete={canDelete}
+                      onGenerate={doGenerate} onView={setViewing} onStatus={setStatus}
+                      onDelete={setConfirmDelete} />
+
                   ))}
                 </div>
               ) : null)
@@ -640,6 +825,38 @@ export default function Content() {
 
       <PreviewDialog candidate={viewing} open={!!viewing} onClose={() => setViewing(null)} />
       <ComposeDialog open={composeOpen} onClose={() => setComposeOpen(false)} preset={composePreset} onComposed={setViewing} />
+
+      <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this idea?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{confirmDelete?.title}" and any drafts generated from it will be permanently removed.
+              This can't be undone. (Use the X button on a card to just skip it instead.)
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!confirmDelete) return;
+                const c = confirmDelete;
+                setConfirmDelete(null);
+                try {
+                  await deleteCandidate.mutateAsync(c.id);
+                  toast({ title: "Deleted", description: `"${c.title}" was removed.` });
+                } catch (e: any) {
+                  toast({ title: "Delete failed", description: e.message, variant: "destructive" });
+                }
+              }}
+            >
+              Delete permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
+
   );
 }
