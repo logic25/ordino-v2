@@ -96,6 +96,7 @@ export default function Documents() {
   const seedFolders = useSeedFolders();
   const uploadDoc = useUploadDocument();
   const deleteDoc = useDeleteDocument();
+  const moveDoc = useMoveDocument();
   const createFolder = useCreateFolder();
   const delFolder = useDeleteFolder();
   const renameFolder = useRenameFolder();
