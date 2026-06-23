@@ -543,6 +543,52 @@ Deno.serve(async (req) => {
       console.error("Failed to sync read-state back from Gmail:", e);
     }
 
+    // ── Full read-state reconciliation ──
+    // Fetch ALL currently-unread INBOX message IDs from Gmail (not just this page),
+    // then mark local rows accordingly. Fixes the case where a user reads an old
+    // email in Gmail directly and Ordino keeps showing it as unread.
+    try {
+      const unreadSet = new Set<string>();
+      let recPageToken: string | undefined = undefined;
+      let recPages = 0;
+      const RECON_MAX_PAGES = 10; // up to 5000 unread ids
+      while (recPages < RECON_MAX_PAGES) {
+        if (Date.now() - startedAt > TIME_BUDGET_MS) break;
+        const u = new URL("https://www.googleapis.com/gmail/v1/users/me/messages");
+        u.searchParams.set("maxResults", "500");
+        u.searchParams.set("q", "is:unread in:inbox");
+        if (recPageToken) u.searchParams.set("pageToken", recPageToken);
+        const r = await fetch(u.toString(), { headers: { Authorization: `Bearer ${accessToken}` } });
+        const j = await r.json();
+        for (const m of j.messages || []) unreadSet.add(m.id);
+        if (!j.nextPageToken) break;
+        recPageToken = j.nextPageToken;
+        recPages++;
+      }
+
+      // Mark local emails that are unread but no longer in Gmail's unread set → read
+      const { data: localUnread } = await supabaseAdmin
+        .from("emails")
+        .select("id, gmail_message_id")
+        .eq("user_id", profile.id)
+        .eq("is_read", false)
+        .not("gmail_message_id", "is", null);
+      const toMarkRead: string[] = [];
+      for (const row of localUnread || []) {
+        if (row.gmail_message_id && !unreadSet.has(row.gmail_message_id)) {
+          toMarkRead.push(row.id);
+        }
+      }
+      const chunk2 = <T,>(arr: T[], size: number) =>
+        Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size));
+      for (const ids of chunk2(toMarkRead, 200)) {
+        await supabaseAdmin.from("emails").update({ is_read: true }).in("id", ids);
+      }
+      console.log(`[gmail-sync] reconciled read-state: marked ${toMarkRead.length} as read, gmail unread=${unreadSet.size}`);
+    } catch (e) {
+      console.error("Full read-state reconciliation failed:", e);
+    }
+
     // Create a bell notification when new unread inbox emails arrived
     if (newUnreadInbox.length > 0) {
       try {
