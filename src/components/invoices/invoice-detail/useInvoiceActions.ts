@@ -17,12 +17,18 @@ export function useInvoiceActions(invoice: InvoiceWithRelations | null) {
   const [processing, setProcessing] = useState(false);
   const [demandStep, setDemandStep] = useState<"edit" | "preview">("edit");
   const [demandLetterText, setDemandLetterText] = useState("");
+  const [demandScope, setDemandScope] = useState<"client" | "property">("client");
+  const [demandResult, setDemandResult] = useState<DemandLetterResult | null>(null);
+  const [demandLoading, setDemandLoading] = useState(false);
+  const [demandCc, setDemandCc] = useState<string>("");
+  const [demandSubject, setDemandSubject] = useState("");
   const [aiGenerating, setAiGenerating] = useState(false);
 
   const updateInvoice = useUpdateInvoice();
   const queryClient = useQueryClient();
   const { data: companyData } = useCompanySettings();
   const generateMessage = useGenerateCollectionMessage();
+  const generateDemand = useGenerateDemandLetter();
   const extractTasks = useExtractTasks();
 
   const daysOverdue = invoice?.due_date
