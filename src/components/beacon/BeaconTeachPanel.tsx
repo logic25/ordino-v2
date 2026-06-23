@@ -115,6 +115,7 @@ export function BeaconTeachPanel() {
         </Section>
       )}
     </div>
+    </TooltipProvider>
   );
 }
 
