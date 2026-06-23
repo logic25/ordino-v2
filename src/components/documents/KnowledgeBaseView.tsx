@@ -164,13 +164,62 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
 
   const handleConfirmMove = async () => {
     if (!moveTarget || !moveFolderInput.trim()) return;
-    await upsertOverride.mutateAsync({
-      source_file: moveTarget,
-      display_folder: moveFolderInput.trim(),
-      hidden_from_original: true,
-    });
-    setMoveTarget(null);
-    setMoveFolderInput("");
+    setMoveSaving(true);
+    const target = moveFolderInput.trim();
+    // Convert humanized folder name back to slug when it matches a known Beacon folder.
+    const slugFromHuman = Object.keys(FOLDER_TO_SOURCE_TYPE).find((slug) => humanize(slug) === target);
+    const backendFolder = slugFromHuman || target;
+    try {
+      // 1. Real backend move — in-place, no re-ingest, no duplicates.
+      await assignBeaconFolders({ [moveTarget]: backendFolder });
+      // 2. Clear any prior display-layer override (the backend is now source of truth).
+      try {
+        await clearOverride.mutateAsync(moveTarget);
+      } catch {
+        /* no-op — override may not exist */
+      }
+      qc.invalidateQueries({ queryKey: ["beacon-knowledge"] });
+      toast({ title: "Moved", description: `Now in "${target}"` });
+      setMoveTarget(null);
+      setMoveFolderInput("");
+    } catch (err: any) {
+      // Fallback: if the backend rejects (older deploy), fall back to display-only override
+      // so the user still sees the file in the chosen folder.
+      try {
+        await upsertOverride.mutateAsync({
+          source_file: moveTarget,
+          display_folder: target,
+          hidden_from_original: true,
+          notes: `fallback (backend error: ${err.message || "unknown"})`,
+        });
+        toast({
+          title: "Moved (display only)",
+          description: "Backend rejected the request — applied display-layer override instead.",
+        });
+        setMoveTarget(null);
+        setMoveFolderInput("");
+      } catch (e: any) {
+        toast({ title: "Move failed", description: e.message || err.message, variant: "destructive" });
+      }
+    } finally {
+      setMoveSaving(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteSaving(true);
+    try {
+      await deleteBeaconDoc(deleteTarget);
+      qc.invalidateQueries({ queryKey: ["beacon-knowledge"] });
+      qc.invalidateQueries({ queryKey: ["kb-deleted-documents"] });
+      toast({ title: "Deleted", description: "Backed up — restorable from Recently Deleted." });
+      setDeleteTarget(null);
+    } catch (err: any) {
+      toast({ title: "Delete failed", description: err.message, variant: "destructive" });
+    } finally {
+      setDeleteSaving(false);
+    }
   };
 
   if (isLoading) {
