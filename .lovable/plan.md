@@ -41,3 +41,45 @@ That's the entire fix — one character. Deploy is automatic.
 - No frontend changes.
 - No other edge function or RLS changes.
 - No revert of the Teach Beacon work — it stays, just correctly braced.
+
+---
+
+# Beacon Agents (Parked Roadmap)
+
+A running section grouping AI-agent ideas that share the same archetype: **Beacon + Ordino data + a specific workflow, human-reviewed**. All are parked until prerequisites are met.
+
+## Shared prerequisites
+1. Beacon hardened and trusted (KB gaps closed, teaching loop working, accuracy proven).
+2. Human-in-the-loop review required for every agent action — no autonomous writes.
+3. Clear input pipeline chosen per agent (no in-house commodity layer).
+4. Consent / audit / rollback policy in place.
+
+## Shared anti-pattern (do NOT build)
+Never build the commodity layer underneath these agents:
+- Filing Agent → don't build DOB-NOW submission.
+- Lead → Proposal Agent → don't build a pricing engine.
+- Meeting Intelligence → don't build transcription/summarization (use Google Meet/Gemini notes).
+
+The moat is the **thin differentiated layer** that only works because Beacon reads Ordino.
+
+## Agents
+
+### 1. Filing Agent
+Cross-references filing requirements against project state; surfaces missing docs, stale filings, and next-action gaps. Human PM approves before submission to DOB-NOW (which stays manual or via existing Railway agent).
+
+### 2. Lead → Proposal Agent
+Takes a qualified lead + Ordino historical pricing/scope and drafts a proposal skeleton (services, fees, narrative) for PM review. Does NOT auto-send; does NOT replace pricing judgment.
+
+### 3. Meeting Intelligence (Beacon Meeting ↔ Ordino)
+Ingests meeting notes/transcripts from Google Meet / Gemini notes and cross-references them against live Ordino data — projects, action items, invoices, leads. Surfaces gaps:
+- Unfulfilled commitments ("you said you'd file Rudin ALT-2 this week — still not_started")
+- Decisions discussed but not logged
+- Projects raised in meeting but stalled (no activity in N days)
+- At-risk clients mentioned vs. their real status (overdue invoices, etc.)
+- Action items never converted to tasks
+
+**Do NOT build:** transcription/summarization. Consume Google Meet/Gemini output.
+**Depends on:** Beacon trusted; meeting-notes input pipeline chosen; consent/recording policy.
+
+## Next agent candidates
+Add new ideas here as one-liners; promote to a numbered entry once scoped.
