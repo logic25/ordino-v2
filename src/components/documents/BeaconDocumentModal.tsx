@@ -95,23 +95,38 @@ function parseFrontmatter(raw: string): {
 
 /**
  * Reassembled Pinecone chunks often arrive as one long line with markdown
- * markers (##, ###, ` - `, `1. `) inline. ReactMarkdown only recognizes those
- * at the start of a line, so we re-insert line breaks before rendering.
+ * markers (##, ###, ` - `, `1. `, GFM tables) inline. ReactMarkdown only
+ * recognizes those at the start of a line, so we re-insert line breaks before
+ * rendering.
  */
 function normalizeMarkdown(raw: string): string {
   if (!raw) return "";
   let s = raw.replace(/\r\n/g, "\n");
-  // Headings: ensure ## / ### / #### start on their own line (with blank line before)
+  // Headings: ensure ## / ### / #### start on their own line (blank line before).
   s = s.replace(/\s*(#{1,6})\s+/g, (_m, hashes) => `\n\n${hashes} `);
-  // Bullet list markers: " - Foo" mid-sentence → newline + "- Foo"
-  // Only when preceded by space + dash + space AND followed by a capital/word
+  // Bullet list markers mid-sentence ("foo - Bar") → newline + "- Bar"
   s = s.replace(/ - (?=[A-Z0-9*_`\[])/g, "\n- ");
   // Numbered list markers mid-line: " 1. Foo" → newline
   s = s.replace(/ (\d{1,2})\.\s+(?=[A-Z])/g, "\n$1. ");
+  // GFM tables collapsed into one line:
+  //   "| Header | X || ---|---| | row1 | val | | row2 | val |"
+  // Strategy: insert a newline before every "|" that is preceded by " |"
+  // (cell boundary) and which begins a new logical row. We detect rows by
+  // looking for "| {non-pipe text} |" repeating units.
+  if (/\|.+\|.+\|/.test(s)) {
+    // Put each "||" cluster onto its own line (table row separators)
+    s = s.replace(/\|\|/g, "|\n|");
+    // Ensure separator row "| --- | --- |" sits on its own line
+    s = s.replace(/\|\s*(:?-{3,}:?\s*\|)+/g, (m) => `\n${m}\n`);
+    // Break after any "|" that's followed by a capital-letter cell start that
+    // looks like a new row (heuristic: " | Capital ... |")
+    s = s.replace(/\|\s+(?=[A-Z][^|\n]{0,80}\|)/g, "|\n| ");
+  }
   // Collapse 3+ blank lines
   s = s.replace(/\n{3,}/g, "\n\n");
   return s.trim();
 }
+
 
 
 interface BeaconDocumentModalProps {
