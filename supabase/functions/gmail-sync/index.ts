@@ -202,9 +202,11 @@ Deno.serve(async (req) => {
     
     // Parse optional maxPages from request body
     let maxPages = isFirstSync ? 10 : 3; // First sync: 10 pages (~500 msgs), subsequent: 3 pages (~150 msgs)
+    let reconcileOnly = false;
     try {
       const body = await req.json();
       if (body?.maxPages) maxPages = Math.min(body.maxPages, 20);
+      reconcileOnly = body?.reconcileOnly === true;
     } catch { /* no body is fine */ }
     
     // Wall-clock budget — always return before the edge runtime kills us
@@ -596,25 +598,23 @@ Deno.serve(async (req) => {
       // Clear local unread inbox bits, then re-apply unread only to Gmail's set.
       for (const ids of chunk(localUnreadInbox.map((row: any) => row.id), 200)) {
         if (ids.length === 0) continue;
-        const { data: cleared, error: clearError } = await supabaseAdmin
+        const { error: clearError } = await supabaseAdmin
           .from("emails")
           .update({ is_read: true })
-          .in("id", ids)
-          .select("id");
+          .in("id", ids);
         if (clearError) console.error("[gmail-sync] failed to clear local unread state", clearError);
-        clearedLocalUnread += cleared?.length || 0;
+        else clearedLocalUnread += ids.length;
       }
 
       for (const ids of chunk(Array.from(gmailUnreadInboxSet), 200)) {
         if (ids.length === 0) continue;
-        const { data: applied, error: applyError } = await supabaseAdmin
+        const { error: applyError } = await supabaseAdmin
           .from("emails")
           .update({ is_read: false, archived_at: null })
           .eq("user_id", profile.id)
-          .in("gmail_message_id", ids)
-          .select("id");
+          .in("gmail_message_id", ids);
         if (applyError) console.error("[gmail-sync] failed to apply Gmail unread state", applyError);
-        appliedGmailUnread += applied?.length || 0;
+        else appliedGmailUnread += ids.length;
       }
 
       markedUnread = Math.max(0, appliedGmailUnread - (gmailUnreadInboxSet.size - importedUnread));
@@ -627,7 +627,7 @@ Deno.serve(async (req) => {
     await runUnreadReconcile();
 
     // True incremental sync: process only messages Gmail says changed since the saved history id.
-    if (connection.history_id) {
+    if (!reconcileOnly && connection.history_id) {
       try {
         const changedMessageIds = new Set<string>();
         let historyPageToken: string | undefined = undefined;
@@ -673,7 +673,7 @@ Deno.serve(async (req) => {
     }
 
     // First-time backfill only. Subsequent syncs use Gmail History API + unread reconcile.
-    if (!connection.history_id) {
+    if (!reconcileOnly && !connection.history_id) {
       let pageToken: string | undefined = undefined;
       while (pagesProcessed < maxPages) {
         if (Date.now() - startedAt > TIME_BUDGET_MS) {
