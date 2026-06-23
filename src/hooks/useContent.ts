@@ -67,6 +67,30 @@ export function useGeneratedFor(candidateId: string | null) {
   });
 }
 
+// Bulk fetch: latest draft per candidate id, keyed by candidate id.
+// Used by the Content pipeline so each card can show an inline excerpt + Copy.
+export function useGeneratedForMany(candidateIds: string[]) {
+  return useQuery({
+    queryKey: ["generated-content-many", [...candidateIds].sort().join(",")],
+    enabled: candidateIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("generated_content")
+        .select("*")
+        .in("candidate_id", candidateIds)
+        .order("generated_at", { ascending: false });
+      if (error) throw error;
+      const byCandidate: Record<string, GeneratedContent> = {};
+      for (const row of (data || []) as GeneratedContent[]) {
+        if (row.candidate_id && !byCandidate[row.candidate_id]) {
+          byCandidate[row.candidate_id] = row;
+        }
+      }
+      return byCandidate;
+    },
+  });
+}
+
 export function usePublishedContent() {
   return useQuery({
     queryKey: ["published-content"],
