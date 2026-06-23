@@ -134,6 +134,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { canAccess, loading: permLoading } = usePermissions();
   const { user, profile, signOut } = useAuth();
   const isAdmin = useIsAdmin();
+  const isManager = useHasRole("manager");
   const { chatHasUnread, emailHasUnread, emailUnreadCount, billingPendingCount } = useUnreadIndicators();
 
   const unreadDotMap: Record<string, boolean> = {
