@@ -769,6 +769,15 @@ export default function Documents() {
         folderName={selectedFolder?.name}
         isAdmin={isAdmin}
       />
+
+      <MoveDocumentDialog
+        document={moveTarget}
+        folders={folders}
+        open={!!moveTarget}
+        onOpenChange={(open) => { if (!open) setMoveTarget(null); }}
+        onMove={(folderId) => moveTarget ? moveDocumentTo(moveTarget, folderId) : Promise.resolve()}
+        pending={moveDoc.isPending}
+      />
     </AppLayout>
   );
 }
