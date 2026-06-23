@@ -403,6 +403,11 @@ export default function Content() {
   const [composeOpen, setComposeOpen] = useState(false);
   const [composePreset, setComposePreset] = useState<ContentTemplate | null>(null);
 
+  // Pull all latest drafts for visible candidates so each card can show
+  // an inline excerpt + Copy button without N round-trips.
+  const candidateIds = useMemo(() => candidates.map((c) => c.id), [candidates]);
+  const { data: draftsByCandidate = {} } = useGeneratedForMany(candidateIds);
+
   const openCompose = (preset: ContentTemplate | null = null) => { setComposePreset(preset); setComposeOpen(true); };
 
   const byStage = useMemo(() => {
