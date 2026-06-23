@@ -86,6 +86,146 @@ function PriorityBadge({ priority }: { priority: string }) {
   );
 }
 
+// ── Cover image picker: searches free Unsplash/Pexels via stock-photos edge
+// function (server holds the keys). On pick, prepends ![alt](url) to the
+// draft body and appends the required photographer attribution line.
+// Falls back to a manual upload into the `content-images` storage bucket.
+type StockPhoto = {
+  id: string; source: "unsplash" | "pexels";
+  thumb: string; full: string;
+  photographer: string; photographer_url: string;
+  attribution: string; alt: string;
+};
+function CoverImagePicker({
+  candidate, draft, body, onApply,
+}: {
+  candidate: ContentCandidate;
+  draft: GeneratedContent;
+  body: string;
+  onApply: (nextBody: string, url: string, attribution: string) => void;
+}) {
+  const { toast } = useToast();
+  const setCover = useSetCoverImage();
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [photos, setPhotos] = useState<StockPhoto[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [warning, setWarning] = useState<string | undefined>();
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    if (open && !query) {
+      // seed query from key_topics or title
+      const seed = (candidate.key_topics?.[0] || candidate.title || "construction").toString();
+      setQuery(seed);
+      runSearch(seed);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const runSearch = async (q: string) => {
+    if (!q.trim()) return;
+    setLoading(true); setWarning(undefined);
+    try {
+      const { data, error } = await supabase.functions.invoke(`stock-photos?q=${encodeURIComponent(q)}`, { method: "GET" as any });
+      if (error) throw new Error(error.message);
+      setPhotos((data as any)?.photos || []);
+      setWarning((data as any)?.warning);
+    } catch (e: any) {
+      setWarning(e.message || "Search failed");
+      setPhotos([]);
+    } finally { setLoading(false); }
+  };
+
+  const insertImage = (url: string, alt: string, attribution: string) => {
+    // Strip any prior cover-image block we previously inserted (idempotent re-apply).
+    const stripped = body
+      .replace(/^!\[[^\]]*\]\([^)]+\)\n+(\*Photo by [^\n]+\*\n+)?/m, "");
+    const next = `![${alt}](${url})\n\n*${attribution}*\n\n${stripped}`;
+    onApply(next, url, attribution);
+    setCover.mutate({ draftId: draft.id, candidateId: candidate.id, url, attribution });
+    toast({ title: "Cover image added", description: "Photographer credit was appended to the post." });
+    setOpen(false);
+  };
+
+  const handleUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${candidate.id}/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("content-images").upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data: signed, error: sErr } = await supabase.storage.from("content-images").createSignedUrl(path, 60 * 60 * 24 * 365);
+      if (sErr) throw sErr;
+      insertImage(signed.signedUrl, candidate.title || "Cover image", `Image uploaded by Green Light Expediting`);
+    } catch (e: any) {
+      toast({ title: "Upload failed", description: e.message, variant: "destructive" });
+    } finally { setUploading(false); }
+  };
+
+  return (
+    <>
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+        <ImagePlus className="h-3.5 w-3.5 mr-1" />
+        {draft.cover_image_url ? "Change cover" : "Add cover image"}
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><ImagePlus className="h-4 w-4" /> Cover image</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <Input value={query} onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search free photos — Unsplash + Pexels"
+                onKeyDown={(e) => { if (e.key === "Enter") runSearch(query); }} />
+              <Button size="sm" onClick={() => runSearch(query)} disabled={loading}>
+                {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Search"}
+              </Button>
+              <Button size="sm" variant="outline" asChild disabled={uploading}>
+                <label className="cursor-pointer">
+                  {uploading ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1" />}
+                  Upload
+                  <input type="file" accept="image/*" className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); }} />
+                </label>
+              </Button>
+            </div>
+
+            {warning && (
+              <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 rounded px-2 py-1.5">
+                {warning}
+              </p>
+            )}
+
+            {loading ? (
+              <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            ) : photos.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                No results yet. Try a search above or upload your own image.
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2 max-h-[55vh] overflow-y-auto">
+                {photos.map((p) => (
+                  <button key={p.id} type="button"
+                    onClick={() => insertImage(p.full, p.alt, p.attribution)}
+                    className="group relative rounded-md overflow-hidden border hover:ring-2 hover:ring-orange-400 transition">
+                    <img src={p.thumb} alt={p.alt} className="w-full h-32 object-cover" loading="lazy" />
+                    <div className="absolute bottom-0 inset-x-0 bg-black/55 text-white text-[10px] px-1.5 py-1 truncate text-left">
+                      {p.photographer} · {p.source}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+
 // ── Preview / Review modal with inline edit + publish ───────────────────────
 function PreviewDialog({
   candidate, open, onClose,
