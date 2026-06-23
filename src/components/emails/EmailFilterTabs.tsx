@@ -107,7 +107,7 @@ export function getTabCounts(
   const localUnread = inboxEmails.filter((e: EmailWithTags) => !e.is_read).length;
   const unreadCount = inboxUnreadOverride ?? localUnread;
   return {
-    inbox: unreadCount || inboxEmails.length,
+    inbox: unreadCount,
     sent: emails.filter(isSentEmail).length,
     agencies: emails.filter(isAgencyEmail).length,
     clients: emails.filter(
