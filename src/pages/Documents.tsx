@@ -514,7 +514,17 @@ export default function Documents() {
                                 [doc.uploader?.first_name, doc.uploader?.last_name].filter(Boolean).join(" ") || "—";
                               const checked = selectedDocIds.has(doc.id);
                               return (
-                                <TableRow key={doc.id} className="cursor-pointer" onClick={() => setPreviewDoc(doc)} data-state={checked ? "selected" : undefined}>
+                                <TableRow
+                                  key={doc.id}
+                                  className="cursor-pointer"
+                                  onClick={() => setPreviewDoc(doc)}
+                                  data-state={checked ? "selected" : undefined}
+                                  draggable
+                                  onDragStart={(e) => {
+                                    e.dataTransfer.setData("application/x-ordino-doc", doc.id);
+                                    e.dataTransfer.effectAllowed = "move";
+                                  }}
+                                >
                                   <TableCell onClick={(e) => e.stopPropagation()}>
                                     <Checkbox checked={checked} onCheckedChange={() => toggleSelectDoc(doc.id)} aria-label="Select row" />
                                   </TableCell>
@@ -541,9 +551,25 @@ export default function Documents() {
                                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPreviewDoc(doc)} title="Preview">
                                         <Eye className="h-4 w-4" />
                                       </Button>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(doc)}>
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button variant="ghost" size="icon" className="h-8 w-8" title="More actions">
+                                            <MoreVertical className="h-4 w-4" />
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-44">
+                                          <DropdownMenuItem onClick={() => setMoveTarget(doc)}>
+                                            <FolderInput className="h-3.5 w-3.5 mr-2" /> Move to folder…
+                                          </DropdownMenuItem>
+                                          <DropdownMenuSeparator />
+                                          <DropdownMenuItem
+                                            className="text-destructive focus:text-destructive"
+                                            onClick={() => setDeleteTarget(doc)}
+                                          >
+                                            <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+                                          </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
                                     </div>
                                   </TableCell>
                                 </TableRow>
