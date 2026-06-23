@@ -160,9 +160,11 @@ export function useInvoiceActions(invoice: InvoiceWithRelations | null) {
         let attachments: { filename: string; content: string; mime_type: string }[] | undefined;
         try {
           if (demandResult) {
+            const React = await import("react");
             const { pdf } = await import("@react-pdf/renderer");
             const { DemandLetterPDF } = await import("../DemandLetterPDF");
-            const blob = await pdf(<DemandLetterPDF data={demandResult} bodyOverride={demandLetterText} /> as any).toBlob();
+            const element = React.createElement(DemandLetterPDF, { data: demandResult, bodyOverride: demandLetterText });
+            const blob = await pdf(element as any).toBlob();
             const buf = await blob.arrayBuffer();
             const bytes = new Uint8Array(buf);
             let bin = "";
