@@ -113,6 +113,7 @@ function FolderNode({ folder, selectedId, onSelect, onRename, onCreateSubfolder,
               onRename={onRename}
               onCreateSubfolder={onCreateSubfolder}
               onDelete={onDelete}
+              onDropDocument={onDropDocument}
               depth={depth + 1}
             />
           ))}
