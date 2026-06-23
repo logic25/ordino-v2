@@ -730,6 +730,11 @@ export default function Content() {
   const setStatus = (c: ContentCandidate, status: string, label: string) =>
     updateStatus.mutate({ id: c.id, status }, { onSuccess: () => toast({ title: label }) });
 
+  // Admin-only by default; configurable per role in Settings → Roles ("Content" resource).
+  if (!permsLoading && !canAccess("content")) {
+    return <Navigate to="/" replace />;
+  }
+
   return (
     <AppLayout>
       <div className="space-y-4 animate-fade-in">
