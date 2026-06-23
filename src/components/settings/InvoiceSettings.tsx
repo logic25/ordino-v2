@@ -219,6 +219,12 @@ export function InvoiceSettings() {
     if (st.company_logo_url) setLogoUrl(st.company_logo_url);
     if (st.invoice_header_text) setHeaderText(st.invoice_header_text);
     if (st.invoice_footer_text) setFooterText(st.invoice_footer_text);
+    if (st.late_interest_enabled !== undefined) setInterestEnabled(!!st.late_interest_enabled);
+    if (st.default_late_interest_rate_apr !== undefined) setInterestRate(String(st.default_late_interest_rate_apr));
+    if (st.default_interest_grace_days !== undefined) setInterestGraceDays(String(st.default_interest_grace_days));
+    if (st.default_interest_compounding) setInterestCompounding(st.default_interest_compounding);
+    if (st.interest_clause_effective_from) setInterestEffectiveFrom(st.interest_clause_effective_from);
+    if (st.managing_member_name) setManagingMember(st.managing_member_name);
     if (st.bonus_tiers && Array.isArray(st.bonus_tiers)) setBonusTiers(st.bonus_tiers);
   }, [companyData]);
 
