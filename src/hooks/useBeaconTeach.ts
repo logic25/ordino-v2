@@ -188,11 +188,17 @@ export function useApproveSuggestionTeach() {
   return useMutation({
     mutationFn: async (args: { suggestion: PendingSuggestion; correctAnswer: string; topic?: string }) => {
       // Write the correction so Beacon learns it, then flip suggestion to approved.
+      const existingTopics = Array.isArray(args.suggestion.topics)
+        ? args.suggestion.topics
+        : args.suggestion.topics
+          ? [args.suggestion.topics]
+          : [];
       await postCorrection({
         wrong_answer: args.suggestion.wrong_answer || "",
         correct_answer: args.correctAnswer,
-        topics: args.topic ? [args.topic] : (args.suggestion.topics ?? []),
+        topics: args.topic ? [args.topic] : existingTopics,
       });
+
       const { error } = await supabase
         .from("beacon_suggestions")
         .update({ status: "approved", reviewed_at: new Date().toISOString() })
