@@ -27,8 +27,9 @@ export type PendingSuggestion = {
   user_name: string | null;
   wrong_answer: string | null;
   correct_answer: string | null;
-  topics: string[] | null;
+  topics: string | string[] | null;
 };
+
 
 // Parser for the 👍/👎 widget feedback_text format:
 //   "👎 on Beacon answer — Q: <question> | A: <first 200 chars>"
