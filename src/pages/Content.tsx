@@ -14,9 +14,9 @@ import {
 import ReactMarkdown from "react-markdown";
 import { useToast } from "@/hooks/use-toast";
 import {
-  useContentCandidates, useGeneratedFor, usePublishedContent,
+  useContentCandidates, useGeneratedFor, useGeneratedForMany, usePublishedContent,
   useUpdateCandidateStatus, useGenerateDraft, useSaveDraft, usePublish, useComposeContent,
-  type ContentCandidate,
+  type ContentCandidate, type GeneratedContent,
 } from "@/hooks/useContent";
 import { CONTENT_TEMPLATES, type ContentTemplate } from "@/lib/contentTemplates";
 
