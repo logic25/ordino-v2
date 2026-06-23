@@ -122,5 +122,6 @@ export function BeaconConfigPanel() {
       </Card>
       <BeaconQuickStats />
     </div>
+    </TooltipProvider>
   );
 }
