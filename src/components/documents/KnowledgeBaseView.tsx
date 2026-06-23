@@ -21,7 +21,8 @@ import {
 } from "lucide-react";
 import { useBeaconKnowledge, useUploadToBeaconKB } from "@/hooks/useBeaconKnowledge";
 import { useBeaconKbOverrides, useUpsertBeaconKbOverride, useClearBeaconKbOverride } from "@/hooks/useBeaconKbOverrides";
-import { FOLDER_TO_SOURCE_TYPE } from "@/services/beaconApi";
+import { FOLDER_TO_SOURCE_TYPE, assignBeaconFolders, deleteBeaconDoc } from "@/services/beaconApi";
+import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { RecentlyDeletedKb } from "./RecentlyDeletedKb";
 import { lazy, Suspense } from "react";
