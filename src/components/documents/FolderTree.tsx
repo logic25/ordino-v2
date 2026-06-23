@@ -32,9 +32,27 @@ function FolderNode({ folder, selectedId, onSelect, onRename, onCreateSubfolder,
           onSelect(folder.id);
           if (hasChildren) setExpanded(!expanded);
         }}
+        onDragOver={(e) => {
+          if (!onDropDocument) return;
+          const hasDoc = e.dataTransfer.types.includes("application/x-ordino-doc");
+          if (!hasDoc) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          if (!dragOver) setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          if (!onDropDocument) return;
+          const docId = e.dataTransfer.getData("application/x-ordino-doc");
+          setDragOver(false);
+          if (!docId) return;
+          e.preventDefault();
+          onDropDocument(docId, folder.id);
+        }}
         className={cn(
           "w-full flex items-center gap-1.5 px-2 py-1.5 text-sm rounded-md hover:bg-muted transition-colors group",
-          isSelected && "bg-muted font-medium"
+          isSelected && "bg-muted font-medium",
+          dragOver && "ring-2 ring-primary bg-primary/10",
         )}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
       >
