@@ -24,69 +24,82 @@ function TabWithTip({ value, label, tip }: { value: string; label: string; tip: 
   );
 }
 
-export default function BeaconHub() {
+/**
+ * Inner Beacon Hub UI — no AppLayout / no page header.
+ * Used both standalone (/beacon) and embedded inside the Help Center as a tab.
+ */
+export function BeaconHubContent({ defaultTabOverride }: { defaultTabOverride?: string } = {}) {
   const { isAdmin } = usePermissions();
   const isManager = useHasRole("manager");
   const [searchParams] = useSearchParams();
 
-  // Teach tab is open to admin + manager; the rest of the Hub stays admin-only.
   const canAccess = isAdmin || isManager;
-  if (!canAccess) return <Navigate to="/dashboard" replace />;
+  if (!canAccess) return null;
 
-  const requestedTab = searchParams.get("tab");
+  const requestedTab = defaultTabOverride ?? searchParams.get("beaconTab") ?? searchParams.get("tab");
   const defaultTab = requestedTab ?? (isAdmin ? "usage" : "teach");
 
   return (
-    <AppLayout>
-      <TooltipProvider delayDuration={200}>
-        <div className="space-y-6 animate-fade-in">
-          <div className="flex items-center gap-3">
-            <Brain className="h-7 w-7 text-[#f59e0b]" />
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Beacon Hub</h1>
-              <p className="text-sm text-muted-foreground">
-                Train Beacon, review knowledge gaps, and monitor AI usage. Beacon is your
-                in-app assistant — these tools control what it knows and how it answers.
-              </p>
-            </div>
-          </div>
+    <TooltipProvider delayDuration={200}>
+      <Tabs defaultValue={defaultTab} className="space-y-4">
+        <TabsList>
+          <TabWithTip
+            value="teach"
+            label="Teach"
+            tip="Approve 👍/👎 feedback, accept Beacon's suggested answers, and add quick Q&A snippets to its knowledge base."
+          />
+          {isAdmin && (
+            <TabWithTip
+              value="usage"
+              label="Usage"
+              tip="AI token spend, request volume, and per-user activity for Beacon over time."
+            />
+          )}
+          {isAdmin && (
+            <TabWithTip
+              value="config"
+              label="Config"
+              tip="Tune Beacon's behavior: model, temperature, retrieval, system prompt, and feature flags."
+            />
+          )}
+          {isAdmin && (
+            <TabWithTip
+              value="gaps"
+              label="KB Gaps"
+              tip="Questions users asked that Beacon couldn't confidently answer. Add documents or teach snippets to fill the gap, then mark addressed with a note describing what you did."
+            />
+          )}
+        </TabsList>
+        <TabsContent value="teach"><BeaconTeachPanel /></TabsContent>
+        {isAdmin && <TabsContent value="usage"><AIUsageDashboard /></TabsContent>}
+        {isAdmin && <TabsContent value="config"><BeaconConfigPanel /></TabsContent>}
+        {isAdmin && <TabsContent value="gaps"><BeaconKbGaps /></TabsContent>}
+      </Tabs>
+    </TooltipProvider>
+  );
+}
 
-          <Tabs defaultValue={defaultTab} className="space-y-4">
-            <TabsList>
-              <TabWithTip
-                value="teach"
-                label="Teach"
-                tip="Approve 👍/👎 feedback, accept Beacon's suggested answers, and add quick Q&A snippets to its knowledge base."
-              />
-              {isAdmin && (
-                <TabWithTip
-                  value="usage"
-                  label="Usage"
-                  tip="AI token spend, request volume, and per-user activity for Beacon over time."
-                />
-              )}
-              {isAdmin && (
-                <TabWithTip
-                  value="config"
-                  label="Config"
-                  tip="Tune Beacon's behavior: model, temperature, retrieval, system prompt, and feature flags."
-                />
-              )}
-              {isAdmin && (
-                <TabWithTip
-                  value="gaps"
-                  label="KB Gaps"
-                  tip="Questions users asked that Beacon couldn't confidently answer. Add documents or teach snippets to fill the gap, then mark addressed with a note describing what you did."
-                />
-              )}
-            </TabsList>
-            <TabsContent value="teach"><BeaconTeachPanel /></TabsContent>
-            {isAdmin && <TabsContent value="usage"><AIUsageDashboard /></TabsContent>}
-            {isAdmin && <TabsContent value="config"><BeaconConfigPanel /></TabsContent>}
-            {isAdmin && <TabsContent value="gaps"><BeaconKbGaps /></TabsContent>}
-          </Tabs>
+export default function BeaconHub() {
+  const { isAdmin } = usePermissions();
+  const isManager = useHasRole("manager");
+  const canAccess = isAdmin || isManager;
+  if (!canAccess) return <Navigate to="/dashboard" replace />;
+
+  return (
+    <AppLayout>
+      <div className="space-y-6 animate-fade-in">
+        <div className="flex items-center gap-3">
+          <Brain className="h-7 w-7 text-[#f59e0b]" />
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Beacon Hub</h1>
+            <p className="text-sm text-muted-foreground">
+              Train Beacon, review knowledge gaps, and monitor AI usage. Beacon is your
+              in-app assistant — these tools control what it knows and how it answers.
+            </p>
+          </div>
         </div>
-      </TooltipProvider>
+        <BeaconHubContent />
+      </div>
     </AppLayout>
   );
 }
