@@ -825,6 +825,38 @@ export default function Content() {
 
       <PreviewDialog candidate={viewing} open={!!viewing} onClose={() => setViewing(null)} />
       <ComposeDialog open={composeOpen} onClose={() => setComposeOpen(false)} preset={composePreset} onComposed={setViewing} />
+
+      <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this idea?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{confirmDelete?.title}" and any drafts generated from it will be permanently removed.
+              This can't be undone. (Use the X button on a card to just skip it instead.)
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!confirmDelete) return;
+                const c = confirmDelete;
+                setConfirmDelete(null);
+                try {
+                  await deleteCandidate.mutateAsync(c.id);
+                  toast({ title: "Deleted", description: `"${c.title}" was removed.` });
+                } catch (e: any) {
+                  toast({ title: "Delete failed", description: e.message, variant: "destructive" });
+                }
+              }}
+            >
+              Delete permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
+
   );
 }
