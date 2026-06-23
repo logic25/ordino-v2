@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
 
 export interface ContentCandidate {
   id: string;
@@ -124,6 +125,7 @@ export function useUpdateCandidateStatus() {
 // template skeleton, landing straight in "drafted" so you can edit & publish it.
 export function useComposeContent() {
   const qc = useQueryClient();
+  const { profile } = useAuth();
   return useMutation({
     mutationFn: async ({ title, content_type, body }: { title: string; content_type: string; body: string }) => {
       const id = `manual-${Date.now()}`;
@@ -131,17 +133,63 @@ export function useComposeContent() {
       const { error: e1 } = await (supabase as any).from("content_candidates").insert({
         id, title, content_type, priority: "medium", status: "drafted",
         source_type: "manual", reasoning: "Composed from scratch",
+        company_id: profile?.company_id,
       });
       if (e1) throw e1;
       const { error: e2 } = await (supabase as any).from("generated_content").insert({
         id: `gen-${id}`, candidate_id: id, content_type, title, content: body, word_count, status: "draft",
+        company_id: profile?.company_id,
       });
       if (e2) throw e2;
-      return { id, title, content_type, status: "drafted", priority: "medium" } as unknown as ContentCandidate;
+      return { id, title, content_type, status: "drafted", priority: "medium", source_type: "manual" } as unknown as ContentCandidate;
     },
     onSuccess: (cand) => {
       qc.invalidateQueries({ queryKey: ["content-candidates"] });
       qc.invalidateQueries({ queryKey: ["generated-content", cand.id] });
+    },
+  });
+}
+
+// "+ Write about…" — create an ad-hoc manual candidate (pending) and immediately
+// run the same Beacon Generate flow used by the question-cluster cards.
+export function useQuickGenerate() {
+  const qc = useQueryClient();
+  const { profile } = useAuth();
+  return useMutation({
+    mutationFn: async ({ title, content_type = "blog_post" }: { title: string; content_type?: string }) => {
+      const id = `manual-${Date.now()}`;
+      const { error: cErr } = await (supabase as any).from("content_candidates").insert({
+        id, title, content_type, priority: "medium", status: "pending",
+        source_type: "manual", reasoning: "Ad-hoc topic",
+        company_id: profile?.company_id,
+      });
+      if (cErr) throw cErr;
+
+      const { data, error } = await supabase.functions.invoke("beacon-proxy?action=content-generate", {
+        body: { candidate_id: id, title, content_type, topics: [], reasoning: "Ad-hoc topic" },
+      });
+      if (error) throw new Error(error.message);
+      const content = (data as any)?.content || "";
+      const word_count = (data as any)?.word_count || content.split(/\s+/).filter(Boolean).length;
+
+      await (supabase as any).from("generated_content").insert({
+        id: `gen-${id}-${Date.now()}`,
+        candidate_id: id,
+        content_type,
+        title,
+        content,
+        word_count,
+        status: "draft",
+        company_id: profile?.company_id,
+      });
+      await (supabase as any).from("content_candidates")
+        .update({ status: "drafted", updated_at: new Date().toISOString() }).eq("id", id);
+
+      return { id, title, content_type, status: "drafted", priority: "medium", source_type: "manual" } as unknown as ContentCandidate;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["content-candidates"] });
+      qc.invalidateQueries({ queryKey: ["generated-content-many"] });
     },
   });
 }
@@ -193,6 +241,7 @@ export function usePublish() {
 // save the draft, and advance the candidate to 'drafted'.
 export function useGenerateDraft() {
   const qc = useQueryClient();
+  const { profile } = useAuth();
   return useMutation({
     mutationFn: async (candidate: ContentCandidate) => {
       const { data, error } = await supabase.functions.invoke("beacon-proxy?action=content-generate", {
@@ -216,6 +265,7 @@ export function useGenerateDraft() {
         content,
         word_count,
         status: "draft",
+        company_id: profile?.company_id,
       });
       await (supabase as any)
         .from("content_candidates")
@@ -226,6 +276,7 @@ export function useGenerateDraft() {
     onSuccess: (_d, candidate) => {
       qc.invalidateQueries({ queryKey: ["content-candidates"] });
       qc.invalidateQueries({ queryKey: ["generated-content", candidate.id] });
+      qc.invalidateQueries({ queryKey: ["generated-content-many"] });
     },
   });
 }
