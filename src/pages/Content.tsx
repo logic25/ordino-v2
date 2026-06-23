@@ -669,10 +669,15 @@ export default function Content() {
   const { data: published = [] } = usePublishedContent();
   const updateStatus = useUpdateCandidateStatus();
   const generate = useGenerateDraft();
+  const deleteCandidate = useDeleteCandidate();
+  const { isAdmin, userRoles } = usePermissions();
+  // Gate hard-delete to admin/manager only, consistent with the other write actions.
+  const canDelete = isAdmin || userRoles.some((r) => /manager/i.test(r));
   const [viewing, setViewing] = useState<ContentCandidate | null>(null);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
   const [composePreset, setComposePreset] = useState<ContentTemplate | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<ContentCandidate | null>(null);
 
   // Pull all latest drafts for visible candidates so each card can show
   // an inline excerpt + Copy button without N round-trips.
