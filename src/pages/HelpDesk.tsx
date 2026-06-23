@@ -1,6 +1,9 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, Brain, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { HowToGuides } from "@/components/helpdesk/HowToGuides";
 import { WhatsNew } from "@/components/helpdesk/WhatsNew";
 import { FeatureRequests } from "@/components/helpdesk/FeatureRequests";
@@ -10,16 +13,14 @@ import { BugFixDashboard } from "@/components/helpdesk/BugFixDashboard";
 import { ProductRoadmap } from "@/components/helpdesk/ProductRoadmap";
 import { AIUsageDashboard } from "@/components/helpdesk/AIUsageDashboard";
 import { usePermissions } from "@/hooks/usePermissions";
-import { Navigate, useSearchParams } from "react-router-dom";
+import { useHasRole } from "@/hooks/useUserRoles";
+import { useSearchParams } from "react-router-dom";
 
 export default function HelpDesk() {
   const { isAdmin } = usePermissions();
+  const isManager = useHasRole("manager");
   const [searchParams] = useSearchParams();
-
-  // Legacy route: /help?tab=ai-usage now lives in the Beacon hub
-  if (searchParams.get("tab") === "ai-usage") {
-    return <Navigate to="/beacon?tab=usage" replace />;
-  }
+  const canSeeBeacon = isAdmin || isManager;
 
   return (
     <AppLayout>
@@ -50,14 +51,35 @@ export default function HelpDesk() {
           <TabsContent value="requests"><FeatureRequests /></TabsContent>
           <TabsContent value="bugs"><BugReports /></TabsContent>
           {isAdmin && <TabsContent value="bug-metrics"><BugFixDashboard /></TabsContent>}
+          {isAdmin && <TabsContent value="roadmap"><ProductRoadmap /></TabsContent>}
           {isAdmin && (
-            <TabsContent value="roadmap"><ProductRoadmap /></TabsContent>
-          )}
-          {isAdmin && (
-            <TabsContent value="ai-usage"><AIUsageDashboard /></TabsContent>
+            <TabsContent value="ai-usage" className="space-y-4">
+              {canSeeBeacon && (
+                <Card className="border-[#f59e0b]/30 bg-[#f59e0b]/5">
+                  <CardContent className="py-4 flex items-center justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <Brain className="h-5 w-5 text-[#f59e0b] mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium">Beacon Hub</p>
+                        <p className="text-xs text-muted-foreground">
+                          Train Beacon, review KB gaps, approve user-flagged answers, and tune config.
+                        </p>
+                      </div>
+                    </div>
+                    <Button asChild size="sm" variant="outline">
+                      <Link to="/beacon">
+                        Open Beacon Hub <ExternalLink className="h-3.5 w-3.5 ml-1.5" />
+                      </Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+              <AIUsageDashboard />
+            </TabsContent>
           )}
         </Tabs>
       </div>
     </AppLayout>
   );
 }
+

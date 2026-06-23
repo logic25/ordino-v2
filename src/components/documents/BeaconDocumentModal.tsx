@@ -8,13 +8,14 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Pencil, Save, History, RotateCcw } from "lucide-react";
+import { Loader2, Pencil, Save, History, RotateCcw, Settings2, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchBeaconFileContent } from "@/services/beaconApi";
+import { fetchBeaconFileContent, FOLDER_TO_SOURCE_TYPE } from "@/services/beaconApi";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { useAuth } from "@/hooks/useAuth";
 import { useKbDocumentVersions, kbVersionChangerName, type KbDocumentVersion } from "@/hooks/useKbDocumentVersions";
 
@@ -94,23 +95,38 @@ function parseFrontmatter(raw: string): {
 
 /**
  * Reassembled Pinecone chunks often arrive as one long line with markdown
- * markers (##, ###, ` - `, `1. `) inline. ReactMarkdown only recognizes those
- * at the start of a line, so we re-insert line breaks before rendering.
+ * markers (##, ###, ` - `, `1. `, GFM tables) inline. ReactMarkdown only
+ * recognizes those at the start of a line, so we re-insert line breaks before
+ * rendering.
  */
 function normalizeMarkdown(raw: string): string {
   if (!raw) return "";
   let s = raw.replace(/\r\n/g, "\n");
-  // Headings: ensure ## / ### / #### start on their own line (with blank line before)
+  // Headings: ensure ## / ### / #### start on their own line (blank line before).
   s = s.replace(/\s*(#{1,6})\s+/g, (_m, hashes) => `\n\n${hashes} `);
-  // Bullet list markers: " - Foo" mid-sentence → newline + "- Foo"
-  // Only when preceded by space + dash + space AND followed by a capital/word
+  // Bullet list markers mid-sentence ("foo - Bar") → newline + "- Bar"
   s = s.replace(/ - (?=[A-Z0-9*_`\[])/g, "\n- ");
   // Numbered list markers mid-line: " 1. Foo" → newline
   s = s.replace(/ (\d{1,2})\.\s+(?=[A-Z])/g, "\n$1. ");
+  // GFM tables collapsed into one line:
+  //   "| Header | X || ---|---| | row1 | val | | row2 | val |"
+  // Strategy: insert a newline before every "|" that is preceded by " |"
+  // (cell boundary) and which begins a new logical row. We detect rows by
+  // looking for "| {non-pipe text} |" repeating units.
+  if (/\|.+\|.+\|/.test(s)) {
+    // Put each "||" cluster onto its own line (table row separators)
+    s = s.replace(/\|\|/g, "|\n|");
+    // Ensure separator row "| --- | --- |" sits on its own line
+    s = s.replace(/\|\s*(:?-{3,}:?\s*\|)+/g, (m) => `\n${m}\n`);
+    // Break after any "|" that's followed by a capital-letter cell start that
+    // looks like a new row (heuristic: " | Capital ... |")
+    s = s.replace(/\|\s+(?=[A-Z][^|\n]{0,80}\|)/g, "|\n| ");
+  }
   // Collapse 3+ blank lines
   s = s.replace(/\n{3,}/g, "\n\n");
   return s.trim();
 }
+
 
 
 interface BeaconDocumentModalProps {
@@ -134,7 +150,8 @@ export function BeaconDocumentModal({
   const [editContent, setEditContent] = useState("");
   const [originalContent, setOriginalContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [panel, setPanel] = useState<"doc" | "history">("doc");
+  const [panel, setPanel] = useState<"doc" | "history" | "properties">("doc");
+  const [propsDraft, setPropsDraft] = useState<Record<string, string>>({});
   const versions = useKbDocumentVersions(sourceFile);
   const versionCount = versions.data?.length || 0;
 
@@ -218,6 +235,73 @@ export function BeaconDocumentModal({
         description: err.message,
         variant: "destructive",
       });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Re-ingest with updated metadata while keeping the body untouched.
+  // Used by the "Properties" panel for rename (title) / move (category) /
+  // jurisdiction edits without touching document text.
+  const handleSaveProperties = async () => {
+    setIsSaving(true);
+    try {
+      const nextMetadata = { ...metadata, ...propsDraft };
+      // Strip empty values so we don't write "key: " lines
+      for (const k of Object.keys(nextMetadata)) {
+        if (!String(nextMetadata[k] ?? "").trim()) delete nextMetadata[k];
+      }
+      const frontmatterLines = Object.entries(nextMetadata)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join("\n");
+      const fullContent =
+        frontmatterLines.length > 0
+          ? `---\n${frontmatterLines}\n---\n\n${body}`
+          : body;
+
+      try {
+        if (profile?.company_id && originalContent && originalContent !== fullContent) {
+          const { data: maxV } = await (supabase as any)
+            .from("kb_document_versions")
+            .select("version")
+            .eq("source_file", sourceFile)
+            .order("version", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          const nextVersion = ((maxV?.version as number) || 0) + 1;
+          await (supabase as any).from("kb_document_versions").insert({
+            company_id: profile.company_id,
+            source_file: sourceFile,
+            version: nextVersion,
+            content: originalContent,
+            changed_by: profile.id,
+          });
+        }
+      } catch (e) {
+        console.warn("[KbDocumentVersion] snapshot failed", e);
+      }
+
+      const blob = new Blob([fullContent], { type: "text/markdown" });
+      const file = new File([blob], `${sourceFile}.md`, { type: "text/markdown" });
+      const { syncDocumentToBeacon } = await import("@/services/beaconApi");
+      await syncDocumentToBeacon(
+        file,
+        file.name,
+        nextMetadata.category || metadata.category || "filing_guides",
+        nextMetadata.jurisdiction || metadata.jurisdiction || "NYC",
+      );
+
+      setMetadata(nextMetadata);
+      setOriginalContent(fullContent);
+      setPanel("doc");
+      qc.invalidateQueries({ queryKey: ["kb-document-versions", sourceFile] });
+      qc.invalidateQueries({ queryKey: ["beacon-knowledge"] });
+      toast({
+        title: "Properties updated",
+        description: "Re-ingested with new title / folder / jurisdiction.",
+      });
+    } catch (err: any) {
+      toast({ title: "Save failed", description: err.message, variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -337,6 +421,62 @@ export function BeaconDocumentModal({
                 ))
               )}
             </div>
+          ) : panel === "properties" ? (
+            <div className="space-y-4 px-1">
+              <div className="rounded-md border border-[#f59e0b]/40 bg-[#f59e0b]/5 px-3 py-2 text-xs text-foreground flex items-start gap-2">
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 text-[#f59e0b] shrink-0" />
+                <div>
+                  Edits below re-ingest this document into Beacon. The underlying
+                  filename (<code className="text-[10px]">{sourceFile}</code>) can't be
+                  renamed yet — Beacon's backend doesn't expose a rename/delete API.
+                  Changing the folder writes a new chunk under the new folder; the
+                  original chunk persists until backend delete ships.
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium">Display title</label>
+                <input
+                  className="w-full px-3 py-2 border rounded-md text-sm bg-background"
+                  value={propsDraft.title ?? metadata.title ?? ""}
+                  onChange={(e) => setPropsDraft((p) => ({ ...p, title: e.target.value }))}
+                  placeholder="e.g. Spring Valley Filing Guide"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  This is what shows as the document heading and in Beacon search results.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium">Folder (Beacon category)</label>
+                <select
+                  className="w-full px-3 py-2 border rounded-md text-sm bg-background"
+                  value={propsDraft.category ?? metadata.category ?? ""}
+                  onChange={(e) => setPropsDraft((p) => ({ ...p, category: e.target.value }))}
+                >
+                  <option value="">— select folder —</option>
+                  {Object.keys(FOLDER_TO_SOURCE_TYPE).map((slug) => (
+                    <option key={slug} value={slug}>
+                      {slug.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium">Jurisdiction</label>
+                <input
+                  className="w-full px-3 py-2 border rounded-md text-sm bg-background"
+                  value={propsDraft.jurisdiction ?? metadata.jurisdiction ?? ""}
+                  onChange={(e) => setPropsDraft((p) => ({ ...p, jurisdiction: e.target.value }))}
+                  placeholder="e.g. Spring Valley, NY"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Free-form. Use the local jurisdiction this document applies to (e.g.
+                  "NYC", "Spring Valley, NY", "Yonkers, NY").
+                </p>
+              </div>
+            </div>
           ) : isEditing ? (
             <textarea
               className="w-full h-[55vh] font-mono text-sm p-3 border rounded-md resize-none bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
@@ -345,7 +485,7 @@ export function BeaconDocumentModal({
             />
           ) : (
             <div className="prose prose-sm max-w-none dark:prose-invert overflow-y-auto max-h-[60vh] px-1">
-              <ReactMarkdown>{body}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>
             </div>
           )}
         </div>
@@ -371,19 +511,38 @@ export function BeaconDocumentModal({
                   Save & Re-sync
                 </Button>
               </>
+            ) : panel === "properties" ? (
+              <>
+                <Button variant="outline" size="sm" onClick={() => { setPanel("doc"); setPropsDraft({}); }}>
+                  Cancel
+                </Button>
+                <Button size="sm" onClick={handleSaveProperties} disabled={isSaving || Object.keys(propsDraft).length === 0}>
+                  {isSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+                  Save Properties
+                </Button>
+              </>
             ) : (
               <>
                 {panel === "doc" && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setIsEditing(true);
-                      setEditContent(body);
-                    }}
-                  >
-                    <Pencil className="h-4 w-4 mr-1" /> Edit
-                  </Button>
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setIsEditing(true);
+                        setEditContent(body);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4 mr-1" /> Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => { setPropsDraft({}); setPanel("properties"); }}
+                    >
+                      <Settings2 className="h-4 w-4 mr-1" /> Properties
+                    </Button>
+                  </>
                 )}
                 <Button
                   variant="outline"

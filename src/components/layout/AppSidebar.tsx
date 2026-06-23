@@ -27,7 +27,6 @@ import {
   ClipboardList,
   QrCode,
   Sparkles,
-  Brain,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -35,7 +34,7 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions, type ResourceKey } from "@/hooks/usePermissions";
-import { useIsAdmin, useHasRole } from "@/hooks/useUserRoles";
+
 import { useUnreadIndicators } from "@/hooks/useUnreadIndicators";
 
 type NavItem = { title: string; icon: any; href: string; resource: ResourceKey };
@@ -134,8 +133,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { toast } = useToast();
   const { canAccess, loading: permLoading } = usePermissions();
   const { user, profile, signOut } = useAuth();
-  const isAdmin = useIsAdmin();
-  const isManager = useHasRole("manager");
+  
   const { chatHasUnread, emailHasUnread, emailUnreadCount, billingPendingCount } = useUnreadIndicators();
 
   const unreadDotMap: Record<string, boolean> = {
@@ -160,17 +158,10 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
     [canAccess]
   );
 
-  const filteredSecondaryNav = useMemo(() => {
-    const items = secondaryNav.filter((item) => canAccess(item.resource));
-    if (isAdmin || isManager) {
-      // Place Beacon Hub adjacent to Help (admin/manager tooling)
-      const helpIdx = items.findIndex((i) => i.href === "/help");
-      const beacon = { title: "Beacon", icon: Brain, href: "/beacon", resource: "dashboard" as ResourceKey };
-      if (helpIdx >= 0) items.splice(helpIdx, 0, beacon);
-      else items.push(beacon);
-    }
-    return items;
-  }, [canAccess, isAdmin, isManager]);
+  const filteredSecondaryNav = useMemo(
+    () => secondaryNav.filter((item) => canAccess(item.resource)),
+    [canAccess]
+  );
 
   const initials = getInitials(profile, user?.email);
   const displayName =
