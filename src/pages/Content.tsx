@@ -76,9 +76,9 @@ function PriorityBadge({ priority }: { priority: string }) {
   );
   if (!info) return badge;
   return (
-    <Tooltip>
-      <TooltipTrigger asChild><span>{badge}</span></TooltipTrigger>
-      <TooltipContent side="top" className="max-w-xs">
+    <Tooltip delayDuration={150}>
+      <TooltipTrigger asChild><span tabIndex={0}>{badge}</span></TooltipTrigger>
+      <TooltipContent side="top" align="start" className="max-w-xs z-[100]" sideOffset={6}>
         <div className="font-semibold text-xs mb-0.5">{info.label}</div>
         <div className="text-xs text-muted-foreground">{info.body}</div>
       </TooltipContent>
