@@ -589,6 +589,69 @@ Deno.serve(async (req) => {
       console.error("Full read-state reconciliation failed:", e);
     }
 
+    // ── INBOX label drift reconciliation ──
+    // Fetch ALL message IDs currently in Gmail's INBOX (any read state), then
+    // strip the INBOX label from local rows that Gmail no longer considers in
+    // inbox (archived/trashed/moved in Gmail directly). Also archive them so
+    // they stop counting toward sidebar/unread badges.
+    try {
+      const inboxSet = new Set<string>();
+      let inboxPageToken: string | undefined = undefined;
+      let inboxPages = 0;
+      const INBOX_MAX_PAGES = 20; // up to ~10k inbox ids
+      while (inboxPages < INBOX_MAX_PAGES) {
+        if (Date.now() - startedAt > TIME_BUDGET_MS) break;
+        const u = new URL("https://www.googleapis.com/gmail/v1/users/me/messages");
+        u.searchParams.set("maxResults", "500");
+        u.searchParams.set("q", "in:inbox");
+        if (inboxPageToken) u.searchParams.set("pageToken", inboxPageToken);
+        const r = await fetch(u.toString(), { headers: { Authorization: `Bearer ${accessToken}` } });
+        const j = await r.json();
+        for (const m of j.messages || []) inboxSet.add(m.id);
+        if (!j.nextPageToken) break;
+        inboxPageToken = j.nextPageToken;
+        inboxPages++;
+      }
+
+      // Pull all local rows currently labeled INBOX and not yet archived
+      const { data: localInbox } = await supabaseAdmin
+        .from("emails")
+        .select("id, gmail_message_id, labels")
+        .eq("user_id", profile.id)
+        .filter("labels", "cs", '["INBOX"]')
+        .is("archived_at", null)
+        .not("gmail_message_id", "is", null);
+
+      const toStrip: { id: string; labels: string[] }[] = [];
+      for (const row of localInbox || []) {
+        if (row.gmail_message_id && !inboxSet.has(row.gmail_message_id)) {
+          const newLabels = Array.isArray(row.labels)
+            ? (row.labels as string[]).filter((l) => l !== "INBOX")
+            : [];
+          toStrip.push({ id: row.id, labels: newLabels });
+        }
+      }
+
+      const nowIso = new Date().toISOString();
+      const chunk3 = <T,>(arr: T[], size: number) =>
+        Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size));
+      // Update one-by-one for label arrays (small N expected; batched per row)
+      for (const group of chunk3(toStrip, 50)) {
+        await Promise.all(
+          group.map((row) =>
+            supabaseAdmin
+              .from("emails")
+              .update({ labels: row.labels, archived_at: nowIso })
+              .eq("id", row.id),
+          ),
+        );
+      }
+      console.log(`[gmail-sync] reconciled inbox labels: stripped ${toStrip.length}, gmail inbox=${inboxSet.size}`);
+    } catch (e) {
+      console.error("INBOX label reconciliation failed:", e);
+    }
+
+
     // Create a bell notification when new unread inbox emails arrived
     if (newUnreadInbox.length > 0) {
       try {
