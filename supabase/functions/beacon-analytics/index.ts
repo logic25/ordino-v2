@@ -91,8 +91,13 @@ Deno.serve(async (req) => {
         return await getInteractionsForReclass(supabase, data);
       case "update_interaction_topic":
         return await updateInteractionTopic(supabase, data);
+      case "get_kb_gaps":
+        return await getKbGaps(supabase, data);
+      case "dismiss_kb_gap":
+        return await dismissKbGap(supabase, data);
       default:
         return jsonResponse({ error: `Unknown action: ${action}` }, 400);
+
     }
   } catch (err) {
     console.error("beacon-analytics error:", err);
@@ -769,3 +774,89 @@ async function persistWidgetMessages(sb: any, d: any) {
   if (error) throw error;
   return jsonResponse({ success: true, company_id: companyId });
 }
+
+// ─── KB Gaps (Teach Beacon queue) ───────────────────────────────────
+// Source of truth for "questions Beacon couldn't answer". We DO NOT
+// overwrite the `command` field on dismissal — historical analytics that
+// filter on command='passive_gap' must keep working. "Open" gaps are the
+// subset where addressed_at IS NULL (column already exists, also used by
+// BeaconKbGaps's topic-level dismiss). No ilike dedup against
+// beacon_corrections — dismissal is the only "handled" signal.
+async function getKbGaps(sb: any, d: any) {
+  const days = Math.min(Number(d?.days ?? 60), 365);
+  const limit = Math.min(Number(d?.limit ?? 50), 200);
+  const since = new Date(Date.now() - days * 86400000).toISOString();
+
+  const { data, error } = await sb
+    .from("beacon_interactions")
+    .select("id, question, topic, command, answered, confidence, timestamp")
+    .gte("timestamp", since)
+    .is("addressed_at", null)
+    .order("timestamp", { ascending: false })
+    .limit(5000);
+  if (error) return jsonResponse({ error: error.message }, 500);
+
+  const rows = (data || []).filter((r: any) => {
+    if (!r.question || String(r.question).trim().length < 6) return false;
+    if (r.command === "passive_gap") return true;
+    return r.answered === false && r.confidence != null && Number(r.confidence) < 0.5;
+  });
+
+  const normalize = (s: string) =>
+    s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+
+  const clusters = new Map<string, {
+    id: number;
+    question: string;
+    topic: string | null;
+    asked_count: number;
+    last_asked_at: string;
+    member_ids: number[];
+  }>();
+
+  for (const r of rows) {
+    const key = normalize(String(r.question));
+    if (!key) continue;
+    const c = clusters.get(key);
+    if (!c) {
+      clusters.set(key, {
+        id: r.id,
+        question: r.question,
+        topic: r.topic ?? null,
+        asked_count: 1,
+        last_asked_at: r.timestamp,
+        member_ids: [r.id],
+      });
+    } else {
+      c.asked_count++;
+      c.member_ids.push(r.id);
+      if (r.timestamp > c.last_asked_at) {
+        c.last_asked_at = r.timestamp;
+        c.id = r.id;
+        c.question = r.question;
+        c.topic = r.topic ?? c.topic;
+      }
+    }
+  }
+
+  const out = Array.from(clusters.values())
+    .sort((a, b) =>
+      b.asked_count - a.asked_count ||
+      b.last_asked_at.localeCompare(a.last_asked_at)
+    )
+    .slice(0, limit);
+
+  return jsonResponse({ gaps: out });
+}
+
+async function dismissKbGap(sb: any, d: any) {
+  const ids: number[] = Array.isArray(d?.member_ids) ? d.member_ids : [];
+  if (!ids.length) return jsonResponse({ error: "member_ids required" }, 400);
+  const { error } = await sb
+    .from("beacon_interactions")
+    .update({ addressed_at: new Date().toISOString() })
+    .in("id", ids);
+  if (error) return jsonResponse({ error: error.message }, 500);
+  return jsonResponse({ ok: true });
+}
+
