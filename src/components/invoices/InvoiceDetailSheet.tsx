@@ -23,6 +23,7 @@ import { PaymentAnalyticsSection, RiskPredictionSection, PromisesSection } from 
 import { FollowUpNotesSection } from "./invoice-detail/FollowUpNotesSection";
 import { ActivityLogSection } from "./invoice-detail/ActivityLogSection";
 import { ActionDialogs } from "./invoice-detail/ActionDialogs";
+import { CertifiedMailBanner } from "./invoice-detail/CertifiedMailBanner";
 import { DeliveryStatusSection } from "./invoice-detail/DeliveryStatusSection";
 import { LineItemsSection } from "./invoice-detail/LineItemsSection";
 import { TotalsSection } from "./invoice-detail/TotalsSection";
