@@ -171,6 +171,23 @@ export async function fetchBeaconKnowledgeList(): Promise<BeaconKnowledgeData> {
 
   if (data.folders && typeof data.folders === "object") {
     folders = data.folders;
+    if (Array.isArray(data.details)) {
+      for (const detail of data.details as BeaconKnowledgeDetail[]) {
+        const filename = detail.filename?.trim();
+        if (!filename) continue;
+
+        const explicitFolder = detail.folder?.trim();
+        if (explicitFolder) {
+          for (const key of Object.keys(folders)) {
+            folders[key] = (folders[key] || []).filter((f) => f !== filename);
+          }
+          (folders[explicitFolder] ||= []).push(filename);
+        } else if (!Object.values(folders).some((files) => files.includes(filename))) {
+          const folder = SOURCE_TYPE_TO_FOLDER[detail.source_type || ""] || "_root";
+          (folders[folder] ||= []).push(filename);
+        }
+      }
+    }
   } else if (Array.isArray(data.details)) {
     for (const detail of data.details as BeaconKnowledgeDetail[]) {
       const filename = detail.filename?.trim();
