@@ -137,13 +137,14 @@ export function useInvoiceActions(invoice: InvoiceWithRelations | null) {
         await logFollowUp("reminder_email", `Payment reminder sent to ${recipientEmail}. ${actionNote}`);
         toast({ title: "Payment reminder sent", description: `Reminder emailed to ${recipientEmail}` });
       } else if (activeAction === "demand") {
-        if (!recipientEmail) {
+        const toEmail = demandResult?.recipient?.email || recipientEmail;
+        if (!toEmail) {
           toast({ title: "No email address", description: "Client or billing contact has no email on file.", variant: "destructive" });
           setProcessing(false);
           return;
         }
         const { buildDemandLetterEmail, sendBillingEmail } = await import("@/hooks/useBillingEmail");
-        const { subject, htmlBody } = buildDemandLetterEmail({
+        const { subject: defaultSubj, htmlBody } = buildDemandLetterEmail({
           invoiceNumber: invoice.invoice_number,
           totalDue: Number(invoice.total_due),
           daysOverdue,
@@ -153,10 +154,76 @@ export function useInvoiceActions(invoice: InvoiceWithRelations | null) {
           companyEmail: companyData?.settings?.company_email,
           companyPhone: companyData?.settings?.company_phone,
         });
-        await sendBillingEmail({ to: recipientEmail, subject, htmlBody });
-        await logFollowUp("demand_letter", `Demand letter emailed to ${recipientEmail}.\n\n${demandLetterText}`);
-        toast({ title: "Demand letter sent", description: `Formal demand emailed to ${recipientEmail}` });
+        const finalSubject = (demandSubject || demandResult?.subject || defaultSubj).trim();
+
+        // Build PDF attachment from the freshly-edited body
+        let attachments: { filename: string; content: string; mime_type: string }[] | undefined;
+        try {
+          if (demandResult) {
+            const { pdf } = await import("@react-pdf/renderer");
+            const { DemandLetterPDF } = await import("../DemandLetterPDF");
+            const blob = await pdf(<DemandLetterPDF data={demandResult} bodyOverride={demandLetterText} /> as any).toBlob();
+            const buf = await blob.arrayBuffer();
+            const bytes = new Uint8Array(buf);
+            let bin = "";
+            for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+            const b64 = btoa(bin);
+            const safeName = `Demand-Letter-${(demandResult.recipient?.name || clientName).replace(/[^a-z0-9]+/gi, "-")}-${new Date().toISOString().slice(0, 10)}.pdf`;
+            attachments = [{ filename: safeName, content: b64, mime_type: "application/pdf" }];
+          }
+        } catch (pdfErr) {
+          console.warn("PDF attachment build failed; sending without attachment:", pdfErr);
+        }
+
+        await sendBillingEmail({
+          to: toEmail,
+          cc: demandCc || undefined,
+          subject: finalSubject,
+          htmlBody,
+          invoiceId: invoice.id,
+          attachments,
+        });
+
+        const coveredIds = demandResult?.invoice_ids?.length ? demandResult.invoice_ids : [invoice.id];
+        await logFollowUp("demand_letter",
+          `Demand letter emailed to ${toEmail}${demandCc ? ` (cc: ${demandCc})` : ""}.\nCovers ${coveredIds.length} invoice(s).\n\n${demandLetterText}`,
+          { invoiceIds: coveredIds }
+        );
+
+        // Snapshot interest if any
+        if (demandResult?.grand_interest && demandResult.grand_interest > 0) {
+          try {
+            const { data: profile } = await supabase.from("profiles").select("id, company_id").single();
+            if (profile?.company_id && demandResult.property_groups) {
+              const rows: any[] = [];
+              for (const g of demandResult.property_groups) {
+                for (const r of g.rows) {
+                  if (r.accrued_interest > 0) {
+                    const invId = coveredIds.find((id) => true); // we don't have invoice_id per row; skip if not safe
+                    rows.push({
+                      company_id: profile.company_id,
+                      invoice_id: invId,
+                      principal: r.principal,
+                      rate_apr: r.rate_apr,
+                      days_overdue_for_interest: r.days_overdue,
+                      accrued_interest: r.accrued_interest,
+                      source: "demand_letter",
+                      created_by: profile.id,
+                    });
+                  }
+                }
+              }
+              // Snapshots are best-effort — silent on failure
+              if (rows.length) await supabase.from("invoice_interest_snapshots").insert(rows);
+            }
+          } catch (e) { console.warn("interest snapshot failed", e); }
+        }
+
+        toast({ title: "Demand letter sent", description: `Formal demand emailed to ${toEmail}${attachments ? " (PDF attached)" : ""}` });
         setDemandStep("edit");
+        setDemandResult(null);
+        setDemandCc("");
+        setDemandSubject("");
       } else if (activeAction === "writeoff") {
         await updateInvoice.mutateAsync({ id: invoice.id, status: "paid" } as any);
         await logFollowUp("write_off", `Invoice written off. Amount: $${Number(invoice.total_due).toFixed(2)}`);
