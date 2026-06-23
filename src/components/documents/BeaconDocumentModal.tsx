@@ -240,6 +240,73 @@ export function BeaconDocumentModal({
     }
   };
 
+  // Re-ingest with updated metadata while keeping the body untouched.
+  // Used by the "Properties" panel for rename (title) / move (category) /
+  // jurisdiction edits without touching document text.
+  const handleSaveProperties = async () => {
+    setIsSaving(true);
+    try {
+      const nextMetadata = { ...metadata, ...propsDraft };
+      // Strip empty values so we don't write "key: " lines
+      for (const k of Object.keys(nextMetadata)) {
+        if (!String(nextMetadata[k] ?? "").trim()) delete nextMetadata[k];
+      }
+      const frontmatterLines = Object.entries(nextMetadata)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join("\n");
+      const fullContent =
+        frontmatterLines.length > 0
+          ? `---\n${frontmatterLines}\n---\n\n${body}`
+          : body;
+
+      try {
+        if (profile?.company_id && originalContent && originalContent !== fullContent) {
+          const { data: maxV } = await (supabase as any)
+            .from("kb_document_versions")
+            .select("version")
+            .eq("source_file", sourceFile)
+            .order("version", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          const nextVersion = ((maxV?.version as number) || 0) + 1;
+          await (supabase as any).from("kb_document_versions").insert({
+            company_id: profile.company_id,
+            source_file: sourceFile,
+            version: nextVersion,
+            content: originalContent,
+            changed_by: profile.id,
+          });
+        }
+      } catch (e) {
+        console.warn("[KbDocumentVersion] snapshot failed", e);
+      }
+
+      const blob = new Blob([fullContent], { type: "text/markdown" });
+      const file = new File([blob], `${sourceFile}.md`, { type: "text/markdown" });
+      const { syncDocumentToBeacon } = await import("@/services/beaconApi");
+      await syncDocumentToBeacon(
+        file,
+        file.name,
+        nextMetadata.category || metadata.category || "filing_guides",
+        nextMetadata.jurisdiction || metadata.jurisdiction || "NYC",
+      );
+
+      setMetadata(nextMetadata);
+      setOriginalContent(fullContent);
+      setPanel("doc");
+      qc.invalidateQueries({ queryKey: ["kb-document-versions", sourceFile] });
+      qc.invalidateQueries({ queryKey: ["beacon-knowledge"] });
+      toast({
+        title: "Properties updated",
+        description: "Re-ingested with new title / folder / jurisdiction.",
+      });
+    } catch (err: any) {
+      toast({ title: "Save failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleRestore = (v: KbDocumentVersion) => {
     const parsed = parseFrontmatter(v.content || "");
     if (Object.keys(parsed.metadata).length) setMetadata(parsed.metadata);
