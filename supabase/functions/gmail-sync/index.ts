@@ -606,7 +606,22 @@ Deno.serve(async (req) => {
     // Authoritative unread reconcile: Gmail's current `is:unread in:inbox` set wins.
     const gmailUnreadInboxSet = await listGmailIds("is:unread in:inbox", 20);
     let importedUnread = 0;
+    const existingUnreadIds = new Set<string>();
+    for (const ids of chunk(Array.from(gmailUnreadInboxSet), 200)) {
+      if (ids.length === 0) continue;
+      const { data: existingUnreadRows, error: existingUnreadError } = await supabaseAdmin
+        .from("emails")
+        .select("gmail_message_id")
+        .eq("user_id", profile.id)
+        .in("gmail_message_id", ids);
+      if (existingUnreadError) {
+        console.error("[gmail-sync] failed to load existing unread ids", existingUnreadError);
+        continue;
+      }
+      for (const row of existingUnreadRows || []) existingUnreadIds.add(row.gmail_message_id);
+    }
     for (const messageId of gmailUnreadInboxSet) {
+      if (existingUnreadIds.has(messageId)) continue;
       try {
         const result = await syncGmailMessage(messageId);
         if (result.isNew) importedUnread++;
