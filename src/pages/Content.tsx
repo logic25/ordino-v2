@@ -152,10 +152,15 @@ function CoverImagePicker({
   };
 
   const handleUpload = async (file: File) => {
+    if (!profile?.company_id) {
+      toast({ title: "Upload failed", description: "Missing company context.", variant: "destructive" });
+      return;
+    }
     setUploading(true);
     try {
       const ext = file.name.split(".").pop() || "jpg";
-      const path = `${candidate.id}/${Date.now()}.${ext}`;
+      // Path MUST start with the company_id — storage RLS enforces it.
+      const path = `${profile.company_id}/${candidate.id}/${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage.from("content-images").upload(path, file, { upsert: true });
       if (upErr) throw upErr;
       const { data: signed, error: sErr } = await supabase.storage.from("content-images").createSignedUrl(path, 60 * 60 * 24 * 365);
