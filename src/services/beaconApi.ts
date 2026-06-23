@@ -153,6 +153,16 @@ export interface BeaconKnowledgeData {
   folder_count: number;
 }
 
+interface BeaconKnowledgeDetail {
+  filename?: string;
+  folder?: string;
+  source_type?: string;
+}
+
+const SOURCE_TYPE_TO_FOLDER = Object.fromEntries(
+  Object.entries(FOLDER_TO_SOURCE_TYPE).map(([folder, sourceType]) => [sourceType, folder]),
+) as Record<string, string>;
+
 export async function fetchBeaconKnowledgeList(): Promise<BeaconKnowledgeData> {
   const { data, error } = await supabase.functions.invoke("beacon-proxy?action=knowledge-list");
   if (error) throw new Error(`Beacon API error: ${error.message}`);
@@ -161,6 +171,32 @@ export async function fetchBeaconKnowledgeList(): Promise<BeaconKnowledgeData> {
 
   if (data.folders && typeof data.folders === "object") {
     folders = data.folders;
+    if (Array.isArray(data.details)) {
+      for (const detail of data.details as BeaconKnowledgeDetail[]) {
+        const filename = detail.filename?.trim();
+        if (!filename) continue;
+
+        const explicitFolder = detail.folder?.trim();
+        if (explicitFolder) {
+          for (const key of Object.keys(folders)) {
+            folders[key] = (folders[key] || []).filter((f) => f !== filename);
+          }
+          (folders[explicitFolder] ||= []).push(filename);
+        } else if (!Object.values(folders).some((files) => files.includes(filename))) {
+          const folder = SOURCE_TYPE_TO_FOLDER[detail.source_type || ""] || "_root";
+          (folders[folder] ||= []).push(filename);
+        }
+      }
+    }
+  } else if (Array.isArray(data.details)) {
+    for (const detail of data.details as BeaconKnowledgeDetail[]) {
+      const filename = detail.filename?.trim();
+      if (!filename) continue;
+
+      const explicitFolder = detail.folder?.trim();
+      const folder = explicitFolder || SOURCE_TYPE_TO_FOLDER[detail.source_type || ""] || "_root";
+      (folders[folder] ||= []).push(filename);
+    }
   } else {
     for (const filePath of (data.files || [])) {
       const slashIdx = filePath.indexOf('/');
@@ -172,6 +208,10 @@ export async function fetchBeaconKnowledgeList(): Promise<BeaconKnowledgeData> {
         (folders['_root'] ||= []).push(filePath);
       }
     }
+  }
+
+  for (const key of Object.keys(folders)) {
+    folders[key] = Array.from(new Set(folders[key])).sort();
   }
 
   return {
