@@ -23,9 +23,13 @@ import {
 import {
   FileText, Upload, Search, Download, Trash2, Loader2, File, FileImage,
   FileSpreadsheet, FolderPlus, Eye, Brain, RefreshCw, ChevronRight, Tag,
+  MoreVertical, FolderInput,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useUniversalDocuments, useUploadDocument, useDeleteDocument, type UniversalDocument } from "@/hooks/useUniversalDocuments";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { useUniversalDocuments, useUploadDocument, useDeleteDocument, useMoveDocument, type UniversalDocument } from "@/hooks/useUniversalDocuments";
 import { useDocumentFolders, useSeedFolders, useCreateFolder, useDeleteFolder, useRenameFolder, type DocumentFolder } from "@/hooks/useDocumentFolders";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -38,6 +42,7 @@ import { syncDocumentToBeacon } from "@/services/beaconApi";
 import { useQueryClient } from "@tanstack/react-query";
 import { KnowledgeBaseView } from "@/components/documents/KnowledgeBaseView";
 import { EntityLinkingFields } from "@/components/documents/EntityLinkingFields";
+import { MoveDocumentDialog } from "@/components/documents/MoveDocumentDialog";
 
 const CATEGORIES = [
   { value: "general", label: "General" },
@@ -91,6 +96,7 @@ export default function Documents() {
   const seedFolders = useSeedFolders();
   const uploadDoc = useUploadDocument();
   const deleteDoc = useDeleteDocument();
+  const moveDoc = useMoveDocument();
   const createFolder = useCreateFolder();
   const delFolder = useDeleteFolder();
   const renameFolder = useRenameFolder();
@@ -109,6 +115,7 @@ export default function Documents() {
   const [renameTarget, setRenameTarget] = useState<DocumentFolder | null>(null);
   const [renameName, setRenameName] = useState("");
   const [previewDoc, setPreviewDoc] = useState<UniversalDocument | null>(null);
+  const [moveTarget, setMoveTarget] = useState<UniversalDocument | null>(null);
 
   // Upload form state
   const [title, setTitle] = useState("");
@@ -290,6 +297,30 @@ export default function Documents() {
     }
   };
 
+  const moveDocumentTo = async (doc: UniversalDocument, targetFolderId: string | null) => {
+    if ((doc.folder_id ?? null) === targetFolderId) return;
+    try {
+      const targetFolder = targetFolderId ? folders.find((f) => f.id === targetFolderId) : null;
+      await moveDoc.mutateAsync({
+        doc: { id: doc.id, folder_id: doc.folder_id, jurisdiction: doc.jurisdiction },
+        targetFolderId,
+        folders,
+      });
+      toast({
+        title: targetFolder ? `Moved to "${targetFolder.name}"` : "Moved to All Documents",
+      });
+      setMoveTarget(null);
+    } catch (err: any) {
+      toast({ title: "Move failed", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleDropOnFolder = (docId: string, folderId: string) => {
+    const doc = documents.find((d) => d.id === docId);
+    if (!doc) return;
+    moveDocumentTo(doc, folderId || null);
+  };
+
   const resetForm = () => {
     setTitle(""); setDescription(""); setCategory("general");
     setSelectedFile(null);
@@ -369,6 +400,7 @@ export default function Documents() {
                     onRenameFolder={(f) => { setRenameTarget(f); setRenameName(f.name); }}
                     onCreateSubfolder={(parentId) => { setNewFolderDefaultParent(parentId); setNewFolderOpen(true); }}
                     onDeleteFolder={(f) => setDeleteFolderTarget(f)}
+                    onDropDocument={handleDropOnFolder}
                   />
                 )}
               </CardContent>
@@ -482,7 +514,17 @@ export default function Documents() {
                                 [doc.uploader?.first_name, doc.uploader?.last_name].filter(Boolean).join(" ") || "—";
                               const checked = selectedDocIds.has(doc.id);
                               return (
-                                <TableRow key={doc.id} className="cursor-pointer" onClick={() => setPreviewDoc(doc)} data-state={checked ? "selected" : undefined}>
+                                <TableRow
+                                  key={doc.id}
+                                  className="cursor-pointer"
+                                  onClick={() => setPreviewDoc(doc)}
+                                  data-state={checked ? "selected" : undefined}
+                                  draggable
+                                  onDragStart={(e) => {
+                                    e.dataTransfer.setData("application/x-ordino-doc", doc.id);
+                                    e.dataTransfer.effectAllowed = "move";
+                                  }}
+                                >
                                   <TableCell onClick={(e) => e.stopPropagation()}>
                                     <Checkbox checked={checked} onCheckedChange={() => toggleSelectDoc(doc.id)} aria-label="Select row" />
                                   </TableCell>
@@ -509,9 +551,25 @@ export default function Documents() {
                                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPreviewDoc(doc)} title="Preview">
                                         <Eye className="h-4 w-4" />
                                       </Button>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(doc)}>
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button variant="ghost" size="icon" className="h-8 w-8" title="More actions">
+                                            <MoreVertical className="h-4 w-4" />
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-44">
+                                          <DropdownMenuItem onClick={() => setMoveTarget(doc)}>
+                                            <FolderInput className="h-3.5 w-3.5 mr-2" /> Move to folder…
+                                          </DropdownMenuItem>
+                                          <DropdownMenuSeparator />
+                                          <DropdownMenuItem
+                                            className="text-destructive focus:text-destructive"
+                                            onClick={() => setDeleteTarget(doc)}
+                                          >
+                                            <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+                                          </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
                                     </div>
                                   </TableCell>
                                 </TableRow>
@@ -710,6 +768,15 @@ export default function Documents() {
         isBeaconFolder={isBeaconFolder}
         folderName={selectedFolder?.name}
         isAdmin={isAdmin}
+      />
+
+      <MoveDocumentDialog
+        document={moveTarget}
+        folders={folders}
+        open={!!moveTarget}
+        onOpenChange={(open) => { if (!open) setMoveTarget(null); }}
+        onMove={(folderId) => moveTarget ? moveDocumentTo(moveTarget, folderId) : Promise.resolve()}
+        pending={moveDoc.isPending}
       />
     </AppLayout>
   );
