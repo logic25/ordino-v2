@@ -1,27 +1,13 @@
-import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useInboxUnreadCount } from "./useInboxUnreadCount";
 
 /**
  * Returns unread indicators for Chat, Email, and Billing sidebar items.
  */
 export function useUnreadIndicators() {
-  // Inbox-scoped unread (matches Gmail Inbox): not archived, contains INBOX label
-  const { data: unreadEmails = [] } = useQuery({
-    queryKey: ["email-unread-count"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("emails")
-        .select("id")
-        .eq("is_read", false)
-        .is("archived_at", null)
-        .filter("labels", "cs", '["INBOX"]');
-      if (error) throw error;
-      return data ?? [];
-    },
-    staleTime: 30_000,
-    refetchInterval: 60_000,
-  });
+  // Inbox unread — shared single source of truth with the Inbox tab count.
+  const { data: emailUnreadCount = 0 } = useInboxUnreadCount();
 
   // Count invoices in ready_to_send status (pending billing for admin review)
   const { data: pendingBillingCount = 0 } = useQuery({
@@ -36,9 +22,9 @@ export function useUnreadIndicators() {
     },
     staleTime: 30_000,
     refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
   });
 
-  const emailUnreadCount = unreadEmails.length;
   const chatHasUnread = false;
 
   return {
