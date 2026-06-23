@@ -91,8 +91,13 @@ Deno.serve(async (req) => {
         return await getInteractionsForReclass(supabase, data);
       case "update_interaction_topic":
         return await updateInteractionTopic(supabase, data);
+      case "get_kb_gaps":
+        return await getKbGaps(supabase, data);
+      case "dismiss_kb_gap":
+        return await dismissKbGap(supabase, data);
       default:
         return jsonResponse({ error: `Unknown action: ${action}` }, 400);
+
     }
   } catch (err) {
     console.error("beacon-analytics error:", err);
