@@ -400,6 +400,7 @@ export default function Documents() {
                     onRenameFolder={(f) => { setRenameTarget(f); setRenameName(f.name); }}
                     onCreateSubfolder={(parentId) => { setNewFolderDefaultParent(parentId); setNewFolderOpen(true); }}
                     onDeleteFolder={(f) => setDeleteFolderTarget(f)}
+                    onDropDocument={handleDropOnFolder}
                   />
                 )}
               </CardContent>
