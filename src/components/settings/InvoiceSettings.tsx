@@ -584,6 +584,63 @@ export function InvoiceSettings() {
         </div>
       </CollapsibleSettingsCard>
 
+      {/* Late-Payment Interest */}
+      <CollapsibleSettingsCard
+        title="Late-Payment Interest"
+        description="Optional contractual interest accrual on past-due balances. Off by default — flip on once Chris has reviewed the clause language. Only proposals signed on or after the effective date will accrue interest; legacy agreements never do."
+        isOpen={true}
+        onOpenChange={() => {}}
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 rounded-md border bg-muted/30 px-3 py-2">
+            <input
+              id="interest-enabled"
+              type="checkbox"
+              checked={interestEnabled}
+              onChange={(e) => setInterestEnabled(e.target.checked)}
+              className="h-4 w-4"
+            />
+            <Label htmlFor="interest-enabled" className="text-sm cursor-pointer">
+              {interestEnabled ? "Interest accrual is ON" : "Interest accrual is OFF (under review)"}
+            </Label>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-sm">Default Rate (APR %)</Label>
+              <Input type="number" step="0.01" value={interestRate} onChange={(e) => setInterestRate(e.target.value)} disabled={!interestEnabled} className="mt-1" />
+              <p className="text-xs text-muted-foreground mt-1">Standard NY commercial rate: 18% (1.5%/month).</p>
+            </div>
+            <div>
+              <Label className="text-sm">Grace Period (days past due)</Label>
+              <Input type="number" value={interestGraceDays} onChange={(e) => setInterestGraceDays(e.target.value)} disabled={!interestEnabled} className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-sm">Compounding</Label>
+              <select
+                className="mt-1 w-full h-9 rounded-md border bg-background px-3 text-sm"
+                value={interestCompounding}
+                onChange={(e) => setInterestCompounding(e.target.value as "simple" | "monthly")}
+                disabled={!interestEnabled}
+              >
+                <option value="simple">Simple</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+            <div>
+              <Label className="text-sm">Effective From</Label>
+              <Input type="date" value={interestEffectiveFrom} onChange={(e) => setInterestEffectiveFrom(e.target.value)} disabled={!interestEnabled} className="mt-1" />
+              <p className="text-xs text-muted-foreground mt-1">Only proposals signed on/after this date accrue interest.</p>
+            </div>
+          </div>
+          <div>
+            <Label className="text-sm">Managing Member (signature on demand letters)</Label>
+            <Input value={managingMember} onChange={(e) => setManagingMember(e.target.value)} placeholder="e.g. Manny Russell" className="mt-1" />
+          </div>
+        </div>
+      </CollapsibleSettingsCard>
+
+
+
       {/* Demand Letter Preview Dialog */}
       <Dialog open={showDemandPreview} onOpenChange={setShowDemandPreview}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
