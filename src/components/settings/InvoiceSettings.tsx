@@ -257,6 +257,12 @@ export function InvoiceSettings() {
           company_logo_url: logoUrl,
           invoice_header_text: headerText,
           invoice_footer_text: footerText,
+          late_interest_enabled: interestEnabled,
+          default_late_interest_rate_apr: parseFloat(interestRate) || 0,
+          default_interest_grace_days: parseInt(interestGraceDays) || 0,
+          default_interest_compounding: interestCompounding,
+          interest_clause_effective_from: interestEffectiveFrom || undefined,
+          managing_member_name: managingMember || undefined,
           bonus_tiers: bonusTiers,
         },
       });
