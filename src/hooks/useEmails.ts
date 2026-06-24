@@ -13,6 +13,10 @@ export interface Email {
   to_emails: string[] | null;
   date: string | null;
   snippet: string | null;
+  // body_text / body_html are NOT selected by useEmails (list view).
+  // They are populated by useEmailDetail / useThreadEmails, which select("*").
+  body_text?: string | null;
+  body_html?: string | null;
   has_attachments: boolean;
   labels: string[] | null;
   is_read: boolean;
