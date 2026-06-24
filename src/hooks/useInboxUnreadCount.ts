@@ -26,7 +26,7 @@ export function useInboxUnreadCount() {
       return count ?? 0;
     },
     staleTime: 10_000,
-    refetchInterval: 15_000,
+    refetchInterval: 60_000,
     refetchOnWindowFocus: true,
   });
 }

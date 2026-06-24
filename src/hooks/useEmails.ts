@@ -12,9 +12,11 @@ export interface Email {
   from_name: string | null;
   to_emails: string[] | null;
   date: string | null;
-  body_text: string | null;
-  body_html: string | null;
   snippet: string | null;
+  // body_text / body_html are NOT selected by useEmails (list view).
+  // They are populated by useEmailDetail / useThreadEmails, which select("*").
+  body_text?: string | null;
+  body_html?: string | null;
   has_attachments: boolean;
   labels: string[] | null;
   is_read: boolean;
@@ -60,7 +62,6 @@ export function useEmails(filters: EmailFilters = {}) {
         .select(`
           id, company_id, user_id, gmail_message_id, thread_id,
           subject, from_email, from_name, to_emails, date,
-          body_text, body_html,
           snippet, has_attachments, labels, is_read, synced_at, created_at,
           archived_at, snoozed_until, replied_at, assigned_to, assigned_by, assigned_at, tags,
           email_project_tags (
