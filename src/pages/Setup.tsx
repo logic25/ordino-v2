@@ -55,7 +55,7 @@ export default function Setup() {
         navigate("/auth", { replace: true });
       }
     })();
-  }, [user, refreshProfile, navigate, toast]);
+  }, [user, profile, refreshProfile, navigate, toast]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
