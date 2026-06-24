@@ -8,11 +8,19 @@ import { useAuth } from "@/hooks/useAuth";
 export default function Setup() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, refreshProfile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const calledRef = useRef(false);
 
   useEffect(() => {
     if (!user || calledRef.current) return;
+
+    // Insurance: existing users sometimes land here briefly during the
+    // auth/profile race. Skip the RPC entirely if a profile already exists.
+    if (profile) {
+      calledRef.current = true;
+      navigate("/dashboard", { replace: true });
+      return;
+    }
     calledRef.current = true;
 
     const meta = user.user_metadata ?? {};
