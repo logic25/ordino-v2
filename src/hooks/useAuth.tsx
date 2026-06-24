@@ -12,6 +12,7 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
+  profileLoading: boolean;
   hasProfile: boolean;
   signingOut: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
@@ -27,8 +28,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const clockedInRef = useRef(false);
+
+  // Wrap a profile fetch with profileLoading state + an 8s safety timeout
+  // so route guards (loading || profileLoading) never spin forever.
+  const runProfileLoad = useCallback(
+    async (loader: () => Promise<Profile | null>): Promise<Profile | null> => {
+      setProfileLoading(true);
+      try {
+        return await Promise.race([
+          loader(),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+        ]);
+      } catch (err) {
+        console.error("Profile load failed:", err);
+        return null;
+      } finally {
+        setProfileLoading(false);
+      }
+    },
+    []
+  );
 
   // Auto clock-in helper — no external IP lookup (privacy + reliability)
   const autoClockIn = useCallback(async (userId: string, companyId: string) => {
@@ -83,9 +105,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = useCallback(async () => {
     if (!user) return;
-    const profileData = await fetchProfile(user.id);
+    const profileData = await runProfileLoad(() => fetchProfile(user.id));
     setProfile(profileData);
-  }, [user, fetchProfile]);
+  }, [user, fetchProfile, runProfileLoad]);
 
   useEffect(() => {
     let initialSessionHandled = false;
@@ -97,9 +119,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (session?.user) {
           initialSessionHandled = true;
+          // Mark profileLoading synchronously so guards don't flash /setup
+          // between setUser() and the deferred fetchProfile resolving.
+          setProfileLoading(true);
           // Defer to avoid Supabase deadlock
           setTimeout(() => {
-            fetchProfile(session.user.id).then((profileData) => {
+            runProfileLoad(() => fetchProfile(session.user.id)).then((profileData) => {
               setProfile(profileData);
               setLoading(false);
               if (profileData && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
@@ -109,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }, 0);
         } else {
           setProfile(null);
+          setProfileLoading(false);
           setLoading(false);
         }
       }
@@ -121,7 +147,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        fetchProfile(session.user.id).then((profileData) => {
+        setProfileLoading(true);
+        runProfileLoad(() => fetchProfile(session.user.id)).then((profileData) => {
           setProfile(profileData);
           setLoading(false);
           if (profileData) {
@@ -134,7 +161,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, [fetchProfile, autoClockIn]);
+  }, [fetchProfile, autoClockIn, runProfileLoad]);
+
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -167,6 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         profile,
         loading,
+        profileLoading,
         // Honest: hasProfile reflects actual profile state. Consumers gating
         // Setup-flash should use the explicit `signingOut` flag instead.
         hasProfile: !!profile,
