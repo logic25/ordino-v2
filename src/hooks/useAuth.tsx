@@ -28,8 +28,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const clockedInRef = useRef(false);
+
+  // Run fetchProfile with a hard timeout so route guards never hang forever
+  // on a stalled network / RPC.
+  const loadProfileWithTimeout = useCallback(
+    async (userId: string): Promise<Profile | null> => {
+      setProfileLoading(true);
+      try {
+        const result = await Promise.race([
+          fetchProfileRef.current(userId),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+        ]);
+        return result;
+      } catch (err) {
+        console.error("Profile load failed:", err);
+        return null;
+      } finally {
+        setProfileLoading(false);
+      }
+    },
+    []
+  );
 
   // Auto clock-in helper — no external IP lookup (privacy + reliability)
   const autoClockIn = useCallback(async (userId: string, companyId: string) => {
