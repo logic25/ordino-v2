@@ -195,6 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         profile,
         loading,
+        profileLoading,
         // Honest: hasProfile reflects actual profile state. Consumers gating
         // Setup-flash should use the explicit `signingOut` flag instead.
         hasProfile: !!profile,
