@@ -105,9 +105,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = useCallback(async () => {
     if (!user) return;
-    const profileData = await fetchProfile(user.id);
+    const profileData = await runProfileLoad(() => fetchProfile(user.id));
     setProfile(profileData);
-  }, [user, fetchProfile]);
+  }, [user, fetchProfile, runProfileLoad]);
 
   useEffect(() => {
     let initialSessionHandled = false;
@@ -119,9 +119,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (session?.user) {
           initialSessionHandled = true;
+          // Mark profileLoading synchronously so guards don't flash /setup
+          // between setUser() and the deferred fetchProfile resolving.
+          setProfileLoading(true);
           // Defer to avoid Supabase deadlock
           setTimeout(() => {
-            fetchProfile(session.user.id).then((profileData) => {
+            runProfileLoad(() => fetchProfile(session.user.id)).then((profileData) => {
               setProfile(profileData);
               setLoading(false);
               if (profileData && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
@@ -131,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }, 0);
         } else {
           setProfile(null);
+          setProfileLoading(false);
           setLoading(false);
         }
       }
@@ -143,7 +147,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        fetchProfile(session.user.id).then((profileData) => {
+        setProfileLoading(true);
+        runProfileLoad(() => fetchProfile(session.user.id)).then((profileData) => {
           setProfile(profileData);
           setLoading(false);
           if (profileData) {
@@ -156,7 +161,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, [fetchProfile, autoClockIn]);
+  }, [fetchProfile, autoClockIn, runProfileLoad]);
+
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
