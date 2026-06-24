@@ -12,6 +12,7 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
+  profileLoading: boolean;
   hasProfile: boolean;
   signingOut: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
