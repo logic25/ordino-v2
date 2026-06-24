@@ -32,17 +32,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [signingOut, setSigningOut] = useState(false);
   const clockedInRef = useRef(false);
 
-  // Run fetchProfile with a hard timeout so route guards never hang forever
-  // on a stalled network / RPC.
-  const loadProfileWithTimeout = useCallback(
-    async (userId: string): Promise<Profile | null> => {
+  // Wrap a profile fetch with profileLoading state + an 8s safety timeout
+  // so route guards (loading || profileLoading) never spin forever.
+  const runProfileLoad = useCallback(
+    async (loader: () => Promise<Profile | null>): Promise<Profile | null> => {
       setProfileLoading(true);
       try {
-        const result = await Promise.race([
-          fetchProfileRef.current(userId),
+        return await Promise.race([
+          loader(),
           new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
         ]);
-        return result;
       } catch (err) {
         console.error("Profile load failed:", err);
         return null;
