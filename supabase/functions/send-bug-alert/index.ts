@@ -216,8 +216,8 @@ Deno.serve(async (req) => {
     }
 
     const { data: callerProfile } = callerAuthId
-      ? await supabase.from("profiles").select("id").eq("user_id", callerAuthId).single()
-      : { data: null as { id: string } | null };
+      ? await supabase.from("profiles").select("id, company_id").eq("user_id", callerAuthId).single()
+      : { data: null as { id: string; company_id: string } | null };
 
     const body = await req.json();
     const { action, bug_id, bug_title, bug_description, bug_priority, company_id, reporter_name } = body;
@@ -226,6 +226,15 @@ Deno.serve(async (req) => {
     if (!company_id || !bug_title) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // A JWT caller may only send alerts for their own company. The service-role path
+    // (internal callers) is exempt. Prevents cross-tenant email injection via the body's
+    // company_id (which selects another tenant's Gmail connection + admin recipients).
+    if (!isServiceRole && callerProfile?.company_id !== company_id) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -454,7 +463,7 @@ Deno.serve(async (req) => {
 
   } catch (err) {
     console.error("send-bug-alert error:", err);
-    return new Response(JSON.stringify({ error: err.message }), {
+    return new Response(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

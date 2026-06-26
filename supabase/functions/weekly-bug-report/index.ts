@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "authorization, x-client-info, apikey, content-type, x-cron-secret, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -15,6 +15,22 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Cron-only: authenticate via x-cron-secret (env CRON_SECRET or vault `cron_secret`,
+    // covering both managed-env and pg_net callers). Fails closed when no secret is set.
+    const provided = req.headers.get("x-cron-secret") || "";
+    const acceptable = new Set<string>();
+    const envSecret = Deno.env.get("CRON_SECRET");
+    if (envSecret) acceptable.add(envSecret);
+    const { data: vaultRow } = await supabase.schema("vault" as any)
+      .from("decrypted_secrets").select("decrypted_secret").eq("name", "cron_secret").maybeSingle();
+    const vaultSecret = (vaultRow as any)?.decrypted_secret;
+    if (vaultSecret) acceptable.add(vaultSecret);
+    if (!provided || !acceptable.has(provided)) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -232,7 +248,7 @@ Deno.serve(async (req) => {
     });
   } catch (err) {
     console.error("Weekly bug report error:", err);
-    return new Response(JSON.stringify({ error: err.message }), {
+    return new Response(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
