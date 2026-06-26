@@ -59,7 +59,9 @@ Deno.serve(async (req) => {
       const body = await req.json();
       console.log("[filing-agent-proxy] CALLBACK raw body:", JSON.stringify(body));
 
-      const { filing_run_id, status, step, error_message, agent_session_id, job_id, screenshots } = body;
+      const { filing_run_id, status, step, error_message, agent_session_id, job_id, screenshots,
+              dob_account_used, applicant_entity, filed_by, filed_at, dob_job_number,
+              confirmation_status, browserbase_session_url } = body;
       const runId = filing_run_id ?? url.searchParams.get("run_id");
       console.log("[filing-agent-proxy] CALLBACK run_id:", runId, "| status:", status, "| step:", step);
 
@@ -96,6 +98,16 @@ Deno.serve(async (req) => {
       if (agent_session_id || job_id) update.agent_session_id = agent_session_id || job_id;
       if (error_message) update.error_message = error_message;
       if (Array.isArray(screenshots) && screenshots.length > 0) update.screenshots = screenshots;
+
+      // Provenance (Change 3): record how the filing was done. Stored as data so
+      // anyone can see which DOB account a filing went under without asking the filer.
+      if (dob_account_used) update.dob_account_used = dob_account_used;
+      if (applicant_entity) update.applicant_entity = applicant_entity;
+      if (filed_by) update.filed_by = filed_by;
+      if (filed_at) update.filed_at = filed_at;
+      if (dob_job_number) update.dob_job_number = dob_job_number;
+      if (confirmation_status) update.confirmation_status = confirmation_status;
+      if (browserbase_session_url) update.browserbase_session_url = browserbase_session_url;
 
       if (normalizedStatus === "running" && !run.status?.includes("running")) {
         update.started_at = new Date().toISOString();
