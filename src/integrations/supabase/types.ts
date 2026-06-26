@@ -1598,6 +1598,121 @@ export type Database = {
           },
         ]
       }
+      bd_referrals: {
+        Row: {
+          assigned_to: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          lead_id: string | null
+          next_action_at: string | null
+          next_action_note: string | null
+          notes: string | null
+          proposal_id: string | null
+          referred_company: string | null
+          referred_email: string | null
+          referred_name: string
+          referred_phone: string | null
+          source_contact_id: string | null
+          source_label: string | null
+          source_type: Database["public"]["Enums"]["bd_referral_source_type"]
+          stage: Database["public"]["Enums"]["bd_referral_stage"]
+          updated_at: string
+          won_value: number | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          lead_id?: string | null
+          next_action_at?: string | null
+          next_action_note?: string | null
+          notes?: string | null
+          proposal_id?: string | null
+          referred_company?: string | null
+          referred_email?: string | null
+          referred_name: string
+          referred_phone?: string | null
+          source_contact_id?: string | null
+          source_label?: string | null
+          source_type?: Database["public"]["Enums"]["bd_referral_source_type"]
+          stage?: Database["public"]["Enums"]["bd_referral_stage"]
+          updated_at?: string
+          won_value?: number | null
+        }
+        Update: {
+          assigned_to?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          lead_id?: string | null
+          next_action_at?: string | null
+          next_action_note?: string | null
+          notes?: string | null
+          proposal_id?: string | null
+          referred_company?: string | null
+          referred_email?: string | null
+          referred_name?: string
+          referred_phone?: string | null
+          source_contact_id?: string | null
+          source_label?: string | null
+          source_type?: Database["public"]["Enums"]["bd_referral_source_type"]
+          stage?: Database["public"]["Enums"]["bd_referral_stage"]
+          updated_at?: string
+          won_value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_referrals_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_referrals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_referrals_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_referrals_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_referrals_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_referrals_source_contact_id_fkey"
+            columns: ["source_contact_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bd_sequence_enrollments: {
         Row: {
           company_id: string
@@ -11261,6 +11376,14 @@ export type Database = {
         | "PLANNING"
       bd_membership_status: "ACTIVE" | "EXPIRED" | "NOT_MEMBER" | "EVALUATING"
       bd_price_verified: "VERIFIED" | "UNVERIFIED" | "PARTIALLY"
+      bd_referral_source_type: "ARCHITECT" | "GC" | "OWNER" | "PM" | "OTHER"
+      bd_referral_stage:
+        | "ASK_MADE"
+        | "INTRO_RECEIVED"
+        | "MEETING_SET"
+        | "PROPOSAL"
+        | "WON"
+        | "LOST"
       bd_sequence_status: "ACTIVE" | "PAUSED" | "COMPLETED" | "EXITED"
       bd_source_priority: "HIGH" | "MED" | "LOW"
       co_status:
@@ -11498,6 +11621,15 @@ export const Constants = {
       ],
       bd_membership_status: ["ACTIVE", "EXPIRED", "NOT_MEMBER", "EVALUATING"],
       bd_price_verified: ["VERIFIED", "UNVERIFIED", "PARTIALLY"],
+      bd_referral_source_type: ["ARCHITECT", "GC", "OWNER", "PM", "OTHER"],
+      bd_referral_stage: [
+        "ASK_MADE",
+        "INTRO_RECEIVED",
+        "MEETING_SET",
+        "PROPOSAL",
+        "WON",
+        "LOST",
+      ],
       bd_sequence_status: ["ACTIVE", "PAUSED", "COMPLETED", "EXITED"],
       bd_source_priority: ["HIGH", "MED", "LOW"],
       co_status: [
