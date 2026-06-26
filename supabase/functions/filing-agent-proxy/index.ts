@@ -13,6 +13,8 @@ const normalizeFilingRunStatus = (status?: string | null) => {
       return "running";
     case "ready_for_review":
       return "review_needed";
+    case "needs_attention":
+      return "needs_attention";
     case "error":
       return "failed";
     default:
@@ -98,7 +100,7 @@ Deno.serve(async (req) => {
       if (normalizedStatus === "running" && !run.status?.includes("running")) {
         update.started_at = new Date().toISOString();
       }
-      if (normalizedStatus && ["completed", "failed", "review_needed"].includes(normalizedStatus)) {
+      if (normalizedStatus && ["completed", "failed", "review_needed", "needs_attention"].includes(normalizedStatus)) {
         update.completed_at = new Date().toISOString();
       }
 
