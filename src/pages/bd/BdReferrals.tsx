@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useBdReferrals } from "@/hooks/useBdReferrals";
 import { useAuth } from "@/hooks/useAuth";
-import { useProfiles } from "@/hooks/useProfiles";
+import { useAssignableProfiles } from "@/hooks/useProfiles";
 import {
   STAGE_ORDER,
   ALL_STAGES,
@@ -24,7 +24,7 @@ function ownerName(p?: { first_name: string | null; last_name: string | null } |
 
 export default function BdReferrals() {
   const { profile } = useAuth();
-  const { data: profiles = [] } = useProfiles();
+  const { data: profiles = [] } = useAssignableProfiles();
   const [ownerFilter, setOwnerFilter] = useState<string | "all" | "me">("all");
 
   const resolvedAssignee =

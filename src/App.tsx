@@ -106,6 +106,7 @@ const BdEventDetail = lazyWithRetry(() => import("./pages/bd/BdEventDetail"), "b
 const BdEventCard = lazyWithRetry(() => import("./pages/bd/BdEventCard"), "bd-event-card");
 const PublicBdCard = lazyWithRetry(() => import("./pages/PublicBdCard"), "public-bd-card");
 const BdScorecard = lazyWithRetry(() => import("./pages/bd/BdScorecard"), "bd-scorecard");
+const BdReferrals = lazyWithRetry(() => import("./pages/bd/BdReferrals"), "bd-referrals");
 const BeaconHub = lazyWithRetry(() => import("./pages/BeaconHub"), "beacon-hub");
 
 function PageSpinner() {
@@ -161,6 +162,7 @@ function AppRoutes() {
       <Route path="/proposals" element={<ProtectedRoute><Proposals /></ProtectedRoute>} />
       <Route path="/bd/leads" element={<ProtectedRoute><BdLeads /></ProtectedRoute>} />
       <Route path="/bd/leads/:id" element={<ProtectedRoute><BdLeadDetail /></ProtectedRoute>} />
+      <Route path="/bd/referrals" element={<ProtectedRoute><BdReferrals /></ProtectedRoute>} />
       <Route path="/bd/events" element={<ProtectedRoute><BdEvents /></ProtectedRoute>} />
       <Route path="/bd/events/:id" element={<ProtectedRoute><BdEventDetail /></ProtectedRoute>} />
       <Route path="/bd/sequences" element={<ProtectedRoute><BdSequences /></ProtectedRoute>} />
