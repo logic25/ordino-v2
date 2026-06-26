@@ -774,6 +774,7 @@ export type Database = {
           lead_id: string | null
           mentioned_user_ids: string[]
           metadata: Json
+          referral_id: string | null
           type: Database["public"]["Enums"]["bd_activity_type"]
           updated_at: string
         }
@@ -788,6 +789,7 @@ export type Database = {
           lead_id?: string | null
           mentioned_user_ids?: string[]
           metadata?: Json
+          referral_id?: string | null
           type: Database["public"]["Enums"]["bd_activity_type"]
           updated_at?: string
         }
@@ -802,6 +804,7 @@ export type Database = {
           lead_id?: string | null
           mentioned_user_ids?: string[]
           metadata?: Json
+          referral_id?: string | null
           type?: Database["public"]["Enums"]["bd_activity_type"]
           updated_at?: string
         }
@@ -832,6 +835,13 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_activities_referral_id_fkey"
+            columns: ["referral_id"]
+            isOneToOne: false
+            referencedRelation: "bd_referrals"
             referencedColumns: ["id"]
           },
         ]
@@ -1607,6 +1617,7 @@ export type Database = {
           deleted_at: string | null
           id: string
           lead_id: string | null
+          lost_reason: string | null
           next_action_at: string | null
           next_action_note: string | null
           notes: string | null
@@ -1630,6 +1641,7 @@ export type Database = {
           deleted_at?: string | null
           id?: string
           lead_id?: string | null
+          lost_reason?: string | null
           next_action_at?: string | null
           next_action_note?: string | null
           notes?: string | null
@@ -1653,6 +1665,7 @@ export type Database = {
           deleted_at?: string | null
           id?: string
           lead_id?: string | null
+          lost_reason?: string | null
           next_action_at?: string | null
           next_action_note?: string | null
           notes?: string | null
