@@ -1,6 +1,7 @@
 // Daily cron: notify PMs of projects that have gone stale.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { timingSafeEqualAny } from "../_shared/timingSafeEqual.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders, status: 200 });
@@ -11,13 +12,10 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
-  const acceptable = new Set<string>();
   const envSecret = Deno.env.get("CRON_SECRET");
-  if (envSecret) acceptable.add(envSecret);
   const { data: vaultRow } = await supabase.schema("vault" as any).from("decrypted_secrets").select("decrypted_secret").eq("name", "cron_secret").maybeSingle();
   const vaultSecret = (vaultRow as any)?.decrypted_secret;
-  if (vaultSecret) acceptable.add(vaultSecret);
-  if (!provided || !acceptable.has(provided)) {
+  if (!provided || !timingSafeEqualAny(provided, [envSecret, vaultSecret])) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

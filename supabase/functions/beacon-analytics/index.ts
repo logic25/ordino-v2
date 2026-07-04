@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { timingSafeEqual } from "../_shared/timingSafeEqual.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,7 +27,7 @@ Deno.serve(async (req) => {
   // Authenticate with shared secret
   const beaconKey = req.headers.get("x-beacon-key");
   const expectedKey = Deno.env.get("BEACON_ANALYTICS_KEY");
-  if (!expectedKey || beaconKey !== expectedKey) {
+  if (!expectedKey || !beaconKey || !timingSafeEqual(beaconKey, expectedKey)) {
     return jsonResponse({ error: "Unauthorized" }, 401);
   }
 

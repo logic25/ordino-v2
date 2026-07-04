@@ -16,6 +16,7 @@
 //   { companyId: string, windowDays?: n }  → services predicted within window
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { timingSafeEqual } from "../_shared/timingSafeEqual.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -151,7 +152,7 @@ Deno.serve(async (req) => {
     const cronHdr = req.headers.get("x-cron-secret");
     const envCron = Deno.env.get("CRON_SECRET");
     let companyId = body.companyId;
-    if (!cronHdr || cronHdr !== envCron) {
+    if (!cronHdr || !envCron || !timingSafeEqual(cronHdr, envCron)) {
       const jwt = (req.headers.get("Authorization") || "").replace("Bearer ", "");
       if (!jwt) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       const { data: userRes } = await admin.auth.getUser(jwt);

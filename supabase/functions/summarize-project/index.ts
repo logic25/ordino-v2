@@ -3,6 +3,7 @@
 // Can be invoked by the frontend (user JWT) OR by the weekly cron (x-cron-secret + body.companyId + body.projectId + body.actorUserId).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { computePisStatusFromRfi } from "../_shared/pisStatus.ts";
+import { timingSafeEqual } from "../_shared/timingSafeEqual.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -56,10 +57,10 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization") || "";
     const bearer = authHeader.replace("Bearer ", "");
 
-    if (resolvedCronSecret && callerCronSecret === resolvedCronSecret) {
+    if (resolvedCronSecret && callerCronSecret && timingSafeEqual(callerCronSecret, resolvedCronSecret)) {
       actorUserId = body.actorUserId;
       companyId = body.companyId;
-    } else if (bearer && bearer === serviceKey) {
+    } else if (bearer && bearer.length === serviceKey.length && timingSafeEqual(bearer, serviceKey)) {
       // Trusted backend caller using the service role key.
       actorUserId = body.actorUserId;
       companyId = body.companyId;

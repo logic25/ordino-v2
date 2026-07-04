@@ -9,6 +9,7 @@
 // Authenticates via x-cron-secret. Cron is configured to call this Mon 04:00 UTC.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { timingSafeEqualAny } from "../_shared/timingSafeEqual.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -162,15 +163,12 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    // Auth — accept either the env CRON_SECRET or the vault `cron_secret` (covers both managed-env and pg_net callers)
+    // Auth — accept either the env CRON_SECRET or the vault `cron_secret` (constant-time compare)
     const provided = req.headers.get("x-cron-secret") || "";
-    const acceptable = new Set<string>();
     const envSecret = Deno.env.get("CRON_SECRET");
-    if (envSecret) acceptable.add(envSecret);
     const { data: vaultRow } = await admin.schema("vault" as any).from("decrypted_secrets").select("decrypted_secret").eq("name", "cron_secret").maybeSingle();
     const vaultSecret = (vaultRow as any)?.decrypted_secret;
-    if (vaultSecret) acceptable.add(vaultSecret);
-    if (!provided || !acceptable.has(provided)) {
+    if (!provided || !timingSafeEqualAny(provided, [envSecret, vaultSecret])) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 

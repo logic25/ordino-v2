@@ -9221,6 +9221,27 @@ export type Database = {
           },
         ]
       }
+      rate_limits: {
+        Row: {
+          bucket_key: string
+          count: number
+          updated_at: string
+          window_start: string
+        }
+        Insert: {
+          bucket_key: string
+          count?: number
+          updated_at?: string
+          window_start: string
+        }
+        Update: {
+          bucket_key?: string
+          count?: number
+          updated_at?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       report_settings: {
         Row: {
           company_id: string
@@ -11256,6 +11277,10 @@ export type Database = {
         Returns: Json
       }
       preview_lead_client_match: { Args: { _lead_id: string }; Returns: Json }
+      rate_limit_hit: {
+        Args: { _bucket_key: string; _limit: number; _window_seconds?: number }
+        Returns: boolean
+      }
       seed_document_folders: {
         Args: { target_company_id: string }
         Returns: undefined

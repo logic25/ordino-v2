@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { timingSafeEqual } from "../_shared/timingSafeEqual.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,8 +32,10 @@ Deno.serve(async (req) => {
       Deno.env.get("FILING_AGENT_SECRET") ??
       "";
 
-    const isServiceRole = authHeader === `Bearer ${serviceRoleKey}`;
-    const isAgentAuth = expectedAgentSecret && agentSecret === expectedAgentSecret;
+    const isServiceRole = !!authHeader && authHeader.startsWith("Bearer ") &&
+      authHeader.length === (`Bearer ${serviceRoleKey}`).length &&
+      timingSafeEqual(authHeader, `Bearer ${serviceRoleKey}`);
+    const isAgentAuth = !!expectedAgentSecret && !!agentSecret && timingSafeEqual(agentSecret, expectedAgentSecret);
 
     if (!isServiceRole && !isAgentAuth) {
       // Also allow JWT auth for browser-side status checks
