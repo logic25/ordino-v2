@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
       cronSecret = (vaultRow as any)?.decrypted_secret || "";
     }
     const callerSecret = req.headers.get("x-cron-secret");
-    if (!cronSecret || callerSecret !== cronSecret) {
+    if (!cronSecret || !callerSecret || !timingSafeEqual(callerSecret, cronSecret)) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
