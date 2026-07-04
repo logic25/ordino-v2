@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
     // a legacy caller that cannot forward a JWT yet.
     const expectedKey = Deno.env.get("BEACON_ANALYTICS_KEY") ?? "";
     const beaconKey = req.headers.get("x-beacon-key") ?? "";
-    const sharedSecretOk = !!expectedKey && beaconKey === expectedKey;
+    const sharedSecretOk = !!expectedKey && !!beaconKey && timingSafeEqual(beaconKey, expectedKey);
     const allowSharedOnly =
       (Deno.env.get("BEACON_PROXY_ALLOW_SHARED_SECRET_ONLY") ?? "0") === "1";
 
