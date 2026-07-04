@@ -57,10 +57,10 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization") || "";
     const bearer = authHeader.replace("Bearer ", "");
 
-    if (resolvedCronSecret && callerCronSecret === resolvedCronSecret) {
+    if (resolvedCronSecret && callerCronSecret && timingSafeEqual(callerCronSecret, resolvedCronSecret)) {
       actorUserId = body.actorUserId;
       companyId = body.companyId;
-    } else if (bearer && bearer === serviceKey) {
+    } else if (bearer && bearer.length === serviceKey.length && timingSafeEqual(bearer, serviceKey)) {
       // Trusted backend caller using the service role key.
       actorUserId = body.actorUserId;
       companyId = body.companyId;
