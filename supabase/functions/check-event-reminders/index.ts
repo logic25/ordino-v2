@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
   } catch (e) {
     console.error("get cron secret failed:", (e as Error).message);
   }
-  if (!expected || caller !== expected) return json({ error: "Unauthorized" }, 401);
+  if (!expected || !caller || !timingSafeEqual(caller, expected)) return json({ error: "Unauthorized" }, 401);
 
   const today = new Date();
   const d7 = addDays(today, 7);
