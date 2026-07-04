@@ -3,6 +3,7 @@
 // deduplicated via notifications(event_id, user_id, type).
 // Auth: x-cron-secret header. Schedule: 0 10 * * * (10 AM UTC daily).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { timingSafeEqual } from "../_shared/timingSafeEqual.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
