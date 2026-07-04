@@ -3,6 +3,7 @@
 //   - Event mode ({projectId, companyId}): debounced regen for a single project after high-signal events.
 // Auth: x-cron-secret header. Invoked by pg_cron (nightly) and by DB triggers via pg_net.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { timingSafeEqual } from "../_shared/timingSafeEqual.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
