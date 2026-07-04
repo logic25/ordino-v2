@@ -9,6 +9,7 @@
 // Auth: x-cron-secret header.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { timingSafeEqual } from "../_shared/timingSafeEqual.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
