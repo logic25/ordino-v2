@@ -4,6 +4,7 @@
 // fetch URL, ask Lovable AI to extract structured events, dedupe against
 // bd_events (name+date or source_url match), insert net-new as PENDING_APPROVAL.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { timingSafeEqual } from "../_shared/timingSafeEqual.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
