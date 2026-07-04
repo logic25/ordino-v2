@@ -9,6 +9,7 @@
 // Authenticates via x-cron-secret. Cron is configured to call this Mon 04:00 UTC.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { timingSafeEqualAny } from "../_shared/timingSafeEqual.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
