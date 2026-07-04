@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
   // Shared-secret auth (same secret beacon-data-proxy uses)
   const expectedKey = Deno.env.get("BEACON_ANALYTICS_KEY") ?? "";
   const providedKey = req.headers.get("x-beacon-key") ?? "";
-  if (!expectedKey || providedKey !== expectedKey) {
+  if (!expectedKey || !providedKey || !timingSafeEqual(providedKey, expectedKey)) {
     return json({ ok: false, error: "Unauthorized" }, 401);
   }
 
