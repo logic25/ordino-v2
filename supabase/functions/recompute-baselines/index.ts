@@ -209,7 +209,7 @@ Deno.serve(async (req) => {
 
     const cronHdr = req.headers.get("x-cron-secret");
     const envCron = Deno.env.get("CRON_SECRET");
-    const isCron = cronHdr && cronHdr === envCron;
+    const isCron = !!cronHdr && !!envCron && timingSafeEqual(cronHdr, envCron);
 
     let companyIds: string[] = [];
     if (isCron) {
