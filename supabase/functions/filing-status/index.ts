@@ -32,8 +32,10 @@ Deno.serve(async (req) => {
       Deno.env.get("FILING_AGENT_SECRET") ??
       "";
 
-    const isServiceRole = authHeader === `Bearer ${serviceRoleKey}`;
-    const isAgentAuth = expectedAgentSecret && agentSecret === expectedAgentSecret;
+    const isServiceRole = !!authHeader && authHeader.startsWith("Bearer ") &&
+      authHeader.length === (`Bearer ${serviceRoleKey}`).length &&
+      timingSafeEqual(authHeader, `Bearer ${serviceRoleKey}`);
+    const isAgentAuth = !!expectedAgentSecret && !!agentSecret && timingSafeEqual(agentSecret, expectedAgentSecret);
 
     if (!isServiceRole && !isAgentAuth) {
       // Also allow JWT auth for browser-side status checks
