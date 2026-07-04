@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
   } catch (e) {
     console.error("get cron secret failed:", (e as Error).message);
   }
-  if (!expected || caller !== expected) {
+  if (!expected || !caller || !timingSafeEqual(caller, expected)) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
