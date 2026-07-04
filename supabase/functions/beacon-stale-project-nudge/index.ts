@@ -1,6 +1,7 @@
 // Daily cron: notify PMs of projects that have gone stale.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { timingSafeEqualAny } from "../_shared/timingSafeEqual.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders, status: 200 });
