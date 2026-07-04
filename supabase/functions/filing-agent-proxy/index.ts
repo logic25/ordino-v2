@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     // ─── action: callback (server-to-server, no JWT) ───
     if (action === "callback") {
       const agentSecret = req.headers.get("x-agent-secret") ?? "";
-      if (!agentSecret || agentSecret !== FILING_AGENT_SECRET) {
+      if (!agentSecret || !timingSafeEqual(agentSecret, FILING_AGENT_SECRET)) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
