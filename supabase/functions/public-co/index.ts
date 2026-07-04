@@ -1,23 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isRateLimited } from "../_shared/timingSafeEqual.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-// In-memory rate limiting: max 5 requests per IP per minute
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + 60_000 });
-    return false;
-  }
-  entry.count++;
-  return entry.count > 5;
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -26,17 +13,20 @@ Deno.serve(async (req) => {
 
   const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     req.headers.get("cf-connecting-ip") || "unknown";
-  if (isRateLimited(clientIp)) {
-    return new Response(JSON.stringify({ error: "Too many requests. Please try again later." }), {
-      status: 429,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
+
+  // Persistent per-IP rate limit (5 req/min) via public.rate_limit_hit.
+  // Survives cold starts; cannot be bypassed by hitting a new instance.
+  if (await isRateLimited(supabase, `public-co:${clientIp}`, 5, 60)) {
+    return new Response(JSON.stringify({ error: "Too many requests. Please try again later." }), {
+      status: 429,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   try {
     const url = new URL(req.url);
