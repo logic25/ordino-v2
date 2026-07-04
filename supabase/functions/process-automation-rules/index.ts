@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
     const expectedCronSecret = Deno.env.get("CRON_SECRET");
     const authHeader = req.headers.get("Authorization");
 
-    if (cronSecret && expectedCronSecret && cronSecret === expectedCronSecret) {
+    if (cronSecret && expectedCronSecret && timingSafeEqual(cronSecret, expectedCronSecret)) {
       // Cron caller — process all companies (no body needed)
       try {
         const body = await req.json();
