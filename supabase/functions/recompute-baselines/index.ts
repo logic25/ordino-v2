@@ -5,6 +5,7 @@
 // 3. Snapshots prediction accuracy (rolling 30d) into prediction_accuracy_history.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { timingSafeEqual } from "../_shared/timingSafeEqual.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
