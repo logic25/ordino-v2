@@ -3,6 +3,7 @@
 // Uses absolute condition (due_date < now() AND status NOT IN ('paid','void'))
 // so the run is idempotent and tolerant of skipped days.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { timingSafeEqual } from "../_shared/timingSafeEqual.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
