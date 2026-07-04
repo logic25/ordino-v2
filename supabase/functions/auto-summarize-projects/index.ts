@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
     }
 
     const callerSecret = req.headers.get("x-cron-secret");
-    if (!resolvedCronSecret || callerSecret !== resolvedCronSecret) {
+    if (!resolvedCronSecret || !callerSecret || !timingSafeEqual(callerSecret, resolvedCronSecret)) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
