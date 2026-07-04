@@ -37,6 +37,26 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+
+    // Require an authenticated caller: this endpoint runs billable LLM calls and
+    // (when project_id is supplied) writes rows into the DB. Reject anonymous use.
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const supabaseAuth = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { filing_type, work_type, building_class, borough, project_description, project_id } = await req.json();
 
     const userPrompt = `Generate a filing checklist for:
@@ -123,18 +143,28 @@ Return ONLY the JSON array, no markdown.`;
 
     // If project_id provided, store checklist items in the DB
     if (project_id && checklistItems.length > 0) {
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const sb = createClient(supabaseUrl, serviceRoleKey);
 
-      // Get company_id from project
+      // The target project must belong to the caller's company — no cross-tenant writes.
+      const { data: callerProfile } = await sb
+        .from("profiles")
+        .select("company_id")
+        .eq("user_id", user.id)
+        .single();
       const { data: proj } = await sb
         .from("projects")
         .select("company_id")
         .eq("id", project_id)
         .single();
 
-      if (proj) {
+      if (!proj || !callerProfile || proj.company_id !== callerProfile.company_id) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      {
         const itemsToInsert = checklistItems.map((item: any, idx: number) => ({
           company_id: proj.company_id,
           project_id,
