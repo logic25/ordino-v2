@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
   const cronSecret = req.headers.get("x-cron-secret");
   const expected = Deno.env.get("CRON_SECRET");
   const authHeader = req.headers.get("authorization") ?? "";
-  const isCron = expected && cronSecret === expected;
+  const isCron = !!expected && !!cronSecret && timingSafeEqual(cronSecret, expected);
   const isService = authHeader === `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`;
 
   if (!isCron && !isService) {
