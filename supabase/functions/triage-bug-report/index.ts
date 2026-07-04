@@ -377,13 +377,9 @@ Analyze this bug and provide a triage assessment. Use the architecture context a
       diagnosisText += `\n\n⚡ **Known pattern:** This matches "${p.pattern_name}" (seen ${p.occurrences} time${p.occurrences > 1 ? "s" : ""} before). Previous fix: ${p.fix_pattern || "N/A"}`;
     }
 
-    // Post auto-comment
-    await supabase.from("bug_comments").insert({
-      bug_id: bug.id,
-      company_id: bug.company_id,
-      user_id: bug.user_id, // attributed to reporter but prefixed with bot indicator
-      message: `🤖 **Auto-Triage:**\n\n${diagnosisText}`,
-    });
+    // NOTE: AI triage is shown in the top AI Diagnosis card + activity log.
+    // We intentionally do NOT post it as a bug_comment to avoid duplication.
+
 
     // Log activity
     await supabase.from("bug_activity_logs").insert({

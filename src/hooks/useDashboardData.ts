@@ -19,7 +19,7 @@ function nameOf(p: any) {
   );
 }
 
-const PM_ROLES = new Set(["admin", "pm", "senior_pm"]);
+const PM_ROLES = new Set(["admin", "manager", "pm"]);
 
 export function useProjectsByPM() {
   const { profile } = useAuth();
@@ -131,17 +131,16 @@ export function useUserBillingGoals() {
     queryKey: ["user-billing-goals", profile?.company_id],
     enabled: !!profile?.company_id,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, monthly_goal")
-        .eq("company_id", profile!.company_id!)
-        .eq("is_active", true);
+      const { data } = await supabase.rpc("get_company_goals" as any);
       const map: Record<string, number> = {};
-      (data || []).forEach((p: any) => {
-        map[p.id] = Number(p.monthly_goal) || 0;
-      });
+      ((data as any[]) || [])
+        .filter((p: any) => p.is_active)
+        .forEach((p: any) => {
+          map[p.id] = Number(p.monthly_goal) || 0;
+        });
       return map;
     },
+
   });
 }
 
@@ -492,11 +491,12 @@ export function useMonthlyBillingByUser(year: number) {
       const start = `${year}-01-01`;
       const end = `${year + 1}-01-01`;
 
-      const [profilesRes, requestsRes, servicesRes] = await Promise.all([
+      const [profilesRes, goalsRes, requestsRes, servicesRes] = await Promise.all([
         supabase
           .from("profiles")
-          .select("id, first_name, last_name, display_name, role, monthly_goal, is_active")
+          .select("id, first_name, last_name, display_name, role, is_active")
           .eq("company_id", companyId),
+        supabase.rpc("get_company_goals" as any),
         supabase
           .from("billing_requests")
           .select("id, services, total_amount, created_at, created_by")
@@ -509,7 +509,15 @@ export function useMonthlyBillingByUser(year: number) {
           .select("id, is_reimbursable"),
       ]);
 
-      const profiles = profilesRes.data || [];
+      const goalMap = new Map<string, number>();
+      ((goalsRes.data as any[]) || []).forEach((g: any) => {
+        goalMap.set(g.id, Number(g.monthly_goal) || 0);
+      });
+      const profiles = ((profilesRes.data as any[]) || []).map((p: any) => ({
+        ...p,
+        monthly_goal: goalMap.get(p.id) || 0,
+      }));
+
       const requests = requestsRes.data || [];
       const reimbursableSet = new Set<string>(
         (servicesRes.data || [])
@@ -716,22 +724,43 @@ export function useActiveProposalsKpi() {
   });
 }
 
-/** AR Outstanding split: sent vs overdue (count + $) */
+/** AR Outstanding split: sent vs overdue (count + $) + MoM delta vs AR at month start */
 export function useArOutstandingKpi() {
   return useQuery({
     queryKey: ["kpi-ar-outstanding"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("invoices")
-        .select("id, status, total_due, payment_amount")
-        .in("status", ["sent", "overdue"]);
+      const { start } = monthBounds();
+      const [currentRes, priorRes] = await Promise.all([
+        supabase
+          .from("invoices")
+          .select("id, status, total_due, payment_amount")
+          .in("status", ["sent", "overdue"]),
+        // AR snapshot at the start of this month: invoices sent before month start
+        // and either still unpaid, or paid after month start.
+        supabase
+          .from("invoices")
+          .select("total_due, payment_amount, sent_at, paid_at")
+          .not("sent_at", "is", null)
+          .lt("sent_at", start.toISOString())
+          .or(`paid_at.is.null,paid_at.gte.${start.toISOString()}`),
+      ]);
       let sent = 0, overdue = 0, sentCount = 0, overdueCount = 0;
-      (data || []).forEach((i: any) => {
+      (currentRes.data || []).forEach((i: any) => {
         const remaining = Math.max(0, (Number(i.total_due) || 0) - (Number(i.payment_amount) || 0));
         if (i.status === "overdue") { overdue += remaining; overdueCount += 1; }
         else { sent += remaining; sentCount += 1; }
       });
-      return { sent, overdue, sentCount, overdueCount, total: sent + overdue };
+      const priorTotal = (priorRes.data || []).reduce((s: number, i: any) => {
+        // If invoice was paid after month start, its remaining at start = total_due.
+        // If still unpaid, remaining at start ≈ total_due - payment_amount (best available).
+        const paidAfter = i.paid_at && new Date(i.paid_at) >= start;
+        const remaining = paidAfter
+          ? Number(i.total_due) || 0
+          : Math.max(0, (Number(i.total_due) || 0) - (Number(i.payment_amount) || 0));
+        return s + remaining;
+      }, 0);
+      const total = sent + overdue;
+      return { sent, overdue, sentCount, overdueCount, total, delta: total - priorTotal };
     },
   });
 }
@@ -745,18 +774,18 @@ export function useMonthGoalKpi() {
     queryFn: async () => {
       const companyId = profile!.company_id!;
       const { start, end } = monthBounds();
+      const now = new Date();
+      // Same-day-of-month cutoff for last month so the comparison is apples-to-apples
+      const prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const prevCutoff = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate(), now.getHours(), now.getMinutes());
 
-      const [companyRow, pmGoals, brRows] = await Promise.all([
+      const [companyRow, pmGoals, brRows, prevBrRows] = await Promise.all([
         supabase
           .from("companies")
           .select("monthly_billing_goal_override")
           .eq("id", companyId)
           .maybeSingle(),
-        supabase
-          .from("profiles")
-          .select("monthly_goal, role")
-          .eq("company_id", companyId)
-          .eq("is_active", true),
+        supabase.rpc("get_company_goals" as any),
         supabase
           .from("billing_requests")
           .select("total_amount, created_at, status")
@@ -764,21 +793,34 @@ export function useMonthGoalKpi() {
           .neq("status", "cancelled")
           .gte("created_at", start.toISOString())
           .lt("created_at", end.toISOString()),
+        supabase
+          .from("billing_requests")
+          .select("total_amount, created_at, status")
+          .eq("company_id", companyId)
+          .neq("status", "cancelled")
+          .gte("created_at", prevStart.toISOString())
+          .lte("created_at", prevCutoff.toISOString()),
       ]);
 
       const monthGoal =
         (companyRow.data as any)?.monthly_billing_goal_override ??
-        (pmGoals.data || [])
-          .filter((p: any) => ["pm", "admin", "manager"].includes(p.role))
+        (((pmGoals as any).data as any[]) || [])
+          .filter((p: any) => p.is_active && ["pm", "admin", "manager"].includes(p.role))
           .reduce((s: number, p: any) => s + (Number(p.monthly_goal) || 0), 0);
+
 
       const billed = (brRows.data || []).reduce(
         (s: number, b: any) => s + (Number(b.total_amount) || 0),
         0
       );
+      const priorBilled = (prevBrRows.data || []).reduce(
+        (s: number, b: any) => s + (Number(b.total_amount) || 0),
+        0
+      );
 
       const pct = monthGoal > 0 ? billed / monthGoal : 0;
-      return { billed, monthGoal, pct };
+      const priorPct = monthGoal > 0 ? priorBilled / monthGoal : 0;
+      return { billed, monthGoal, pct, deltaPct: pct - priorPct, priorBilled };
     },
   });
 }

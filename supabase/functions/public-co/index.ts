@@ -51,11 +51,24 @@ Deno.serve(async (req) => {
 
     // GET: Fetch CO + related data by token
     if (req.method === "GET") {
+      // Explicit client-facing columns only — never expose public_token, signed_ip,
+      // signed_user_agent, internal_signed_by UUID, or other internal audit fields.
+      const PUBLIC_CO_COLUMNS = [
+        "id", "co_number", "title", "description", "reason", "requested_by",
+        "amount", "status", "line_items", "linked_service_names",
+        "deposit_percentage", "deposit_paid_at",
+        "client_signed_at", "client_signer_name", "client_signature_data",
+        "internal_signed_at", "internal_signer_name", "internal_signature_data",
+        "sent_to_email", "public_token_expires_at",
+        "company_id", "project_id", "created_at",
+      ].join(",");
+
       const { data: co, error: coErr } = await supabase
         .from("change_orders")
-        .select("*")
+        .select(PUBLIC_CO_COLUMNS)
         .eq("public_token", token)
         .maybeSingle();
+
 
       if (coErr) throw coErr;
       if (!co) {

@@ -18,6 +18,7 @@ import { useUserRoles } from "@/hooks/useUserRoles";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { SignedImage, SignedFileLink } from "./SignedAttachment";
 import { Separator } from "@/components/ui/separator";
 import {
   DropdownMenu,
@@ -302,12 +303,20 @@ export function BugReports() {
       if (transcript.trim()) {
         description += `\n\n**Transcript / Context:**\n${transcript.trim()}`;
       }
-      
+
+      // Keep titles short and free of system-prompt leakage from the Beacon flow.
+      const cleanAction = action
+        .replace(/\[\s*(INSTRUCTIONS|Context|SYSTEM INSTRUCTION)[^\]]*\]?\s*/gi, "")
+        .replace(/\[\s*Page:[^\]]*\]\s*/gi, "")
+        .replace(/\s{2,}/g, " ")
+        .trim();
+      const title = `[${page}] ${cleanAction.slice(0, 80)}`;
+
       // Insert bug first to get ID
       const { data: inserted, error } = await supabase.from("feature_requests").insert({
         company_id: profile.company_id,
         user_id: profile.id,
-        title: `[${page}] ${action.slice(0, 80)}`,
+        title,
         description,
         category: reportCategory,
         priority,
@@ -327,11 +336,12 @@ export function BugReports() {
         supabase.functions.invoke("send-bug-alert", {
           body: {
             bug_id: inserted.id,
-            bug_title: `[${page}] ${action.slice(0, 80)}`,
+            bug_title: title,
             bug_description: description,
             bug_priority: priority,
             company_id: profile.company_id,
             reporter_name: profile.display_name || `${profile.first_name} ${profile.last_name}`,
+            reporter_user_id: profile.id,
           },
         }).catch(() => {});
 
@@ -402,15 +412,19 @@ export function BugReports() {
     if (!selectedBug || !profile || savingRef.current) return;
     savingRef.current = true;
 
+    const statusChanged = editStatus !== selectedBug.status;
     const isReadyForReview = editStatus === "ready_for_review" && selectedBug.status !== "ready_for_review";
     const isNewlyResolved = editStatus === "resolved" && selectedBug.status !== "resolved";
-    const needsComment = isReadyForReview || isNewlyResolved;
+    const requiresNote = isReadyForReview || isNewlyResolved;
+    const hasNote = statusComment.trim().length > 0;
 
-    // If transitioning to ready_for_review or resolved, require a status comment
-    if (needsComment && !statusComment.trim()) {
+    // Require a status comment only when transitioning to ready_for_review or resolved
+    if (requiresNote && !hasNote) {
       toast({ title: "Comment required", description: `Please describe what was done before marking as ${isReadyForReview ? "Ready for Review" : "Resolved"}.`, variant: "destructive" });
+      savingRef.current = false;
       return;
     }
+
 
     const updates: Record<string, any> = {
       status: editStatus,
@@ -446,7 +460,7 @@ export function BugReports() {
     }
 
     // If a status comment is needed, post it as a comment first
-    if (needsComment && statusComment.trim()) {
+    if (statusChanged && hasNote) {
       // Upload status comment attachments if any
       let attachmentData: Array<{ url: string; name: string; type: string }> | null = null;
       if (statusCommentFiles.length > 0) {
@@ -583,6 +597,39 @@ export function BugReports() {
     });
   };
 
+  const copyToClipboard = async (text: string): Promise<boolean> => {
+    // navigator.clipboard.writeText throws "Document is not focused" or
+    // NotAllowedError in some browser states (dropdown just closed, iframe
+    // preview, insecure context). Fall back to a hidden textarea + execCommand
+    // so the user still gets the prompt instead of an error toast.
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (e) {
+      console.warn("clipboard.writeText failed, falling back", e);
+    }
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.top = "0";
+      ta.style.left = "0";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch (e) {
+      console.error("fallback copy failed", e);
+      return false;
+    }
+  };
+
   const generateFixPrompt = async (tool: FixPromptDestination) => {
     if (!selectedBug || generatingPrompt) return;
     setFixPromptDest(tool);
@@ -593,14 +640,24 @@ export function BugReports() {
         body: { bug_id: selectedBug.id, target_tool: tool },
       });
       if (error || !data?.prompt) throw error ?? new Error("No prompt returned");
-      await navigator.clipboard.writeText(data.prompt);
+      const copied = await copyToClipboard(data.prompt);
       const fileNote = data.github_configured
         ? `${data.files_included} file${data.files_included === 1 ? "" : "s"} of code included`
         : "Paths only (no GitHub token configured)";
-      toast({
-        title: `Fix prompt copied for ${DESTINATION_LABEL[tool]}`,
-        description: `${fileNote}. Paste into ${DESTINATION_LABEL[tool]}.`,
-      });
+      if (copied) {
+        toast({
+          title: `Fix prompt copied for ${DESTINATION_LABEL[tool]}`,
+          description: `${fileNote}. Paste into ${DESTINATION_LABEL[tool]}.`,
+        });
+      } else {
+        // Prompt is ready but the clipboard refused — surface it via a prompt()
+        // so the user can copy manually. No destructive error toast.
+        toast({
+          title: `Fix prompt ready for ${DESTINATION_LABEL[tool]}`,
+          description: `${fileNote}. Browser blocked auto-copy — copy from the popup.`,
+        });
+        window.prompt("Copy this fix prompt:", data.prompt);
+      }
     } catch (e) {
       console.error("generateFixPrompt failed", e);
       toast({
@@ -1011,9 +1068,7 @@ export function BugReports() {
                     <Label className="text-xs text-muted-foreground">Screenshots</Label>
                     <div className="flex flex-wrap gap-2 mt-1">
                       {getAttachments(selectedBug).map((att, i) => (
-                        <a key={i} href={att.url} target="_blank" rel="noopener noreferrer">
-                          <img src={att.url} alt={att.name} className="h-24 w-auto rounded border hover:ring-2 ring-primary transition-all" />
-                        </a>
+                        <SignedImage key={i} src={att.url} alt={att.name} className="h-24 w-auto rounded border hover:ring-2 ring-primary transition-all" />
                       ))}
                     </div>
                   </div>
@@ -1095,13 +1150,9 @@ export function BugReports() {
                               <div className="flex flex-wrap gap-2 mt-2">
                                 {commentAttachments.map((att, i) =>
                                   att.type?.startsWith("image/") ? (
-                                    <a key={i} href={att.url} target="_blank" rel="noopener noreferrer">
-                                      <img src={att.url} alt={att.name} className="h-20 w-auto rounded border hover:ring-2 ring-primary transition-all" />
-                                    </a>
+                                    <SignedImage key={i} src={att.url} alt={att.name} className="h-20 w-auto rounded border hover:ring-2 ring-primary transition-all" />
                                   ) : (
-                                    <a key={i} href={att.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-primary underline">
-                                      <FileIcon className="h-3 w-3" />{att.name}
-                                    </a>
+                                    <SignedFileLink key={i} src={att.url} name={att.name} className="flex items-center gap-1 text-xs text-primary underline" />
                                   )
                                 )}
                               </div>
@@ -1236,26 +1287,43 @@ export function BugReports() {
                         </SelectContent>
                       </Select>
                     </div>
+                    <p className="text-xs text-muted-foreground -mt-1">
+                      <span className="font-medium">Open</span>: not yet being worked on. <span className="font-medium">In Progress</span>: actively investigating/fixing. <span className="font-medium">Ready for Review</span>: fix in place, waiting for reporter/QA to verify. <span className="font-medium">Resolved</span>: verified and closed.
+                    </p>
 
-                    {/* Required comment when transitioning to ready_for_review or resolved */}
-                    {((editStatus === "ready_for_review" && selectedBug.status !== "ready_for_review") ||
-                      (editStatus === "resolved" && selectedBug.status !== "resolved")) && (
+                    {/* Status change note — required for ready_for_review / resolved, optional otherwise */}
+                    {editStatus !== selectedBug.status && (() => {
+                      const required = editStatus === "ready_for_review" || editStatus === "resolved";
+                      const label =
+                        editStatus === "open" ? "Why is this being reopened?" :
+                        editStatus === "in_progress" ? "What are you working on? Anything blocking?" :
+                        editStatus === "ready_for_review" ? "What was done?" :
+                        "Resolution summary";
+                      const helper =
+                        editStatus === "open" ? "Optional. Posts as a comment so the team has context."
+                        : editStatus === "in_progress" ? "Optional. Share what you're tackling or any blockers."
+                        : editStatus === "ready_for_review" ? "Describe the fix so the reporter knows what to test. Posts as a comment and is included in the notification email."
+                        : "Summarize the resolution. Posts as a comment and notifies the reporter.";
+                      const placeholder =
+                        editStatus === "open" ? "e.g. Reopening — user reports the issue still happens on mobile..."
+                        : editStatus === "in_progress" ? "e.g. Looking into the scroll overflow; suspect the flex container..."
+                        : editStatus === "ready_for_review" ? "e.g. Fixed the scroll overflow on the review step by adding min-h-0 to the flex container..."
+                        : "e.g. Root cause was X, fixed by Y...";
+                      return (
                       <div className="space-y-2 rounded-lg border border-accent/30 bg-accent/5 p-3">
                         <Label className="text-sm font-medium">
-                          {editStatus === "ready_for_review" ? "What was done?" : "Resolution summary"} <span className="text-destructive">*</span>
+                          {label} {required && <span className="text-destructive">*</span>}
+                          {!required && <span className="text-xs text-muted-foreground font-normal">(optional)</span>}
                         </Label>
-                        <p className="text-xs text-muted-foreground">
-                          {editStatus === "ready_for_review"
-                            ? "Describe the fix so the reporter knows what to test. This posts as a comment and is included in the notification email."
-                            : "Summarize the resolution. This posts as a comment and notifies the reporter."}
-                        </p>
+                        <p className="text-xs text-muted-foreground">{helper}</p>
                         <Textarea
                           value={statusComment}
                           onChange={(e) => setStatusComment(e.target.value)}
-                          placeholder={editStatus === "ready_for_review" ? "e.g. Fixed the scroll overflow on the review step by adding min-h-0 to the flex container..." : "e.g. Root cause was X, fixed by Y..."}
+                          placeholder={placeholder}
                           rows={3}
                           className="resize-none"
                         />
+
                         {/* Status comment file previews */}
                         {statusCommentFiles.length > 0 && (
                           <div className="flex flex-wrap gap-2">
@@ -1295,7 +1363,9 @@ export function BugReports() {
                           </Button>
                         </div>
                       </div>
-                    )}
+                      );
+                    })()}
+
 
                     {/* Fix tracking fields when resolving */}
                     {editStatus === "resolved" && selectedBug.status !== "resolved" && (

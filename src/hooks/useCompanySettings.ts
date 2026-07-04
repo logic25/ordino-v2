@@ -88,6 +88,14 @@ export interface CompanySettings {
   collections_auto_reminders?: boolean;
   collections_early_payment_discount?: boolean;
   collections_early_payment_discount_percent?: number;
+  // Late-payment interest (off by default; flip on after legal review)
+  late_interest_enabled?: boolean;
+  default_late_interest_rate_apr?: number;
+  default_interest_grace_days?: number;
+  default_interest_compounding?: "simple" | "monthly";
+  interest_clause_effective_from?: string; // YYYY-MM-DD
+  // Managing member (signature block on demand letters)
+  managing_member_name?: string;
   // Email templates
   invoice_email_subject_template?: string;
   invoice_email_body_template?: string;

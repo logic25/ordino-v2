@@ -92,7 +92,8 @@ export function getFilteredEmails(
 export function getTabCounts(
   emails: EmailWithTags[],
   scheduledCount?: number,
-  draftsCount?: number
+  draftsCount?: number,
+  inboxUnreadOverride?: number,
 ): Record<EmailFilterTab, number> {
   const inboxEmails = emails.filter((e) => {
     if ((e as any).archived_at) return false;
@@ -101,9 +102,12 @@ export function getTabCounts(
     if (labels.includes("SENT") && !labels.includes("INBOX")) return false;
     return true;
   });
-  const unreadCount = inboxEmails.filter((e: EmailWithTags) => !e.is_read).length;
+  // Use the shared DB-backed unread count when provided so the Inbox tab
+  // and the sidebar badge never drift.
+  const localUnread = inboxEmails.filter((e: EmailWithTags) => !e.is_read).length;
+  const unreadCount = inboxUnreadOverride ?? localUnread;
   return {
-    inbox: unreadCount || inboxEmails.length,
+    inbox: unreadCount,
     sent: emails.filter(isSentEmail).length,
     agencies: emails.filter(isAgencyEmail).length,
     clients: emails.filter(

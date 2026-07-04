@@ -26,6 +26,8 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -45,14 +47,24 @@ import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useToast } from "@/hooks/use-toast";
 import { initials } from "@/components/bd/leadConstants";
 import { EventBudgetSummary } from "@/components/bd/EventBudgetSummary";
+import { ProposeEventDialog } from "@/components/bd/ProposeEventDialog";
+import { AttendeesPicker, AttendeeAvatarStack } from "@/components/bd/AttendeesPicker";
+import { useIsAdmin } from "@/hooks/useUserRoles";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useQueryClient } from "@tanstack/react-query";
+import { isInvested, isConsidering, eventCost, fmtMoney0, scopeToYear } from "@/lib/eventBudget";
+
 
 const STATUS_META: Record<EventStatus, { label: string; className: string }> = {
+  SUGGESTED: { label: "AI Suggested", className: "bg-amber-50 text-amber-800 border-amber-200" },
   PENDING_APPROVAL: { label: "Pending", className: "bg-gray-100 text-gray-700 border-gray-200" },
   APPROVED: { label: "Approved", className: "bg-blue-100 text-blue-700 border-blue-200" },
   REGISTERED: { label: "Registered", className: "bg-purple-100 text-purple-700 border-purple-200" },
   ATTENDED: { label: "Attended", className: "bg-green-100 text-green-700 border-green-200" },
   SKIPPED: { label: "Skipped", className: "bg-amber-100 text-amber-700 border-amber-200" },
   CANCELLED: { label: "Cancelled", className: "bg-red-100 text-red-700 border-red-200" },
+  DISMISSED: { label: "Dismissed", className: "bg-gray-50 text-gray-500 border-gray-200" },
 };
 
 const FREQ_LABELS = { WEEKLY: "Weekly", BI_WEEKLY: "Bi-weekly", MONTHLY: "Monthly", QUARTERLY: "Quarterly" } as const;
@@ -62,22 +74,50 @@ function fmtDate(d: string | null) {
   if (!d) return "—";
   try { return format(new Date(d), "MMM d, yyyy"); } catch { return d; }
 }
+function fmtTimeRange(start: string | null, end: string | null) {
+  if (!start && !end) return null;
+  const fmt = (v: string) => format(new Date(`2000-01-01T${v.slice(0, 5)}`), "h:mm a");
+  return [start ? fmt(start) : null, end ? fmt(end) : null].filter(Boolean).join("–");
+}
+function fmtEventWhen(event: BdEvent) {
+  const time = fmtTimeRange(event.start_time, event.end_time);
+  return time ? `${fmtDate(event.start_date)} · ${time}` : fmtDate(event.start_date);
+}
 function fmtMoney(v: number | null) {
   if (v == null) return "—";
   return `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+}
+function GoingCell({ eventId }: { eventId: string }) {
+  const { data } = useEventAttendees(eventId);
+  const users = (data ?? []).map((a) => ({
+    id: a.user_id,
+    first_name: a.user?.first_name ?? null,
+    last_name: a.user?.last_name ?? null,
+  }));
+  return <AttendeeAvatarStack users={users} max={3} />;
 }
 
 export default function BdEvents() {
   const navigate = useNavigate();
   const [tab, setTab] = useState("events");
   const [createOpen, setCreateOpen] = useState(false);
+  const [proposeOpen, setProposeOpen] = useState(false);
+  const isAdmin = useIsAdmin();
+  const { profile } = useAuth();
+  const qc = useQueryClient();
   const [editEvent, setEditEvent] = useState<BdEvent | null>(null);
   const [detailEvent, setDetailEvent] = useState<BdEvent | null>(null);
-  const [filterStatus, setFilterStatus] = useState<EventStatus | "ALL">("ALL");
+  // Multi-status filter — empty set means "all (default: hide SUGGESTED + DISMISSED)".
+  const [statusFilter, setStatusFilter] = useState<Set<EventStatus>>(new Set());
+  // Bucket filter from the summary strip. When set, overrides statusFilter and
+  // uses the shared helpers (isInvested / isConsidering) for the table filter
+  // so the strip totals and the table content stay in lock-step.
+  const [bucketFilter, setBucketFilter] = useState<"INVESTED" | "CONSIDERING" | null>(null);
   const [search, setSearch] = useState("");
   const [timeRange, setTimeRange] = useState<"UPCOMING" | "PAST" | "THIS_MONTH" | "ALL">("UPCOMING");
   const [view, setView] = useState<"list" | "calendar">("list");
   const [calMonth, setCalMonth] = useState<Date>(new Date());
+
 
   const events = useBdEvents();
   const updateEvent = useUpdateBdEvent();
@@ -91,8 +131,18 @@ export default function BdEvents() {
 
   const filtered = useMemo(() => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
+    const hasFilter = statusFilter.size > 0;
     return (events.data ?? []).filter((e) => {
-      if (filterStatus !== "ALL" && e.status !== filterStatus) return false;
+      // Bucket filter (from summary strip) wins over status filter.
+      if (bucketFilter === "INVESTED") {
+        if (!isInvested(e)) return false;
+      } else if (bucketFilter === "CONSIDERING") {
+        if (!isConsidering(e)) return false;
+      } else {
+        // Default view (no statuses picked) hides SUGGESTED + DISMISSED noise.
+        if (!hasFilter && (e.status === "SUGGESTED" || e.status === "DISMISSED")) return false;
+        if (hasFilter && !statusFilter.has(e.status)) return false;
+      }
       if (search) {
         const q = search.toLowerCase();
         if (!(`${e.name} ${e.location ?? ""} ${e.category ?? ""}`.toLowerCase().includes(q))) return false;
@@ -111,7 +161,37 @@ export default function BdEvents() {
       const db = parseEventDate(b.start_date)?.getTime() ?? Infinity;
       return timeRange === "PAST" ? db - da : da - db;
     });
-  }, [events.data, filterStatus, search, timeRange]);
+  }, [events.data, statusFilter, bucketFilter, search, timeRange]);
+
+  // Summary strip data — year-scoped to the current year. Derives off the
+  // same useBdEvents query (no extra request); shares math with the Budget tab
+  // via lib/eventBudget.ts so totals can never drift between the two views.
+  const stripData = useMemo(() => {
+    const yearScoped = scopeToYear(events.data ?? [], new Date().getFullYear());
+    const invested = yearScoped.filter(isInvested);
+    const considering = yearScoped.filter(isConsidering);
+    const byStatus = (s: EventStatus) => yearScoped.filter((e) => e.status === s).length;
+    return {
+      invested: { count: invested.length, total: invested.reduce((s, e) => s + eventCost(e), 0) },
+      considering: { count: considering.length, total: considering.reduce((s, e) => s + eventCost(e), 0) },
+      perStatus: [
+        "PENDING_APPROVAL", "APPROVED", "REGISTERED", "ATTENDED", "SKIPPED",
+      ].map((s) => ({ status: s as EventStatus, count: byStatus(s as EventStatus) })),
+    };
+  }, [events.data]);
+
+
+  const toggleStatus = (s: EventStatus) => {
+    setBucketFilter(null); // explicit status pick clears the bucket bias
+    setStatusFilter((prev) => {
+      const next = new Set(prev);
+      next.has(s) ? next.delete(s) : next.add(s);
+      return next;
+    });
+  };
+
+  const isOnlyStatus = (s: EventStatus) =>
+    statusFilter.size === 1 && statusFilter.has(s);
 
   const setStatus = (id: string, status: EventStatus) =>
     updateEvent.mutate({ id, status }, { onSuccess: () => toast({ title: `Marked ${STATUS_META[status].label.toLowerCase()}` }) });
@@ -124,7 +204,12 @@ export default function BdEvents() {
             <h1 className="text-2xl font-semibold">Events</h1>
             <p className="text-sm text-muted-foreground">Industry events, sources to monitor, and your memberships.</p>
           </div>
-          <Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-1.5" />New event</Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setProposeOpen(true)}>
+              <Plus className="h-4 w-4 mr-1.5" />Propose event
+            </Button>
+            <Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-1.5" />New event</Button>
+          </div>
         </div>
 
         <Tabs value={tab} onValueChange={setTab}>
@@ -136,7 +221,90 @@ export default function BdEvents() {
           </TabsList>
 
           <TabsContent value="events" className="space-y-4">
+            {/* Summary strip — year-scoped glance. Clicking drills the table below.
+                Math comes from lib/eventBudget.ts (shared with the Budget tab). */}
+            <div className="flex flex-wrap items-center gap-1.5 px-1">
+              <span className="text-xs text-muted-foreground mr-1">
+                {new Date().getFullYear()}:
+              </span>
+              {(() => {
+                const investedActive = bucketFilter === "INVESTED";
+                const consideringActive = bucketFilter === "CONSIDERING";
+                return (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStatusFilter(new Set());
+                        setBucketFilter(investedActive ? null : "INVESTED");
+                      }}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                        investedActive
+                          ? "bg-green-100 text-green-800 border-green-300 ring-2 ring-offset-1 ring-primary/30"
+                          : "bg-green-50 text-green-800 border-green-200 hover:bg-green-100"
+                      }`}
+                    >
+                      <span className="font-medium">Invested {fmtMoney0(stripData.invested.total)}</span>
+                      <span className={investedActive ? "" : "text-green-700/70"}>
+                        ({stripData.invested.count})
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStatusFilter(new Set());
+                        setBucketFilter(consideringActive ? null : "CONSIDERING");
+                      }}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                        consideringActive
+                          ? "bg-blue-100 text-blue-800 border-blue-300 ring-2 ring-offset-1 ring-primary/30"
+                          : "bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100"
+                      }`}
+                    >
+                      <span className="font-medium">Considering {fmtMoney0(stripData.considering.total)}</span>
+                      <span className={consideringActive ? "" : "text-blue-700/70"}>
+                        ({stripData.considering.count})
+                      </span>
+                    </button>
+                    <span className="mx-1 h-4 w-px bg-border" />
+                    {stripData.perStatus.map(({ status, count }) => {
+                      const active = !bucketFilter && statusFilter.size === 1 && statusFilter.has(status);
+                      const meta = STATUS_META[status];
+                      return (
+                        <button
+                          key={status}
+                          type="button"
+                          onClick={() => {
+                            setBucketFilter(null);
+                            setStatusFilter(active ? new Set() : new Set([status]));
+                          }}
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                            active
+                              ? meta.className + " ring-2 ring-offset-1 ring-primary/30"
+                              : "bg-background hover:bg-muted"
+                          }`}
+                        >
+                          <span className="font-medium">{meta.label}</span>
+                          <span className={active ? "" : "text-muted-foreground"}>{count}</span>
+                        </button>
+                      );
+                    })}
+                    {(bucketFilter || statusFilter.size > 0) && (
+                      <button
+                        type="button"
+                        className="text-xs text-muted-foreground hover:text-foreground ml-1 underline-offset-2 hover:underline"
+                        onClick={() => { setBucketFilter(null); setStatusFilter(new Set()); }}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+
             <div className="flex items-center gap-2 flex-wrap">
+
               <Input
                 placeholder="Search events…" className="max-w-sm"
                 value={search} onChange={(e) => setSearch(e.target.value)}
@@ -150,15 +318,75 @@ export default function BdEvents() {
                   <SelectItem value="ALL">All time</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
-                <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All statuses</SelectItem>
-                  {Object.entries(STATUS_META).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-44 justify-between font-normal">
+                    <span className="truncate">
+                      {statusFilter.size === 0
+                        ? "All statuses"
+                        : statusFilter.size === 1
+                          ? STATUS_META[[...statusFilter][0]].label
+                          : `${statusFilter.size} statuses`}
+                    </span>
+                    <ChevronDown className="h-3.5 w-3.5 opacity-60 ml-1" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-56 p-2">
+                  <div className="flex items-center justify-between px-1 pb-1.5 mb-1.5 border-b">
+                    <span className="text-xs font-medium">Filter by status</span>
+                    {statusFilter.size > 0 && (
+                      <button
+                        type="button"
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                        onClick={() => setStatusFilter(new Set())}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-0.5">
+                    {(Object.keys(STATUS_META) as EventStatus[]).map((k) => (
+                      <label
+                        key={k}
+                        className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-muted cursor-pointer"
+                      >
+                        <Checkbox
+                          checked={statusFilter.has(k)}
+                          onCheckedChange={() => toggleStatus(k)}
+                        />
+                        <Badge variant="outline" className={`${STATUS_META[k].className} text-[10px]`}>
+                          {STATUS_META[k].label}
+                        </Badge>
+                      </label>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+              {(() => {
+                const pendingCount = (events.data ?? []).filter((e) => e.status === "PENDING_APPROVAL").length;
+                const suggestedCount = (events.data ?? []).filter((e) => e.status === "SUGGESTED").length;
+                const pendingActive = isOnlyStatus("PENDING_APPROVAL");
+                const suggestedActive = isOnlyStatus("SUGGESTED");
+                return (
+                  <>
+                    <Button size="sm" variant={pendingActive ? "default" : "outline"}
+                      onClick={() => setStatusFilter(pendingActive ? new Set() : new Set(["PENDING_APPROVAL"]))}>
+                      Proposed
+                      {pendingCount > 0 && (
+                        <Badge variant="secondary" className="ml-1.5 h-5 px-1.5">{pendingCount}</Badge>
+                      )}
+                    </Button>
+                    <Button size="sm" variant={suggestedActive ? "default" : "outline"}
+                      className={suggestedActive ? "" : "border-amber-300 text-amber-800 hover:bg-amber-50"}
+                      onClick={() => setStatusFilter(suggestedActive ? new Set() : new Set(["SUGGESTED"]))}>
+                      ✨ Suggestions
+                      {suggestedCount > 0 && (
+                        <Badge variant="secondary" className="ml-1.5 h-5 px-1.5">{suggestedCount}</Badge>
+                      )}
+                    </Button>
+                  </>
+                );
+              })()}
               <div className="ml-auto flex items-center gap-2">
                 <div className="text-sm text-muted-foreground">{filtered.length} events</div>
                 <div className="inline-flex rounded-md border bg-background p-0.5">
@@ -210,7 +438,7 @@ export default function BdEvents() {
                             </div>
                           )}
                         </TableCell>
-                        <TableCell className="text-sm">{fmtDate(e.start_date)}</TableCell>
+                        <TableCell className="text-sm">{fmtEventWhen(e)}</TableCell>
                         <TableCell onClick={(ev) => ev.stopPropagation()}>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -242,7 +470,7 @@ export default function BdEvents() {
                             <span>{fmtMoney(e.cost_actual ?? e.cost_member ?? e.cost_low)}</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-sm">{e.attendee_count ?? 0}</TableCell>
+                        <TableCell className="text-sm" onClick={(ev) => ev.stopPropagation()}><GoingCell eventId={e.id} /></TableCell>
                         <TableCell className="text-sm">{e.lead_count ?? 0}</TableCell>
                         <TableCell className="text-sm text-right tabular-nums">
                           {e.pipeline_generated ? `$${Math.round(e.pipeline_generated).toLocaleString()}` : "—"}
@@ -288,6 +516,7 @@ export default function BdEvents() {
 
       <EventDialog open={createOpen || !!editEvent} event={editEvent}
         onOpenChange={(o) => { if (!o) { setCreateOpen(false); setEditEvent(null); } }} />
+      <ProposeEventDialog open={proposeOpen} onOpenChange={setProposeOpen} />
       <EventDetailSheet event={detailEvent} onOpenChange={(o) => { if (!o) setDetailEvent(null); }} />
     </AppLayout>
   );
@@ -428,6 +657,18 @@ function EventDialog({ open, event, onOpenChange }: { open: boolean; event: BdEv
                 onChange={(e) => setForm({ ...form, end_date: e.target.value || null })} />
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Start time</Label>
+              <Input type="time" value={form.start_time?.slice(0, 5) ?? ""}
+                onChange={(e) => setForm({ ...form, start_time: e.target.value || null })} />
+            </div>
+            <div>
+              <Label>End time</Label>
+              <Input type="time" value={form.end_time?.slice(0, 5) ?? ""}
+                onChange={(e) => setForm({ ...form, end_time: e.target.value || null })} />
+            </div>
+          </div>
           <div>
             <Label>Location</Label>
             <Input value={form.location ?? ""} onChange={(e) => setForm({ ...form, location: e.target.value || null })} />
@@ -565,7 +806,7 @@ function EventDetailSheet({ event, onOpenChange }: { event: BdEvent | null; onOp
       <SheetContent className="sm:max-w-lg overflow-y-auto">
         <SheetHeader>
           <SheetTitle>{event.name}</SheetTitle>
-          <SheetDescription>{fmtDate(event.start_date)} · {event.location ?? "—"}</SheetDescription>
+          <SheetDescription>{fmtEventWhen(event)} · {event.location ?? "—"}</SheetDescription>
         </SheetHeader>
         <div className="space-y-6 mt-4">
           <div className="flex flex-wrap gap-2 text-xs">
@@ -591,51 +832,7 @@ function EventDetailSheet({ event, onOpenChange }: { event: BdEvent | null; onOp
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-sm font-medium flex items-center gap-1.5"><Users className="h-4 w-4" />Attendees</h4>
             </div>
-            <div className="flex gap-2 mb-3">
-              <Select value={pickUser} onValueChange={setPickUser}>
-                <SelectTrigger><SelectValue placeholder="Add teammate…" /></SelectTrigger>
-                <SelectContent>
-                  {available.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {[p.first_name, p.last_name].filter(Boolean).join(" ") || p.display_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button size="sm" disabled={!pickUser}
-                onClick={() => { addAtt.mutate({ event_id: event.id, user_id: pickUser }); setPickUser(""); }}>
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="space-y-1">
-              {(attendees.data ?? []).map((a) => {
-                const name = [a.user?.first_name, a.user?.last_name].filter(Boolean).join(" ") || "Unknown";
-                return (
-                  <div key={a.id} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/40">
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-7 w-7"><AvatarFallback className="text-xs">{initials(name)}</AvatarFallback></Avatar>
-                      <span className="text-sm">{name}</span>
-                      <Badge variant="outline" className="text-xs">{a.rsvp_status ?? "—"}</Badge>
-                      {a.attended && <Badge variant="outline" className="bg-green-50 text-green-700 text-xs">Attended</Badge>}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button size="icon" variant="ghost" className="h-7 w-7"
-                        title="Mark attended"
-                        onClick={() => updAtt.mutate({ id: a.id, event_id: event.id, attended: !a.attended })}>
-                        <Check className="h-4 w-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="h-7 w-7"
-                        onClick={() => rmAtt.mutate({ id: a.id, event_id: event.id })}>
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-              {(attendees.data ?? []).length === 0 && (
-                <div className="text-xs text-muted-foreground py-2">No attendees yet.</div>
-              )}
-            </div>
+            <AttendeesPicker eventId={event.id} />
           </div>
 
           <Card>

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState } from "react";
 import { useAuth } from "./useAuth";
 
 export interface ProjectSheet {
@@ -97,7 +98,45 @@ export async function uploadProjectPhoto(companyId: string, file: File): Promise
   return path;
 }
 
-export function getProjectPhotoUrl(path: string): string {
-  const { data } = supabase.storage.from("rfp-project-photos").getPublicUrl(path);
-  return data.publicUrl;
+// Bucket is private — fetch a short-lived signed URL for in-app viewing,
+// or a long-lived one for outbound emails (see getProjectPhotoSignedUrls).
+const PHOTO_URL_TTL_SECONDS = 60 * 60; // 1 hour — covers any reasonable session
+const EMAIL_PHOTO_URL_TTL_SECONDS = 60 * 60 * 24 * 365; // 1 year — outbound RFP emails
+
+export async function getProjectPhotoSignedUrls(
+  paths: string[],
+  expiresIn: number = PHOTO_URL_TTL_SECONDS,
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  if (!paths.length) return map;
+  const { data, error } = await supabase.storage
+    .from("rfp-project-photos")
+    .createSignedUrls(paths, expiresIn);
+  if (error) {
+    console.warn("createSignedUrls failed", error);
+    return map;
+  }
+  for (const row of data ?? []) {
+    if (row.signedUrl && row.path) map.set(row.path, row.signedUrl);
+  }
+  return map;
+}
+
+export async function getProjectPhotoEmailUrls(paths: string[]): Promise<Map<string, string>> {
+  return getProjectPhotoSignedUrls(paths, EMAIL_PHOTO_URL_TTL_SECONDS);
+}
+
+/** Hook: returns a Map of path -> signed URL, refreshed when paths change. */
+export function useProjectPhotoUrls(paths: string[]): Map<string, string> {
+  const key = paths.join("|");
+  const [urls, setUrls] = useState<Map<string, string>>(new Map());
+  useEffect(() => {
+    let cancelled = false;
+    getProjectPhotoSignedUrls(paths).then((m) => {
+      if (!cancelled) setUrls(m);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return urls;
 }

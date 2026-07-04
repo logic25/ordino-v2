@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import {
   Copy, CheckCircle2, AlertTriangle, MapPin, Building2,
@@ -124,8 +124,12 @@ export function DobNowFilingPrepSheet({
   allServices,
 }: DobNowFilingPrepSheetProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { data: companyData } = useCompanySettings();
-  const [jobNumber, setJobNumber] = useState(service.application?.jobNumber || "");
+  const [jobNumber, setJobNumber] = useState(
+    (service as any).jobNumber || service.application?.jobNumber || ""
+  );
+  const [savingJobNumber, setSavingJobNumber] = useState(false);
   const [showAddItem, setShowAddItem] = useState(false);
   const [newItemLabel, setNewItemLabel] = useState("");
   const [checklistInitialized, setChecklistInitialized] = useState(false);
@@ -265,9 +269,61 @@ export function DobNowFilingPrepSheet({
     setChecklistWarning(false);
   };
 
-  const saveJobNumber = () => {
-    if (!jobNumber.trim()) return;
-    toast({ title: "Job Number Saved", description: `Application #${jobNumber} linked to ${service.name}.` });
+  const saveJobNumber = async () => {
+    const trimmed = jobNumber.trim();
+    if (!trimmed) return;
+    setSavingJobNumber(true);
+    try {
+      const applicationId = (service as any).applicationId as string | null | undefined;
+      if (applicationId) {
+        // Update existing dob_applications row linked to this service
+        const { error } = await supabase
+          .from("dob_applications")
+          .update({ job_number: trimmed } as any)
+          .eq("id", applicationId);
+        if (error) throw error;
+      } else {
+        // No application yet — create one and link the service to it
+        const propertyId = project.properties?.id || (project as any).property_id;
+        const companyId = (project as any).company_id;
+        if (!propertyId || !companyId) {
+          throw new Error("Missing project property or company — cannot create application.");
+        }
+        const { data: newApp, error: insertErr } = await supabase
+          .from("dob_applications")
+          .insert({
+            company_id: companyId,
+            property_id: propertyId,
+            project_id: project.id,
+            job_number: trimmed,
+            status: "filed" as any,
+          } as any)
+          .select("id")
+          .single();
+        if (insertErr) throw insertErr;
+        if (newApp?.id) {
+          const { error: linkErr } = await supabase
+            .from("services")
+            .update({ application_id: newApp.id } as any)
+            .eq("id", service.id);
+          if (linkErr) throw linkErr;
+        }
+      }
+      await queryClient.invalidateQueries({ queryKey: ["project-services-full"] });
+      toast({
+        title: "Job Number Saved",
+        description: `Application #${trimmed} linked to ${service.name}.`,
+      });
+    } catch (err: any) {
+      console.error("[saveJobNumber] failed", err);
+      toast({
+        title: "Could not save job number",
+        description: err?.message || "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingJobNumber(false);
+    }
   };
 
   // Build DOB field mapping from project data + PIS
@@ -495,7 +551,10 @@ export function DobNowFilingPrepSheet({
       setLoggedIn(false);
       setSubmitStep("session");
       setShowSessionModal(true);
-      toast({ title: "Session created", description: "Log into DOB NOW in the browser window, then click 'I'm Logged In'." });
+      toast({
+        title: "Session created",
+        description: "Log in, click +Job Filing, select Alteration, then click Next. Then hand off to the agent.",
+      });
     } catch (err) {
       console.error("[FilingAgent] Session creation error:", err);
       toast({ title: "Error", description: "Failed to create browser session.", variant: "destructive" });
@@ -1021,19 +1080,37 @@ export function DobNowFilingPrepSheet({
                       allow="autoplay; encrypted-media; fullscreen"
                       title="DOB NOW Login Session"
                     />
-                    <div className="flex items-center gap-2 px-4 py-3 border-t shrink-0">
-                      <Button
-                        className="flex-1 gap-2"
-                        onClick={() => {
-                          setLoggedIn(true);
-                          setShowSessionModal(false);
-                        }}
-                      >
-                        <CheckCircle2 className="h-4 w-4" /> I'm Logged In
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => { resetAgentState(); setShowSessionModal(false); }}>
-                        Cancel
-                      </Button>
+                    <div className="flex flex-col gap-2 px-4 py-3 border-t shrink-0">
+                      <div className="text-xs text-muted-foreground space-y-1">
+                        <p>
+                          <span className="font-semibold text-foreground">Step 1.</span>{" "}
+                          Log into DOB NOW.
+                        </p>
+                        <p>
+                          <span className="font-semibold text-foreground">Step 2.</span>{" "}
+                          Click <span className="font-mono text-foreground">+ Job Filing</span>, select{" "}
+                          <span className="font-mono text-foreground">Alteration</span>, click{" "}
+                          <span className="font-mono text-foreground">Next</span>. Stop on the 5-questions screen.
+                        </p>
+                        <p>
+                          <span className="font-semibold text-foreground">Step 3.</span>{" "}
+                          Hand off below — agent fills the rest automatically.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          className="flex-1 gap-2"
+                          onClick={() => {
+                            setLoggedIn(true);
+                            setShowSessionModal(false);
+                          }}
+                        >
+                          <CheckCircle2 className="h-4 w-4" /> Hand Off to Agent
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => { resetAgentState(); setShowSessionModal(false); }}>
+                          Cancel
+                        </Button>
+                      </div>
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -1042,7 +1119,7 @@ export function DobNowFilingPrepSheet({
                   <div className="space-y-2 pt-2">
                     <div className="flex items-center gap-2 p-2 rounded-md bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800 text-sm text-emerald-700 dark:text-emerald-300">
                       <CheckCircle2 className="h-4 w-4 shrink-0" />
-                      <span className="font-medium">Logged in — ready to launch agent</span>
+                      <span className="font-medium">Modal open — ready to launch agent</span>
                     </div>
                     <Button
                       className="w-full gap-2"
@@ -1057,7 +1134,7 @@ export function DobNowFilingPrepSheet({
                       Launch Filing Agent
                     </Button>
                     <p className="text-xs text-muted-foreground text-center">
-                      The agent will connect to your logged-in session and fill the DOB NOW forms.
+                      The agent will pick up from the Initial Job Filing modal and fill the DOB NOW forms.
                     </p>
                   </div>
                 )}
@@ -1118,8 +1195,8 @@ export function DobNowFilingPrepSheet({
                       onChange={(e) => setJobNumber(e.target.value)}
                       className="h-9 font-mono"
                     />
-                    <Button size="sm" className="gap-1.5 shrink-0" onClick={saveJobNumber} disabled={!jobNumber.trim()}>
-                      <Save className="h-3.5 w-3.5" /> Save
+                    <Button size="sm" className="gap-1.5 shrink-0" onClick={saveJobNumber} disabled={!jobNumber.trim() || savingJobNumber}>
+                      {savingJobNumber ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save
                     </Button>
                   </div>
                 </div>

@@ -17,9 +17,9 @@ import { useWalkthrough } from "@/components/walkthrough/WalkthroughProvider";
 import { WALKTHROUGHS } from "@/components/walkthrough/walkthroughs";
 
 function mapRoleToDashboard(role: string): DashboardRole {
-  if (role === "admin") return "admin";
+  if (role === "admin" || role === "manager") return "admin";
   if (role === "accounting") return "accounting";
-  return "pm"; // production and any other staff role
+  return "pm"; // pm, production (legacy), and any other staff role
 }
 
 function NewHireWelcomeBanner({ name, onDismiss }: { name: string; onDismiss: () => void }) {

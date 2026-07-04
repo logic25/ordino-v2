@@ -291,6 +291,9 @@ export function useSendCOToClient() {
               to: sent_to_email,
               subject: `Change Order ${co.co_number} — ${co.title}`,
               html_body: `<p>A change order has been prepared for your review and signature.</p><p><strong>${co.co_number}: ${co.title}</strong></p><p>Amount: $${co.amount.toLocaleString()}</p><p><a href="${publicUrl}" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">Review &amp; Sign</a></p>`,
+              project_id,
+              change_order_id: id,
+              tag_category: "client",
             },
           });
         } catch (emailErr) {

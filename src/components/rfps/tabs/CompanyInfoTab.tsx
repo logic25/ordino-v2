@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Pencil, Save, X } from "lucide-react";
 import { useRfpContent, useCreateRfpContent, useUpdateRfpContent } from "@/hooks/useRfpContent";
 import { useToast } from "@/hooks/use-toast";
+import { CompanyLogoCard } from "./CompanyLogoCard";
 
 export function CompanyInfoTab() {
   const { data: items = [], isLoading } = useRfpContent("company_info");
@@ -96,7 +97,9 @@ export function CompanyInfoTab() {
   ];
 
   return (
-    <Card>
+    <div className="space-y-4">
+      <CompanyLogoCard />
+      <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-lg">Company Information</CardTitle>
         {!editing ? (
@@ -146,5 +149,6 @@ export function CompanyInfoTab() {
         )}
       </CardContent>
     </Card>
+    </div>
   );
 }

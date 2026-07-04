@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Brain, FileText, Zap, X, ChevronDown, ChevronUp, ExternalLink, MessageSquarePlus, Bug, History, Trash2 } from "lucide-react";
+import { Send, Brain, FileText, Zap, X, ChevronDown, ChevronUp, ExternalLink, MessageSquarePlus, Bug, History, Trash2, Settings as SettingsIcon, ThumbsUp, ThumbsDown } from "lucide-react";
+import { useIsAdmin } from "@/hooks/useUserRoles";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import { askBeacon, askBeaconProjectQA, checkBeaconHealth, type BeaconSource, type BeaconProjectContext } from "@/services/beaconApi";
+import { askBeacon, checkBeaconHealth, type BeaconSource, type BeaconProjectContext } from "@/services/beaconApi";
+import { captureSnapshot, looksLikeBug, type BeaconSnapshot } from "@/lib/beaconCapture";
 import { lazy, Suspense } from "react";
 const BeaconDocumentModal = lazy(() => import("../documents/BeaconDocumentModal").then(m => ({ default: m.BeaconDocumentModal })));
 import { supabase } from "@/integrations/supabase/client";
@@ -291,6 +293,8 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  // User-pasted screenshot (base64 data URL stripped to b64-only) — sent as evidence with the next bug report.
+  const [pastedScreenshot, setPastedScreenshot] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const processingRef = useRef(false);
   const queueRef = useRef<string[]>([]);
@@ -313,8 +317,85 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
   const { user, profile } = useAuth();
   const [beaconOnline, setBeaconOnline] = useState(true);
   const [viewingFile, setViewingFile] = useState<string | null>(null);
+  // Per-message feedback state: "up" | "down" | "done" (logged, locked).
+  const [feedback, setFeedback] = useState<Record<number, "up" | "down" | "done">>({});
+  const [correctionDraft, setCorrectionDraft] = useState<Record<number, string>>({});
+  const [correctionSubmitting, setCorrectionSubmitting] = useState<Record<number, boolean>>({});
+
+  const findPriorQuestion = (idx: number): string => {
+    for (let j = idx - 1; j >= 0; j--) {
+      if (messages[j].role === "user") return messages[j].text;
+    }
+    return "";
+  };
+
+  const submitFeedback = async (idx: number, type: "up" | "down") => {
+    if (feedback[idx]) return;
+    const msg = messages[idx];
+    if (!msg || msg.role !== "beacon") return;
+    const question = findPriorQuestion(idx);
+    const answerPreview = (msg.text || "").slice(0, 200);
+    const emoji = type === "up" ? "👍" : "👎";
+    setFeedback((s) => ({ ...s, [idx]: type }));
+    try {
+      await supabase.functions.invoke("beacon-proxy?action=feedback", {
+        body: {
+          data: {
+            feedback_type: type === "up" ? "positive" : "negative",
+            feedback_text: `${emoji} on Beacon answer — Q: ${question} | A: ${answerPreview}`,
+            user_id: user?.id,
+            user_name: profile?.display_name || `${profile?.first_name ?? ""}`.trim() || user?.email,
+          },
+        },
+      });
+      if (type === "up") {
+        setFeedback((s) => ({ ...s, [idx]: "done" }));
+        toast.success("Thanks — logged");
+      }
+    } catch (e) {
+      console.warn("[beacon] log_feedback failed", e);
+      toast.error("Couldn't log feedback");
+      setFeedback((s) => {
+        const n = { ...s };
+        delete n[idx];
+        return n;
+      });
+    }
+  };
+
+  const submitCorrection = async (idx: number) => {
+    const correct = (correctionDraft[idx] || "").trim();
+    const msg = messages[idx];
+    if (!msg) return;
+    setCorrectionSubmitting((s) => ({ ...s, [idx]: true }));
+    try {
+      if (correct) {
+        await supabase.functions.invoke("beacon-proxy?action=correction", {
+          body: {
+            data: {
+              wrong_answer: msg.text,
+              correct_answer: correct,
+              topics: [],
+              user_id: user?.id,
+              user_name: profile?.display_name || `${profile?.first_name ?? ""}`.trim() || user?.email,
+            },
+          },
+        });
+      }
+      setFeedback((s) => ({ ...s, [idx]: "done" }));
+      toast.success(correct ? "Thanks — correction logged" : "Thanks — logged");
+    } catch (e) {
+      console.warn("[beacon] log_correction failed", e);
+      toast.error("Couldn't log correction");
+    } finally {
+      setCorrectionSubmitting((s) => ({ ...s, [idx]: false }));
+    }
+  };
+
 
   const location = useLocation();
+  const navigate = useNavigate();
+  const isAdmin = useIsAdmin();
   const currentPage = getPageName(location.pathname);
 
   // Capture last 3 console errors for bug context
@@ -502,44 +583,11 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
           }
         }
 
-        // ---- Project Q&A intercept ----
-        // When a project is in active context, route factual project questions to
-        // beacon-qa (tool-calling over allowlisted Ordino tables). Skip generic
-        // greetings and very short utterances.
-        if (activeContext?.projectId && q.trim().length >= 6 && !/^(hi|hello|hey|thanks|thank you)\b/i.test(q.trim())) {
-          try {
-            const qa = await askBeaconProjectQA(q, activeContext.projectId);
-            if (qa?.answer) {
-              setMessages((prev) => [
-                ...prev,
-                {
-                  role: "beacon",
-                  text: qa.answer + (qa.truncated ? "\n\n_(Hit my exploration budget — narrow the question for more detail.)_" : ""),
-                  confidence: 1,
-                  sources: [],
-                  responseTime: qa.duration_ms,
-                  flowType: "project_qa",
-                  timestamp: new Date().toISOString(),
-                },
-              ]);
-              const emailForSave = user?.email;
-              if (emailForSave) {
-                await supabase.from("widget_messages" as any).insert({
-                  user_email: emailForSave,
-                  role: "assistant",
-                  content: qa.answer,
-                  metadata: { flow_type: "project_qa", project_id: activeContext.projectId },
-                  session_id: sessionId,
-                  company_id: profile?.company_id || null,
-                });
-              }
-              continue;
-            }
-          } catch (e: any) {
-            console.warn("beacon-qa failed, falling back to doc-RAG", e?.message);
-            // fall through to doc-RAG below
-          }
-        }
+        // NOTE: project Q&A intercept removed — all questions now route to
+        // /api/chat (Railway Beacon) for one unified brain. beacon-qa function
+        // remains deployed but is no longer referenced from the widget.
+
+
 
 
 
@@ -594,6 +642,17 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
           recentErrors: recentErrorsRef.current.length > 0 ? recentErrorsRef.current : undefined,
         };
 
+        // Client-side bug pre-check: if the user's message looks like a bug report,
+        // capture evidence BEFORE sending so the screenshot reflects the broken state.
+        let pendingSnapshot: BeaconSnapshot | null = null;
+        if (looksLikeBug(q)) {
+          try {
+            pendingSnapshot = await captureSnapshot();
+          } catch (e) {
+            console.warn("[beacon] snapshot failed", e);
+          }
+        }
+
         // Use current messages state for conversation history
         const currentMessages = await new Promise<ChatMessage[]>(resolve => {
           setMessages(prev => { resolve(prev); return prev; });
@@ -603,7 +662,13 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
           content: m.text,
         }));
 
-        const res = await askBeacon(enrichedQuery, userId, userName, contextWithPage, conversationHistory);
+        // Jurisdiction: default "NYC". If a project/property context is present, prefer its city-derived jurisdiction.
+        // Today the only city we operate in is NYC (borough presence implies NYC), so this resolves to "NYC".
+        const ctxJurisdiction = activeContext?.borough ? "NYC" : null;
+        const res = await askBeacon(enrichedQuery, userId, userName, contextWithPage, conversationHistory, {
+          companyId: profile?.company_id ?? null,
+          jurisdiction: ctxJurisdiction ?? "NYC",
+        });
         setMessages((prev) => [
           ...prev,
           {
@@ -618,6 +683,24 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
             timestamp: new Date().toISOString(),
           },
         ]);
+
+        // Fire-and-forget: attach auto-captured evidence if Beacon auto-logged a bug.
+        if (res.bug_auto_logged && res.bug_id && (pendingSnapshot || pastedScreenshot)) {
+          supabase.functions.invoke("attach-bug-evidence", {
+            body: {
+              bug_id: res.bug_id,
+              // Prefer the user's pasted screenshot if provided — it's the one they meant to share.
+              screenshot_b64: pastedScreenshot || pendingSnapshot?.screenshot_b64,
+              html_gz_b64: pendingSnapshot?.html_gz_b64,
+              network: pendingSnapshot?.network,
+              ua: pendingSnapshot?.ua,
+              viewport: pendingSnapshot?.viewport,
+              url: pendingSnapshot?.url,
+            },
+          }).catch((e) => console.warn("[beacon] attach-bug-evidence failed", e));
+        }
+        // Clear pasted screenshot after send regardless of bug-log outcome.
+        if (pastedScreenshot) setPastedScreenshot(null);
 
         // Save bot response to widget_messages with session_id
         const emailForSave = user?.email;
@@ -886,6 +969,17 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
               <MessageSquarePlus className="h-3.5 w-3.5" />
             </Button>
           )}
+          {isAdmin && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20"
+              onClick={() => { setOpen(false); navigate("/beacon"); }}
+              title="Beacon admin"
+            >
+              <SettingsIcon className="h-3.5 w-3.5" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
@@ -995,6 +1089,51 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
                               <Bug className="h-3 w-3" /> Bug logged ✓
                             </span>
                           )}
+                          {!msg.isHistory && !msg.isBugReport && (
+                            <div className="mt-1">
+                              {feedback[i] === "done" ? (
+                                <span className="text-[10px] text-muted-foreground">Thanks — logged</span>
+                              ) : feedback[i] === "down" ? (
+                                <div className="flex items-center gap-1.5">
+                                  <Input
+                                    autoFocus
+                                    value={correctionDraft[i] ?? ""}
+                                    onChange={(e) => setCorrectionDraft((s) => ({ ...s, [i]: e.target.value }))}
+                                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submitCorrection(i); } }}
+                                    placeholder="What's the right answer? (optional)"
+                                    className="h-7 text-[11px] flex-1"
+                                    disabled={!!correctionSubmitting[i]}
+                                  />
+                                  <button
+                                    onClick={() => submitCorrection(i)}
+                                    disabled={!!correctionSubmitting[i]}
+                                    className="text-[10px] text-primary hover:underline disabled:opacity-50"
+                                  >
+                                    {(correctionDraft[i] ?? "").trim() ? "Send" : "Skip"}
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => submitFeedback(i, "up")}
+                                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                    title="Helpful"
+                                    aria-label="Mark answer helpful"
+                                  >
+                                    <ThumbsUp className="h-3 w-3" />
+                                  </button>
+                                  <button
+                                    onClick={() => submitFeedback(i, "down")}
+                                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                    title="Not helpful"
+                                    aria-label="Mark answer not helpful"
+                                  >
+                                    <ThumbsDown className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <p className="text-sm">{msg.text}</p>
@@ -1044,11 +1183,54 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
 
           {/* Input */}
           <div className="border-t p-3">
+            {pastedScreenshot && (
+              <div className="mb-2 flex items-center justify-between gap-2 rounded-md border bg-muted/40 px-2 py-1.5 text-xs">
+                <div className="flex items-center gap-2 min-w-0">
+                  <img
+                    src={`data:image/png;base64,${pastedScreenshot}`}
+                    alt="Pasted screenshot preview"
+                    className="h-8 w-8 rounded object-cover border"
+                  />
+                  <span className="truncate text-muted-foreground">
+                    Screenshot attached — will be included if a bug is logged.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPastedScreenshot(null)}
+                  className="text-muted-foreground hover:text-foreground shrink-0"
+                  aria-label="Remove screenshot"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
             <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="flex gap-2">
               <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={loading ? "Type your next message..." : "Ask Beacon..."}
+                onPaste={(e) => {
+                  const items = e.clipboardData?.items;
+                  if (!items) return;
+                  for (let i = 0; i < items.length; i++) {
+                    const it = items[i];
+                    if (it.kind === "file" && it.type.startsWith("image/")) {
+                      const file = it.getAsFile();
+                      if (!file) continue;
+                      e.preventDefault();
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        const result = String(reader.result || "");
+                        // Strip "data:image/...;base64," prefix to match attach-bug-evidence contract.
+                        const b64 = result.includes(",") ? result.split(",")[1] : result;
+                        setPastedScreenshot(b64);
+                      };
+                      reader.readAsDataURL(file);
+                      break;
+                    }
+                  }
+                }}
+                placeholder={loading ? "Type your next message..." : "Ask Beacon... (paste screenshots too)"}
                 className="flex-1 h-9 text-sm"
               />
               <Button

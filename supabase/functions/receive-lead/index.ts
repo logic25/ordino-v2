@@ -156,7 +156,7 @@ serve(async (req) => {
     if (proposalError) {
       console.error("Error creating proposal:", proposalError);
       return new Response(
-        JSON.stringify({ error: "Failed to create lead", details: proposalError.message }),
+        JSON.stringify({ error: "Failed to create lead" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -195,7 +195,7 @@ serve(async (req) => {
   } catch (err) {
     console.error("receive-lead error:", err);
     return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

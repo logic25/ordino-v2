@@ -12,6 +12,7 @@ import {
   Receipt,
   Mail,
   CalendarDays,
+  
   LogOut,
   FileArchive,
   ScrollText,
@@ -25,6 +26,8 @@ import {
   Camera,
   ClipboardList,
   QrCode,
+  Sparkles,
+  Handshake,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -32,7 +35,7 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions, type ResourceKey } from "@/hooks/usePermissions";
-import { useIsAdmin } from "@/hooks/useUserRoles";
+
 import { useUnreadIndicators } from "@/hooks/useUnreadIndicators";
 
 type NavItem = { title: string; icon: any; href: string; resource: ResourceKey };
@@ -50,11 +53,13 @@ const mainNav: NavEntry[] = [
     label: "BD",
     items: [
       { title: "Leads", icon: Users, href: "/bd/leads", resource: "proposals" as ResourceKey },
+      { title: "Referrals", icon: Handshake, href: "/bd/referrals", resource: "proposals" as ResourceKey },
+      
+      
       { title: "Events", icon: CalendarDays, href: "/bd/events", resource: "proposals" as ResourceKey },
       { title: "Sequences", icon: Mail, href: "/bd/sequences", resource: "proposals" as ResourceKey },
-      { title: "Markets", icon: Globe2, href: "/bd/markets", resource: "proposals" as ResourceKey },
-      { title: "Capture", icon: Camera, href: "/bd/capture", resource: "proposals" as ResourceKey },
-      { title: "My QR Card", icon: QrCode, href: "/bd/card", resource: "proposals" as ResourceKey },
+      { title: "Markets", icon: Globe2, href: "/markets", resource: "proposals" as ResourceKey },
+      { title: "Event Card", icon: QrCode, href: "/bd/event-card", resource: "proposals" as ResourceKey },
     ],
   },
   { title: "Billing", icon: Receipt, href: "/invoices", resource: "invoices" as ResourceKey },
@@ -62,6 +67,7 @@ const mainNav: NavEntry[] = [
   { title: "Calendar", icon: CalendarDays, href: "/calendar", resource: "calendar" as ResourceKey },
   { title: "RFPs", icon: ScrollText, href: "/rfps", resource: "rfps" as ResourceKey },
   { title: "Chat", icon: MessageSquare, href: "/chat", resource: "dashboard" as ResourceKey },
+  { title: "Content", icon: Sparkles, href: "/content", resource: "content" as ResourceKey },
   { title: "Reports", icon: BarChart3, href: "/reports", resource: "reports" as ResourceKey },
 ];
 
@@ -82,22 +88,25 @@ const routePrefetchMap: Record<string, () => Promise<unknown>> = {
   "/proposals": () => import("@/pages/Proposals"),
   "/bd/leads": () => import("@/pages/bd/BdLeads"),
   "/bd/leads/:id": () => import("@/pages/bd/BdLeadDetail"),
+  "/bd/referrals": () => import("@/pages/bd/BdReferrals"),
   "/bd/events": () => import("@/pages/bd/BdEvents"),
   "/bd/sequences": () => import("@/pages/bd/BdSequences"),
-  "/bd/markets": () => import("@/pages/bd/BdMarkets"),
-  "/bd/capture": () => import("@/pages/bd/BdCapture"),
+  "/bd/follow-ups": () => import("@/pages/bd/BdFollowUps"),
+  "/markets": () => import("@/pages/MarketsHub"),
+  "/bd/event-card": () => import("@/pages/bd/BdEventCard"),
   "/bd/events/:id": () => import("@/pages/bd/BdEventDetail"),
-  "/bd/card": () => import("@/pages/bd/BdMyCard"),
   "/invoices": () => import("@/pages/Invoices"),
   "/emails": () => import("@/pages/Emails"),
   "/calendar": () => import("@/pages/Calendar"),
   "/rfps": () => import("@/pages/Rfps"),
   "/chat": () => import("@/pages/Chat"),
   "/reports": () => import("@/pages/Reports"),
+  "/content": () => import("@/pages/Content"),
   "/clients": () => import("@/pages/Clients"),
   "/documents": () => import("@/pages/Documents"),
   "/settings": () => import("@/pages/Settings"),
   "/help": () => import("@/pages/HelpDesk"),
+  "/beacon": () => import("@/pages/BeaconHub"),
 };
 
 const prefetchedRoutes = new Set<string>();
@@ -128,7 +137,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { toast } = useToast();
   const { canAccess, loading: permLoading } = usePermissions();
   const { user, profile, signOut } = useAuth();
-  const isAdmin = useIsAdmin();
+  
   const { chatHasUnread, emailHasUnread, emailUnreadCount, billingPendingCount } = useUnreadIndicators();
 
   const unreadDotMap: Record<string, boolean> = {
@@ -153,8 +162,8 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
     [canAccess]
   );
 
-  const filteredSecondaryNav = useMemo(() =>
-    secondaryNav.filter((item) => canAccess(item.resource)),
+  const filteredSecondaryNav = useMemo(
+    () => secondaryNav.filter((item) => canAccess(item.resource)),
     [canAccess]
   );
 

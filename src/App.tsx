@@ -20,6 +20,7 @@ function lazyWithRetry<T extends React.ComponentType<any>>(
 ) {
   return lazy(async () => {
     const retryKey = `lazy-retry:${cacheKey}`;
+    const RETRY_WINDOW_MS = 60_000; // allow re-attempts after 1 min
 
     try {
       const module = await importer();
@@ -27,12 +28,30 @@ function lazyWithRetry<T extends React.ComponentType<any>>(
       return module;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      const isChunkLoadError = /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i.test(message);
-      const hasRetried = sessionStorage.getItem(retryKey) === "1";
+      const isChunkLoadError = /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Loading chunk|ChunkLoadError/i.test(message);
 
-      if (isChunkLoadError && !hasRetried) {
-        sessionStorage.setItem(retryKey, "1");
-        window.location.reload();
+      const lastRetryRaw = sessionStorage.getItem(retryKey);
+      const lastRetry = lastRetryRaw ? parseInt(lastRetryRaw, 10) : 0;
+      const recentlyRetried = lastRetry && Date.now() - lastRetry < RETRY_WINDOW_MS;
+
+      if (isChunkLoadError && !recentlyRetried) {
+        sessionStorage.setItem(retryKey, Date.now().toString());
+        try {
+          // Bust HTTP cache + any service worker cache, then hard-reload index.html
+          if ("serviceWorker" in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map((r) => r.unregister()));
+          }
+          if ("caches" in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((k) => caches.delete(k)));
+          }
+        } catch {
+          // ignore — fall through to reload
+        }
+        const url = new URL(window.location.href);
+        url.searchParams.set("_v", Date.now().toString());
+        window.location.replace(url.toString());
         return new Promise<never>(() => {});
       }
 
@@ -70,6 +89,7 @@ const RfpDiscovery = lazyWithRetry(() => import("./pages/RfpDiscovery"), "rfp-di
 const ClientProposal = lazyWithRetry(() => import("./pages/ClientProposal"), "client-proposal");
 const ClientChangeOrder = lazyWithRetry(() => import("./pages/ClientChangeOrder"), "client-change-order");
 const Reports = lazyWithRetry(() => import("./pages/Reports"), "reports");
+const Content = lazyWithRetry(() => import("./pages/Content"), "content");
 const HelpDesk = lazyWithRetry(() => import("./pages/HelpDesk"), "help-desk");
 const Chat = lazyWithRetry(() => import("./pages/Chat"), "chat");
 const Privacy = lazyWithRetry(() => import("./pages/Privacy"), "privacy");
@@ -79,10 +99,15 @@ const BdLeads = lazyWithRetry(() => import("./pages/bd/BdLeads"), "bd-leads");
 const BdLeadDetail = lazyWithRetry(() => import("./pages/bd/BdLeadDetail"), "bd-lead-detail");
 const BdEvents = lazyWithRetry(() => import("./pages/bd/BdEvents"), "bd-events");
 const BdSequences = lazyWithRetry(() => import("./pages/bd/BdSequences"), "bd-sequences");
-const BdMarkets = lazyWithRetry(() => import("./pages/bd/BdMarkets"), "bd-markets");
-const BdCapture = lazyWithRetry(() => import("./pages/bd/BdCapture"), "bd-capture");
+const MarketsHub = lazyWithRetry(() => import("./pages/MarketsHub"), "markets-hub");
+const BdFollowUps = lazyWithRetry(() => import("./pages/bd/BdFollowUps"), "bd-follow-ups");
+const PlaybookEditor = lazyWithRetry(() => import("./pages/PlaybookEditor"), "playbook-editor");
 const BdEventDetail = lazyWithRetry(() => import("./pages/bd/BdEventDetail"), "bd-event-detail");
-const BdMyCard = lazyWithRetry(() => import("./pages/bd/BdMyCard"), "bd-my-card");
+const BdEventCard = lazyWithRetry(() => import("./pages/bd/BdEventCard"), "bd-event-card");
+const PublicBdCard = lazyWithRetry(() => import("./pages/PublicBdCard"), "public-bd-card");
+const BdScorecard = lazyWithRetry(() => import("./pages/bd/BdScorecard"), "bd-scorecard");
+const BdReferrals = lazyWithRetry(() => import("./pages/bd/BdReferrals"), "bd-referrals");
+const BeaconHub = lazyWithRetry(() => import("./pages/BeaconHub"), "beacon-hub");
 
 function PageSpinner() {
   return (
@@ -137,13 +162,20 @@ function AppRoutes() {
       <Route path="/proposals" element={<ProtectedRoute><Proposals /></ProtectedRoute>} />
       <Route path="/bd/leads" element={<ProtectedRoute><BdLeads /></ProtectedRoute>} />
       <Route path="/bd/leads/:id" element={<ProtectedRoute><BdLeadDetail /></ProtectedRoute>} />
+      <Route path="/bd/referrals" element={<ProtectedRoute><BdReferrals /></ProtectedRoute>} />
       <Route path="/bd/events" element={<ProtectedRoute><BdEvents /></ProtectedRoute>} />
       <Route path="/bd/events/:id" element={<ProtectedRoute><BdEventDetail /></ProtectedRoute>} />
       <Route path="/bd/sequences" element={<ProtectedRoute><BdSequences /></ProtectedRoute>} />
-      <Route path="/bd/markets" element={<ProtectedRoute><BdMarkets /></ProtectedRoute>} />
-      <Route path="/bd/capture" element={<ProtectedRoute><BdCapture /></ProtectedRoute>} />
+      <Route path="/bd/market-signals" element={<ProtectedRoute><MarketsHub defaultTab="signals" /></ProtectedRoute>} />
+      <Route path="/markets" element={<ProtectedRoute><MarketsHub defaultTab="markets" /></ProtectedRoute>} />
+      <Route path="/bd/follow-ups" element={<Navigate to="/bd/leads?view=followups" replace />} />
+      <Route path="/markets/:marketId/playbooks/:id" element={<ProtectedRoute><PlaybookEditor /></ProtectedRoute>} />
+      <Route path="/bd/event-card" element={<ProtectedRoute><BdEventCard /></ProtectedRoute>} />
+      <Route path="/bd/scorecard" element={<ProtectedRoute><BdScorecard /></ProtectedRoute>} />
+      <Route path="/bd/capture" element={<Navigate to="/bd/event-card?tab=scan" replace />} />
+      <Route path="/bd/my-card" element={<Navigate to="/bd/event-card?tab=mycard" replace />} />
+      <Route path="/bd/card" element={<Navigate to="/bd/event-card?tab=mycard" replace />} />
       <Route path="/bd/prep" element={<Navigate to="/bd/events" replace />} />
-      <Route path="/bd/card" element={<ProtectedRoute><BdMyCard /></ProtectedRoute>} />
       <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
       <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
       <Route path="/clients/:id" element={<ProtectedRoute><ClientDetail /></ProtectedRoute>} />
@@ -155,9 +187,11 @@ function AppRoutes() {
       <Route path="/rfps/library" element={<ProtectedRoute><RfpLibrary /></ProtectedRoute>} />
       <Route path="/rfps/discover" element={<ProtectedRoute><RfpDiscovery /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+      <Route path="/content" element={<ProtectedRoute><Content /></ProtectedRoute>} />
       <Route path="/help" element={<ProtectedRoute><HelpDesk /></ProtectedRoute>} />
       <Route path="/welcome" element={<ProtectedRoute><Welcome /></ProtectedRoute>} />
       <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
+      <Route path="/beacon" element={<ProtectedRoute><BeaconHub /></ProtectedRoute>} />
 
       {/* Public RFI form - no auth required */}
       <Route path="/rfi" element={<RfiForm />} />
@@ -167,6 +201,9 @@ function AppRoutes() {
 
       {/* Public change order page - client views & signs */}
       <Route path="/change-order/:token" element={<ClientChangeOrder />} />
+
+      {/* Public BD card - shareable visitor link */}
+      <Route path="/c/:slug" element={<PublicBdCard />} />
 
       {/* Legal pages - public, no auth required */}
       <Route path="/privacy" element={<Privacy />} />

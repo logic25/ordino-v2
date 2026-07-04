@@ -7,6 +7,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useRef } from "react";
 import { parseTermsSections } from "./proposalUtils";
+import { useProposalEmails } from "@/hooks/useEmails";
+import { RecordEmailsSection } from "@/components/emails/RecordEmailsSection";
 
 interface ProposalPreviewModalProps {
   proposal: ProposalWithRelations | null;
@@ -522,6 +524,9 @@ table { page-break-inside: avoid; }
                 </div>
               </div>
 
+              {/* ═══ Email thread ═══ */}
+              <ProposalEmailThread proposalId={proposal.id} />
+
               {/* ═══ Footer ═══ */}
               <div className="proposal-content-footer" style={{ textAlign: "center", fontSize: "8.5pt", color: slate, marginTop: 36, paddingTop: 12, borderTop: "1px solid #e2e8f0" }}>
                 {company?.address && <div>{company.address}</div>}
@@ -537,5 +542,19 @@ table { page-break-inside: avoid; }
         </div>
       </DialogContent>
     </Dialog>);
+}
+
+/** Email thread section for the proposal detail view. */
+function ProposalEmailThread({ proposalId }: { proposalId: string }) {
+  const { data: emails = [], isLoading } = useProposalEmails(proposalId);
+  if (!isLoading && emails.length === 0) return null; // Hide entirely until first send.
+  return (
+    <div className="mt-8 pt-6 border-t">
+      <RecordEmailsSection
+        taggedEmails={emails}
+        isLoading={isLoading}
+        recordLabel="proposal"
+      />
+    </div>);
 
 }

@@ -28,7 +28,7 @@ export function useProjectServices(projectId: string | undefined) {
           .order("created_at", { ascending: true }),
         supabase
           .from("billing_requests")
-          .select("services, invoices(id, sent_at, paid_at)")
+          .select("services, invoices!invoices_billing_request_id_fkey(id, sent_at, paid_at)")
           .eq("project_id", projectId)
           .in("status", ["pending", "invoiced"]),
         (supabase.from("rfi_requests") as any)

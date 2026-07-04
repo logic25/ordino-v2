@@ -15,6 +15,7 @@ interface SendPayload {
   attachments?: { filename: string; content: string; mime_type: string }[];
   project_id?: string;
   tag_category?: string;
+  append_signature?: boolean;
 }
 
 export function useUndoableSend() {

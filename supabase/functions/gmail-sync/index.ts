@@ -202,14 +202,13 @@ Deno.serve(async (req) => {
     
     // Parse optional maxPages from request body
     let maxPages = isFirstSync ? 10 : 3; // First sync: 10 pages (~500 msgs), subsequent: 3 pages (~150 msgs)
+    let reconcileOnly = false;
     try {
       const body = await req.json();
       if (body?.maxPages) maxPages = Math.min(body.maxPages, 20);
+      reconcileOnly = body?.reconcileOnly === true;
     } catch { /* no body is fine */ }
     
-    // For first sync, allow more consecutive existing pages before stopping
-    const maxFullyExistingPages = isFirstSync ? 5 : 2;
-
     // Wall-clock budget — always return before the edge runtime kills us
     const startedAt = Date.now();
     const TIME_BUDGET_MS = 60_000;
@@ -256,291 +255,456 @@ Deno.serve(async (req) => {
 
 
     let syncedCount = 0;
+    let updatedCount = 0;
     let totalChecked = 0;
-    let pageToken: string | undefined = undefined;
     let pagesProcessed = 0;
-    let fullyExistingPages = 0;
     let partial = false;
-    // Track read-state sync-back + new unread inbox emails
+    let historySynced = false;
+    let latestHistoryId: string | null = connection.history_id || null;
     const newUnreadInbox: { gmail_message_id: string; subject: string; from_name: string }[] = [];
-    const readGmailIds: string[] = [];
-    const unreadGmailIds: string[] = [];
 
-    while (pagesProcessed < maxPages) {
-      if (Date.now() - startedAt > TIME_BUDGET_MS) {
-        partial = true;
-        break;
+    const chunk = <T,>(arr: T[], size: number) =>
+      Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size));
+
+    const gmailJson = async (url: string) => {
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+      const text = await res.text();
+      let data: any = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = {};
       }
+      if (!res.ok) {
+        const err = new Error(`gmail_${res.status}`) as Error & { status?: number };
+        err.status = res.status;
+        console.error("[gmail-sync] Gmail API request failed", res.status, text.substring(0, 500));
+        throw err;
+      }
+      return data;
+    };
 
-      const url = new URL("https://www.googleapis.com/gmail/v1/users/me/messages");
-      url.searchParams.set("maxResults", "50");
-      if (pageToken) url.searchParams.set("pageToken", pageToken);
-
-      const listRes = await fetch(url.toString(), {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      const listData = await listRes.json();
-
-      if (!listData.messages || listData.messages.length === 0) break;
-
-      let newOnThisPage = 0;
-      for (const msg of listData.messages) {
+    const listGmailIds = async (q: string, maxListPages = 20): Promise<Set<string>> => {
+      const ids = new Set<string>();
+      let listPageToken: string | undefined = undefined;
+      let listPages = 0;
+      while (listPages < maxListPages) {
         if (Date.now() - startedAt > TIME_BUDGET_MS) {
           partial = true;
           break;
         }
-        totalChecked++;
+        const url = new URL("https://www.googleapis.com/gmail/v1/users/me/messages");
+        url.searchParams.set("maxResults", "500");
+        url.searchParams.set("q", q);
+        if (listPageToken) url.searchParams.set("pageToken", listPageToken);
+        const data = await gmailJson(url.toString());
+        for (const msg of data.messages || []) ids.add(msg.id);
+        if (!data.nextPageToken) break;
+        listPageToken = data.nextPageToken;
+        listPages++;
+      }
+      return ids;
+    };
 
-        const msgRes = await fetch(
-          `https://www.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=full`,
-          { headers: { Authorization: `Bearer ${accessToken}` } }
-        );
-        const msgData = await msgRes.json();
+    const countOrdinoInboxUnread = async () => {
+      const { count, error } = await supabaseAdmin
+        .from("emails")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", profile.id)
+        .eq("is_read", false)
+        .is("archived_at", null)
+        .filter("labels", "cs", '["INBOX"]')
+        .or(`snoozed_until.is.null,snoozed_until.lte.${new Date().toISOString()}`);
+      if (error) {
+        console.error("[gmail-sync] countOrdinoInboxUnread failed", error);
+        return 0;
+      }
+      return count ?? 0;
+    };
 
-        if (!msgData.payload) {
-          console.error("No payload for message:", msg.id, JSON.stringify(msgData).substring(0, 500));
-          continue;
-        }
+    const syncGmailMessage = async (messageId: string) => {
+      if (Date.now() - startedAt > TIME_BUDGET_MS) {
+        partial = true;
+        return { isNew: false, isUnreadInbox: false };
+      }
 
-        const headers = msgData.payload?.headers || [];
-        if (headers.length === 0) {
-          console.error("No headers for message:", msg.id);
-        }
-        const fromRaw = getHeader(headers, "From");
-        const fromMatch = fromRaw.match(/^(.*?)\s*<(.+?)>$/);
-        const from_name = fromMatch ? fromMatch[1].replace(/"/g, "").trim() : fromRaw;
-        const from_email = fromMatch ? fromMatch[2] : fromRaw;
+      totalChecked++;
+      const msgData = await gmailJson(
+        `https://www.googleapis.com/gmail/v1/users/me/messages/${messageId}?format=full`
+      );
+      if (msgData.historyId) latestHistoryId = msgData.historyId;
 
-        const toRaw = getHeader(headers, "To");
-        const to_emails = toRaw
-          .split(",")
-          .map((e: string) => e.trim())
-          .filter(Boolean);
+      if (!msgData.payload) {
+        console.error("No payload for message:", messageId, JSON.stringify(msgData).substring(0, 500));
+        return { isNew: false, isUnreadInbox: false };
+      }
 
-        const { body_text, body_html, attachments } = extractEmailParts(msgData.payload);
+      const { data: existingEmail } = await supabaseAdmin
+        .from("emails")
+        .select("id")
+        .eq("company_id", profile.company_id)
+        .eq("gmail_message_id", messageId)
+        .maybeSingle();
+      const wasExisting = !!existingEmail;
 
-        const subject = getHeader(headers, "Subject") || "(no subject)";
+      const headers = msgData.payload?.headers || [];
+      if (headers.length === 0) console.error("No headers for message:", messageId);
+      const fromRaw = getHeader(headers, "From");
+      const fromMatch = fromRaw.match(/^(.*?)\s*<(.+?)>$/);
+      const from_name = fromMatch ? fromMatch[1].replace(/"/g, "").trim() : fromRaw;
+      const from_email = fromMatch ? fromMatch[2] : fromRaw;
 
-        // ── Bug reply detection ──
-        const bugTagMatch = subject.match(/\[BUG-([a-f0-9]{8})\]/i);
-        if (bugTagMatch) {
-          const bugIdPrefix = bugTagMatch[1].toLowerCase();
-          const { data: matchingBug } = await supabaseAdmin
-            .from("feature_requests")
-            .select("id, company_id, user_id")
-            .eq("company_id", profile.company_id)
-            .eq("category", "bug_report")
-            .like("id", `${bugIdPrefix}%`)
-            .maybeSingle();
+      const toRaw = getHeader(headers, "To");
+      const to_emails = toRaw
+        .split(",")
+        .map((e: string) => e.trim())
+        .filter(Boolean);
 
-          if (matchingBug) {
-            const replyBody = stripQuotedContent(body_text || body_html || "");
-            if (replyBody.trim()) {
-              const senderProfileId =
-                (from_email && senderEmailToProfileId.get(from_email.toLowerCase())) || profile.id;
+      const { body_text, body_html, attachments } = extractEmailParts(msgData.payload);
+      const subject = getHeader(headers, "Subject") || "(no subject)";
 
-              await supabaseAdmin.from("bug_comments").insert({
-                bug_id: matchingBug.id,
-                company_id: matchingBug.company_id,
-                user_id: senderProfileId,
-                message: replyBody.trim(),
-              });
+      // Route bug replies once, but still import the email so unread reconciliation stays exact.
+      const bugTagMatch = subject.match(/\[BUG-([a-f0-9]{8})\]/i);
+      if (!wasExisting && bugTagMatch) {
+        const bugIdPrefix = bugTagMatch[1].toLowerCase();
+        const { data: matchingBug } = await supabaseAdmin
+          .from("feature_requests")
+          .select("id, company_id, user_id")
+          .eq("company_id", profile.company_id)
+          .eq("category", "bug_report")
+          .like("id", `${bugIdPrefix}%`)
+          .maybeSingle();
 
-              await supabaseAdmin.from("bug_activity_logs").insert({
-                bug_id: matchingBug.id,
-                company_id: matchingBug.company_id,
-                user_id: senderProfileId,
-                action_type: "email_reply",
-                note: replyBody.trim().substring(0, 200),
-              });
+        if (matchingBug) {
+          const replyBody = stripQuotedContent(body_text || body_html || "");
+          if (replyBody.trim()) {
+            const senderProfileId =
+              (from_email && senderEmailToProfileId.get(from_email.toLowerCase())) || profile.id;
 
-              console.log(`Routed email reply to bug ${matchingBug.id} from ${from_email}`);
-            }
-            newOnThisPage++;
-            syncedCount++;
-            continue;
+            await supabaseAdmin.from("bug_comments").insert({
+              bug_id: matchingBug.id,
+              company_id: matchingBug.company_id,
+              user_id: senderProfileId,
+              message: replyBody.trim(),
+            });
+
+            await supabaseAdmin.from("bug_activity_logs").insert({
+              bug_id: matchingBug.id,
+              company_id: matchingBug.company_id,
+              user_id: senderProfileId,
+              action_type: "email_reply",
+              note: replyBody.trim().substring(0, 200),
+            });
+
+            console.log(`Routed email reply to bug ${matchingBug.id} from ${from_email}`);
           }
         }
+      }
 
-        const dateStr = getHeader(headers, "Date");
-        let emailDate: string | null = null;
+      const dateStr = getHeader(headers, "Date");
+      let emailDate: string | null = null;
+      try {
+        const parsed = new Date(dateStr);
+        emailDate = !isNaN(parsed.getTime())
+          ? parsed.toISOString()
+          : new Date(parseInt(msgData.internalDate)).toISOString();
+      } catch {
         try {
-          const parsed = new Date(dateStr);
-          if (!isNaN(parsed.getTime())) {
-            emailDate = parsed.toISOString();
-          } else {
-            emailDate = new Date(parseInt(msgData.internalDate)).toISOString();
-          }
+          emailDate = new Date(parseInt(msgData.internalDate)).toISOString();
         } catch {
-          try {
-            emailDate = new Date(parseInt(msgData.internalDate)).toISOString();
-          } catch {
-            emailDate = new Date().toISOString();
+          emailDate = new Date().toISOString();
+        }
+      }
+
+      const labelIds: string[] = msgData.labelIds || [];
+      const isUnread = labelIds.includes("UNREAD");
+      const isInbox = labelIds.includes("INBOX");
+      const upsertRow = {
+        company_id: profile.company_id,
+        user_id: profile.id,
+        gmail_message_id: messageId,
+        thread_id: msgData.threadId,
+        subject,
+        from_email,
+        from_name,
+        to_emails,
+        date: emailDate,
+        body_text,
+        body_html,
+        snippet: msgData.snippet || "",
+        has_attachments: attachments.length > 0,
+        labels: labelIds,
+        is_read: !isUnread,
+        synced_at: new Date().toISOString(),
+        archived_at: isInbox ? null : undefined,
+      };
+
+      const doUpsert = async () =>
+        await supabaseAdmin
+          .from("emails")
+          .upsert(upsertRow, { onConflict: "gmail_message_id,company_id" })
+          .select("id")
+          .single();
+
+      let { data: saved, error: saveError } = await doUpsert();
+      if (saveError && (saveError as any).code === "57014") {
+        await new Promise((r) => setTimeout(r, 500));
+        ({ data: saved, error: saveError } = await doUpsert());
+      }
+      if (saveError || !saved) {
+        console.error("Email upsert error:", saveError);
+        return { isNew: false, isUnreadInbox: isUnread && isInbox };
+      }
+
+      try {
+        if (leadEmailToId.size > 0) {
+          const fromLower = (from_email || "").trim().toLowerCase();
+          const toLower = (to_emails || []).map((e: string) => e.trim().toLowerCase());
+          const matchedLeadIds = new Set<string>();
+          const directionByLead = new Map<string, "inbound" | "outbound">();
+
+          const inboundLead = leadEmailToId.get(fromLower);
+          if (inboundLead) {
+            matchedLeadIds.add(inboundLead);
+            directionByLead.set(inboundLead, "inbound");
           }
-        }
-
-        // Upsert (replaces existence SELECT + INSERT). With ignoreDuplicates, a duplicate returns null.
-        const upsertRow = {
-          company_id: profile.company_id,
-          user_id: profile.id,
-          gmail_message_id: msg.id,
-          thread_id: msg.threadId,
-          subject,
-          from_email,
-          from_name,
-          to_emails,
-          date: emailDate,
-          body_text,
-          body_html,
-          snippet: msgData.snippet || "",
-          has_attachments: attachments.length > 0,
-          labels: msgData.labelIds || [],
-          is_read: !(msgData.labelIds || []).includes("UNREAD"),
-        };
-
-        const doUpsert = async () =>
-          await supabaseAdmin
-            .from("emails")
-            .upsert(upsertRow, { onConflict: "gmail_message_id,company_id", ignoreDuplicates: true })
-            .select("id")
-            .maybeSingle();
-
-        let { data: inserted, error: insertError } = await doUpsert();
-        if (insertError && (insertError as any).code === "57014") {
-          await new Promise((r) => setTimeout(r, 500));
-          ({ data: inserted, error: insertError } = await doUpsert());
-        }
-
-        if (insertError) {
-          console.error("Insert error:", insertError);
-          continue;
-        }
-
-        const labelIds: string[] = msgData.labelIds || [];
-        const isUnread = labelIds.includes("UNREAD");
-        const isInbox = labelIds.includes("INBOX");
-        if (isUnread) unreadGmailIds.push(msg.id);
-        else readGmailIds.push(msg.id);
-
-        // ── BD lead auto-association (exact, case-insensitive contact_email match) ──
-        // Runs BEFORE the dedupe-skip so existing emails also backfill on re-sync.
-        // The bd_activities unique index (lead_id, email_id) WHERE type='EMAIL' dedupes.
-        try {
-          if (leadEmailToId.size > 0) {
-            const fromLower = (from_email || "").trim().toLowerCase();
-            const toLower = (to_emails || []).map((e: string) => e.trim().toLowerCase());
-            const matchedLeadIds = new Set<string>();
-            const directionByLead = new Map<string, "inbound" | "outbound">();
-
-            const inboundLead = leadEmailToId.get(fromLower);
-            if (inboundLead) {
-              matchedLeadIds.add(inboundLead);
-              directionByLead.set(inboundLead, "inbound");
-            }
-            for (const t of toLower) {
-              const lid = leadEmailToId.get(t);
-              if (lid && !directionByLead.has(lid)) {
-                if (t === connectedMailbox) continue;
-                matchedLeadIds.add(lid);
-                directionByLead.set(lid, "outbound");
-              }
-            }
-
-            for (const leadId of matchedLeadIds) {
-              const direction = directionByLead.get(leadId)!;
-              const snippetText = (msgData.snippet || body_text || "").substring(0, 280);
-              const content = `${subject}\n\n${snippetText}`;
-              const { error: actErr } = await supabaseAdmin.from("bd_activities").insert({
-                company_id: profile.company_id,
-                lead_id: leadId,
-                type: "EMAIL",
-                content,
-                metadata: {
-                  email_id: msg.id,
-                  thread_id: msgData.threadId,
-                  direction,
-                  from_email,
-                  from_name,
-                  to_emails,
-                  subject,
-                },
-                created_by: profile.id,
-              } as any);
-              if (actErr && (actErr as any).code !== "23505") {
-                console.error("bd_activities insert error:", actErr);
-              }
+          for (const t of toLower) {
+            const lid = leadEmailToId.get(t);
+            if (lid && !directionByLead.has(lid)) {
+              if (t === connectedMailbox) continue;
+              matchedLeadIds.add(lid);
+              directionByLead.set(lid, "outbound");
             }
           }
-        } catch (e) {
-          console.error("Lead auto-association failed:", e);
+
+          for (const leadId of matchedLeadIds) {
+            const direction = directionByLead.get(leadId)!;
+            const snippetText = (msgData.snippet || body_text || "").substring(0, 280);
+            const content = `${subject}\n\n${snippetText}`;
+            const { error: actErr } = await supabaseAdmin.from("bd_activities").insert({
+              company_id: profile.company_id,
+              lead_id: leadId,
+              type: "EMAIL",
+              content,
+              metadata: {
+                email_id: messageId,
+                thread_id: msgData.threadId,
+                direction,
+                from_email,
+                from_name,
+                to_emails,
+                subject,
+              },
+              created_by: profile.id,
+            } as any);
+            if (actErr && (actErr as any).code !== "23505") {
+              console.error("bd_activities insert error:", actErr);
+            }
+          }
         }
+      } catch (e) {
+        console.error("Lead auto-association failed:", e);
+      }
 
-        // inserted === null => row already existed (skipped by ignoreDuplicates)
-        if (!inserted) continue;
-
-
-
-
+      if (!wasExisting) {
+        syncedCount++;
         if (isUnread && isInbox) {
-          newUnreadInbox.push({ gmail_message_id: msg.id, subject, from_name: from_name || from_email });
+          newUnreadInbox.push({ gmail_message_id: messageId, subject, from_name: from_name || from_email });
         }
-
         if (attachments.length > 0) {
           const attachmentRows = attachments.map((a: any) => ({
-            email_id: inserted!.id,
+            email_id: saved.id,
             company_id: profile.company_id,
             filename: a.filename,
             mime_type: a.mime_type,
             size_bytes: a.size_bytes,
             gmail_attachment_id: a.gmail_attachment_id,
           }));
-
           await supabaseAdmin.from("email_attachments").insert(attachmentRows);
         }
-
-        newOnThisPage++;
-        syncedCount++;
-      }
-
-      if (partial) break;
-
-      if (newOnThisPage === 0) {
-        fullyExistingPages++;
       } else {
-        fullyExistingPages = 0;
+        updatedCount++;
       }
 
-      if (fullyExistingPages >= maxFullyExistingPages) break;
+      return { isNew: !wasExisting, isUnreadInbox: isUnread && isInbox };
+    };
 
-      pageToken = listData.nextPageToken;
-      if (!pageToken) break;
-      pagesProcessed++;
-    }
+    const ordinoUnreadBefore = await countOrdinoInboxUnread();
+    let gmailUnreadInboxSet = new Set<string>();
+    let importedUnread = 0;
+    let localUnreadInbox: any[] = [];
+    let clearedLocalUnread = 0;
+    let appliedGmailUnread = 0;
+    let markedRead = 0;
+    let markedUnread = 0;
+    let ordinoUnreadAfter = ordinoUnreadBefore;
 
-    // Sync read-state back from Gmail for existing rows (chunked to avoid huge IN lists)
-    try {
-      const chunk = <T,>(arr: T[], size: number) =>
-        Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size));
-      for (const ids of chunk(readGmailIds, 200)) {
+    const runUnreadReconcile = async () => {
+      // REQUIRED: run this every sync, independent of history/backfill walks.
+      // Gmail's exact `is:unread in:inbox` ID set is authoritative.
+      gmailUnreadInboxSet = await listGmailIds("is:unread in:inbox", 20);
+      const existingUnreadRowsById = new Map<string, any>();
+
+      for (const ids of chunk(Array.from(gmailUnreadInboxSet), 200)) {
         if (ids.length === 0) continue;
+        const { data: existingRows, error: existingError } = await supabaseAdmin
+          .from("emails")
+          .select("id, gmail_message_id, labels")
+          .eq("user_id", profile.id)
+          .in("gmail_message_id", ids);
+        if (existingError) {
+          console.error("[gmail-sync] failed to load existing unread ids", existingError);
+          continue;
+        }
+        for (const row of existingRows || []) existingUnreadRowsById.set(row.gmail_message_id, row);
+      }
+
+      for (const messageId of gmailUnreadInboxSet) {
+        if (existingUnreadRowsById.has(messageId)) continue;
+        try {
+          const result = await syncGmailMessage(messageId);
+          if (result.isNew) importedUnread++;
+        } catch (e) {
+          console.warn("[gmail-sync] skipped unread reconcile message", messageId, e);
+        }
+        if (partial) break;
+      }
+
+      // If a Gmail-unread row already exists locally but has stale labels, make
+      // it count in the same INBOX scope the UI uses.
+      for (const row of existingUnreadRowsById.values()) {
+        const labels = Array.isArray(row.labels) ? row.labels as string[] : [];
+        if (labels.includes("INBOX") && labels.includes("UNREAD")) continue;
         await supabaseAdmin
+          .from("emails")
+          .update({ labels: Array.from(new Set([...labels, "INBOX", "UNREAD"])) })
+          .eq("id", row.id);
+      }
+
+      const { data: localUnreadInboxRows } = await supabaseAdmin
+        .from("emails")
+        .select("id, gmail_message_id")
+        .eq("user_id", profile.id)
+        .eq("is_read", false)
+        .filter("labels", "cs", '["INBOX"]')
+        .is("archived_at", null)
+        .not("gmail_message_id", "is", null);
+
+      localUnreadInbox = localUnreadInboxRows || [];
+      markedRead = localUnreadInbox.filter(
+        (row: any) => row.gmail_message_id && !gmailUnreadInboxSet.has(row.gmail_message_id),
+      ).length;
+
+      // Clear local unread inbox bits, then re-apply unread only to Gmail's set.
+      for (const ids of chunk(localUnreadInbox.map((row: any) => row.id), 200)) {
+        if (ids.length === 0) continue;
+        const { error: clearError } = await supabaseAdmin
           .from("emails")
           .update({ is_read: true })
-          .eq("user_id", profile.id)
-          .in("gmail_message_id", ids)
-          .eq("is_read", false);
+          .in("id", ids);
+        if (clearError) console.error("[gmail-sync] failed to clear local unread state", clearError);
+        else clearedLocalUnread += ids.length;
       }
-      for (const ids of chunk(unreadGmailIds, 200)) {
+
+      for (const ids of chunk(Array.from(gmailUnreadInboxSet), 200)) {
         if (ids.length === 0) continue;
-        await supabaseAdmin
+        const { error: applyError } = await supabaseAdmin
           .from("emails")
-          .update({ is_read: false })
+          .update({ is_read: false, archived_at: null })
           .eq("user_id", profile.id)
-          .in("gmail_message_id", ids)
-          .eq("is_read", true);
+          .in("gmail_message_id", ids);
+        if (applyError) console.error("[gmail-sync] failed to apply Gmail unread state", applyError);
+        else appliedGmailUnread += ids.length;
       }
+
+      markedUnread = Math.max(0, appliedGmailUnread - (gmailUnreadInboxSet.size - importedUnread));
+      ordinoUnreadAfter = await countOrdinoInboxUnread();
+      console.log(
+        `[gmail-sync] unread reconcile gmail=${gmailUnreadInboxSet.size} ordino_before=${ordinoUnreadBefore} ordino_after=${ordinoUnreadAfter} imported=${importedUnread} marked_read=${markedRead} marked_unread=${markedUnread}`
+      );
+    };
+
+    await runUnreadReconcile();
+
+    // True incremental sync: process only messages Gmail says changed since the saved history id.
+    if (!reconcileOnly && connection.history_id) {
+      try {
+        const changedMessageIds = new Set<string>();
+        let historyPageToken: string | undefined = undefined;
+        let historyPages = 0;
+        while (historyPages < 20) {
+          if (Date.now() - startedAt > TIME_BUDGET_MS) {
+            partial = true;
+            break;
+          }
+          const historyUrl = new URL("https://www.googleapis.com/gmail/v1/users/me/history");
+          historyUrl.searchParams.set("startHistoryId", connection.history_id);
+          historyUrl.searchParams.set("maxResults", "500");
+          historyUrl.searchParams.append("historyTypes", "messageAdded");
+          historyUrl.searchParams.append("historyTypes", "labelAdded");
+          historyUrl.searchParams.append("historyTypes", "labelRemoved");
+          if (historyPageToken) historyUrl.searchParams.set("pageToken", historyPageToken);
+          const historyData = await gmailJson(historyUrl.toString());
+          if (historyData.historyId) latestHistoryId = historyData.historyId;
+          for (const item of historyData.history || []) {
+            for (const msg of item.messagesAdded || []) if (msg.message?.id) changedMessageIds.add(msg.message.id);
+            for (const msg of item.labelsAdded || []) if (msg.message?.id) changedMessageIds.add(msg.message.id);
+            for (const msg of item.labelsRemoved || []) if (msg.message?.id) changedMessageIds.add(msg.message.id);
+            for (const msg of item.messages || []) if (msg.id) changedMessageIds.add(msg.id);
+          }
+          if (!historyData.nextPageToken) break;
+          historyPageToken = historyData.nextPageToken;
+          historyPages++;
+        }
+
+        for (const messageId of changedMessageIds) {
+          try {
+            await syncGmailMessage(messageId);
+          } catch (e) {
+            console.warn("[gmail-sync] skipped changed message", messageId, e);
+          }
+          if (partial) break;
+        }
+        historySynced = true;
+        console.log(`[gmail-sync] history sync changed=${changedMessageIds.size}`);
+      } catch (e: any) {
+        console.warn("[gmail-sync] history sync unavailable after unread reconcile", e?.message || e);
+      }
+    }
+
+    // First-time backfill only. Subsequent syncs use Gmail History API + unread reconcile.
+    if (!reconcileOnly && !connection.history_id) {
+      let pageToken: string | undefined = undefined;
+      while (pagesProcessed < maxPages) {
+        if (Date.now() - startedAt > TIME_BUDGET_MS) {
+          partial = true;
+          break;
+        }
+        const url = new URL("https://www.googleapis.com/gmail/v1/users/me/messages");
+        url.searchParams.set("maxResults", "50");
+        if (pageToken) url.searchParams.set("pageToken", pageToken);
+        const listData = await gmailJson(url.toString());
+        if (!listData.messages || listData.messages.length === 0) break;
+        for (const msg of listData.messages) {
+          try {
+            await syncGmailMessage(msg.id);
+          } catch (e) {
+            console.warn("[gmail-sync] skipped backfill message", msg.id, e);
+          }
+          if (partial) break;
+        }
+        if (partial) break;
+        pageToken = listData.nextPageToken;
+        pagesProcessed++;
+        if (!pageToken) break;
+      }
+    }
+
+    try {
+      const gmailProfile = await gmailJson("https://www.googleapis.com/gmail/v1/users/me/profile");
+      if (gmailProfile.historyId) latestHistoryId = gmailProfile.historyId;
     } catch (e) {
-      console.error("Failed to sync read-state back from Gmail:", e);
+      console.warn("[gmail-sync] unable to refresh Gmail profile history id", e);
     }
 
     // Create a bell notification when new unread inbox emails arrived
@@ -570,23 +734,59 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Update last sync
+    // Update last sync/history baseline
     await supabaseAdmin
       .from("gmail_connections")
-      .update({ last_sync_at: new Date().toISOString() })
+      .update({ last_sync_at: new Date().toISOString(), history_id: latestHistoryId })
       .eq("id", connection.id);
 
     const elapsedMs = Date.now() - startedAt;
     console.log(
-      `[gmail-sync] done synced=${syncedCount} checked=${totalChecked} pages=${pagesProcessed + 1} partial=${partial} elapsed=${elapsedMs}ms`
+      `[gmail-sync] done synced=${syncedCount} updated=${updatedCount} checked=${totalChecked} pages=${pagesProcessed} history=${historySynced} partial=${partial} elapsed=${elapsedMs}ms`
     );
+
+    // Broadcast sync-complete so clients can refresh email lists & unread badge
+    // the instant sync finishes (Option C: no Realtime on the emails table).
+    try {
+      const channel = supabaseAdmin.channel(`gmail-sync:${profile.id}`);
+      await channel.send({
+        type: "broadcast",
+        event: "sync_complete",
+        payload: {
+          synced: syncedCount,
+          updated: updatedCount,
+          new_unread: newUnreadInbox.length,
+          gmail_unread_inbox: gmailUnreadInboxSet.size,
+          local_unread_inbox: localUnreadInbox.length,
+          cleared_local_unread: clearedLocalUnread,
+          applied_gmail_unread: appliedGmailUnread,
+          ordino_unread_before: ordinoUnreadBefore,
+          ordino_unread_after: ordinoUnreadAfter,
+          at: new Date().toISOString(),
+        },
+      });
+      await supabaseAdmin.removeChannel(channel);
+    } catch (e) {
+      console.warn("[gmail-sync] broadcast failed:", e);
+    }
 
     return new Response(
       JSON.stringify({
         synced: syncedCount,
+        updated: updatedCount,
         total_checked: totalChecked,
-        pages_processed: pagesProcessed + 1,
+        pages_processed: pagesProcessed,
+        history_synced: historySynced,
         partial,
+        gmail_unread_inbox: gmailUnreadInboxSet.size,
+        local_unread_inbox: localUnreadInbox.length,
+        cleared_local_unread: clearedLocalUnread,
+        applied_gmail_unread: appliedGmailUnread,
+        ordino_unread_before: ordinoUnreadBefore,
+        ordino_unread_after: ordinoUnreadAfter,
+        imported_unread: importedUnread,
+        marked_read: markedRead,
+        marked_unread: markedUnread,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

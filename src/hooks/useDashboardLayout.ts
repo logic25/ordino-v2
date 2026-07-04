@@ -36,6 +36,7 @@ export const ROLE_WIDGETS: Record<string, WidgetDef[]> = {
     { id: "proposal-followups", label: "Proposal Follow-Ups" },
     { id: "expense-approvals", label: "Expense Approvals" },
     { id: "team-overview", label: "Team Overview" },
+    { id: "event-prep-tasks", label: "Event Prep Tasks" },
   ],
   accounting: [
     { id: "kpis", label: "KPIs", lockedFull: true },

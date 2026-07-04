@@ -19,6 +19,8 @@ export interface UniversalDocument {
   project_id: string | null;
   property_id: string | null;
   proposal_id: string | null;
+  jurisdiction: string;
+  folder_id?: string | null;
   uploader?: { display_name: string | null; first_name: string | null; last_name: string | null };
 }
 
@@ -54,6 +56,7 @@ export function useUploadDocument() {
       project_id?: string;
       property_id?: string;
       proposal_id?: string;
+      jurisdiction?: string;
     }) => {
       if (!profile?.company_id) throw new Error("No company");
       const ext = input.file.name.split(".").pop();
@@ -76,6 +79,7 @@ export function useUploadDocument() {
         uploaded_by: profile.id,
         tags: input.tags || [],
         folder_id: input.folder_id || null,
+        jurisdiction: input.jurisdiction || "NYC",
         project_id: input.project_id || null,
         property_id: input.property_id || null,
         proposal_id: input.proposal_id || null,
@@ -93,6 +97,58 @@ export function useDeleteDocument() {
     mutationFn: async (doc: { id: string; storage_path: string }) => {
       await supabase.storage.from("universal-documents").remove([doc.storage_path]);
       const { error } = await supabase.from("universal_documents").delete().eq("id", doc.id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["universal-documents"] }),
+  });
+}
+
+/**
+ * Move a document to a different folder.
+ *
+ * Beacon KB note: when the destination sits under a Beacon-synced folder, we
+ * also re-tag the row's `jurisdiction` to match the nearest ancestor folder's
+ * `default_jurisdiction`. We intentionally do NOT call Beacon's ingest pipeline
+ * — the Pinecone chunks stay as-is. This is metadata-only on our side; Railway
+ * jurisdiction-scoped retrieval will pick up the new tag through the next
+ * knowledge-list refresh / re-tag pass once that endpoint exists upstream.
+ */
+export function useMoveDocument() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: {
+      doc: { id: string; folder_id?: string | null; jurisdiction?: string | null };
+      targetFolderId: string | null;
+      folders: { id: string; parent_id: string | null; is_beacon_synced: boolean; default_jurisdiction: string }[];
+    }) => {
+      const { doc, targetFolderId, folders } = input;
+      if ((doc.folder_id ?? null) === targetFolderId) return;
+
+      const update: Record<string, unknown> = { folder_id: targetFolderId };
+
+      if (targetFolderId) {
+        // Walk ancestors to detect Beacon subtree + resolve jurisdiction.
+        const byId = new Map(folders.map((f) => [f.id, f]));
+        let cur = byId.get(targetFolderId);
+        let inBeacon = false;
+        let inferredJurisdiction: string | null = null;
+        while (cur) {
+          if (cur.is_beacon_synced) inBeacon = true;
+          if (!inferredJurisdiction && cur.default_jurisdiction) {
+            inferredJurisdiction = cur.default_jurisdiction;
+          }
+          cur = cur.parent_id ? byId.get(cur.parent_id) : undefined;
+        }
+        if (inBeacon && inferredJurisdiction && inferredJurisdiction !== doc.jurisdiction) {
+          update.jurisdiction = inferredJurisdiction;
+        }
+      }
+
+      const { error } = await supabase
+        .from("universal_documents")
+        .update(update as any)
+        .eq("id", doc.id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["universal-documents"] }),

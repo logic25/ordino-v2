@@ -2,6 +2,9 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Underline from "@tiptap/extension-underline";
+import Image from "@tiptap/extension-image";
+import { TextStyle } from "@tiptap/extension-text-style";
+import { Color } from "@tiptap/extension-color";
 import { Bold, Italic, Underline as UnderlineIcon, Link as LinkIcon, List, ListOrdered } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -28,11 +31,14 @@ export function RichTextEditor({
         blockquote: false,
         horizontalRule: false,
       }),
+      TextStyle,
+      Color,
       Link.configure({
         openOnClick: false,
         HTMLAttributes: { class: "text-primary underline" },
       }),
       Underline,
+      Image.configure({ inline: true, allowBase64: true }),
     ],
     content,
     editorProps: {

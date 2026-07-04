@@ -23,6 +23,7 @@ import { PaymentAnalyticsSection, RiskPredictionSection, PromisesSection } from 
 import { FollowUpNotesSection } from "./invoice-detail/FollowUpNotesSection";
 import { ActivityLogSection } from "./invoice-detail/ActivityLogSection";
 import { ActionDialogs } from "./invoice-detail/ActionDialogs";
+import { CertifiedMailBanner } from "./invoice-detail/CertifiedMailBanner";
 import { DeliveryStatusSection } from "./invoice-detail/DeliveryStatusSection";
 import { LineItemsSection } from "./invoice-detail/LineItemsSection";
 import { TotalsSection } from "./invoice-detail/TotalsSection";
@@ -110,6 +111,8 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
           </SheetHeader>
 
           <div className="mt-6 space-y-6">
+            <CertifiedMailBanner invoiceId={invoice.id} />
+
             {/* Project Info */}
             <section>
               <h4 className="text-sm font-medium text-muted-foreground mb-2">Project</h4>
@@ -189,9 +192,19 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
         setDemandStep={actions.setDemandStep}
         demandLetterText={actions.demandLetterText}
         setDemandLetterText={actions.setDemandLetterText}
+        demandScope={actions.demandScope}
+        setDemandScope={actions.setDemandScope}
+        demandResult={actions.demandResult}
+        demandLoading={actions.demandLoading}
+        demandCc={actions.demandCc}
+        setDemandCc={actions.setDemandCc}
+        demandSubject={actions.demandSubject}
+        setDemandSubject={actions.setDemandSubject}
+        onRegenerateDemand={actions.openDemandLetter}
         onAction={actions.handleAction}
         onGenerateAi={actions.generateAiMessage}
       />
+
 
       <ClaimFlowDialog
         open={claimFlowOpen}

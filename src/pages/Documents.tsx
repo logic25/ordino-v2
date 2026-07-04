@@ -22,9 +22,14 @@ import {
 } from "@/components/ui/table";
 import {
   FileText, Upload, Search, Download, Trash2, Loader2, File, FileImage,
-  FileSpreadsheet, FolderPlus, Eye, Brain, RefreshCw, ChevronRight,
+  FileSpreadsheet, FolderPlus, Eye, Brain, RefreshCw, ChevronRight, Tag,
+  MoreVertical, FolderInput,
 } from "lucide-react";
-import { useUniversalDocuments, useUploadDocument, useDeleteDocument, type UniversalDocument } from "@/hooks/useUniversalDocuments";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { useUniversalDocuments, useUploadDocument, useDeleteDocument, useMoveDocument, type UniversalDocument } from "@/hooks/useUniversalDocuments";
 import { useDocumentFolders, useSeedFolders, useCreateFolder, useDeleteFolder, useRenameFolder, type DocumentFolder } from "@/hooks/useDocumentFolders";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -37,6 +42,7 @@ import { syncDocumentToBeacon } from "@/services/beaconApi";
 import { useQueryClient } from "@tanstack/react-query";
 import { KnowledgeBaseView } from "@/components/documents/KnowledgeBaseView";
 import { EntityLinkingFields } from "@/components/documents/EntityLinkingFields";
+import { MoveDocumentDialog } from "@/components/documents/MoveDocumentDialog";
 
 const CATEGORIES = [
   { value: "general", label: "General" },
@@ -48,6 +54,14 @@ const CATEGORIES = [
   { value: "financial", label: "Financial" },
   { value: "template", label: "Template" },
   { value: "other", label: "Other" },
+];
+
+// Extensible jurisdiction list. Add new markets here (e.g. "Charleston, SC", "Nassau")
+// and they will automatically appear in selectors and filters.
+// 'universal' = cross-jurisdiction (Company SOPs, Platform SOPs, etc.)
+const JURISDICTIONS: { value: string; label: string }[] = [
+  { value: "NYC", label: "NYC" },
+  { value: "universal", label: "Universal" },
 ];
 
 function getFileIcon(mimeType: string | null) {
@@ -82,12 +96,14 @@ export default function Documents() {
   const seedFolders = useSeedFolders();
   const uploadDoc = useUploadDocument();
   const deleteDoc = useDeleteDocument();
+  const moveDoc = useMoveDocument();
   const createFolder = useCreateFolder();
   const delFolder = useDeleteFolder();
   const renameFolder = useRenameFolder();
 
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [jurisdictionFilter, setJurisdictionFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 15;
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -99,6 +115,7 @@ export default function Documents() {
   const [renameTarget, setRenameTarget] = useState<DocumentFolder | null>(null);
   const [renameName, setRenameName] = useState("");
   const [previewDoc, setPreviewDoc] = useState<UniversalDocument | null>(null);
+  const [moveTarget, setMoveTarget] = useState<UniversalDocument | null>(null);
 
   // Upload form state
   const [title, setTitle] = useState("");
@@ -109,6 +126,13 @@ export default function Documents() {
   const [linkProjectId, setLinkProjectId] = useState<string | undefined>();
   const [linkPropertyId, setLinkPropertyId] = useState<string | undefined>();
   const [linkProposalId, setLinkProposalId] = useState<string | undefined>();
+  const [uploadJurisdiction, setUploadJurisdiction] = useState<string>("NYC");
+
+  // Bulk selection / bulk-tagging state
+  const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set());
+  const [bulkTagOpen, setBulkTagOpen] = useState(false);
+  const [bulkJurisdiction, setBulkJurisdiction] = useState<string>("NYC");
+  const [bulkTagPending, setBulkTagPending] = useState(false);
 
   // Seed folders on first load
   useEffect(() => {
@@ -142,13 +166,14 @@ export default function Documents() {
         doc.filename.toLowerCase().includes(searchQuery.toLowerCase()) ||
         doc.description?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchCategory = categoryFilter === "all" || doc.category === categoryFilter;
+      const matchJurisdiction = jurisdictionFilter === "all" || (doc.jurisdiction || "NYC") === jurisdictionFilter;
       const matchFolder = folderIds === null || folderIds.includes((doc as any).folder_id);
-      return matchSearch && matchCategory && matchFolder;
+      return matchSearch && matchCategory && matchJurisdiction && matchFolder;
     });
-  }, [documents, searchQuery, categoryFilter, selectedFolderId, folders]);
+  }, [documents, searchQuery, categoryFilter, jurisdictionFilter, selectedFolderId, folders]);
 
   // Reset page when filters change
-  useEffect(() => { setCurrentPage(1); }, [searchQuery, categoryFilter, selectedFolderId]);
+  useEffect(() => { setCurrentPage(1); }, [searchQuery, categoryFilter, jurisdictionFilter, selectedFolderId]);
 
   const totalPages = Math.max(1, Math.ceil(filteredDocs.length / PAGE_SIZE));
   const paginatedDocs = filteredDocs.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -167,6 +192,7 @@ export default function Documents() {
 
   const handleUpload = async () => {
     if (!selectedFile || !title.trim()) return;
+    const jurisdiction = uploadJurisdiction || selectedFolder?.default_jurisdiction || "NYC";
     try {
       await uploadDoc.mutateAsync({
         file: selectedFile,
@@ -177,12 +203,13 @@ export default function Documents() {
         project_id: linkProjectId,
         property_id: linkPropertyId,
         proposal_id: linkProposalId,
+        jurisdiction,
       } as any);
 
       // If uploading to a beacon folder, sync to Beacon
       if (isBeaconFolder && selectedFile) {
         try {
-          const result = await syncDocumentToBeacon(selectedFile, selectedFile.name, selectedFolder?.name || "Beacon Knowledge Base");
+          const result = await syncDocumentToBeacon(selectedFile, selectedFile.name, selectedFolder?.name || "Beacon Knowledge Base", jurisdiction);
           // Update doc beacon status - find the latest doc
           const { data: latestDocs } = await supabase
             .from("universal_documents")
@@ -255,7 +282,7 @@ export default function Documents() {
       const { data, error } = await supabase.storage.from("universal-documents").download(doc.storage_path);
       if (error || !data) throw new Error("Download failed");
 
-      const result = await syncDocumentToBeacon(data, doc.filename, selectedFolder?.name || "Beacon Knowledge Base");
+      const result = await syncDocumentToBeacon(data, doc.filename, selectedFolder?.name || "Beacon Knowledge Base", doc.jurisdiction || "NYC");
       await supabase.from("universal_documents").update({
         beacon_status: "synced",
         beacon_synced_at: new Date().toISOString(),
@@ -270,11 +297,74 @@ export default function Documents() {
     }
   };
 
+  const moveDocumentTo = async (doc: UniversalDocument, targetFolderId: string | null) => {
+    if ((doc.folder_id ?? null) === targetFolderId) return;
+    try {
+      const targetFolder = targetFolderId ? folders.find((f) => f.id === targetFolderId) : null;
+      await moveDoc.mutateAsync({
+        doc: { id: doc.id, folder_id: doc.folder_id, jurisdiction: doc.jurisdiction },
+        targetFolderId,
+        folders,
+      });
+      toast({
+        title: targetFolder ? `Moved to "${targetFolder.name}"` : "Moved to All Documents",
+      });
+      setMoveTarget(null);
+    } catch (err: any) {
+      toast({ title: "Move failed", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleDropOnFolder = (docId: string, folderId: string) => {
+    const doc = documents.find((d) => d.id === docId);
+    if (!doc) return;
+    moveDocumentTo(doc, folderId || null);
+  };
+
   const resetForm = () => {
     setTitle(""); setDescription(""); setCategory("general");
     setSelectedFile(null);
     setLinkProjectId(undefined); setLinkPropertyId(undefined); setLinkProposalId(undefined);
+    setUploadJurisdiction(selectedFolder?.default_jurisdiction || "NYC");
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // Sync jurisdiction default to selected folder
+  useEffect(() => {
+    setUploadJurisdiction(selectedFolder?.default_jurisdiction || "NYC");
+  }, [selectedFolderId, selectedFolder?.default_jurisdiction]);
+
+  const handleBulkTagJurisdiction = async () => {
+    if (selectedDocIds.size === 0) return;
+    setBulkTagPending(true);
+    try {
+      const ids = Array.from(selectedDocIds);
+      const { error } = await supabase
+        .from("universal_documents")
+        .update({ jurisdiction: bulkJurisdiction } as any)
+        .in("id", ids);
+      if (error) throw error;
+      toast({ title: `Tagged ${ids.length} document${ids.length === 1 ? "" : "s"} as ${bulkJurisdiction}` });
+      setSelectedDocIds(new Set());
+      setBulkTagOpen(false);
+      qc.invalidateQueries({ queryKey: ["universal-documents"] });
+    } catch (err: any) {
+      toast({ title: "Bulk tag failed", description: err.message, variant: "destructive" });
+    } finally {
+      setBulkTagPending(false);
+    }
+  };
+
+  const toggleSelectDoc = (id: string) => {
+    setSelectedDocIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const toggleSelectAllVisible = (checked: boolean) => {
+    if (checked) setSelectedDocIds(new Set(paginatedDocs.map((d) => d.id)));
+    else setSelectedDocIds(new Set());
   };
 
   return (
@@ -310,6 +400,7 @@ export default function Documents() {
                     onRenameFolder={(f) => { setRenameTarget(f); setRenameName(f.name); }}
                     onCreateSubfolder={(parentId) => { setNewFolderDefaultParent(parentId); setNewFolderOpen(true); }}
                     onDeleteFolder={(f) => setDeleteFolderTarget(f)}
+                    onDropDocument={handleDropOnFolder}
                   />
                 )}
               </CardContent>
@@ -353,7 +444,26 @@ export default function Documents() {
                       {CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  <Select value={jurisdictionFilter} onValueChange={setJurisdictionFilter}>
+                    <SelectTrigger className="w-[160px]"><SelectValue placeholder="All jurisdictions" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Jurisdictions</SelectItem>
+                      {JURISDICTIONS.map((j) => <SelectItem key={j.value} value={j.value}>{j.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
+
+                {selectedDocIds.size > 0 && (
+                  <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-md border bg-muted/40">
+                    <span className="text-sm">{selectedDocIds.size} selected</span>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={() => { setBulkJurisdiction("NYC"); setBulkTagOpen(true); }}>
+                        <Tag className="h-3.5 w-3.5 mr-1.5" /> Tag jurisdiction
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setSelectedDocIds(new Set())}>Clear</Button>
+                    </div>
+                  </div>
+                )}
 
                 <Card>
                   <CardHeader className="pb-3">
@@ -381,12 +491,20 @@ export default function Documents() {
                         <Table className="table-fixed">
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="w-[40%]">Document</TableHead>
-                              <TableHead className="w-[12%]">Category</TableHead>
-                              <TableHead className="w-[10%]">Size</TableHead>
-                              <TableHead className="w-[14%]">Uploaded By</TableHead>
-                              <TableHead className="w-[12%]">Date</TableHead>
-                              <TableHead className="w-[12%]"></TableHead>
+                              <TableHead className="w-[36px]">
+                                <Checkbox
+                                  checked={paginatedDocs.length > 0 && paginatedDocs.every((d) => selectedDocIds.has(d.id))}
+                                  onCheckedChange={(c) => toggleSelectAllVisible(!!c)}
+                                  aria-label="Select all"
+                                />
+                              </TableHead>
+                              <TableHead className="w-[34%]">Document</TableHead>
+                              <TableHead className="w-[11%]">Category</TableHead>
+                              <TableHead className="w-[10%]">Jurisdiction</TableHead>
+                              <TableHead className="w-[9%]">Size</TableHead>
+                              <TableHead className="w-[13%]">Uploaded By</TableHead>
+                              <TableHead className="w-[11%]">Date</TableHead>
+                              <TableHead className="w-[10%]"></TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -394,8 +512,22 @@ export default function Documents() {
                               const Icon = getFileIcon(doc.mime_type);
                               const uploaderName = doc.uploader?.display_name ||
                                 [doc.uploader?.first_name, doc.uploader?.last_name].filter(Boolean).join(" ") || "—";
+                              const checked = selectedDocIds.has(doc.id);
                               return (
-                                <TableRow key={doc.id} className="cursor-pointer" onClick={() => setPreviewDoc(doc)}>
+                                <TableRow
+                                  key={doc.id}
+                                  className="cursor-pointer"
+                                  onClick={() => setPreviewDoc(doc)}
+                                  data-state={checked ? "selected" : undefined}
+                                  draggable
+                                  onDragStart={(e) => {
+                                    e.dataTransfer.setData("application/x-ordino-doc", doc.id);
+                                    e.dataTransfer.effectAllowed = "move";
+                                  }}
+                                >
+                                  <TableCell onClick={(e) => e.stopPropagation()}>
+                                    <Checkbox checked={checked} onCheckedChange={() => toggleSelectDoc(doc.id)} aria-label="Select row" />
+                                  </TableCell>
                                   <TableCell>
                                     <div className="flex items-center gap-3">
                                       <Icon className="h-5 w-5 text-muted-foreground shrink-0" />
@@ -408,6 +540,9 @@ export default function Documents() {
                                   <TableCell>
                                     <Badge variant="outline" className="text-xs">{CATEGORIES.find((c) => c.value === doc.category)?.label || doc.category}</Badge>
                                   </TableCell>
+                                  <TableCell>
+                                    <Badge variant="secondary" className="text-[10px]">{doc.jurisdiction || "NYC"}</Badge>
+                                  </TableCell>
                                   <TableCell className="text-muted-foreground text-sm tabular-nums">{formatFileSize(doc.size_bytes)}</TableCell>
                                   <TableCell className="text-muted-foreground text-sm">{uploaderName}</TableCell>
                                   <TableCell className="text-muted-foreground text-sm">{format(new Date(doc.created_at), "MMM d, yyyy")}</TableCell>
@@ -416,9 +551,25 @@ export default function Documents() {
                                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPreviewDoc(doc)} title="Preview">
                                         <Eye className="h-4 w-4" />
                                       </Button>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(doc)}>
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button variant="ghost" size="icon" className="h-8 w-8" title="More actions">
+                                            <MoreVertical className="h-4 w-4" />
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-44">
+                                          <DropdownMenuItem onClick={() => setMoveTarget(doc)}>
+                                            <FolderInput className="h-3.5 w-3.5 mr-2" /> Move to folder…
+                                          </DropdownMenuItem>
+                                          <DropdownMenuSeparator />
+                                          <DropdownMenuItem
+                                            className="text-destructive focus:text-destructive"
+                                            onClick={() => setDeleteTarget(doc)}
+                                          >
+                                            <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+                                          </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
                                     </div>
                                   </TableCell>
                                 </TableRow>
@@ -484,6 +635,16 @@ export default function Documents() {
                 </Select>
               </div>
             )}
+            <div>
+              <Label>Jurisdiction</Label>
+              <Select value={uploadJurisdiction} onValueChange={setUploadJurisdiction}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {JURISDICTIONS.map((j) => <SelectItem key={j.value} value={j.value}>{j.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground mt-1">Defaults to this folder's jurisdiction. Used by Beacon to scope answers.</p>
+            </div>
             <div>
               <Label>Description (optional)</Label>
               <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Brief description..." className="mt-1" rows={2} />
@@ -575,6 +736,31 @@ export default function Documents() {
       </AlertDialog>
 
       {/* Preview Sheet */}
+      {/* Bulk Tag Jurisdiction Dialog */}
+      <Dialog open={bulkTagOpen} onOpenChange={setBulkTagOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Tag {selectedDocIds.size} document{selectedDocIds.size === 1 ? "" : "s"}</DialogTitle>
+          </DialogHeader>
+          <div>
+            <Label>Jurisdiction</Label>
+            <Select value={bulkJurisdiction} onValueChange={setBulkJurisdiction}>
+              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {JURISDICTIONS.map((j) => <SelectItem key={j.value} value={j.value}>{j.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkTagOpen(false)}>Cancel</Button>
+            <Button onClick={handleBulkTagJurisdiction} disabled={bulkTagPending}>
+              {bulkTagPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Tag className="h-4 w-4 mr-2" />}
+              Apply
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <DocumentPreviewSheet
         document={previewDoc}
         open={!!previewDoc}
@@ -582,6 +768,15 @@ export default function Documents() {
         isBeaconFolder={isBeaconFolder}
         folderName={selectedFolder?.name}
         isAdmin={isAdmin}
+      />
+
+      <MoveDocumentDialog
+        document={moveTarget}
+        folders={folders}
+        open={!!moveTarget}
+        onOpenChange={(open) => { if (!open) setMoveTarget(null); }}
+        onMove={(folderId) => moveTarget ? moveDocumentTo(moveTarget, folderId) : Promise.resolve()}
+        pending={moveDoc.isPending}
       />
     </AppLayout>
   );

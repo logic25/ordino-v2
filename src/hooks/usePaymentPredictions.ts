@@ -39,8 +39,9 @@ export function useRequestRiskScore() {
   return useMutation({
     mutationFn: async ({ invoiceId, companyId }: { invoiceId: string; companyId: string }) => {
       const { data, error } = await supabase.functions.invoke("predict-payment-risk", {
-        body: { invoice_id: invoiceId, company_id: companyId },
+        body: { invoice_id: invoiceId },
       });
+
       if (error) throw error;
       return data as PaymentPrediction;
     },

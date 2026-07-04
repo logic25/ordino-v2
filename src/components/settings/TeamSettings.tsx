@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -858,7 +858,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
     last_name: user.last_name || "",
     phone: user.phone || "",
     phone_extension: profileAny.phone_extension || "",
-    hourly_rate: profileAny.hourly_rate ? String(profileAny.hourly_rate) : "",
+    hourly_rate: "",
     role: (user.role as string) || "pm",
     job_title: profileAny.job_title || "",
     about: profileAny.about || "",
@@ -885,6 +885,26 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
   const metricKind = getMetricProfile(user.role as string);
   const goalLabel = metricKind === "accounting" ? "Monthly Invoices Goal" : "Monthly Goal ($)";
 
+  // Hourly rate lives in employee_compensation. Direct table SELECT is locked
+  // down to comp admins; the RPC returns the rate when the caller is allowed
+  // to see it (self or comp admin) and null otherwise.
+  const { data: userHourlyRate } = useQuery({
+    queryKey: ["employee-comp-hourly-rate", user.id],
+    queryFn: async () => {
+      const { data } = await supabase.rpc("get_user_hourly_rates" as any, {
+        _user_ids: [user.id],
+      });
+      const row = ((data as any[]) || [])[0];
+      return row?.hourly_rate ?? null;
+    },
+  });
+
+
+  // Sync into edit form when rate loads / user switches.
+  useEffect(() => {
+    setEditForm((f) => ({ ...f, hourly_rate: userHourlyRate != null ? String(userHourlyRate) : "" }));
+  }, [userHourlyRate, user.id]);
+
   const { data: stats, isLoading: statsLoading } = useUserBillingStats(user.id, period, monthlyGoal, bonusTiers);
   const { data: acctStats, isLoading: acctStatsLoading } = useAccountingStats(user.id, period, metricKind === "accounting" ? monthlyGoal : null);
   const { data: proposals = [], isLoading: proposalsLoading } = useUserProposals(user.id);
@@ -909,7 +929,6 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
           last_name: editForm.last_name.trim() || null,
           phone: editForm.phone.trim() || null,
           phone_extension: editForm.phone_extension.trim() || null,
-          hourly_rate: editForm.hourly_rate ? parseFloat(editForm.hourly_rate) : null,
           role: editForm.role,
           job_title: editForm.job_title.trim() || null,
           about: editForm.about.trim() || null,
@@ -921,27 +940,20 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
         .eq("id", user.id);
       if (error) throw error;
 
-      // Mirror role change into user_roles for app_role checks (admin only)
-      const oldRole = (user.role as string) || "";
-      const newRole = editForm.role;
-      if (oldRole !== newRole && (user as any).user_id && (user as any).company_id) {
-        if (newRole === "admin") {
-          await supabase
-            .from("user_roles")
-            .upsert({
-              user_id: (user as any).user_id,
-              role: "admin",
-              company_id: (user as any).company_id,
-            } as any, { onConflict: "user_id,role,company_id" });
-        } else if (oldRole === "admin") {
-          await supabase
-            .from("user_roles")
-            .delete()
-            .eq("user_id", (user as any).user_id)
-            .eq("role", "admin")
-            .eq("company_id", (user as any).company_id);
-        }
+      // Compensation is stored separately. Comp admins use the RPC; if the
+      // viewer is not a comp admin the RPC will reject — silently skip.
+      const newRate = editForm.hourly_rate ? parseFloat(editForm.hourly_rate) : null;
+      if (newRate !== (userHourlyRate ?? null)) {
+        const { error: rateErr } = await supabase.rpc("upsert_employee_hourly_rate", {
+          _person_id: user.id,
+          _rate: newRate,
+        });
+        if (rateErr) throw rateErr;
+        await queryClient.invalidateQueries({ queryKey: ["employee-comp-hourly-rate", user.id] });
       }
+
+      // Role mirroring into user_roles is handled by the trg_sync_profile_role
+      // database trigger (covers all roles: admin, manager, pm, production, accounting).
 
       await queryClient.invalidateQueries({ queryKey: ["user-billing-stats-v2"] });
       toast({ title: "Profile updated" });
@@ -1009,10 +1021,10 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                     <Mail className="h-4 w-4" />
                     <span className="italic text-xs">Email available via auth</span>
                   </div>
-                  {isViewerAdmin && profileAny.hourly_rate && (
+                  {isViewerAdmin && userHourlyRate != null && (
                     <div className="flex items-center gap-2">
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
-                      <span>${Number(profileAny.hourly_rate).toFixed(2)}/hr</span>
+                      <span>${Number(userHourlyRate).toFixed(2)}/hr</span>
                     </div>
                   )}
                   {isViewerAdmin && monthlyGoal && (
@@ -1064,8 +1076,6 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                       <SelectItem value="manager">Manager</SelectItem>
                       <SelectItem value="pm">PM</SelectItem>
                       <SelectItem value="accounting">Accounting</SelectItem>
-                      <SelectItem value="production">Production</SelectItem>
-                      <SelectItem value="staff">Staff</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

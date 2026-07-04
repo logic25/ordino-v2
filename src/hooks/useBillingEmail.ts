@@ -1,20 +1,44 @@
 import { supabase } from "@/integrations/supabase/client";
 import { buildBrandedEmailHtml, type TemplateOverride } from "@/lib/buildBrandedEmailHtml";
 
+export interface BillingEmailAttachment {
+  filename: string;
+  /** Base64-encoded file contents (no data: prefix). */
+  content: string;
+  mime_type: string;
+}
+
 interface SendBillingEmailParams {
   to: string;
   cc?: string;
   subject: string;
   htmlBody: string;
+  projectId?: string;
+  proposalId?: string;
+  changeOrderId?: string;
+  invoiceId?: string;
+  tagCategory?: string;
+  attachments?: BillingEmailAttachment[];
 }
 
-export async function sendBillingEmail({ to, cc, subject, htmlBody }: SendBillingEmailParams) {
+export async function sendBillingEmail({
+  to, cc, subject, htmlBody,
+  projectId, proposalId, changeOrderId, invoiceId,
+  tagCategory = "client",
+  attachments,
+}: SendBillingEmailParams) {
   const { data, error } = await supabase.functions.invoke("gmail-send", {
     body: {
       to,
       cc: cc || undefined,
       subject,
       html_body: htmlBody,
+      project_id: projectId,
+      proposal_id: proposalId,
+      change_order_id: changeOrderId,
+      invoice_id: invoiceId,
+      tag_category: tagCategory,
+      attachments: attachments && attachments.length ? attachments : undefined,
     },
   });
   if (error) throw error;

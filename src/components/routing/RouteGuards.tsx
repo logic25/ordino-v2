@@ -18,7 +18,7 @@ export function LoadingScreen() {
 
 // Protected route wrapper - requires auth AND profile
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading, hasProfile, signingOut } = useAuth();
+  const { user, loading, profileLoading, hasProfile, signingOut } = useAuth();
 
   if (loading || signingOut) {
     return <LoadingScreen />;
@@ -26,6 +26,12 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Wait for profile fetch to settle before deciding setup vs dashboard,
+  // otherwise existing users briefly bounce to /setup.
+  if (profileLoading) {
+    return <LoadingScreen />;
   }
 
   // If authenticated but no profile, redirect to setup
@@ -38,9 +44,9 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 // Setup route wrapper - requires auth but NO profile yet
 export function SetupRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading, hasProfile } = useAuth();
+  const { user, loading, profileLoading, hasProfile } = useAuth();
 
-  if (loading) {
+  if (loading || profileLoading) {
     return <LoadingScreen />;
   }
 
@@ -58,7 +64,7 @@ export function SetupRoute({ children }: { children: React.ReactNode }) {
 
 // Public route wrapper (redirects to dashboard if already logged in with profile)
 export function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading, hasProfile } = useAuth();
+  const { user, loading, profileLoading, hasProfile } = useAuth();
   const [searchParams] = useSearchParams();
 
   // Check if this is a password reset flow - don't redirect
@@ -74,6 +80,9 @@ export function PublicRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (user) {
+    if (profileLoading) {
+      return <LoadingScreen />;
+    }
     // If logged in but no profile, go to setup
     if (!hasProfile) {
       return <Navigate to="/setup" replace />;

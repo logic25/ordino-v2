@@ -32,16 +32,13 @@ export function BillingGoalsSection() {
     queryKey: ["company-derived-goal", profile?.company_id],
     enabled: !!profile?.company_id,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("monthly_goal, role, is_active")
-        .eq("company_id", profile.company_id)
-        .eq("is_active", true);
-      const monthly = (data || [])
-        .filter((p: any) => ["pm", "admin", "manager"].includes(p.role))
+      const { data } = await supabase.rpc("get_company_goals" as any);
+      const monthly = ((data as any[]) || [])
+        .filter((p: any) => p.is_active && ["pm", "admin", "manager"].includes(p.role))
         .reduce((s: number, p: any) => s + (Number(p.monthly_goal) || 0), 0);
       return { monthly, weekly: monthly / 4.33 };
     },
+
   });
 
   const [weekly, setWeekly] = useState("");

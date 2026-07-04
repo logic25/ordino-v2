@@ -49,6 +49,8 @@ import { useQueryClient } from "@tanstack/react-query";
 export default function Proposals() {
   const [searchParams] = useSearchParams();
   const defaultPropertyId = searchParams.get("property") || undefined;
+  // From a Lead's "Create Proposal" link: free-text address resolves non-blocking in the dialog.
+  const initialPropertyAddress = searchParams.get("address") || undefined;
   
   const [dialogOpen, setDialogOpen] = useState(false);
   const [signDialogOpen, setSignDialogOpen] = useState(false);
@@ -69,6 +71,11 @@ export default function Proposals() {
   useEffect(() => {
     const s = searchParams.get("status");
     if (s !== statusFilter) setStatusFilter(s);
+    // Quick Create deep-link from TopBar
+    if (searchParams.get("new") === "1") {
+      setEditingProposal(null);
+      setDialogOpen(true);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
   const [composeOpen, setComposeOpen] = useState(false);
@@ -145,11 +152,11 @@ export default function Proposals() {
   // Open dialog if coming from properties with a property pre-selected (once only)
   const didAutoOpen = useRef(false);
   useEffect(() => {
-    if (defaultPropertyId && !editingProposal && !didAutoOpen.current) {
+    if ((defaultPropertyId || initialPropertyAddress) && !editingProposal && !didAutoOpen.current) {
       didAutoOpen.current = true;
       setDialogOpen(true);
     }
-  }, [defaultPropertyId]);
+  }, [defaultPropertyId, initialPropertyAddress]);
 
   // For follow_up filter, apply client-side on the already-fetched page
   const filteredProposals = statusFilter === "follow_up" 
@@ -160,10 +167,8 @@ export default function Proposals() {
       })
     : displayProposals;
 
-  // Leads tab now redirects to /bd/leads (the BD module owns leads).
-  useEffect(() => {
-    if (activeTab === "leads") navigate("/bd/leads");
-  }, [activeTab, navigate]);
+  // Legacy "leads" tab is fully removed — no redirect needed (CaptureLead opens BD).
+
 
 
   // Month-over-month analytics from lightweight stats query
@@ -313,7 +318,10 @@ export default function Proposals() {
   };
 
   const handleDelete = async (id: string) => {
-    // Check if proposal is executed — cannot delete
+    // Loosened guard — allow delete when:
+    //   • status === 'draft' (no downstream artefacts to protect), OR
+    //   • linked project has no invoices AND no services.
+    // Otherwise block with a clear toast (executed proposals are always blocked).
     const proposal = filteredProposals.find((p) => p.id === id);
     if (proposal?.status === "executed") {
       toast({
@@ -323,6 +331,24 @@ export default function Proposals() {
       });
       return;
     }
+    if (proposal && proposal.status !== "draft") {
+      const projectId = (proposal as any).converted_project_id as string | null;
+      if (projectId) {
+        const [{ count: invCount = 0 } = { count: 0 }, { count: svcCount = 0 } = { count: 0 }] =
+          await Promise.all([
+            supabase.from("invoices").select("id", { count: "exact", head: true }).eq("project_id", projectId),
+            supabase.from("services").select("id", { count: "exact", head: true }).eq("project_id", projectId),
+          ]);
+        if ((invCount ?? 0) > 0 || (svcCount ?? 0) > 0) {
+          toast({
+            title: "Cannot delete this proposal",
+            description: `Linked project has ${invCount ?? 0} invoice(s) and ${svcCount ?? 0} service(s). Remove or archive them first.`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+    }
     try {
       await deleteProposal.mutateAsync(id);
       toast({ title: "Proposal deleted", description: "The proposal has been removed." });
@@ -331,7 +357,7 @@ export default function Proposals() {
       if (msg.includes("foreign key") || msg.includes("projects")) {
         toast({
           title: "Cannot delete this proposal",
-          description: "This proposal is linked to a project and cannot be deleted.",
+          description: "This proposal is linked to a project with related records.",
           variant: "destructive",
         });
       } else {
@@ -339,6 +365,7 @@ export default function Proposals() {
       }
     }
   };
+
 
   const handleOpenSend = async (id: string) => {
     // Fetch proposal with items for the send dialog
@@ -413,7 +440,13 @@ export default function Proposals() {
                 pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
                 
                 const pdfBlob = pdf.output("blob");
-                const storagePath = `proposals/${proposalId}/signed_proposal.pdf`;
+                // documents bucket RLS requires company_id as the first folder segment.
+                const { data: { user: pUser } } = await supabase.auth.getUser();
+                const { data: pProfile } = pUser
+                  ? await supabase.from("profiles").select("company_id").eq("user_id", pUser.id).single()
+                  : { data: null as any };
+                if (!pProfile?.company_id) throw new Error("No company found");
+                const storagePath = `${pProfile.company_id}/proposals/${proposalId}/signed_proposal.pdf`;
                 await supabase.storage.from("documents").upload(storagePath, pdfBlob, { upsert: true, contentType: "application/pdf" });
                 await (supabase.from("universal_documents") as any)
                   .update({ storage_path: storagePath, mime_type: "application/pdf", filename: `Proposal_${fullProposal.proposal_number}_Executed.pdf` })
@@ -548,8 +581,9 @@ export default function Proposals() {
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Proposals</h1>
             <p className="text-muted-foreground mt-1">
-              Create and manage client proposals and leads
+              Create and manage client proposals.
             </p>
+
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -684,11 +718,6 @@ export default function Proposals() {
                 {totalCount}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="leads" className="gap-1.5">
-              <UserPlus className="h-4 w-4" />
-              Leads
-            </TabsTrigger>
-
           </TabsList>
 
           <TabsContent value="proposals">
@@ -787,19 +816,6 @@ export default function Proposals() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="leads">
-            <Card>
-              <CardContent className="py-12 text-center space-y-3">
-                <UserPlus className="h-10 w-10 mx-auto text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">
-                  Leads now live in the BD module. Redirecting…
-                </p>
-                <Button variant="outline" size="sm" onClick={() => navigate("/bd/leads")}>
-                  Go to Leads
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
         </Tabs>
       </div>
@@ -812,6 +828,7 @@ export default function Proposals() {
           proposal={editingProposal}
           isLoading={createProposal.isPending || updateProposal.isPending}
           defaultPropertyId={!editingProposal ? defaultPropertyId : undefined}
+          initialPropertyAddress={!editingProposal ? initialPropertyAddress : undefined}
         />
       </Suspense>
 
@@ -835,8 +852,9 @@ export default function Proposals() {
       <CaptureLeadModal
         open={leadDialogOpen}
         onOpenChange={setLeadDialogOpen}
-        onCreated={() => setActiveTab("leads")}
+        onCreated={() => { setLeadDialogOpen(false); navigate("/bd/leads"); }}
       />
+
 
       <ProposalPreviewModal
         proposal={previewProposal}

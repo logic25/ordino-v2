@@ -1,42 +1,27 @@
-## Batch A — Close the Funnel Loop
 
-### Step 0 — Save doctrine
-- Write `mem://doctrine/ordino-master-prompt` with the full master planning prompt.
-- Append one-liner to `mem://index.md` Core: "All plans must be evaluated against the Ordino Master Planning Prompt (mem://doctrine/ordino-master-prompt)."
+## Status
 
-### Step 1 — Atomic lead conversion (Postgres RPC)
-- **Migration:**
-  - Add `proposals.lead_id uuid references public.leads(id)` (nullable, indexed).
-  - Create `public.convert_lead_to_proposal(_lead_id uuid, _proposal_payload jsonb) returns uuid` as `SECURITY DEFINER`, mirroring `sign_proposal`:
-    1. Verify caller is a company member of the lead's `company_id`.
-    2. Find-or-create `clients` row (match on normalized name + company_id).
-    3. `UPDATE leads SET client_id = ..., stage = 'converted', updated_at = now() WHERE id = _lead_id`.
-    4. `INSERT INTO proposals (..., lead_id, client_id, company_id, created_by) RETURNING id`.
-    5. Return new `proposal_id`. All in one transaction — any failure rolls back.
-  - `GRANT EXECUTE` to `authenticated`.
-- **Types regenerate** automatically after migration approval — no `as any` casts.
-- **New hook** `useConvertLeadToProposal` calls the RPC, surfaces errors via `toast.error` with the Postgres message.
-- **Legacy** `useConvertLeadToClient` becomes a thin deprecated re-export pointing at the new hook (removed in Batch B).
+- ✅ **Pre-check**: `client_contacts` already holds architects/GCs (`license_type`, `license_number`, `specialty`, `is_referrer` columns present). `source_contact_id` FK is safe.
+- ✅ **Migration**: `bd_referrals` table + enums + RLS + GRANTs applied (already approved & ran).
+- ✅ **Seed**: 5 sample referrals inserted in the Green Light tenant (mix of owners Manny/Chris/Natalia, all 4 source types + OTHER, stages from Ask Made → Won, and one stalled row with no next-action date).
+- ⏳ **Blocked on build mode**: hook, lane page, sidebar entry, route.
 
-### Step 2 — Funnel back-links (`LineageBreadcrumb`)
-- New `src/components/shared/LineageBreadcrumb.tsx` — small chip row, accepts `{ lead, proposal, client, project }` (any subset) and renders linked badges.
-- Wire into:
-  - `ProjectDetail.tsx` header: "From lead {name} · proposal {number}".
-  - `ClientDetailSheet`: "Originated from lead {name}" → `/bd/leads/:id`.
-  - `BdLeadDetail.tsx`: shows linked client + proposal + converted project chips.
-- Pure read; uses existing FKs (`projects.proposal_id`, new `proposals.lead_id`, `leads.client_id`).
+## Schema as shipped
 
-### Step 3 — Leads tab becomes redirect
-- In `src/pages/Proposals.tsx`: keep `<TabsTrigger value="leads">` visible; its panel renders a centered button + `useEffect` `navigate('/bd/leads', { replace: true })` when active.
-- **Delete** `src/components/proposals/LeadsTable.tsx` and `src/components/proposals/LeadCaptureDialog.tsx` (verified dead).
-- Remove their imports + any unused props from `Proposals.tsx`.
+`public.bd_referrals` columns: `company_id`, `source_contact_id` → `client_contacts`, `source_label` (fallback), **`source_type` enum** (`ARCHITECT` / `GC` / `OWNER` / `PM` / `OTHER`), `referred_name`, `referred_company`, `referred_email`, `referred_phone`, `assigned_to` → `profiles`, `stage` enum (`ASK_MADE` / `INTRO_RECEIVED` / `MEETING_SET` / `PROPOSAL` / `WON` / `LOST`), `next_action_at` date, `next_action_note`, `notes`, `lead_id`, `proposal_id`, `won_value`, `created_by`, standard timestamps + `deleted_at`.
 
-### Step 4 — Changelog
-- Insert one `changelog_entries` row: "Lead→Proposal conversion is now atomic; project, client, and lead pages show the full funnel lineage."
+RLS: SELECT `is_company_member`, INSERT/UPDATE `can_modify_operations`, DELETE admin-only — same helpers as `leads` / `bd_events`. Four partial indexes on company + (assigned_to / stage / next_action_at).
 
-### Technical notes
-- **Files touched:** `supabase/migrations/<new>.sql`, `mem://index.md`, `mem://doctrine/ordino-master-prompt`, `src/hooks/useConvertLeadToProposal.ts` (new), `src/hooks/useLeadConversion.ts` (deprecate), `src/components/shared/LineageBreadcrumb.tsx` (new), `src/pages/ProjectDetail.tsx`, `src/components/clients/ClientDetailSheet.tsx`, `src/pages/BdLeadDetail.tsx`, `src/pages/Proposals.tsx`.
-- **Deleted:** `src/components/proposals/LeadsTable.tsx` (~446 LOC), `src/components/proposals/LeadCaptureDialog.tsx` (~80 LOC).
-- **Net LOC:** +~180 / −~580 ≈ **−400**.
-- **Out of scope:** Batches B (cmd+k RPC, dashboard deep-links) and C (funnel notifications, BD/RFP/referral reports). No changes to today's billed-services tab, job-costing, calendar, email threading, or ZIP-export roadmap.
-- **Order of execution after approval:** doctrine memory → migration (waits for user approval) → hook → call-site rewires → LineageBreadcrumb + wiring → Proposals tab redirect + deletions → changelog insert.
+## Files to create / edit in build mode
+
+1. **`src/components/bd/referralConstants.tsx`** — `STAGE_META`, `STAGE_ORDER`, `ALL_STAGES`, `TERMINAL_STAGES`, `stageRank`, `SOURCE_TYPE_META` (icons: Building2 / HardHat / KeyRound / ClipboardList / MoreHorizontal), and `isStalled(r)` helper = `!terminal && (no next_action_at || next_action_at < today)`. Mirrors `leadConstants.tsx`.
+2. **`src/hooks/useBdReferrals.ts`** — `useReferrals(filters?)` list with joins `assignee:profiles!bd_referrals_assigned_to_fkey`, `source_contact:client_contacts!bd_referrals_source_contact_id_fkey`, `creator:profiles!bd_referrals_created_by_fkey`. Same query-key naming + `invalidateQueries` pattern as `useLeads`. No mutations yet (phase 2).
+3. **`src/pages/bd/BdReferrals.tsx`** — header + subtitle matching `BdFollowUps`, owner filter chips (All / Me / Chris / Natalia driven by profiles + `useAuth`), single table grouped by stage with columns: Referred · Source (contact name + source-type pill) · Owner · Stage pill · Next action · **Stalled badge** (red `Stalled` pill rendered via `isStalled`, per your change #2). Empty state card identical to `BdFollowUps`.
+4. **`src/App.tsx`** — `lazyWithRetry` import + `<Route path="/bd/referrals" element={<ProtectedRoute><BdReferrals /></ProtectedRoute>} />`.
+5. **`src/components/layout/AppSidebar.tsx`** — add `{ title: "Referrals", icon: Handshake, href: "/bd/referrals", resource: "proposals" }` to the BD group between Leads and Events, plus matching entry in `routePrefetchMap`.
+
+No new patterns, no dialog, no Friday view yet — those are phase 2.
+
+## After build mode
+
+I'll show the lane rendering against the 5 seeded rows (one stalled, one no-next-action, one terminal) and stop. Phase 2 (capture modal, stage stepper, Friday view, activity logging, convert-to-lead) waits for your sign-off.

@@ -1,0 +1,812 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import QRCode from "react-qr-code";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Save, Loader2, Mail, Phone, Smartphone, MapPin, Linkedin, Camera, Pencil, Share2, Sliders, Check } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import companyLogo from "@/assets/company-logo-hosted.webp";
+import mbeSeal from "@/assets/mbe-seal.png";
+
+const COMPANY = {
+  org: "Green Light Expediting",
+  url: "https://www.greenlightexpediting.com",
+  // ADR format: PO Box; Extended; Street; City; Region; Postal; Country
+  adr: ";;26 Broadway, 3rd Floor;New York;NY;10004;USA",
+  addressDisplay: "26 Broadway, 3rd Floor\nNew York, NY 10004",
+};
+
+// Format any US-ish number to (xxx) xxx-xxxx for display.
+function fmtPhone(raw: string): string {
+  const d = (raw || "").replace(/\D/g, "");
+  if (d.length === 10) return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+  if (d.length === 11 && d.startsWith("1"))
+    return `(${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7)}`;
+  return raw || "";
+}
+
+// vCard wants a tel-uri-ish value; keep digits + ext as pause.
+function telValue(phone: string, ext: string): string {
+  const d = (phone || "").replace(/\D/g, "");
+  const e164 = d.length === 10 ? `+1${d}` : d.startsWith("1") ? `+${d}` : d;
+  return ext ? `${e164};ext=${ext}` : e164;
+}
+
+type Fields = {
+  first: string; last: string; title: string; email: string;
+  phone: string; extension: string; mobile: string; linkedin: string;
+  address: string;
+};
+
+function vCard(p: Fields) {
+  // If user provided a personal address, use that as ADR — semicolon-separated;
+  // newlines become "extended" segments. Fall back to company HQ.
+  const adr = p.address
+    ? ";;" + p.address.replace(/\n+/g, ", ").replace(/;/g, ",") + ";;;;"
+    : COMPANY.adr;
+  const lines = [
+    "BEGIN:VCARD",
+    "VERSION:3.0",
+    `N:${p.last};${p.first};;;`,
+    `FN:${p.first} ${p.last}`.trim(),
+    `ORG:${COMPANY.org}`,
+    p.title && `TITLE:${p.title}`,
+    p.phone && `TEL;TYPE=WORK,VOICE:${telValue(p.phone, p.extension)}`,
+    p.mobile && `TEL;TYPE=CELL,VOICE:${telValue(p.mobile, "")}`,
+    p.email && `EMAIL;TYPE=WORK:${p.email}`,
+    `URL:${COMPANY.url}`,
+    p.linkedin && `URL;TYPE=LinkedIn:${p.linkedin}`,
+    p.linkedin && `X-SOCIALPROFILE;TYPE=linkedin:${p.linkedin}`,
+    `ADR;TYPE=WORK:${adr}`,
+    "END:VCARD",
+  ].filter(Boolean);
+  return lines.join("\n");
+}
+
+const LS_KEY = "qr-card-fields";
+const LOGO_LS_KEY = "qr-card-logo-cfg";
+type LogoCfg = { height: number; top: number; right: number; width: number };
+const LOGO_DEFAULT: LogoCfg = { height: 18, top: 12, right: 16, width: 224 };
+
+const imageExtensionPattern = /\.(png|jpe?g|gif|webp|heic|heif|bmp|svg)$/i;
+
+async function getImageFileKind(file: File): Promise<{ ok: boolean; ext: string; contentType: string }> {
+  const nameExt = file.name.split(".").pop()?.toLowerCase();
+  const mimeExt = file.type.split("/")[1]?.replace("jpeg", "jpg") || "";
+  if (file.type.startsWith("image/") || imageExtensionPattern.test(file.name)) {
+    return { ok: true, ext: nameExt || mimeExt || "png", contentType: file.type || `image/${nameExt || "png"}` };
+  }
+
+  const bytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  const isPng = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+  const isJpg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  const isGif = bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46;
+  const isWebp = bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50;
+  const isHeic = String.fromCharCode(...bytes.slice(4, 12)).includes("ftypheic") || String.fromCharCode(...bytes.slice(4, 12)).includes("ftypheif");
+  if (isPng) return { ok: true, ext: "png", contentType: "image/png" };
+  if (isJpg) return { ok: true, ext: "jpg", contentType: "image/jpeg" };
+  if (isGif) return { ok: true, ext: "gif", contentType: "image/gif" };
+  if (isWebp) return { ok: true, ext: "webp", contentType: "image/webp" };
+  if (isHeic) return { ok: true, ext: "heic", contentType: "image/heic" };
+  return { ok: false, ext: "", contentType: "" };
+}
+
+// Downscale + recompress large images in the browser so we don't upload 10MB phone photos.
+// Skips formats the browser can't decode (HEIC, SVG) — those upload as-is.
+async function compressImage(
+  file: File,
+  opts: { maxDim: number; quality: number; mime?: string }
+): Promise<{ blob: Blob; ext: string; contentType: string }> {
+  const skip = /heic|heif|svg|gif/i.test(file.type) || /\.(heic|heif|svg|gif)$/i.test(file.name);
+  if (skip) {
+    const ext = (file.name.split(".").pop() || "bin").toLowerCase();
+    return { blob: file, ext, contentType: file.type || `image/${ext}` };
+  }
+  try {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, opts.maxDim / Math.max(bmp.width, bmp.height));
+    const w = Math.round(bmp.width * scale);
+    const h = Math.round(bmp.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("no 2d context");
+    ctx.drawImage(bmp, 0, 0, w, h);
+    const outMime = opts.mime || "image/jpeg";
+    const blob: Blob = await new Promise((resolve, reject) =>
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob failed"))), outMime, opts.quality)
+    );
+    // If compression somehow made it bigger, keep the original.
+    if (blob.size >= file.size) {
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      return { blob: file, ext, contentType: file.type || `image/${ext}` };
+    }
+    const ext = outMime === "image/png" ? "png" : outMime === "image/webp" ? "webp" : "jpg";
+    return { blob, ext, contentType: outMime };
+  } catch {
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+    return { blob: file, ext, contentType: file.type || `image/${ext}` };
+  }
+}
+
+function ContactRow({ icon, label, href }: { icon: React.ReactNode; label: string; href?: string }) {
+  const content = (
+    <div className="flex items-center gap-3 text-sm">
+      <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-foreground/70 shrink-0">
+        {icon}
+      </span>
+      <span className="truncate">{label}</span>
+    </div>
+  );
+  return href ? (
+    <a href={href} target="_blank" rel="noreferrer" className="block hover:opacity-80 transition-opacity">
+      {content}
+    </a>
+  ) : (
+    content
+  );
+}
+
+export function BdMyCardTab() {
+  const { user, profile, refreshProfile } = useAuth() as any;
+  const [fields, setFields] = useState<Fields>({
+    first: "", last: "", title: "", email: "",
+    phone: "", extension: "", mobile: "", linkedin: "", address: "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [uploading, setUploading] = useState<null | "avatar" | "cover">(null);
+  const [coverUrl, setCoverUrl] = useState<string>("");
+  const [slug, setSlug] = useState<string>("");
+  const [published, setPublished] = useState<boolean>(false);
+  const [logoCfg, setLogoCfg] = useState<LogoCfg>(() => {
+    try {
+      const raw = localStorage.getItem(LOGO_LS_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const cfg = { ...LOGO_DEFAULT, ...parsed };
+          if (!parsed.width || parsed.width > 260) return LOGO_DEFAULT;
+          return cfg;
+        }
+    } catch {}
+    return LOGO_DEFAULT;
+  });
+  useEffect(() => {
+    try { localStorage.setItem(LOGO_LS_KEY, JSON.stringify(logoCfg)); } catch {}
+  }, [logoCfg]);
+  const isEditing = editOpen;
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const coverInputRef = useRef<HTMLInputElement | null>(null);
+
+  const publicUrl = slug ? `${window.location.origin}/c/${slug}` : "";
+
+
+  const uploadImage = async (
+    body: Blob,
+    kind: "avatar" | "cover",
+    ext: string,
+    contentType: string
+  ): Promise<string> => {
+    const path = `${user!.id}/${kind}-${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from("avatars")
+      .upload(path, body, { upsert: true, contentType });
+    if (upErr) throw upErr;
+    const { data: signed, error: signErr } = await supabase.storage
+      .from("avatars")
+      .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+    if (signErr || !signed?.signedUrl) throw signErr || new Error("Could not sign URL");
+    return signed.signedUrl;
+  };
+
+  const handleImageFile = (kind: "avatar" | "cover") => async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!user?.id || !profile?.id) { toast.error("You must be signed in"); return; }
+    if (file.size > 25 * 1024 * 1024) { toast.error("Image must be under 25 MB"); return; }
+    const imageKind = await getImageFileKind(file);
+    if (!imageKind.ok) { toast.error("That file is not an image. Choose a photo or screenshot."); return; }
+    setUploading(kind);
+    try {
+      // Avatars: square-ish, max 800px. Covers: wide, max 1600px. Both as JPEG ~0.85.
+      const { blob, ext, contentType } = await compressImage(file, {
+        maxDim: kind === "avatar" ? 800 : 1600,
+        quality: 0.85,
+        mime: "image/jpeg",
+      });
+      const url = await uploadImage(blob, kind, ext, contentType);
+      if (kind === "avatar") {
+        const { error } = await supabase.from("profiles").update({ avatar_url: url }).eq("id", profile.id);
+        if (error) throw error;
+      } else {
+        const existingPrefs = (profile as any)?.preferences ?? {};
+        const { error } = await supabase
+          .from("profiles")
+          .update({
+            preferences: {
+              ...existingPrefs,
+              bd_card: { ...(existingPrefs.bd_card ?? {}), cover_url: url },
+            },
+          })
+          .eq("id", profile.id);
+        if (error) throw error;
+        setCoverUrl(url);
+      }
+      const savedKb = Math.max(0, Math.round((file.size - blob.size) / 1024));
+      toast.success(
+        kind === "avatar"
+          ? `Photo updated${savedKb > 50 ? ` · saved ${savedKb} KB` : ""}`
+          : `Cover image updated${savedKb > 50 ? ` · saved ${savedKb} KB` : ""}`
+      );
+      if (typeof refreshProfile === "function") await refreshProfile();
+    } catch (err: any) {
+      toast.error(err?.message ?? "Upload failed");
+    } finally {
+      setUploading(null);
+    }
+  };
+
+  const clearCover = async () => {
+    if (!profile?.id) return;
+    const existingPrefs = (profile as any)?.preferences ?? {};
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        preferences: {
+          ...existingPrefs,
+          bd_card: { ...(existingPrefs.bd_card ?? {}), cover_url: null },
+        },
+      })
+      .eq("id", profile.id);
+    if (error) { toast.error(error.message); return; }
+    setCoverUrl("");
+    if (typeof refreshProfile === "function") await refreshProfile();
+  };
+
+
+
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem(LS_KEY) ?? "{}");
+    const prefs = (profile as any)?.preferences?.bd_card ?? {};
+    setFields({
+      first: profile?.first_name ?? "",
+      last: profile?.last_name ?? "",
+      title: (profile as any)?.job_title ?? "",
+      email: user?.email ?? "",
+      phone: (profile as any)?.phone ?? saved.phone ?? "",
+      extension: (profile as any)?.phone_extension ?? saved.extension ?? "",
+      mobile: prefs.mobile ?? saved.mobile ?? "",
+      linkedin: prefs.linkedin ?? saved.linkedin ?? "",
+      address: prefs.address ?? saved.address ?? "",
+    });
+    setCoverUrl(prefs.cover_url ?? "");
+  }, [profile?.id, user?.email]);
+
+  // Load/create the bd_cards row for this user
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("bd_cards")
+        .select("slug, published, logo_cfg")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (data) {
+        setSlug(data.slug);
+        setPublished(!!data.published);
+        if (data.logo_cfg) setLogoCfg((c) => ({ ...c, ...data.logo_cfg }));
+        return;
+      }
+      // Auto-create draft row with generated slug
+      const base = `${profile?.first_name ?? ""}-${profile?.last_name ?? ""}`
+        .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "card";
+      const rand = Math.random().toString(36).slice(2, 6);
+      const newSlug = `${base}-${rand}`;
+      const { data: created, error } = await (supabase as any)
+        .from("bd_cards")
+        .insert({ user_id: user.id, slug: newSlug, fields: {}, logo_cfg: logoCfg, published: false })
+        .select("slug, published")
+        .maybeSingle();
+      if (!cancelled && created && !error) {
+        setSlug(created.slug);
+        setPublished(!!created.published);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, profile?.first_name, profile?.last_name]);
+
+  useEffect(() => {
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      phone: fields.phone, extension: fields.extension,
+      mobile: fields.mobile, linkedin: fields.linkedin, address: fields.address,
+    }));
+  }, [fields.phone, fields.extension, fields.mobile, fields.linkedin, fields.address]);
+
+  const card = useMemo(() => vCard(fields), [fields]);
+  const qrValue = publicUrl || card;
+
+  const downloadVcf = () => {
+    const blob = new Blob([card], { type: "text/vcard" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${fields.first}-${fields.last}-GLE.vcf`.replace(/\s+/g, "");
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const shareCard = async () => {
+    if (!publicUrl) {
+      toast.error("Publish your card first to share a link");
+      return;
+    }
+    const shareData: ShareData = {
+      title: `${fields.first} ${fields.last} — ${COMPANY.org}`,
+      text: `Contact card for ${fields.first} ${fields.last}`,
+      url: publicUrl,
+    };
+    try {
+      if ((navigator as any).share) {
+        await (navigator as any).share(shareData);
+        return;
+      }
+      await navigator.clipboard.writeText(publicUrl);
+      toast.success("Link copied");
+    } catch (e: any) {
+      if (e?.name !== "AbortError") toast.error(e?.message ?? "Share failed");
+    }
+  };
+
+  const togglePublish = async () => {
+    if (!user?.id || !slug) return;
+    // Sync latest fields + photos + logo before publishing
+    const avatarUrl = (profile as any)?.avatar_url ?? null;
+    const next = !published;
+    const { error } = await (supabase as any)
+      .from("bd_cards")
+      .update({
+        fields,
+        photo_url: avatarUrl,
+        cover_url: coverUrl || null,
+        logo_cfg: logoCfg,
+        published: next,
+      })
+      .eq("user_id", user.id);
+    if (error) { toast.error(error.message); return; }
+    setPublished(next);
+    toast.success(next ? "Card published" : "Card unpublished");
+  };
+
+  const copyPublicUrl = async () => {
+    if (!publicUrl) return;
+    await navigator.clipboard.writeText(publicUrl);
+    toast.success("Link copied");
+  };
+
+
+
+  const saveToProfile = async () => {
+    if (!profile?.id) {
+      toast.error("Profile not loaded yet");
+      return;
+    }
+    setSaving(true);
+    try {
+      const existingPrefs = (profile as any)?.preferences ?? {};
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          first_name: fields.first || null,
+          last_name: fields.last || null,
+          job_title: fields.title || null,
+          phone: fields.phone || null,
+          phone_extension: fields.extension || null,
+          preferences: {
+            ...existingPrefs,
+            bd_card: {
+              mobile: fields.mobile || null,
+              linkedin: fields.linkedin || null,
+              address: fields.address || null,
+            },
+          },
+        })
+        .eq("id", profile.id);
+      if (error) throw error;
+
+      // Mirror to bd_cards so the public page reflects the latest values
+      if (user?.id && slug) {
+        await (supabase as any)
+          .from("bd_cards")
+          .update({
+            fields,
+            photo_url: (profile as any)?.avatar_url ?? null,
+            cover_url: coverUrl || null,
+            logo_cfg: logoCfg,
+          })
+          .eq("user_id", user.id);
+      }
+
+      toast.success("Saved to your profile");
+      if (typeof refreshProfile === "function") await refreshProfile();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const set = (k: keyof Fields) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    setFields((f) => ({ ...f, [k]: e.target.value }));
+
+  const phoneDisplay = fmtPhone(fields.phone);
+  const mobileDisplay = fmtPhone(fields.mobile);
+  const addressDisplay = fields.address || COMPANY.addressDisplay;
+
+  const avatarUrl = (profile as any)?.avatar_url ?? "";
+  const initials = `${(fields.first[0] ?? "").toUpperCase()}${(fields.last[0] ?? "").toUpperCase()}` || "GLE";
+
+  return (
+    <div className="mx-auto w-full max-w-[440px] space-y-4">
+      {/* Hidden file inputs — rendered at root so they remain reachable when the edit Sheet is open */}
+      <input ref={avatarInputRef} type="file" accept="image/*,.heic,.heif" className="hidden" onChange={handleImageFile("avatar")} />
+      <input ref={coverInputRef} type="file" accept="image/*,.heic,.heif" className="hidden" onChange={handleImageFile("cover")} />
+      <div className="flex justify-end print:hidden">
+        <Button variant={isEditing ? "default" : "outline"} size="sm" onClick={() => setEditOpen((v) => !v)}>
+          {isEditing ? <><Check className="mr-1.5 h-3.5 w-3.5" />Done</> : <><Pencil className="mr-1.5 h-3.5 w-3.5" />Edit</>}
+        </Button>
+      </div>
+      {/* Card */}
+      <Card className="overflow-hidden print:shadow-none print:border-2 shadow-lg">
+        {/* Banner */}
+        <div
+          className="relative h-28 bg-cover bg-center"
+          style={{
+            backgroundImage: coverUrl
+              ? `url("${coverUrl}")`
+              : "linear-gradient(135deg, #1a2e1a 0%, #2d4a2d 40%, #6aa84f 100%)",
+          }}
+        >
+          {coverUrl && <div className="absolute inset-0 bg-black/20" />}
+
+          {/* Cover camera overlay — only in edit mode */}
+          {isEditing && (
+            <button
+              type="button"
+              onClick={() => coverInputRef.current?.click()}
+              disabled={uploading === "cover"}
+              className="print:hidden absolute inset-0 group flex items-start justify-end p-2 focus:outline-none"
+              title="Change cover image"
+              aria-label="Change cover image"
+            >
+              <span className="h-8 w-8 rounded-full bg-black/55 backdrop-blur-sm text-white flex items-center justify-center shadow">
+                {uploading === "cover" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+              </span>
+            </button>
+          )}
+
+          {/* Avatar with camera overlay (only in edit mode) */}
+          <div className="absolute -bottom-10 left-5">
+            {isEditing ? (
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={uploading === "avatar"}
+                className="print:hidden relative group rounded-full focus:outline-none"
+                title="Change profile photo"
+                aria-label="Change profile photo"
+              >
+                <Avatar className="h-24 w-24 ring-4 ring-background shadow-md">
+                  {avatarUrl && <AvatarImage src={avatarUrl} alt={`${fields.first} ${fields.last}`} />}
+                  <AvatarFallback className="text-xl font-semibold" style={{ backgroundColor: "#6aa84f", color: "white" }}>
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center text-white">
+                  {uploading === "avatar" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
+                </span>
+              </button>
+            ) : (
+              <Avatar className="h-24 w-24 ring-4 ring-background shadow-md">
+                {avatarUrl && <AvatarImage src={avatarUrl} alt={`${fields.first} ${fields.last}`} />}
+                <AvatarFallback className="text-xl font-semibold" style={{ backgroundColor: "#6aa84f", color: "white" }}>
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+            )}
+          </div>
+
+        </div>
+
+        {/* Identity */}
+        <CardContent className="pt-12 pb-4 px-5 relative">
+          {/* Logo position tuner — only in edit mode */}
+          {isEditing && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="print:hidden absolute -top-3 right-2 z-10 h-7 w-7 rounded-full bg-background border shadow flex items-center justify-center text-muted-foreground hover:text-foreground"
+                  title="Adjust logo position"
+                  aria-label="Adjust logo position"
+                >
+                  <Sliders className="h-3.5 w-3.5" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-72 p-3 space-y-2">
+                <div className="text-xs font-medium text-muted-foreground mb-1">Logo position &amp; size</div>
+                {([
+                  { k: "height", label: "Height", min: 10, max: 60 },
+                  { k: "width", label: "Width", min: 120, max: 380 },
+                  { k: "top", label: "Top", min: -10, max: 40 },
+                  { k: "right", label: "Right", min: 0, max: 200 },
+                ] as const).map(({ k, label, min, max }) => (
+                  <div key={k} className="flex items-center gap-2 text-[11px]">
+                    <span className="w-12 text-muted-foreground">{label}</span>
+                    <input
+                      type="range"
+                      min={min}
+                      max={max}
+                      value={logoCfg[k]}
+                      onChange={(e) => setLogoCfg((c) => ({ ...c, [k]: Number(e.target.value) }))}
+                      className="flex-1"
+                    />
+                    <input
+                      type="number"
+                      min={min}
+                      max={max}
+                      value={logoCfg[k]}
+                      onChange={(e) => setLogoCfg((c) => ({ ...c, [k]: Number(e.target.value) }))}
+                      className="w-12 h-7 px-1.5 rounded border bg-background text-right tabular-nums"
+                    />
+                  </div>
+                ))}
+                <div className="flex justify-end">
+                  <Button size="sm" variant="ghost" onClick={() => setLogoCfg(LOGO_DEFAULT)} className="h-7 text-xs">
+                    Reset
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
+
+          {/* Company logo — right of avatar, in white space below cover */}
+          <div
+            className="absolute print:!h-5 print:!top-3 print:!right-[70px]"
+            style={{
+              top: `${logoCfg.top}px`,
+              right: `${logoCfg.right}px`,
+              height: `${logoCfg.height}px`,
+              width: `${logoCfg.width}px`,
+            }}
+          >
+            <img
+              src={companyLogo}
+              alt="Green Light Expediting"
+              className="h-full w-full object-contain object-left"
+            />
+          </div>
+
+
+          <h2 className="text-xl font-bold leading-tight">
+            {fields.first} {fields.last}
+          </h2>
+          {fields.title && (
+            <p className="text-sm text-muted-foreground">{fields.title}</p>
+          )}
+
+          {/* Contact rows */}
+          <div className="mt-4 space-y-2">
+            {fields.email && (
+              <ContactRow icon={<Mail className="h-4 w-4" />} label={fields.email} href={`mailto:${fields.email}`} />
+            )}
+            {phoneDisplay && (
+              <ContactRow
+                icon={<Phone className="h-4 w-4" />}
+                label={`${phoneDisplay}${fields.extension ? ` · ext ${fields.extension}` : ""}`}
+                href={`tel:${telValue(fields.phone, fields.extension)}`}
+              />
+            )}
+            {mobileDisplay && (
+              <ContactRow icon={<Smartphone className="h-4 w-4" />} label={mobileDisplay} href={`tel:${telValue(fields.mobile, "")}`} />
+            )}
+            {fields.linkedin && (
+              <ContactRow icon={<Linkedin className="h-4 w-4" />} label="LinkedIn" href={/^https?:\/\//i.test(fields.linkedin) ? fields.linkedin : `https://${fields.linkedin.replace(/^\/+/, "")}`} />
+            )}
+            <ContactRow
+              icon={<MapPin className="h-4 w-4" />}
+              label={addressDisplay.split("\n").join(" · ")}
+            />
+            <ContactRow
+              icon={<img src={mbeSeal} alt="" className="h-4 w-4 object-contain" />}
+              label="NYC Certified Minority Business Enterprise (MBE)"
+            />
+          </div>
+        </CardContent>
+
+        {/* QR section */}
+        <div className="border-t bg-muted/30 px-5 py-4 flex items-center gap-4">
+          <div className="relative bg-white p-3 rounded-md shrink-0 border">
+            <QRCode value={qrValue} size={132} level="H" />
+          </div>
+          <div className="flex-1 min-w-0 flex flex-col gap-2">
+            <img
+              src={mbeSeal}
+              alt="NYC Minority Business Enterprise certified"
+              title="NYC Minority Business Enterprise certified"
+              className="h-20 w-20 animate-spin-slow self-center"
+              loading="lazy"
+              width={80}
+              height={80}
+            />
+            <div className="flex flex-col gap-1.5 print:hidden">
+              <Button size="sm" variant="outline" onClick={shareCard} className="h-8 text-xs justify-start">
+                <Share2 className="mr-1.5 h-3.5 w-3.5" />Share
+              </Button>
+            </div>
+          </div>
+        </div>
+
+      </Card>
+
+
+      <Sheet open={editOpen} onOpenChange={setEditOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Edit my card</SheetTitle>
+            <SheetDescription>Update what shows on your QR card and vCard.</SheetDescription>
+          </SheetHeader>
+
+          {/* Public link & publish toggle */}
+          <div className="mt-5 rounded-md border bg-muted/30 p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-xs font-medium">Public card link</div>
+                <div className="text-[11px] text-muted-foreground truncate">
+                  {publicUrl || "Generating link…"}
+                </div>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant={published ? "outline" : "default"}
+                className="h-8 text-xs shrink-0"
+                onClick={togglePublish}
+                disabled={!slug}
+              >
+                {published ? "Unpublish" : "Publish"}
+              </Button>
+            </div>
+            {publicUrl && (
+              <div className="flex gap-2">
+                <Button type="button" size="sm" variant="ghost" className="h-7 text-xs px-2" onClick={copyPublicUrl}>
+                  Copy link
+                </Button>
+                <a
+                  href={publicUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs h-7 inline-flex items-center px-2 text-muted-foreground hover:text-foreground"
+                >
+                  Open
+                </a>
+              </div>
+            )}
+            <p className="text-[10px] text-muted-foreground">
+              {published
+                ? "Anyone with this link can view your card and save your contact."
+                : "Publish to share your card via QR code or a link. Save changes after editing."}
+            </p>
+          </div>
+
+
+          {/* Photo & Cover editor */}
+          <div className="mt-6 space-y-5">
+            {/* Cover preview */}
+            <div className="space-y-1.5">
+              <Label>Cover image</Label>
+              <div
+                className="relative h-24 rounded-lg bg-cover bg-center border overflow-hidden"
+                style={{
+                  backgroundImage: coverUrl
+                    ? `url("${coverUrl}")`
+                    : "linear-gradient(135deg, #1a2e1a 0%, #2d4a2d 40%, #6aa84f 100%)",
+                }}
+              >
+                {coverUrl && <div className="absolute inset-0 bg-black/20" />}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs"
+                  onClick={() => coverInputRef.current?.click()}
+                  disabled={uploading === "cover"}
+                >
+                  {uploading === "cover" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Camera className="h-3 w-3 mr-1" />}
+                  {coverUrl ? "Change cover" : "Add cover"}
+                </Button>
+                {coverUrl && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={clearCover}
+                  >
+                    Remove cover
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Avatar preview */}
+            <div className="space-y-1.5">
+              <Label>Profile photo</Label>
+              <div className="flex items-center gap-3">
+                <Avatar className="h-16 w-16 ring-2 ring-border">
+                  {avatarUrl && <AvatarImage src={avatarUrl} alt={`${fields.first} ${fields.last}`} />}
+                  <AvatarFallback className="text-base font-semibold" style={{ backgroundColor: "#6aa84f", color: "white" }}>
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={uploading === "avatar"}
+                >
+                  {uploading === "avatar" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Camera className="h-3 w-3 mr-1" />}
+                  Change photo
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            <div className="space-y-1.5"><Label>First name</Label><Input value={fields.first} onChange={set("first")} /></div>
+            <div className="space-y-1.5"><Label>Last name</Label><Input value={fields.last} onChange={set("last")} /></div>
+            <div className="space-y-1.5 col-span-2"><Label>Title</Label><Input value={fields.title} onChange={set("title")} placeholder="e.g. Senior Project Manager" /></div>
+            <div className="space-y-1.5 col-span-2"><Label>Email</Label><Input value={fields.email} onChange={set("email")} /></div>
+            <div className="space-y-1.5"><Label>Office phone</Label><Input placeholder="(718) 392-1969" value={fields.phone} onChange={set("phone")} /></div>
+            <div className="space-y-1.5"><Label>Extension</Label><Input placeholder="12" value={fields.extension} onChange={set("extension")} /></div>
+            <div className="space-y-1.5 col-span-2"><Label>Cell</Label><Input placeholder="(347) 555-1234" value={fields.mobile} onChange={set("mobile")} /></div>
+            <div className="space-y-1.5 col-span-2"><Label>LinkedIn URL</Label>
+              <Input placeholder="https://linkedin.com/in/…" value={fields.linkedin} onChange={set("linkedin")} /></div>
+            <div className="space-y-1.5 col-span-2">
+              <Label>Address (leave blank to use GLE HQ)</Label>
+              <Textarea
+                rows={2}
+                placeholder={COMPANY.addressDisplay}
+                value={fields.address}
+                onChange={set("address")}
+              />
+            </div>
+            <div className="col-span-2">
+              <Button className="w-full" onClick={async () => { await saveToProfile(); setEditOpen(false); }} disabled={saving}>
+                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Save to my profile
+              </Button>
+              <p className="text-xs text-muted-foreground mt-2 text-center">
+                Auto-saves to this browser as you type. Click Save to sync across all devices.
+              </p>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}

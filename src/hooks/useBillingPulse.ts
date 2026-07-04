@@ -62,16 +62,12 @@ export function useBillingPulse(scope: BillingPulseScope = "company") {
         .eq("id", companyId)
         .maybeSingle();
 
-      const { data: activePms } = await supabase
-        .from("profiles")
-        .select("monthly_goal, weekly_goal, role")
-        .eq("company_id", companyId)
-        .eq("is_active", true);
+      const { data: activePms } = await supabase.rpc("get_company_goals" as any);
 
       const companyMonthly =
         (companyRow as any)?.monthly_billing_goal_override ??
-        (activePms || [])
-          .filter((p: any) => ["pm", "admin", "manager"].includes(p.role))
+        ((activePms as any[]) || [])
+          .filter((p: any) => p.is_active && ["pm", "admin", "manager"].includes(p.role))
           .reduce((s: number, p: any) => s + (Number(p.monthly_goal) || 0), 0);
 
       const companyWeekly =
@@ -82,16 +78,14 @@ export function useBillingPulse(scope: BillingPulseScope = "company") {
       let weekGoal = companyWeekly;
 
       if (scope !== "company") {
-        const { data: me } = await supabase
-          .from("profiles")
-          .select("monthly_goal, weekly_goal")
-          .eq("id", profile.id)
-          .maybeSingle();
-        const m = Number((me as any)?.monthly_goal) || 0;
-        const w = Number((me as any)?.weekly_goal) || (m ? m / 4.33 : 0);
+        const { data: myGoals } = await supabase.rpc("get_my_goals" as any);
+        const me = (myGoals as any[] | null)?.[0] || {};
+        const m = Number(me?.monthly_goal) || 0;
+        const w = Number(me?.weekly_goal) || (m ? m / 4.33 : 0);
         monthGoal = m;
         weekGoal = w;
       }
+
 
       // ----- Invoices -----
       let q = supabase

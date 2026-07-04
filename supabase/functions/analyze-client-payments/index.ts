@@ -28,14 +28,29 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    const { client_id, company_id } = await req.json();
+    const { client_id } = await req.json();
 
-    if (!client_id || !company_id) {
-      return new Response(JSON.stringify({ error: "client_id and company_id required" }), {
+    if (!client_id) {
+      return new Response(JSON.stringify({ error: "client_id required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Derive company_id from authenticated user — never trust body
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("company_id")
+      .eq("user_id", user.id)
+      .single();
+    const company_id = profile?.company_id;
+    if (!company_id) {
+      return new Response(JSON.stringify({ error: "No company for user" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
 
     // Fetch all invoices for this client
     const { data: invoices, error: invError } = await supabase

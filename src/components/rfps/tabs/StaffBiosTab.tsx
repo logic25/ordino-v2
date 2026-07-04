@@ -195,7 +195,7 @@ export function StaffBiosTab() {
           years_experience: null,
           years_with_company: null,
           bio: profile.about || "",
-          hourly_rate: profile.hourly_rate ? Number(profile.hourly_rate) : null,
+          hourly_rate: null,
           percentage_on_project: null,
           certifications: [],
           education: [],
@@ -244,10 +244,17 @@ export function StaffBiosTab() {
   const handleResumeUpload = async (file: File) => {
     setUploading(true);
     try {
+      // rfp-documents RLS requires the first folder segment to be company_id.
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+      const { data: profile, error: profErr } = await supabase
+        .from("profiles").select("company_id").eq("user_id", user.id).single();
+      if (profErr || !profile?.company_id) throw new Error("No company found");
+
       const safeName = form.name.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
       const ext = file.name.split(".").pop() || "pdf";
-      const path = `resumes/${safeName}_${Date.now()}.${ext}`;
-      
+      const path = `${profile.company_id}/resumes/${safeName}_${Date.now()}.${ext}`;
+
       const { error: uploadError } = await supabase.storage
         .from("rfp-documents")
         .upload(path, file, { upsert: true });

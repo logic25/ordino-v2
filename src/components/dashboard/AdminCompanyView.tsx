@@ -38,6 +38,49 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { InfoTooltip } from "./InfoTooltip";
 import { DrillInModal } from "./DrillInModal";
+import { useMyEventTasks } from "@/hooks/useEventTasks";
+import { format } from "date-fns";
+import { CheckSquare } from "lucide-react";
+import { Link } from "react-router-dom";
+
+function MyEventTasksWidget() {
+  const { data, isLoading } = useMyEventTasks();
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-1.5">
+          <CheckSquare className="h-4 w-4" />Event Prep Tasks
+        </CardTitle>
+        <CardDescription>Your open prep tasks across upcoming events</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Skeleton className="h-16 w-full" />
+        ) : (data ?? []).length === 0 ? (
+          <p className="text-sm text-muted-foreground">No open event prep tasks assigned to you.</p>
+        ) : (
+          <div className="space-y-1.5">
+            {(data ?? []).slice(0, 8).map((t: any) => (
+              <Link
+                key={t.id}
+                to={`/bd/events/${t.event_id}`}
+                className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/40 text-sm"
+              >
+                <div className="min-w-0">
+                  <div className="truncate">{t.title}</div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {t.event?.name ?? "Event"}
+                    {t.due_date && ` · Due ${format(new Date(t.due_date + "T12:00:00"), "MMM d")}`}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 import { useDrilldownList, type DrilldownKind } from "@/hooks/useDrilldownList";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -140,6 +183,7 @@ export function AdminCompanyView({ isVisible, editMode = false, order, onReorder
     "proposal-followups": <ProposalFollowUps />,
     "expense-approvals": <ExpenseApprovalsCard />,
     "team-overview": <TeamOverview />,
+    "event-prep-tasks": <MyEventTasksWidget />,
   };
 
   const visibleOrdered = effectiveOrder.filter((id) => widgets[id] && show(id));
@@ -300,13 +344,20 @@ function KpiStrip() {
       label: "AR Outstanding",
       icon: DollarSign,
       loading: l3,
-      tooltip: "Open invoice balances (sent + overdue).",
+      tooltip: "Open invoice balances (sent + overdue). Δ compares to outstanding AR at the start of this month — down is good.",
       kind: "ar-outstanding" as DrilldownKind,
       body: ar ? (
         <>
           <p className="text-2xl font-bold tabular-nums">{formatCurrency(ar.total)}</p>
-          <p className="text-xs text-muted-foreground tabular-nums">
-            <span className="text-foreground">{formatCurrency(ar.sent)}</span> sent ·{" "}
+          <p className="text-xs text-muted-foreground tabular-nums flex items-center gap-1 flex-wrap">
+            {ar.delta < 0 ? (
+              <><ArrowDown className="h-3 w-3 text-emerald-500" /> <span className="text-emerald-600">{formatCurrency(ar.delta)}</span> vs month start</>
+            ) : ar.delta > 0 ? (
+              <><ArrowUp className="h-3 w-3 text-red-500" /> <span className="text-red-600">+{formatCurrency(ar.delta)}</span> vs month start</>
+            ) : (
+              <>No change vs month start</>
+            )}
+            <span className="opacity-50">·</span>
             <span className={ar.overdue > 0 ? "text-red-500 font-medium" : ""}>
               {formatCurrency(ar.overdue)} overdue
             </span>
@@ -318,7 +369,7 @@ function KpiStrip() {
       label: "Month-to-Goal",
       icon: Target,
       loading: l4,
-      tooltip: "Billed month-to-date ÷ the company monthly billing goal (override or sum of PM goals).",
+      tooltip: "Billed month-to-date ÷ the company monthly billing goal. Δ compares pace to the same day last month.",
       kind: null as DrilldownKind | null,
       body: goal ? (
         <>
@@ -329,8 +380,16 @@ function KpiStrip() {
           }`}>
             {Math.round(goal.pct * 100)}%
           </p>
-          <p className="text-xs text-muted-foreground tabular-nums">
-            {formatCurrency(goal.billed)} / {formatCurrency(goal.monthGoal)}
+          <p className="text-xs text-muted-foreground tabular-nums flex items-center gap-1 flex-wrap">
+            {goal.deltaPct > 0.005 ? (
+              <><ArrowUp className="h-3 w-3 text-emerald-500" /> <span className="text-emerald-600">+{Math.round(goal.deltaPct * 100)}pp</span> vs last month</>
+            ) : goal.deltaPct < -0.005 ? (
+              <><ArrowDown className="h-3 w-3 text-red-500" /> <span className="text-red-600">{Math.round(goal.deltaPct * 100)}pp</span> vs last month</>
+            ) : (
+              <>On pace vs last month</>
+            )}
+            <span className="opacity-50">·</span>
+            <span>{formatCurrency(goal.billed)} / {formatCurrency(goal.monthGoal)}</span>
           </p>
         </>
       ) : null,

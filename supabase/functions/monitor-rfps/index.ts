@@ -60,20 +60,20 @@ serve(async (req) => {
     const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
     const sb = createClient(supabaseUrl, supabaseKey);
 
-    // Derive company_id from the authenticated caller's profile — never trust it from
-    // the request body (the service-role client below bypasses RLS, so a body-supplied
-    // company_id would let any authenticated user scrape/read another tenant's sources).
-    const { data: callerProfile } = await sb
+    // Derive company_id from the authenticated user — never trust body
+    const { data: profile } = await sb
       .from("profiles")
       .select("company_id")
       .eq("user_id", user.id)
       .single();
-    const company_id = callerProfile?.company_id;
+    const company_id = profile?.company_id;
     if (!company_id) {
-      return new Response(JSON.stringify({ error: "No company for caller" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      return new Response(JSON.stringify({ error: "No company for user" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     if (!firecrawlKey) {
       return new Response(

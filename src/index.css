@@ -293,6 +293,29 @@
   }
 }
 
+/* ───────────────────────────────────────────────────────────────
+   BD module scope — keeps Ordino's slate/amber palette and fonts.
+   Provides small utility classes used by BD pages so we don't
+   pepper components with raw color tokens.
+   ─────────────────────────────────────────────────────────────── */
+.bd-scope {
+  background-color: hsl(220 14% 96%);
+}
+.bd-scope .bd-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: hsl(220 10% 45%);
+}
+.bd-scope .bd-hairline {
+  border-color: hsl(220 13% 88%);
+}
+.bd-scope .bd-surface {
+  background: #ffffff;
+  border: 1px solid hsl(220 13% 88%);
+}
+
 /* Print styles for client-facing proposal */
 @media print {
   body { background: white !important; }
@@ -327,4 +350,17 @@
   45% { transform: rotate(10deg); }
   60% { transform: rotate(-8deg); }
   75% { transform: rotate(4deg); }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 16s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin-slow { animation: none; }
 }

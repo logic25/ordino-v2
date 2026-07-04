@@ -80,8 +80,19 @@ export function AttachmentsTab() {
   const handleUpload = async (file: File, tag = "other") => {
     setUploading(true);
     try {
+      // Resolve the user's company_id so we can scope the upload path to it.
+      // The rfp-documents bucket's RLS INSERT policy requires the first
+      // folder segment to equal company_id; uploading without this prefix
+      // historically failed silently and the file never made it onto outgoing
+      // RFP emails as an attachment.
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+      const { data: profile, error: profErr } = await supabase
+        .from("profiles").select("company_id").eq("user_id", user.id).single();
+      if (profErr || !profile?.company_id) throw new Error("No company found");
+
       const ext = file.name.split(".").pop() || "";
-      const path = `attachments/${crypto.randomUUID()}.${ext}`;
+      const path = `${profile.company_id}/attachments/${crypto.randomUUID()}.${ext}`;
 
       const { error: uploadErr } = await supabase.storage
         .from("rfp-documents")

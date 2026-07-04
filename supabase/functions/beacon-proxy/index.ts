@@ -61,23 +61,158 @@ Deno.serve(async (req) => {
       });
     }
 
-    // For ingest, check admin role
+    // Ingest (KB upload + KB doc edits) is open to any AUTHENTICATED company member,
+    // not just admins — PMs (e.g. Sheri) curate the knowledge base. The caller is
+    // already authenticated above; we additionally require a real profile (i.e. a
+    // member of a company, not a bare auth user). Accountability comes from the
+    // version-history audit (kb_document_versions: who/when, with restore) rather
+    // than from locking edits to admins.
     if (action === "ingest") {
       const supabase = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id);
-      const isAdmin = roles?.some((r: { role: string }) => r.role === "admin");
-      if (!isAdmin) {
-        return new Response(JSON.stringify({ error: "Admin access required for ingestion" }), {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!prof?.company_id) {
+        return new Response(JSON.stringify({ error: "Must be a company member to contribute to the knowledge base" }), {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+    }
+
+    // ── Feedback / correction proxy ──
+    // Forwards a single analytics action (log_feedback / log_correction) to the
+    // beacon-analytics function using the shared BEACON_ANALYTICS_KEY, so the
+    // browser never needs to hold that secret. Identity is rebound from the JWT.
+    if (action === "feedback" || action === "correction") {
+      const body = await req.json().catch(() => ({}));
+      const sbSvc = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+      const { data: prof } = await sbSvc
+        .from("profiles")
+        .select("id, full_name, company_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      const data = {
+        ...(body?.data || {}),
+        user_id: user.id,
+        user_name: body?.data?.user_name || prof?.full_name || user.email || "Unknown",
+        company_id: prof?.company_id,
+      };
+      const analyticsAction = action === "feedback" ? "log_feedback" : "log_correction";
+      const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/beacon-analytics`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-beacon-key": BEACON_API_KEY,
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+        body: JSON.stringify({ action: analyticsAction, data }),
+      });
+      const text = await res.text();
+      return new Response(text, {
+        status: res.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── Teach-Beacon admin passthroughs ──
+    // Admin OR manager can drive the review queue. We forward to beacon-analytics
+    // using the shared BEACON_ANALYTICS_KEY (kept server-side). Identity is NOT
+    // accepted from the client for write paths — derived from JWT.
+    if (
+      action === "get_kb_gaps" ||
+      action === "dismiss_kb_gap" ||
+      action === "update_feedback_roadmap"
+    ) {
+      const sbSvc = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+      const { data: roles } = await sbSvc
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+      const allowed = (roles || []).some(
+        (r: any) => r.role === "admin" || r.role === "manager"
+      );
+      if (!allowed) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const body = await req.json().catch(() => ({}));
+      const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/beacon-analytics`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-beacon-key": BEACON_API_KEY,
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+        body: JSON.stringify({ action, data: body?.data || {} }),
+      });
+      const text = await res.text();
+      return new Response(text, {
+        status: res.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── Beacon KB document mutation passthroughs (admin/manager only) ──
+    // In-place edits via the Railway Beacon backend — NO re-ingest, NO duplicates.
+    //   update-metadata  -> POST /api/knowledge/update-metadata { source_file, title?, jurisdiction?, folder? }
+    //   assign-folders   -> POST /api/knowledge/assign-folders  { assignments: { [source_file]: folder } }
+    //   delete-doc       -> POST /api/knowledge/delete          { source_file }   (backs up first; restorable)
+    if (
+      action === "update-metadata" ||
+      action === "assign-folders" ||
+      action === "delete-doc"
+    ) {
+      const sbSvc = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+      const { data: roles } = await sbSvc
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+      const allowed = (roles || []).some(
+        (r: any) => r.role === "admin" || r.role === "manager"
+      );
+      if (!allowed) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const body = await req.json().catch(() => ({}));
+      const pathByAction: Record<string, string> = {
+        "update-metadata": "/api/knowledge/update-metadata",
+        "assign-folders": "/api/knowledge/assign-folders",
+        "delete-doc": "/api/knowledge/delete",
+      };
+      const upstreamPath = pathByAction[action];
+      const res = await fetch(`${BEACON_API_URL}${upstreamPath}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(BEACON_API_KEY ? { "x-beacon-key": BEACON_API_KEY } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+      const text = await res.text();
+      return new Response(text, {
+        status: res.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     let beaconUrl: string;
@@ -86,6 +221,36 @@ Deno.serve(async (req) => {
     if (action === "chat") {
       beaconUrl = `${BEACON_API_URL}/api/chat`;
       const body = await req.json();
+
+      // ── Server-side identity binding (anti-spoof) ──
+      // Derive company_id and user_id from the verified JWT, ignoring any client-supplied
+      // values. Without this, a caller can forge `company_id` in the body and Railway will
+      // scope KB retrieval + downstream beacon-data-proxy calls to the spoofed tenant.
+      {
+        const sbSvc = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+        );
+        const { data: prof } = await sbSvc
+          .from("profiles")
+          .select("id, company_id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (!prof?.company_id) {
+          return new Response(JSON.stringify({ error: "No company for user" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (body.company_id && body.company_id !== prof.company_id) {
+          console.warn(`beacon-proxy/chat: company_id spoof attempt — user=${user.id} sent=${body.company_id} verified=${prof.company_id}`);
+        }
+        if (body.user_id && body.user_id !== user.id && body.user_id !== prof.id) {
+          console.warn(`beacon-proxy/chat: user_id spoof attempt — auth=${user.id} sent=${body.user_id}`);
+        }
+        body.company_id = prof.company_id;
+        body.user_id = user.id;
+      }
 
       // ── Page & error context injection ──
       const projectCtx = body.project_context || {};
@@ -401,11 +566,18 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Forward the end-user's Supabase JWT + company_id + jurisdiction to Railway /api/chat
+      // so Railway can (eventually) forward the JWT to beacon-data-proxy for per-user company scoping.
+      // company_id and user_id are JWT-derived server-side above (anti-spoof); any client-supplied
+      // values were overwritten. jurisdiction stays client-supplied (intentionally null until KB
+      // docs are tagged in Pinecone AND Railway's jurisdiction handling ships).
       beaconReqInit = {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(BEACON_API_KEY ? { "x-beacon-key": BEACON_API_KEY } : {}),
+          // Forward end-user JWT (planned: Railway → beacon-data-proxy hop)
+          ...(authHeader ? { "x-ordino-user-authorization": authHeader } : {}),
         },
         body: JSON.stringify(body),
       };
@@ -441,17 +613,36 @@ Deno.serve(async (req) => {
             if (profile) {
               const originalMsg = lastMessage
                 .replace(/\[User is on the "[^"]*" page in Ordino\]\n?/g, "")
-                .replace(/\[SYSTEM INSTRUCTION:.*?\]/gs, "")
+                .replace(/\[\s*(INSTRUCTIONS|Context|SYSTEM INSTRUCTION)[^\]]*\]?/gis, "")
+                .replace(/\[\s*Page:[^\]]*\]\s*/gi, "")
+                .replace(/\s{2,}/g, " ")
                 .trim();
               const pageName = currentPage || "Unknown";
+              const bugTitle = `[${pageName}] ${originalMsg.slice(0, 80)}`;
+
+              // Build a readable description: user's actual message first,
+              // then page + project context (from structured fields, not the
+              // raw `[Context: ...]` blob), then Beacon's response.
+              const projectBits: string[] = [];
+              if (projectCtx?.projectAddress) projectBits.push(projectCtx.projectAddress);
+              if (projectCtx?.projectNumber) projectBits.push(`#${projectCtx.projectNumber}`);
+              if (projectCtx?.projectName) projectBits.push(projectCtx.projectName);
+              if (projectCtx?.clientName) projectBits.push(`Client: ${projectCtx.clientName}`);
+              const projectLine = projectBits.length ? `**Project:** ${projectBits.join(" — ")}\n` : "";
+              const beaconReply = (responseJson.response || "").slice(0, 500);
+              const description =
+                `**What the user said:**\n${originalMsg || "(empty)"}\n\n` +
+                `**Where:** ${pageName} page\n` +
+                projectLine +
+                `\n**Beacon's response:**\n${beaconReply}`;
 
               const { data: inserted, error: insertErr } = await sb
                 .from("feature_requests")
                 .insert({
                   company_id: profile.company_id,
                   user_id: profile.id,
-                  title: `[${pageName}] ${originalMsg.slice(0, 80)}`,
-                  description: `**Reported via Beacon on ${pageName} page:**\n${originalMsg}\n\n**Beacon response:**\n${(responseJson.response || "").slice(0, 500)}`,
+                  title: bugTitle,
+                  description,
                   category: "bug_report",
                   priority: "medium",
                   status: "open",
@@ -460,8 +651,10 @@ Deno.serve(async (req) => {
                 .select("id")
                 .single();
 
+
               if (!insertErr && inserted) {
                 responseJson.bug_auto_logged = true;
+                responseJson.bug_id = inserted.id;
                 console.log("Auto-logged bug for page:", pageName, "id:", inserted.id);
 
                 // Fire-and-forget triage
@@ -493,11 +686,12 @@ Deno.serve(async (req) => {
                     },
                     body: JSON.stringify({
                       bug_id: inserted.id,
-                      bug_title: `[${pageName}] ${originalMsg.slice(0, 80)}`,
+                      bug_title: bugTitle,
                       bug_description: `**Reported via Beacon on ${pageName} page:**\n${originalMsg}\n\n**Beacon response:**\n${(responseJson.response || "").slice(0, 500)}`,
                       bug_priority: "medium",
                       company_id: profile.company_id,
                       reporter_name: reporterName,
+                      reporter_user_id: profile.id,
                     }),
                   }).catch(e => console.error("Bug alert trigger failed:", e));
                 } catch (e) {
@@ -600,6 +794,18 @@ Deno.serve(async (req) => {
         headers: {
           ...(BEACON_API_KEY ? { "x-beacon-key": BEACON_API_KEY } : {}),
         },
+      };
+    } else if (action === "content-generate") {
+      // Draft a blog/newsletter from a content candidate using Beacon's real LLM.
+      const body = await req.json().catch(() => ({}));
+      beaconUrl = `${BEACON_API_URL}/api/content/generate`;
+      beaconReqInit = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(BEACON_API_KEY ? { "x-beacon-key": BEACON_API_KEY } : {}),
+        },
+        body: JSON.stringify(body),
       };
     } else {
       return new Response(JSON.stringify({ error: "Invalid action" }), {

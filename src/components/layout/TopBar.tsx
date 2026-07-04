@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { Menu, Search, LogOut, Settings } from "lucide-react";
-import { ChatSlideOut } from "@/components/chat/ChatSlideOut";
+import { Menu, Search, LogOut, Settings, Plus, FileText, UserPlus, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GlobalSearchDialog } from "@/components/layout/GlobalSearchDialog";
 import { useNavigate } from "react-router-dom";
@@ -78,8 +77,28 @@ export function TopBar({ onMenuToggle }: TopBarProps) {
 
       {/* Actions */}
       <div className="flex items-center gap-2">
-        {/* Google Chat slide-out */}
-        <ChatSlideOut />
+        {/* Quick Create */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-1 h-9" data-tour="topbar-quick-create">
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">New</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuLabel>Quick Create</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate("/proposals?new=1")}>
+              <FileText className="h-4 w-4 mr-2" /> New Proposal
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/bd/leads?new=1")}>
+              <UserPlus className="h-4 w-4 mr-2" /> Capture Lead
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/clients?new=1")}>
+              <Building2 className="h-4 w-4 mr-2" /> New Client
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Notifications */}
         <div data-tour="topbar-notifications">

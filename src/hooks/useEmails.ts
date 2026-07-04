@@ -12,9 +12,11 @@ export interface Email {
   from_name: string | null;
   to_emails: string[] | null;
   date: string | null;
-  body_text: string | null;
-  body_html: string | null;
   snippet: string | null;
+  // body_text / body_html are NOT selected by useEmails (list view).
+  // They are populated by useEmailDetail / useThreadEmails, which select("*").
+  body_text?: string | null;
+  body_html?: string | null;
   has_attachments: boolean;
   labels: string[] | null;
   is_read: boolean;
@@ -60,7 +62,6 @@ export function useEmails(filters: EmailFilters = {}) {
         .select(`
           id, company_id, user_id, gmail_message_id, thread_id,
           subject, from_email, from_name, to_emails, date,
-          body_text, body_html,
           snippet, has_attachments, labels, is_read, synced_at, created_at,
           archived_at, snoozed_until, replied_at, assigned_to, assigned_by, assigned_at, tags,
           email_project_tags (
@@ -118,6 +119,8 @@ export function useEmails(filters: EmailFilters = {}) {
 
       return results;
     },
+    staleTime: 10_000,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -166,7 +169,7 @@ export function useThreadEmails(threadId: string | null | undefined) {
           )
         `)
         .eq("thread_id", threadId)
-        .order("date", { ascending: true });
+        .order("date", { ascending: false });
 
       if (error) throw error;
       return data as unknown as EmailWithTags[];
@@ -281,14 +284,30 @@ export function useMarkReadUnread() {
 
   return useMutation({
     mutationFn: async ({ emailId, isRead }: { emailId: string; isRead: boolean }) => {
+      // 1) Write Ordino state immediately for snappy UI.
       const { error } = await supabase
         .from("emails")
         .update({ is_read: isRead })
         .eq("id", emailId);
       if (error) throw error;
+
+      // 2) Push the change to Gmail so the two never drift.
+      //    Fire-and-forget — if Gmail is unreachable the next sync will reconcile.
+      try {
+        await supabase.functions.invoke("gmail-modify-labels", {
+          body: {
+            email_id: emailId,
+            remove: isRead ? ["UNREAD"] : [],
+            add: isRead ? [] : ["UNREAD"],
+          },
+        });
+      } catch (e) {
+        console.warn("[gmail-modify-labels] push failed (will reconcile on next sync):", e);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["emails"] });
+      queryClient.invalidateQueries({ queryKey: ["email-unread-count"] });
     },
   });
 }
@@ -316,5 +335,90 @@ export function useProjectEmails(projectId: string | undefined) {
       return data as any[];
     },
     enabled: !!projectId,
+  });
+}
+
+/**
+ * Emails tagged to a specific proposal. One tag row per (proposal, email) pair.
+ * Click into one and EmailDetailSheet expands the full thread via useThreadEmails
+ * — so replies that landed on the same Gmail thread automatically appear.
+ */
+export function useProposalEmails(proposalId: string | undefined) {
+  return useQuery({
+    queryKey: ["proposal-emails", proposalId],
+    queryFn: async () => {
+      if (!proposalId) return [];
+
+      const { data, error } = await (supabase as any)
+        .from("email_project_tags")
+        .select(`
+          id, category, notes, tagged_at,
+          emails (
+            id, gmail_message_id, thread_id, subject, from_email, from_name,
+            date, snippet, has_attachments, is_read,
+            email_attachments (id, filename, mime_type, size_bytes)
+          )
+        `)
+        .eq("proposal_id", proposalId)
+        .order("tagged_at", { ascending: false });
+
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: !!proposalId,
+  });
+}
+
+/** Emails tagged to a specific change order. Same shape as useProposalEmails. */
+export function useChangeOrderEmails(changeOrderId: string | undefined) {
+  return useQuery({
+    queryKey: ["change-order-emails", changeOrderId],
+    queryFn: async () => {
+      if (!changeOrderId) return [];
+
+      const { data, error } = await (supabase as any)
+        .from("email_project_tags")
+        .select(`
+          id, category, notes, tagged_at,
+          emails (
+            id, gmail_message_id, thread_id, subject, from_email, from_name,
+            date, snippet, has_attachments, is_read,
+            email_attachments (id, filename, mime_type, size_bytes)
+          )
+        `)
+        .eq("change_order_id", changeOrderId)
+        .order("tagged_at", { ascending: false });
+
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: !!changeOrderId,
+  });
+}
+
+/** Emails tagged to a specific invoice. */
+export function useInvoiceEmails(invoiceId: string | undefined) {
+  return useQuery({
+    queryKey: ["invoice-emails", invoiceId],
+    queryFn: async () => {
+      if (!invoiceId) return [];
+
+      const { data, error } = await (supabase as any)
+        .from("email_project_tags")
+        .select(`
+          id, category, notes, tagged_at,
+          emails (
+            id, gmail_message_id, thread_id, subject, from_email, from_name,
+            date, snippet, has_attachments, is_read,
+            email_attachments (id, filename, mime_type, size_bytes)
+          )
+        `)
+        .eq("invoice_id", invoiceId)
+        .order("tagged_at", { ascending: false });
+
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: !!invoiceId,
   });
 }

@@ -153,6 +153,13 @@ export function InvoiceSettings() {
   // Demand letter
   const [demandTemplate, setDemandTemplate] = useState(DEFAULT_DEMAND_TEMPLATE);
   const [showDemandPreview, setShowDemandPreview] = useState(false);
+  // Late-payment interest (off by default until reviewed)
+  const [interestEnabled, setInterestEnabled] = useState(false);
+  const [interestRate, setInterestRate] = useState("18.00");
+  const [interestGraceDays, setInterestGraceDays] = useState("0");
+  const [interestCompounding, setInterestCompounding] = useState<"simple" | "monthly">("monthly");
+  const [interestEffectiveFrom, setInterestEffectiveFrom] = useState("");
+  const [managingMember, setManagingMember] = useState("");
   // ACH template
   const [achTemplate, setAchTemplate] = useState(DEFAULT_ACH_TEMPLATE);
   const [showAchPreview, setShowAchPreview] = useState(false);
@@ -212,6 +219,12 @@ export function InvoiceSettings() {
     if (st.company_logo_url) setLogoUrl(st.company_logo_url);
     if (st.invoice_header_text) setHeaderText(st.invoice_header_text);
     if (st.invoice_footer_text) setFooterText(st.invoice_footer_text);
+    if (st.late_interest_enabled !== undefined) setInterestEnabled(!!st.late_interest_enabled);
+    if (st.default_late_interest_rate_apr !== undefined) setInterestRate(String(st.default_late_interest_rate_apr));
+    if (st.default_interest_grace_days !== undefined) setInterestGraceDays(String(st.default_interest_grace_days));
+    if (st.default_interest_compounding) setInterestCompounding(st.default_interest_compounding);
+    if (st.interest_clause_effective_from) setInterestEffectiveFrom(st.interest_clause_effective_from);
+    if (st.managing_member_name) setManagingMember(st.managing_member_name);
     if (st.bonus_tiers && Array.isArray(st.bonus_tiers)) setBonusTiers(st.bonus_tiers);
   }, [companyData]);
 
@@ -244,6 +257,12 @@ export function InvoiceSettings() {
           company_logo_url: logoUrl,
           invoice_header_text: headerText,
           invoice_footer_text: footerText,
+          late_interest_enabled: interestEnabled,
+          default_late_interest_rate_apr: parseFloat(interestRate) || 0,
+          default_interest_grace_days: parseInt(interestGraceDays) || 0,
+          default_interest_compounding: interestCompounding,
+          interest_clause_effective_from: interestEffectiveFrom || undefined,
+          managing_member_name: managingMember || undefined,
           bonus_tiers: bonusTiers,
         },
       });
@@ -532,8 +551,8 @@ export function InvoiceSettings() {
 
       {/* Demand Letter Template */}
       <CollapsibleSettingsCard
-        title="Demand Letter Template"
-        description="Customize the formal demand letter sent to clients"
+        title="Demand Letter Fallback Template"
+        description="Used only if AI demand-letter generation fails. The AI generator pulls live invoice + signed-agreement context — this template is the safety net."
         isOpen={sectionStates.demand ?? true}
         onOpenChange={(o) => setSectionOpen("demand", o)}
         headerAction={
@@ -564,6 +583,63 @@ export function InvoiceSettings() {
           </Button>
         </div>
       </CollapsibleSettingsCard>
+
+      {/* Late-Payment Interest */}
+      <CollapsibleSettingsCard
+        title="Late-Payment Interest"
+        description="Optional contractual interest accrual on past-due balances. Off by default — flip on once Chris has reviewed the clause language. Only proposals signed on or after the effective date will accrue interest; legacy agreements never do."
+        isOpen={true}
+        onOpenChange={() => {}}
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 rounded-md border bg-muted/30 px-3 py-2">
+            <input
+              id="interest-enabled"
+              type="checkbox"
+              checked={interestEnabled}
+              onChange={(e) => setInterestEnabled(e.target.checked)}
+              className="h-4 w-4"
+            />
+            <Label htmlFor="interest-enabled" className="text-sm cursor-pointer">
+              {interestEnabled ? "Interest accrual is ON" : "Interest accrual is OFF (under review)"}
+            </Label>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-sm">Default Rate (APR %)</Label>
+              <Input type="number" step="0.01" value={interestRate} onChange={(e) => setInterestRate(e.target.value)} disabled={!interestEnabled} className="mt-1" />
+              <p className="text-xs text-muted-foreground mt-1">Standard NY commercial rate: 18% (1.5%/month).</p>
+            </div>
+            <div>
+              <Label className="text-sm">Grace Period (days past due)</Label>
+              <Input type="number" value={interestGraceDays} onChange={(e) => setInterestGraceDays(e.target.value)} disabled={!interestEnabled} className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-sm">Compounding</Label>
+              <select
+                className="mt-1 w-full h-9 rounded-md border bg-background px-3 text-sm"
+                value={interestCompounding}
+                onChange={(e) => setInterestCompounding(e.target.value as "simple" | "monthly")}
+                disabled={!interestEnabled}
+              >
+                <option value="simple">Simple</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+            <div>
+              <Label className="text-sm">Effective From</Label>
+              <Input type="date" value={interestEffectiveFrom} onChange={(e) => setInterestEffectiveFrom(e.target.value)} disabled={!interestEnabled} className="mt-1" />
+              <p className="text-xs text-muted-foreground mt-1">Only proposals signed on/after this date accrue interest.</p>
+            </div>
+          </div>
+          <div>
+            <Label className="text-sm">Managing Member (signature on demand letters)</Label>
+            <Input value={managingMember} onChange={(e) => setManagingMember(e.target.value)} placeholder="e.g. Manny Russell" className="mt-1" />
+          </div>
+        </div>
+      </CollapsibleSettingsCard>
+
+
 
       {/* Demand Letter Preview Dialog */}
       <Dialog open={showDemandPreview} onOpenChange={setShowDemandPreview}>

@@ -31,6 +31,8 @@ import { ChangeOrderPDF } from "./ChangeOrderPDF";
 import type { ChangeOrderFormInput } from "@/hooks/useChangeOrders";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useAuth } from "@/hooks/useAuth";
+import { useChangeOrderEmails } from "@/hooks/useEmails";
+import { RecordEmailsSection } from "@/components/emails/RecordEmailsSection";
 
 const fmt = (v: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(v);
@@ -341,7 +343,9 @@ export function ChangeOrderDetailSheet({
         template: templateOverrides,
       });
 
-      // Send the email via gmail-send edge function
+      // Send the email via gmail-send edge function. Pass project_id + change_order_id
+      // so the outbound email auto-tags to both — the project's Emails tab and the
+      // CO detail panel both surface the thread (and any replies that arrive later).
       const { data: sendResult, error: sendError } = await supabase.functions.invoke("gmail-send", {
         body: {
           to: contactEmail,
@@ -357,6 +361,9 @@ export function ChangeOrderDetailSheet({
               mime_type: "application/pdf",
             },
           ],
+          project_id: co.project_id,
+          change_order_id: co.id,
+          tag_category: "client",
         },
       });
 
@@ -807,6 +814,8 @@ export function ChangeOrderDetailSheet({
                 )}
               </div>
             </div>
+
+            <ChangeOrderEmailThread changeOrderId={co.id} />
           </div>
         </SheetContent>
       </Sheet>
@@ -866,5 +875,20 @@ export function ChangeOrderDetailSheet({
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+/** Email thread section for the CO detail sheet. Hides itself until first send. */
+function ChangeOrderEmailThread({ changeOrderId }: { changeOrderId: string }) {
+  const { data: emails = [], isLoading } = useChangeOrderEmails(changeOrderId);
+  if (!isLoading && emails.length === 0) return null;
+  return (
+    <div className="mt-2 pt-4 border-t">
+      <RecordEmailsSection
+        taggedEmails={emails}
+        isLoading={isLoading}
+        recordLabel="change order"
+      />
+    </div>
   );
 }

@@ -81,9 +81,6 @@ verify_jwt = false
 [functions.google-chat-api]
 verify_jwt = false
 
-[functions.ask-ordino]
-verify_jwt = false
-
 [functions.beacon-analytics]
 verify_jwt = false
 
@@ -131,3 +128,13 @@ verify_jwt = false
 
 [functions.process-bd-sequences]
 verify_jwt = false
+
+[functions.bd-email-ingest]
+verify_jwt = false
+
+[functions.kb-deleted-backup]
+verify_jwt = false
+
+[functions.stock-photos]
+verify_jwt = true
+

@@ -14,11 +14,13 @@ interface FolderNodeProps {
   onRename?: (folder: DocumentFolder) => void;
   onCreateSubfolder?: (parentId: string) => void;
   onDelete?: (folder: DocumentFolder) => void;
+  onDropDocument?: (docId: string, folderId: string) => void;
   depth?: number;
 }
 
-function FolderNode({ folder, selectedId, onSelect, onRename, onCreateSubfolder, onDelete, depth = 0 }: FolderNodeProps) {
+function FolderNode({ folder, selectedId, onSelect, onRename, onCreateSubfolder, onDelete, onDropDocument, depth = 0 }: FolderNodeProps) {
   const [expanded, setExpanded] = useState(depth === 0);
+  const [dragOver, setDragOver] = useState(false);
   const hasChildren = folder.children.length > 0;
   const isSelected = selectedId === folder.id;
   const canDelete = !folder.is_system;
@@ -30,9 +32,27 @@ function FolderNode({ folder, selectedId, onSelect, onRename, onCreateSubfolder,
           onSelect(folder.id);
           if (hasChildren) setExpanded(!expanded);
         }}
+        onDragOver={(e) => {
+          if (!onDropDocument) return;
+          const hasDoc = e.dataTransfer.types.includes("application/x-ordino-doc");
+          if (!hasDoc) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          if (!dragOver) setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          if (!onDropDocument) return;
+          const docId = e.dataTransfer.getData("application/x-ordino-doc");
+          setDragOver(false);
+          if (!docId) return;
+          e.preventDefault();
+          onDropDocument(docId, folder.id);
+        }}
         className={cn(
           "w-full flex items-center gap-1.5 px-2 py-1.5 text-sm rounded-md hover:bg-muted transition-colors group",
-          isSelected && "bg-muted font-medium"
+          isSelected && "bg-muted font-medium",
+          dragOver && "ring-2 ring-primary bg-primary/10",
         )}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
       >
@@ -93,6 +113,7 @@ function FolderNode({ folder, selectedId, onSelect, onRename, onCreateSubfolder,
               onRename={onRename}
               onCreateSubfolder={onCreateSubfolder}
               onDelete={onDelete}
+              onDropDocument={onDropDocument}
               depth={depth + 1}
             />
           ))}
@@ -109,18 +130,37 @@ interface FolderTreeProps {
   onRenameFolder?: (folder: DocumentFolder) => void;
   onCreateSubfolder?: (parentId: string) => void;
   onDeleteFolder?: (folder: DocumentFolder) => void;
+  onDropDocument?: (docId: string, folderId: string) => void;
 }
 
-export function FolderTree({ folders, selectedFolderId, onSelectFolder, onRenameFolder, onCreateSubfolder, onDeleteFolder }: FolderTreeProps) {
+export function FolderTree({ folders, selectedFolderId, onSelectFolder, onRenameFolder, onCreateSubfolder, onDeleteFolder, onDropDocument }: FolderTreeProps) {
   const tree = buildFolderTree(folders);
+  const [rootDragOver, setRootDragOver] = useState(false);
 
   return (
     <div className="space-y-0.5">
       <button
         onClick={() => onSelectFolder(null)}
+        onDragOver={(e) => {
+          if (!onDropDocument) return;
+          if (!e.dataTransfer.types.includes("application/x-ordino-doc")) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          if (!rootDragOver) setRootDragOver(true);
+        }}
+        onDragLeave={() => setRootDragOver(false)}
+        onDrop={(e) => {
+          if (!onDropDocument) return;
+          const docId = e.dataTransfer.getData("application/x-ordino-doc");
+          setRootDragOver(false);
+          if (!docId) return;
+          e.preventDefault();
+          onDropDocument(docId, "");
+        }}
         className={cn(
           "w-full flex items-center gap-1.5 px-2 py-1.5 text-sm rounded-md hover:bg-muted transition-colors",
-          selectedFolderId === null && "bg-muted font-medium"
+          selectedFolderId === null && "bg-muted font-medium",
+          rootDragOver && "ring-2 ring-primary bg-primary/10",
         )}
       >
         <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -135,6 +175,7 @@ export function FolderTree({ folders, selectedFolderId, onSelectFolder, onRename
           onRename={onRenameFolder}
           onCreateSubfolder={onCreateSubfolder}
           onDelete={onDeleteFolder}
+          onDropDocument={onDropDocument}
         />
       ))}
     </div>

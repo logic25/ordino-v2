@@ -5,18 +5,157 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
 import {
   MessageSquare, Users, Target, AlertCircle, ChevronDown, Clock, DollarSign, Trophy,
+  Check, X, Loader2, Sparkles, Inbox, ChevronRight,
 } from "lucide-react";
-import { useBeaconAnalytics, type DateRange } from "@/hooks/useBeaconAnalytics";
+import { Button } from "@/components/ui/button";
+import { useBeaconAnalytics, useReviewSuggestion, useTurnQuestionIntoContent, type DateRange } from "@/hooks/useBeaconAnalytics";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import { InfoTooltip } from "@/components/dashboard/InfoTooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
+
 
 const BEACON_ORANGE = "#f59e0b";
 
+// ── Feedback: pending KB correction suggestions, approve/reject ──────────────
+function SuggestionCard({ s }: { s: any }) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const review = useReviewSuggestion();
+  const act = (status: "approved" | "rejected") =>
+    review.mutate(
+      { id: s.id, status, reviewedBy: user?.email ?? user?.id },
+      {
+        onSuccess: () => toast({
+          title: status === "approved" ? "Approved" : "Rejected",
+          description: status === "approved"
+            ? "Beacon will fold this correction into the knowledge base."
+            : "Dismissed — won't be used.",
+        }),
+        onError: (e: any) => toast({ title: "Couldn't update", description: e.message, variant: "destructive" }),
+      },
+    );
+  return (
+    <div className="rounded-lg border p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <span className="font-medium text-foreground">{s.user_name || "Someone"}</span>
+          {s.timestamp && <span>· {formatDistanceToNow(new Date(s.timestamp), { addSuffix: true })}</span>}
+          {s.topics && <Badge variant="secondary" className="text-[9px]">{s.topics}</Badge>}
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Button size="sm" variant="outline" disabled={review.isPending} onClick={() => act("rejected")}>
+            <X className="h-3.5 w-3.5 mr-1" /> Reject
+          </Button>
+          <Button size="sm" disabled={review.isPending} onClick={() => act("approved")}>
+            {review.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Check className="h-3.5 w-3.5 mr-1" />} Approve
+          </Button>
+        </div>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div className="rounded-md bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 p-2">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">Beacon said (wrong)</div>
+          <p className="text-xs text-foreground/90 mt-0.5 whitespace-pre-wrap">{s.wrong_answer}</p>
+        </div>
+        <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 p-2">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Should be</div>
+          <p className="text-xs text-foreground/90 mt-0.5 whitespace-pre-wrap">{s.correct_answer}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReviewedCard({ s }: { s: any }) {
+  const approved = s.status === "approved";
+  return (
+    <div className="rounded-lg border p-3 space-y-2">
+      <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+        <span className={cn("font-semibold px-1.5 py-0.5 rounded-full text-[10px]",
+          approved ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+                   : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400")}>
+          {approved ? "Approved" : "Rejected"}
+        </span>
+        {s.user_name && <span>by {s.user_name}</span>}
+        {s.reviewed_at && <span>· {formatDistanceToNow(new Date(s.reviewed_at), { addSuffix: true })}</span>}
+        {s.topics && <Badge variant="secondary" className="text-[9px]">{s.topics}</Badge>}
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div className="rounded-md bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 p-2">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">Was wrong</div>
+          <p className="text-xs text-foreground/90 mt-0.5 whitespace-pre-wrap">{s.wrong_answer}</p>
+        </div>
+        <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 p-2">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Corrected to</div>
+          <p className="text-xs text-foreground/90 mt-0.5 whitespace-pre-wrap">{s.correct_answer}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FeedbackPanel({ suggestions, reviewed, isLoading }: { suggestions: any[]; reviewed: any[]; isLoading: boolean }) {
+  const [tab, setTab] = useState<"pending" | "history">("pending");
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-orange-500" /> Feedback — KB Corrections
+        </CardTitle>
+        <div className="flex gap-1 mt-2">
+          <button onClick={() => setTab("pending")}
+            className={cn("text-xs px-2.5 py-1 rounded-md transition-colors", tab === "pending" ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted/50")}>
+            Pending Review {suggestions.length > 0 && <span className="ml-1 text-[10px] rounded-full bg-orange-500 text-white px-1.5">{suggestions.length}</span>}
+          </button>
+          <button onClick={() => setTab("history")}
+            className={cn("text-xs px-2.5 py-1 rounded-md transition-colors", tab === "history" ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted/50")}>
+            Approved History {reviewed.length > 0 && <span className="ml-1 text-[10px] text-muted-foreground">({reviewed.length})</span>}
+          </button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Skeleton className="h-24 w-full" />
+        ) : tab === "pending" ? (
+          suggestions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+              <Inbox className="h-8 w-8 mb-2 opacity-40" />
+              <p className="text-xs">No corrections waiting. You're all caught up.</p>
+            </div>
+          ) : (
+            <div className="space-y-2.5">{suggestions.map((s) => <SuggestionCard key={s.id} s={s} />)}</div>
+          )
+        ) : reviewed.length === 0 ? (
+          <p className="text-xs text-muted-foreground py-6 text-center">No reviewed corrections yet.</p>
+        ) : (
+          <div className="space-y-2.5">{reviewed.map((s) => <ReviewedCard key={s.id} s={s} />)}</div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// Always render as dollars with enough precision that small per-call costs
+// don't round to "$0.00" and confuse the user. Examples:
+//   0          -> "$0.0000"
+//   0.003349   -> "$0.0033"
+//   0.51       -> "$0.5100"
+//   1.23       -> "$1.23"
+function formatCost(n: number): string {
+  const v = Number(n) || 0;
+  if (v >= 1) return `$${v.toFixed(2)}`;
+  return `$${v.toFixed(4)}`;
+}
 function formatAbbrev(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
@@ -32,6 +171,13 @@ function ConfidenceBadge({ value }: { value: number }) {
 
 function ConversationItem({ item }: { item: any }) {
   const [open, setOpen] = useState(false);
+  const { toast } = useToast();
+  const turnIntoContent = useTurnQuestionIntoContent();
+  const toContent = () =>
+    turnIntoContent.mutate({ question: item.question }, {
+      onSuccess: () => toast({ title: "Added to Content pipeline", description: "Find it under Content → Ideas." }),
+      onError: (e: any) => toast({ title: "Couldn't add", description: e.message, variant: "destructive" }),
+    });
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger className="w-full text-left group">
@@ -75,9 +221,13 @@ function ConversationItem({ item }: { item: any }) {
             <span>Confidence: <strong className="text-foreground">{item.confidence}%</strong></span>
             <span>Topic: <strong className="text-foreground">{item.topic || "—"}</strong></span>
             <span>Response time: <strong className="text-foreground">{item.responseTimeMs}ms</strong></span>
-            <span>Cost: <strong className="text-foreground">${item.costUsd.toFixed(4)}</strong></span>
+            <span>Cost: <strong className="text-foreground">{formatCost(item.costUsd)}</strong></span>
             <span>{new Date(item.timestamp).toLocaleString()}</span>
           </div>
+          <Button size="sm" variant="outline" className="h-7 text-xs" disabled={turnIntoContent.isPending} onClick={toContent}>
+            {turnIntoContent.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1 text-orange-500" />}
+            Turn into Content
+          </Button>
         </div>
       </CollapsibleContent>
     </Collapsible>
@@ -90,22 +240,101 @@ const COST_PROVIDER_COLORS: Record<string, string> = {
   anthropic: "#8b5cf6",
   pinecone: "#06b6d4",
   voyage: "#f97316",
+  beacon: "#f59e0b",
 };
 
+// Drill-down dialog: show the full text of every Beacon Q&A inside a
+// topic bucket or behind a "Top Question" row.
+function DrilldownDialog({
+  open, onOpenChange, title, subtitle, items,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  title: string;
+  subtitle?: string;
+  items: any[];
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl h-[85vh] overflow-hidden flex flex-col p-0">
+        <DialogHeader className="px-6 pt-6 pb-3 border-b shrink-0">
+          <DialogTitle className="text-base flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-amber-500" />
+            <span className="truncate">{title}</span>
+            <Badge variant="secondary" className="ml-auto shrink-0">{items.length}</Badge>
+          </DialogTitle>
+          {subtitle && <DialogDescription className="text-xs">{subtitle}</DialogDescription>}
+        </DialogHeader>
+        <ScrollArea className="flex-1 min-h-0 px-6 py-4">
+          <div className="space-y-3 pb-2">
+            {items.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-6 text-center">Nothing to show.</p>
+            ) : items.map((item: any) => (
+              <div key={item.id} className="rounded-lg border bg-card p-3 space-y-2">
+                <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">
+                  <span className="font-medium text-foreground">{item.userName}</span>
+                  <span>·</span>
+                  <span>{item.timestampRelative}</span>
+                  {item.topic && <Badge variant="outline" className="text-[9px]">{item.topic}</Badge>}
+                  <span className="ml-auto flex items-center gap-2">
+                    <span className={cn(
+                      "text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
+                      item.confidence >= 85 ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400"
+                        : item.confidence >= 60 ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
+                        : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400",
+                    )}>{item.confidence}%</span>
+                    <span className="tabular-nums" title={`$${item.costUsd.toFixed(6)}`}>{formatCost(item.costUsd)}</span>
+                  </span>
+                </div>
+                <div>
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Question</p>
+                  <p className="text-xs text-foreground whitespace-pre-wrap">{item.question}</p>
+                </div>
+                {item.response && (
+                  <div>
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Beacon's Response</p>
+                    <p className="text-xs text-foreground/90 whitespace-pre-wrap">{item.response}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
 export function BeaconAnalyticsDashboard() {
-  const [dateRange, setDateRange] = useState<DateRange>("30");
+  const [dateRange, setDateRange] = useState<DateRange>("all");
   const data = useBeaconAnalytics(dateRange);
+  const [drilldown, setDrilldown] = useState<{ title: string; subtitle?: string; items: any[] } | null>(null);
+
 
   const kpis = [
-    { label: "Total Questions", value: formatAbbrev(data.totalQuestions), icon: MessageSquare, color: "bg-amber-500/10 text-amber-600" },
-    { label: "Active Users", value: data.activeUsers.toString(), icon: Users, color: "bg-blue-500/10 text-blue-600" },
-    { label: "Avg Confidence", value: `${data.avgConfidence}%`, icon: Target, color: "bg-green-500/10 text-green-600" },
-    { label: "Pending Suggestions", value: data.pendingCount.toString(), icon: AlertCircle, color: "bg-red-500/10 text-red-600" },
+    {
+      label: "Total Questions", value: formatAbbrev(data.totalQuestions), icon: MessageSquare, color: "bg-amber-500/10 text-amber-600",
+      tip: "Every question a real teammate asked Beacon (web chat, Google Chat DM, embedded widget). Test/anonymous probes are excluded so this reflects actual usage.",
+    },
+    {
+      label: "Active Users", value: `${data.activeUsers} of ${data.teamActivity.length}`, icon: Users, color: "bg-blue-500/10 text-blue-600",
+      tip: `${data.activeUsers} teammate(s) actually asked Beacon a question in this range. The Team Activity table below lists all ${data.teamActivity.length} active teammates (including those with 0 questions) so you can see who hasn't engaged yet. Identity variants (work email, profile ID, Google ID, name aliases) are merged into one person.`,
+    },
+    {
+      label: "Avg Confidence", value: `${data.avgConfidence}%`, icon: Target, color: "bg-green-500/10 text-green-600",
+      tip: "Average RAG retrieval confidence (0–100%) across all answered questions. High = Beacon found strong matches in the knowledge base. Low = the KB is thin on that topic — a signal to add content.",
+    },
+    {
+      label: "Pending Suggestions", value: data.pendingCount.toString(), icon: AlertCircle, color: "bg-red-500/10 text-red-600",
+      tip: "KB corrections waiting for your review. When teammates flag a wrong answer in chat, it lands here. Approving folds the correction into Beacon's knowledge base.",
+    },
   ];
 
   const rangeLabel = dateRange === "all" ? "All time" : `Last ${dateRange} days`;
 
   return (
+    <TooltipProvider delayDuration={150}>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -141,7 +370,10 @@ export function BeaconAnalyticsDashboard() {
                     </div>
                     <div>
                       <p className="text-2xl font-bold tabular-nums" style={{ color: BEACON_ORANGE }}>{kpi.value}</p>
-                      <p className="text-xs font-medium text-muted-foreground">{kpi.label}</p>
+                      <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                        {kpi.label}
+                        <InfoTooltip>{kpi.tip}</InfoTooltip>
+                      </p>
                     </div>
                   </div>
                 )}
@@ -151,11 +383,17 @@ export function BeaconAnalyticsDashboard() {
         })}
       </div>
 
+      {/* Feedback — pending KB corrections (actionable, so it's up top) */}
+      <FeedbackPanel suggestions={data.pendingSuggestions} reviewed={data.reviewedSuggestions} isLoading={data.isLoading} />
+
       {/* Questions Over Time + Topics */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Questions Over Time</CardTitle>
+            <CardTitle className="text-sm flex items-center gap-1.5">
+              Questions Over Time
+              <InfoTooltip>Daily volume of questions teammates asked Beacon. Spikes usually align with new filings, audits, or training pushes.</InfoTooltip>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {data.isLoading ? (
@@ -180,7 +418,10 @@ export function BeaconAnalyticsDashboard() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Topics Breakdown</CardTitle>
+            <CardTitle className="text-sm flex items-center gap-1.5">
+              Topics Breakdown
+              <InfoTooltip>What subjects teammates are asking Beacon about (DOB filings, objections, RFPs, etc.). Click a topic to read every question (and Beacon's response) in that bucket. Recurring topics become Content engine candidates.</InfoTooltip>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {data.isLoading ? (
@@ -188,27 +429,46 @@ export function BeaconAnalyticsDashboard() {
             ) : data.topicBreakdown.length === 0 ? (
               <div className="h-[300px] flex items-center justify-center text-muted-foreground text-xs">No data yet</div>
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={data.topicBreakdown.slice(0, 10)} layout="vertical" margin={{ left: 0, right: 20 }}>
-                  <XAxis type="number" tick={{ fontSize: 10 }} />
-                  <YAxis type="category" dataKey="topic" tick={{ fontSize: 10 }} width={120} />
-                  <RechartsTooltip
-                    contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid hsl(var(--border))" }}
-                    formatter={(v: number) => [`${v} questions`, "Count"]}
-                  />
-                  <Bar dataKey="count" fill={BEACON_ORANGE} radius={[0, 4, 4, 0]} barSize={16} />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="max-h-[300px] overflow-y-auto pr-1">
+                {data.topicBreakdown.map((t) => {
+                  const max = data.topicBreakdown[0].count;
+                  const pct = Math.max(6, (t.count / max) * 100);
+                  return (
+                    <button
+                      key={t.topic}
+                      onClick={() => setDrilldown({
+                        title: t.topic,
+                        subtitle: `${t.count} question${t.count === 1 ? "" : "s"} in this topic`,
+                        items: t.items,
+                      })}
+                      className="w-full text-left group py-1.5 px-1 rounded-md hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="font-medium truncate flex-1">{t.topic}</span>
+                        <span className="tabular-nums text-muted-foreground">{t.count}</span>
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                      <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: BEACON_ORANGE }} />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </CardContent>
         </Card>
+
       </div>
 
       {/* Confidence Distribution + Top Questions */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Confidence Distribution</CardTitle>
+            <CardTitle className="text-sm flex items-center gap-1.5">
+              Confidence Distribution
+              <InfoTooltip>How sure Beacon was when answering. High (≥85%) = strong KB match. Medium (60–84%) = partial match. Low (&lt;60%) = thin coverage — those topics need more documents in the knowledge base.</InfoTooltip>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {data.isLoading ? (
@@ -256,7 +516,10 @@ export function BeaconAnalyticsDashboard() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Top Questions</CardTitle>
+            <CardTitle className="text-sm flex items-center gap-1.5">
+              Top Questions
+              <InfoTooltip>The most frequently asked questions, deduped. Open any conversation below and click "Turn into Content" to send it to the Content pipeline as a blog/playbook candidate.</InfoTooltip>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {data.isLoading ? (
@@ -275,7 +538,15 @@ export function BeaconAnalyticsDashboard() {
                   </TableHeader>
                   <TableBody>
                     {data.topQuestions.map((q, i) => (
-                      <TableRow key={i} className="group">
+                      <TableRow
+                        key={i}
+                        className="group cursor-pointer hover:bg-muted/50"
+                        onClick={() => setDrilldown({
+                          title: q.question,
+                          subtitle: `Asked ${q.count} time${q.count === 1 ? "" : "s"} — full responses below`,
+                          items: q.items,
+                        })}
+                      >
                         <TableCell className="text-xs py-2">
                           <span title={q.question}>
                             {q.question.length > 100 ? q.question.slice(0, 100) + "…" : q.question}
@@ -288,6 +559,7 @@ export function BeaconAnalyticsDashboard() {
                   </TableBody>
                 </Table>
               </div>
+
             )}
           </CardContent>
         </Card>
@@ -298,6 +570,7 @@ export function BeaconAnalyticsDashboard() {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <Clock className="h-4 w-4" /> Recent Conversations
+            <InfoTooltip>Latest 20 question-and-answer exchanges. Click any row to see the full question, response preview, confidence, response time, and cost — and to turn it into a Content candidate.</InfoTooltip>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -315,33 +588,41 @@ export function BeaconAnalyticsDashboard() {
         </CardContent>
       </Card>
 
-      {/* Cost Tracking */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        {["Anthropic", "Pinecone", "Voyage"].map((provider) => {
-          const entry = data.costBreakdown.find((c) => c.provider.toLowerCase() === provider.toLowerCase());
-          return (
-            <Card key={provider}>
-              <CardContent className="pt-4 pb-3">
-                {data.isLoading ? (
-                  <Skeleton className="h-12 w-full" />
-                ) : (
-                  <div className="flex items-start gap-3">
-                    <div className="rounded-md p-2 bg-amber-500/10">
-                      <DollarSign className="h-4 w-4 text-amber-600" />
-                    </div>
-                    <div>
-                      <p className="text-lg font-bold tabular-nums" style={{ color: BEACON_ORANGE }}>
-                        ${(entry?.total || 0).toFixed(2)}
-                      </p>
-                      <p className="text-xs font-medium text-muted-foreground">{provider} API</p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      {/* Cost Tracking — Total + per-provider breakdown.
+          beacon_api_usage is currently empty; the hook falls back to
+          summing cost_usd off beacon_interactions so this never shows $0.00
+          when there's real spend. */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <DollarSign className="h-4 w-4 text-amber-600" /> Beacon API Spend
+            <InfoTooltip>Total spend on Beacon AI calls (Anthropic Claude, Voyage embeddings, Pinecone retrieval) over the selected range. Pulled from per-interaction `cost_usd` when the dedicated usage log is empty.</InfoTooltip>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {data.isLoading ? (
+            <Skeleton className="h-20 w-full" />
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <p className="text-2xl font-bold tabular-nums" style={{ color: BEACON_ORANGE }}>
+                  ${data.totalCost.toFixed(2)}
+                </p>
+                <p className="text-xs font-medium text-muted-foreground">Total — {rangeLabel.toLowerCase()}</p>
+              </div>
+              {(data.costBreakdown.length > 0 ? data.costBreakdown : [{ provider: "Beacon", total: 0 }]).map((entry) => (
+                <div key={entry.provider} className="rounded-lg border p-3">
+                  <p className="text-lg font-semibold tabular-nums" style={{ color: BEACON_ORANGE }}>
+                    ${entry.total.toFixed(4)}
+                  </p>
+                  <p className="text-xs font-medium text-muted-foreground">{entry.provider}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
 
       {data.costOverTime.length > 0 && (
         <Card>
@@ -377,6 +658,7 @@ export function BeaconAnalyticsDashboard() {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <Trophy className="h-4 w-4" /> Team Activity
+            <InfoTooltip>Full active roster + Beacon usage. Teammates with 0 questions are included so you can see who hasn't tried Beacon yet — that's why this list can be longer than the "Active Users" KPI (which only counts people who actually asked something). Identity variants are merged.</InfoTooltip>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -416,6 +698,16 @@ export function BeaconAnalyticsDashboard() {
           )}
         </CardContent>
       </Card>
+
+      <DrilldownDialog
+        open={!!drilldown}
+        onOpenChange={(v) => { if (!v) setDrilldown(null); }}
+        title={drilldown?.title || ""}
+        subtitle={drilldown?.subtitle}
+        items={drilldown?.items || []}
+      />
     </div>
+    </TooltipProvider>
+
   );
 }

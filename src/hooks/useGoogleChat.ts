@@ -36,6 +36,7 @@ export interface GChatMessage {
   cards?: any[];
   cardsV2?: any[];
   formattedText?: string;
+  emojiReactionSummaries?: Array<{ emoji: { unicode: string }; reactionCount: number }>;
 }
 
 async function chatApi(action: string, params: Record<string, any> = {}) {
@@ -209,6 +210,19 @@ export function useSendGChatMessage() {
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["gchat-messages", vars.spaceId] });
+    },
+  });
+}
+
+export function useAddGChatReaction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ messageName, emojiUnicode }: { messageName: string; emojiUnicode: string }) => {
+      return chatApi("create_reaction", { messageName, emojiUnicode });
+    },
+    onSuccess: (_, vars) => {
+      // Reactions are tied to a message in a space; invalidate messages broadly
+      qc.invalidateQueries({ queryKey: ["gchat-messages"] });
     },
   });
 }

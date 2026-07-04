@@ -109,19 +109,36 @@ Deno.serve(async (req) => {
     const clientId = proposal.client_id;
     const depositAmount = Number(amount);
 
-    // Validate amount against proposal's required deposit
+    // Validate amount against proposal's required deposit (with 1% tolerance for rounding)
     const expectedDeposit = Number(proposal.deposit_required || 0);
-    if (expectedDeposit > 0 && depositAmount < expectedDeposit * 0.99) {
-      return new Response(
-        JSON.stringify({ error: `Amount must be at least $${expectedDeposit.toFixed(2)}` }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const proposalTotal = Number(proposal.total_amount || 0);
     if (depositAmount <= 0) {
       return new Response(
         JSON.stringify({ error: "Amount must be greater than zero" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+    if (expectedDeposit > 0) {
+      if (depositAmount < expectedDeposit * 0.99) {
+        return new Response(
+          JSON.stringify({ error: `Amount must be at least $${expectedDeposit.toFixed(2)}` }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (depositAmount > expectedDeposit * 1.01) {
+        return new Response(
+          JSON.stringify({ error: `Amount cannot exceed required deposit of $${expectedDeposit.toFixed(2)}` }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } else {
+      // No required deposit set — cap at proposal total to prevent inflated entries
+      if (proposalTotal > 0 && depositAmount > proposalTotal * 1.01) {
+        return new Response(
+          JSON.stringify({ error: `Amount cannot exceed proposal total of $${proposalTotal.toFixed(2)}` }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // Idempotency check: look for an existing invoice with this key

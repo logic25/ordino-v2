@@ -8,11 +8,16 @@ import { InteractiveTraining } from "@/components/helpdesk/InteractiveTraining";
 import { BugReports } from "@/components/helpdesk/BugReports";
 import { BugFixDashboard } from "@/components/helpdesk/BugFixDashboard";
 import { ProductRoadmap } from "@/components/helpdesk/ProductRoadmap";
-import { AIUsageDashboard } from "@/components/helpdesk/AIUsageDashboard";
+import { BeaconHubContent } from "@/pages/BeaconHub";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useHasRole } from "@/hooks/useUserRoles";
+import { useSearchParams } from "react-router-dom";
 
 export default function HelpDesk() {
   const { isAdmin } = usePermissions();
+  const isManager = useHasRole("manager");
+  const [searchParams] = useSearchParams();
+  const canSeeBeacon = isAdmin || isManager;
 
   return (
     <AppLayout>
@@ -25,7 +30,7 @@ export default function HelpDesk() {
           </div>
         </div>
 
-        <Tabs defaultValue="training" className="space-y-4">
+        <Tabs defaultValue={searchParams.get("tab") ?? "training"} className="space-y-4">
           <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="training">Interactive Training</TabsTrigger>
             <TabsTrigger value="guides">How-To Guides</TabsTrigger>
@@ -34,7 +39,7 @@ export default function HelpDesk() {
             <TabsTrigger value="bugs">Bug Reports</TabsTrigger>
             {isAdmin && <TabsTrigger value="bug-metrics">Bug Metrics</TabsTrigger>}
             {isAdmin && <TabsTrigger value="roadmap">Product Roadmap</TabsTrigger>}
-            {isAdmin && <TabsTrigger value="ai-usage">AI Usage</TabsTrigger>}
+            {canSeeBeacon && <TabsTrigger value="beacon">Beacon Hub</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="training"><InteractiveTraining /></TabsContent>
@@ -43,12 +48,8 @@ export default function HelpDesk() {
           <TabsContent value="requests"><FeatureRequests /></TabsContent>
           <TabsContent value="bugs"><BugReports /></TabsContent>
           {isAdmin && <TabsContent value="bug-metrics"><BugFixDashboard /></TabsContent>}
-          {isAdmin && (
-            <TabsContent value="roadmap"><ProductRoadmap /></TabsContent>
-          )}
-          {isAdmin && (
-            <TabsContent value="ai-usage"><AIUsageDashboard /></TabsContent>
-          )}
+          {isAdmin && <TabsContent value="roadmap"><ProductRoadmap /></TabsContent>}
+          {canSeeBeacon && <TabsContent value="beacon"><BeaconHubContent /></TabsContent>}
         </Tabs>
       </div>
     </AppLayout>

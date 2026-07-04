@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useEffect } from "react";
 import DOMPurify from "dompurify";
 import {
   Dialog,
@@ -46,12 +46,17 @@ export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalPro
   const contentRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
 
-  const emailHtml = useMemo(() => {
-    const raw = buildRfpEmailHtml(data);
-    return DOMPurify.sanitize(raw, {
-      FORBID_TAGS: ["script", "style", "object", "iframe", "embed", "link", "meta"],
-      FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover", "onfocus", "onblur", "onchange", "onsubmit"],
+  const [emailHtml, setEmailHtml] = useState<string>("");
+  useEffect(() => {
+    let cancelled = false;
+    buildRfpEmailHtml(data).then((raw) => {
+      if (cancelled) return;
+      setEmailHtml(DOMPurify.sanitize(raw, {
+        FORBID_TAGS: ["script", "style", "object", "iframe", "embed", "link", "meta"],
+        FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover", "onfocus", "onblur", "onchange", "onsubmit"],
+      }));
     });
+    return () => { cancelled = true; };
   }, [data]);
 
   const handleExportPdf = async () => {

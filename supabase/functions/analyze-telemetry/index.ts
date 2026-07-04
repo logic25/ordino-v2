@@ -27,9 +27,22 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
     }
 
-    const { mode, raw_idea, company_id, exclude_item_id } = await req.json();
+    const { mode, raw_idea, exclude_item_id } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+
+    // Derive company_id server-side from the authenticated user — never trust client input
+    const sbAdminEarly = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const { data: callerProfile } = await sbAdminEarly
+      .from("profiles")
+      .select("id, company_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const company_id = callerProfile?.company_id;
+    const callerProfileId = callerProfile?.id ?? null;
+    if (!company_id) {
+      return new Response(JSON.stringify({ error: "No company for user" }), { status: 403, headers: corsHeaders });
+    }
 
     // Fetch current roadmap items for duplicate detection, excluding the item being tested
     const roadmapQuery = supabase
@@ -172,11 +185,9 @@ Stress-test this idea and return a JSON array with 1 structured suggestion.`;
       const totalTokens = usage.total_tokens || (promptTokens + completionTokens);
       // Gemini Flash pricing: $0.075/1M input, $0.30/1M output
       const estimatedCost = (promptTokens * 0.075 + completionTokens * 0.30) / 1_000_000;
-      const userId = user.id;
-      const { data: prof } = await sbAdmin.from("profiles").select("id").eq("user_id", userId).maybeSingle();
       await sbAdmin.from("ai_usage_logs").insert({
         company_id,
-        user_id: prof?.id || null,
+        user_id: callerProfileId,
         feature: mode === "telemetry" ? "telemetry_analysis" : "stress_test",
         model: MODEL,
         prompt_tokens: promptTokens,
@@ -209,7 +220,7 @@ Stress-test this idea and return a JSON array with 1 structured suggestion.`;
   } catch (e) {
     console.error("analyze-telemetry error:", e);
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

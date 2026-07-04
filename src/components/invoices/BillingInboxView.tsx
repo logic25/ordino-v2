@@ -47,7 +47,7 @@ const KIND_LABELS: Record<RowKind, string> = {
   submission: "Submission",
   draft: "Draft",
   ready: "Ready",
-  needs_review: "Needs Review",
+  needs_review: "Review",
 };
 
 const KIND_CHIP: Record<RowKind, string> = {
@@ -202,7 +202,7 @@ export function BillingInboxView() {
     { key: "submission", label: "Submissions" },
     { key: "ready", label: "Ready" },
     { key: "draft", label: "Drafts" },
-    { key: "needs_review", label: "Needs Review" },
+    { key: "needs_review", label: "Review" },
   ];
 
   return (
@@ -327,9 +327,10 @@ export function BillingInboxView() {
                       ) : null}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={`text-[10px] font-medium uppercase tracking-wide ${KIND_CHIP[row.kind]}`}>
+                      <Badge variant="outline" className={`text-[9px] font-medium uppercase tracking-wide px-1.5 py-0 h-4 leading-none ${KIND_CHIP[row.kind]}`}>
                         {KIND_LABELS[row.kind]}
                       </Badge>
+
                     </TableCell>
                     <TableCell className="text-sm tabular-nums">
                       {format(new Date(row.date), "MM/dd/yyyy")}

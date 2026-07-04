@@ -26,10 +26,12 @@ interface ProposalDialogProps {
   proposal?: ProposalWithRelations | null;
   isLoading?: boolean;
   defaultPropertyId?: string;
+  /** Free-text address (e.g. from a lead) — resolves non-blocking to an existing property. */
+  initialPropertyAddress?: string;
 }
 
 export function ProposalDialog({
-  open, onOpenChange, onSubmit, proposal, isLoading, defaultPropertyId,
+  open, onOpenChange, onSubmit, proposal, isLoading, defaultPropertyId, initialPropertyAddress,
 }: ProposalDialogProps) {
   const {
     isEditing, clients, profiles,
@@ -80,7 +82,10 @@ export function ProposalDialog({
           <div className={cn("flex-1 min-h-0", step === 2 ? "flex flex-col" : "overflow-y-auto")}>
 
             {step === 0 && (
-              <PropertyContactsStep form={form} contacts={contacts} onContactsChange={setContacts} />
+              <PropertyContactsStep
+                form={form} contacts={contacts} onContactsChange={setContacts}
+                initialAddress={!isEditing ? initialPropertyAddress : undefined}
+              />
             )}
 
             {step === 1 && (

@@ -11,7 +11,7 @@ export function useProjectReports() {
     queryFn: async () => {
       const { data: projects } = await supabase.from("projects").select("id, status, created_at, updated_at");
       const { data: checklist } = await supabase.from("project_checklist_items").select("id, project_id, status");
-      const { data: apps } = await supabase.from("dob_applications").select("id, project_id, app_status, created_at, approved_date");
+      const { data: apps } = await supabase.from("dob_applications").select("id, project_id, status, created_at, approved_date");
 
       const statusCounts: Record<string, number> = {};
       (projects || []).forEach((p: any) => {
@@ -37,7 +37,7 @@ export function useProjectReports() {
       // App pipeline
       const appStatusCounts: Record<string, number> = {};
       (apps || []).forEach((a: any) => {
-        const s = a.app_status || "unknown";
+        const s = a.status || "unknown";
         appStatusCounts[s] = (appStatusCounts[s] || 0) + 1;
       });
 

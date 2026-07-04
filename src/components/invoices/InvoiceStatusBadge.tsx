@@ -22,7 +22,7 @@ export function InvoiceStatusBadge({ status }: InvoiceStatusBadgeProps) {
     <TooltipProvider delayDuration={200}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Badge variant="outline" className={config.className}>
+          <Badge variant="outline" className={`${config.className} whitespace-nowrap`}>
             {config.label}
           </Badge>
         </TooltipTrigger>

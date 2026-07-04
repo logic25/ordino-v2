@@ -37,7 +37,7 @@ export function InviteMemberDialog() {
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [role, setRole] = useState("production");
+  const [role, setRole] = useState("pm");
   const [saving, setSaving] = useState(false);
 
   // Build role options from custom_roles, excluding admin (must be granted manually)
@@ -72,7 +72,7 @@ export function InviteMemberDialog() {
     setEmail("");
     setFirstName("");
     setLastName("");
-    setRole("production");
+    setRole("pm");
   };
 
   const handleInvite = async () => {

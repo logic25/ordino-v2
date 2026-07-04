@@ -4,27 +4,29 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { DollarSign, Calendar } from "lucide-react";
-import { useBdEvents, type BdEvent, type EventStatus } from "@/hooks/useBdEvents";
+import { Calendar } from "lucide-react";
+import { useBdEvents, type EventStatus } from "@/hooks/useBdEvents";
+import { useCompanyProfiles } from "@/hooks/useProfiles";
+import {
+  isInvested, eventCost, fmtMoney0, scopeToYear,
+} from "@/lib/eventBudget";
 
-const fmt = (n: number) =>
-  `$${Math.round(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-
-// Sai-approved status semantics:
-//   INVESTED   = REGISTERED + ATTENDED  (we committed; money out the door)
-//   CONSIDERING = PENDING_APPROVAL + APPROVED  (in the funnel, not yet acted)
-const INVESTED: EventStatus[] = ["REGISTERED", "ATTENDED"];
-const CONSIDERING: EventStatus[] = ["PENDING_APPROVAL", "APPROVED"];
-
-function eventCost(e: BdEvent): number {
-  if (e.included_in_membership) return 0;
-  return Number(
-    e.cost_actual ?? e.cost_member ?? e.cost_nonmember ?? e.cost_low ?? 0,
-  );
-}
-
+// Budget tab — analytical breakdown only. The glance (Invested / Considering)
+// lives on the Events tab as a summary strip. Don't reintroduce headline cards
+// here; this view is "who paid / reimbursement / by-status totals" only.
 export function EventBudgetSummary() {
   const { data: events = [], isLoading } = useBdEvents();
+  const { data: profiles = [] } = useCompanyProfiles();
+
+  const profileNameByUserId = useMemo(() => {
+    const m = new Map<string, string>();
+    profiles.forEach((p) => {
+      const full = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
+      if (p.user_id) m.set(p.user_id, full || (p as any).email || "Unknown");
+    });
+    return m;
+  }, [profiles]);
+
   const years = useMemo(() => {
     const set = new Set<number>();
     events.forEach((e) => {
@@ -37,24 +39,18 @@ export function EventBudgetSummary() {
 
   const [year, setYear] = useState<number>(new Date().getFullYear());
 
-  const scoped = useMemo(
-    () => events.filter((e) => {
-      if (!e.start_date) return false;
-      return new Date(e.start_date).getFullYear() === year;
-    }),
-    [events, year],
-  );
+  const scoped = useMemo(() => scopeToYear(events, year), [events, year]);
 
-  const invested = scoped.filter((e) => INVESTED.includes(e.status));
-  const considering = scoped.filter((e) => CONSIDERING.includes(e.status));
-
-  const investedTotal = invested.reduce((s, e) => s + eventCost(e), 0);
-  const consideringTotal = considering.reduce((s, e) => s + eventCost(e), 0);
-
+  const invested = scoped.filter(isInvested);
   const includedCount = scoped.filter((e) => e.included_in_membership).length;
   const oopCount = scoped.filter((e) => !e.included_in_membership).length;
+  const includedTotal = scoped
+    .filter((e) => e.included_in_membership)
+    .reduce((s, e) => s + Number(e.cost_actual ?? e.cost_member ?? 0), 0);
+  const oopTotal = invested
+    .filter((e) => !e.included_in_membership)
+    .reduce((s, e) => s + eventCost(e), 0);
 
-  // By status breakdown
   const byStatus = useMemo(() => {
     const map = new Map<EventStatus, { count: number; total: number }>();
     scoped.forEach((e) => {
@@ -66,7 +62,7 @@ export function EventBudgetSummary() {
     return Array.from(map.entries());
   }, [scoped]);
 
-  // By "paid by" user (Invested only)
+  // By "paid by" user (Invested only) — resolve UUID to real name.
   const byPayer = useMemo(() => {
     const map = new Map<string | null, number>();
     invested.forEach((e) => {
@@ -90,70 +86,46 @@ export function EventBudgetSummary() {
             {years.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
           </SelectContent>
         </Select>
-        <span className="text-xs text-muted-foreground">{scoped.length} events</span>
+        <span className="text-xs text-muted-foreground">
+          {scoped.length} events · glance totals live on the Events tab
+        </span>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-1.5">
-              <DollarSign className="h-4 w-4 text-green-600" />
-              Invested
-              <span className="text-xs font-normal text-muted-foreground">
-                (registered + attended)
-              </span>
-            </CardTitle>
+            <CardTitle className="text-sm">Who paid (Invested)</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="text-2xl font-semibold">{fmt(investedTotal)}</div>
-            <p className="text-xs text-muted-foreground">
-              {invested.length} events · {includedCount} membership-included this year
-            </p>
-            {byPayer.length > 0 && (
-              <div className="pt-2 border-t space-y-1">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  Who paid
-                </p>
-                {byPayer.map(([uid, total]) => (
-                  <div key={uid ?? "none"} className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">
-                      {uid ? `User ${uid.slice(0, 8)}…` : "Unattributed"}
-                    </span>
-                    <span className="tabular-nums">{fmt(total)}</span>
-                  </div>
-                ))}
-              </div>
+          <CardContent className="space-y-1">
+            {byPayer.length === 0 && (
+              <p className="text-xs text-muted-foreground">No invested events yet.</p>
             )}
+            {byPayer.map(([uid, total]) => {
+              const name = uid
+                ? (profileNameByUserId.get(uid) || "Unknown user")
+                : "Unattributed";
+              return (
+                <div key={uid ?? "none"} className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">{name}</span>
+                  <span className="tabular-nums">{fmtMoney0(total)}</span>
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-1.5">
-              <DollarSign className="h-4 w-4 text-blue-600" />
-              Considering
-              <span className="text-xs font-normal text-muted-foreground">
-                (pending + approved)
-              </span>
-            </CardTitle>
+            <CardTitle className="text-sm">Cost type</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="text-2xl font-semibold">{fmt(consideringTotal)}</div>
-            <p className="text-xs text-muted-foreground">
-              {considering.length} events in the funnel
-            </p>
-            <div className="pt-2 border-t space-y-1">
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                Cost type
-              </p>
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Membership-included</span>
-                <span>{includedCount}</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Out-of-pocket</span>
-                <span>{oopCount}</span>
-              </div>
+          <CardContent className="space-y-1">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Membership-included</span>
+              <span className="tabular-nums">{includedCount} · {fmtMoney0(includedTotal)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Out-of-pocket (invested)</span>
+              <span className="tabular-nums">{oopCount} · {fmtMoney0(oopTotal)}</span>
             </div>
           </CardContent>
         </Card>
@@ -172,7 +144,7 @@ export function EventBudgetSummary() {
               <Badge key={status} variant="outline" className="gap-1.5 py-1.5">
                 <span className="font-medium">{status}</span>
                 <span className="text-muted-foreground">{v.count}</span>
-                <span className="tabular-nums">{fmt(v.total)}</span>
+                <span className="tabular-nums">{fmtMoney0(v.total)}</span>
               </Badge>
             ))}
           </div>

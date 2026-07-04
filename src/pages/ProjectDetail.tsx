@@ -261,20 +261,35 @@ export default function ProjectDetail() {
 
       const { data, error } = await supabase
         .from("activities")
-        .select("id, activity_date, description, duration_minutes, billable, user:profiles!activities_user_id_fkey(first_name, last_name, display_name, hourly_rate), service:services!activities_service_id_fkey(name)")
+        .select("id, activity_date, description, duration_minutes, billable, user_id, user:profiles!activities_user_id_fkey(id, first_name, last_name, display_name), service:services!activities_service_id_fkey(name)")
         .eq("company_id", project!.company_id)
         .or(filters.join(","))
         .order("activity_date", { ascending: false });
 
       if (error) throw error;
-      return (data || []).map((a: any) => ({
+
+      // hourly_rate now lives in employee_compensation (gated by RLS).
+      // Fetch rates only for the unique users on these activities; the RPC
+      // returns rates only for self or comp admins, so non-admin viewers will
+      // see $0 in cost columns (intentional — they aren't allowed to see pay).
+      const rows = data || [];
+      const uniqueUserIds = Array.from(new Set(rows.map((a: any) => a.user?.id).filter(Boolean)));
+      const rateMap: Record<string, number> = {};
+      if (uniqueUserIds.length) {
+        const { data: rates } = await supabase.rpc("get_user_hourly_rates", { _user_ids: uniqueUserIds });
+        for (const r of (rates as any[] | null) || []) {
+          if (r?.user_id != null) rateMap[r.user_id] = Number(r.hourly_rate) || 0;
+        }
+      }
+
+      return rows.map((a: any) => ({
         id: a.id,
         date: a.activity_date ? format(new Date(a.activity_date), "MM/dd/yyyy") : "—",
         user: a.user?.display_name || [a.user?.first_name, a.user?.last_name].filter(Boolean).join(" ") || "Unknown",
         service: a.service?.name || "General",
         description: a.description || "",
         hours: (a.duration_minutes || 0) / 60,
-        hourlyRate: a.user?.hourly_rate || 0,
+        hourlyRate: a.user?.id ? (rateMap[a.user.id] || 0) : 0,
         billable: a.billable ?? true,
       })) as MockTimeEntry[];
     },

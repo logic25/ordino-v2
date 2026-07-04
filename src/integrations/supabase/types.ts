@@ -94,6 +94,13 @@ export type Database = {
             foreignKeyName: "ach_authorizations_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "ach_authorizations_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -661,6 +668,13 @@ export type Database = {
             foreignKeyName: "automation_logs_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "automation_logs_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -758,7 +772,9 @@ export type Database = {
           id: string
           is_pinned: boolean
           lead_id: string | null
+          mentioned_user_ids: string[]
           metadata: Json
+          referral_id: string | null
           type: Database["public"]["Enums"]["bd_activity_type"]
           updated_at: string
         }
@@ -771,7 +787,9 @@ export type Database = {
           id?: string
           is_pinned?: boolean
           lead_id?: string | null
+          mentioned_user_ids?: string[]
           metadata?: Json
+          referral_id?: string | null
           type: Database["public"]["Enums"]["bd_activity_type"]
           updated_at?: string
         }
@@ -784,7 +802,9 @@ export type Database = {
           id?: string
           is_pinned?: boolean
           lead_id?: string | null
+          mentioned_user_ids?: string[]
           metadata?: Json
+          referral_id?: string | null
           type?: Database["public"]["Enums"]["bd_activity_type"]
           updated_at?: string
         }
@@ -815,6 +835,250 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_activities_referral_id_fkey"
+            columns: ["referral_id"]
+            isOneToOne: false
+            referencedRelation: "bd_referrals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bd_bonus_ledger: {
+        Row: {
+          accrued_at: string
+          amount: number
+          approved_by: string | null
+          company_id: string
+          created_at: string
+          due_at: string | null
+          id: string
+          notes: string | null
+          paid_at: string | null
+          person_id: string
+          source_ref: Json
+          status: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          accrued_at?: string
+          amount?: number
+          approved_by?: string | null
+          company_id: string
+          created_at?: string
+          due_at?: string | null
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          person_id: string
+          source_ref?: Json
+          status?: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          accrued_at?: string
+          amount?: number
+          approved_by?: string | null
+          company_id?: string
+          created_at?: string
+          due_at?: string | null
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          person_id?: string
+          source_ref?: Json
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_bonus_ledger_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_bonus_ledger_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_bonus_ledger_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bd_cards: {
+        Row: {
+          company_id: string | null
+          cover_url: string | null
+          created_at: string
+          fields: Json
+          id: string
+          logo_cfg: Json
+          photo_url: string | null
+          published: boolean
+          slug: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          cover_url?: string | null
+          created_at?: string
+          fields?: Json
+          id?: string
+          logo_cfg?: Json
+          photo_url?: string | null
+          published?: boolean
+          slug: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string | null
+          cover_url?: string | null
+          created_at?: string
+          fields?: Json
+          id?: string
+          logo_cfg?: Json
+          photo_url?: string | null
+          published?: boolean
+          slug?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_cards_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bd_comp_plans: {
+        Row: {
+          active: boolean
+          base_salary: number
+          company_id: string
+          created_at: string
+          event_bonus_amount: number
+          id: string
+          new_client_bonus_amount: number
+          person_id: string
+          revenue_bonus_pct: number
+          revenue_window_months: number
+          small_contract_pct: number
+          small_contract_threshold: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          base_salary?: number
+          company_id: string
+          created_at?: string
+          event_bonus_amount?: number
+          id?: string
+          new_client_bonus_amount?: number
+          person_id: string
+          revenue_bonus_pct?: number
+          revenue_window_months?: number
+          small_contract_pct?: number
+          small_contract_threshold?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          base_salary?: number
+          company_id?: string
+          created_at?: string
+          event_bonus_amount?: number
+          id?: string
+          new_client_bonus_amount?: number
+          person_id?: string
+          revenue_bonus_pct?: number
+          revenue_window_months?: number
+          small_contract_pct?: number
+          small_contract_threshold?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_comp_plans_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_comp_plans_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bd_eligible_events: {
+        Row: {
+          active: boolean
+          cadence: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          organization: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          cadence?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          organization?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          cadence?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          organization?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_eligible_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_eligible_events_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -891,11 +1155,15 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          is_active: boolean
           last_checked_at: string | null
           last_checked_by: string | null
+          last_scrape_error: string | null
+          last_scrape_events_found: number | null
           name: string
           notes: string | null
           priority: Database["public"]["Enums"]["bd_source_priority"]
+          source_type: string
           updated_at: string
           url: string
         }
@@ -905,11 +1173,15 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_active?: boolean
           last_checked_at?: string | null
           last_checked_by?: string | null
+          last_scrape_error?: string | null
+          last_scrape_events_found?: number | null
           name: string
           notes?: string | null
           priority?: Database["public"]["Enums"]["bd_source_priority"]
+          source_type?: string
           updated_at?: string
           url: string
         }
@@ -919,11 +1191,15 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_active?: boolean
           last_checked_at?: string | null
           last_checked_by?: string | null
+          last_scrape_error?: string | null
+          last_scrape_events_found?: number | null
           name?: string
           notes?: string | null
           priority?: Database["public"]["Enums"]["bd_source_priority"]
+          source_type?: string
           updated_at?: string
           url?: string
         }
@@ -951,10 +1227,80 @@ export type Database = {
           },
         ]
       }
+      bd_event_tasks: {
+        Row: {
+          assigned_to: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          event_id: string
+          id: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          event_id: string
+          id?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          event_id?: string
+          id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_event_tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_event_tasks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_event_tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_event_tasks_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "bd_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bd_events: {
         Row: {
+          bonus_eligible: boolean
           category: string | null
           company_id: string
+          contact_goal: number | null
           cost_actual: number | null
           cost_high: number | null
           cost_low: number | null
@@ -983,13 +1329,16 @@ export type Database = {
           start_date: string | null
           start_time: string | null
           status: Database["public"]["Enums"]["bd_event_status"]
+          suggested_by_ai: boolean
           target_audience: string | null
           updated_at: string
           why_it_matters: string | null
         }
         Insert: {
+          bonus_eligible?: boolean
           category?: string | null
           company_id: string
+          contact_goal?: number | null
           cost_actual?: number | null
           cost_high?: number | null
           cost_low?: number | null
@@ -1018,13 +1367,16 @@ export type Database = {
           start_date?: string | null
           start_time?: string | null
           status?: Database["public"]["Enums"]["bd_event_status"]
+          suggested_by_ai?: boolean
           target_audience?: string | null
           updated_at?: string
           why_it_matters?: string | null
         }
         Update: {
+          bonus_eligible?: boolean
           category?: string | null
           company_id?: string
+          contact_goal?: number | null
           cost_actual?: number | null
           cost_high?: number | null
           cost_low?: number | null
@@ -1053,6 +1405,7 @@ export type Database = {
           start_date?: string | null
           start_time?: string | null
           status?: Database["public"]["Enums"]["bd_event_status"]
+          suggested_by_ai?: boolean
           target_audience?: string | null
           updated_at?: string
           why_it_matters?: string | null
@@ -1094,6 +1447,106 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      bd_goals: {
+        Row: {
+          company_id: string
+          created_at: string
+          event_id: string | null
+          id: string
+          metric: string
+          period_end: string | null
+          period_start: string | null
+          person_id: string | null
+          target: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          metric: string
+          period_end?: string | null
+          period_start?: string | null
+          person_id?: string | null
+          target?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          metric?: string
+          period_end?: string | null
+          period_start?: string | null
+          person_id?: string | null
+          target?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_goals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_goals_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "bd_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_goals_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bd_market_signals: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          sender: string | null
+          signal_date: string | null
+          source_url: string | null
+          status: string
+          summary: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          sender?: string | null
+          signal_date?: string | null
+          source_url?: string | null
+          status?: string
+          summary?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          sender?: string | null
+          signal_date?: string | null
+          source_url?: string | null
+          status?: string
+          summary?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       bd_memberships: {
         Row: {
@@ -1151,6 +1604,124 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bd_referrals: {
+        Row: {
+          assigned_to: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          lead_id: string | null
+          lost_reason: string | null
+          next_action_at: string | null
+          next_action_note: string | null
+          notes: string | null
+          proposal_id: string | null
+          referred_company: string | null
+          referred_email: string | null
+          referred_name: string
+          referred_phone: string | null
+          source_contact_id: string | null
+          source_label: string | null
+          source_type: Database["public"]["Enums"]["bd_referral_source_type"]
+          stage: Database["public"]["Enums"]["bd_referral_stage"]
+          updated_at: string
+          won_value: number | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          lead_id?: string | null
+          lost_reason?: string | null
+          next_action_at?: string | null
+          next_action_note?: string | null
+          notes?: string | null
+          proposal_id?: string | null
+          referred_company?: string | null
+          referred_email?: string | null
+          referred_name: string
+          referred_phone?: string | null
+          source_contact_id?: string | null
+          source_label?: string | null
+          source_type?: Database["public"]["Enums"]["bd_referral_source_type"]
+          stage?: Database["public"]["Enums"]["bd_referral_stage"]
+          updated_at?: string
+          won_value?: number | null
+        }
+        Update: {
+          assigned_to?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          lead_id?: string | null
+          lost_reason?: string | null
+          next_action_at?: string | null
+          next_action_note?: string | null
+          notes?: string | null
+          proposal_id?: string | null
+          referred_company?: string | null
+          referred_email?: string | null
+          referred_name?: string
+          referred_phone?: string | null
+          source_contact_id?: string | null
+          source_label?: string | null
+          source_type?: Database["public"]["Enums"]["bd_referral_source_type"]
+          stage?: Database["public"]["Enums"]["bd_referral_stage"]
+          updated_at?: string
+          won_value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_referrals_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_referrals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_referrals_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_referrals_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_referrals_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_referrals_source_contact_id_fkey"
+            columns: ["source_contact_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts"
             referencedColumns: ["id"]
           },
         ]
@@ -1451,6 +2022,9 @@ export type Database = {
       }
       beacon_interactions: {
         Row: {
+          addressed_at: string | null
+          addressed_by: string | null
+          addressed_note: string | null
           answered: boolean
           command: string | null
           confidence: number | null
@@ -1470,6 +2044,9 @@ export type Database = {
           user_name: string | null
         }
         Insert: {
+          addressed_at?: string | null
+          addressed_by?: string | null
+          addressed_note?: string | null
           answered?: boolean
           command?: string | null
           confidence?: number | null
@@ -1489,6 +2066,9 @@ export type Database = {
           user_name?: string | null
         }
         Update: {
+          addressed_at?: string | null
+          addressed_by?: string | null
+          addressed_note?: string | null
           answered?: boolean
           command?: string | null
           confidence?: number | null
@@ -1508,6 +2088,50 @@ export type Database = {
           user_name?: string | null
         }
         Relationships: []
+      }
+      beacon_kb_folder_overrides: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          display_folder: string
+          hidden_from_original: boolean
+          id: string
+          notes: string | null
+          source_file: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          display_folder: string
+          hidden_from_original?: boolean
+          id?: string
+          notes?: string | null
+          source_file: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          display_folder?: string
+          hidden_from_original?: boolean
+          id?: string
+          notes?: string | null
+          source_file?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beacon_kb_folder_overrides_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       beacon_research_feedback: {
         Row: {
@@ -1824,6 +2448,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_requests_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
           },
           {
             foreignKeyName: "billing_requests_invoice_id_fkey"
@@ -2774,6 +3405,13 @@ export type Database = {
             foreignKeyName: "claimflow_referrals_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "claimflow_referrals_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -3330,6 +3968,13 @@ export type Database = {
             foreignKeyName: "collection_tasks_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "collection_tasks_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -3470,6 +4115,7 @@ export type Database = {
       content_candidates: {
         Row: {
           affects_services: Json | null
+          company_id: string
           content_angle: string | null
           content_preview: string | null
           content_type: string | null
@@ -3497,6 +4143,7 @@ export type Database = {
         }
         Insert: {
           affects_services?: Json | null
+          company_id?: string
           content_angle?: string | null
           content_preview?: string | null
           content_type?: string | null
@@ -3524,6 +4171,7 @@ export type Database = {
         }
         Update: {
           affects_services?: Json | null
+          company_id?: string
           content_angle?: string | null
           content_preview?: string | null
           content_type?: string | null
@@ -3549,7 +4197,15 @@ export type Database = {
           title?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "content_candidates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       custom_roles: {
         Row: {
@@ -3865,6 +4521,7 @@ export type Database = {
           company_id: string
           created_at: string | null
           created_by: string | null
+          default_jurisdiction: string
           description: string | null
           id: string
           is_beacon_synced: boolean | null
@@ -3876,6 +4533,7 @@ export type Database = {
           company_id: string
           created_at?: string | null
           created_by?: string | null
+          default_jurisdiction?: string
           description?: string | null
           id?: string
           is_beacon_synced?: boolean | null
@@ -3887,6 +4545,7 @@ export type Database = {
           company_id?: string
           created_at?: string | null
           created_by?: string | null
+          default_jurisdiction?: string
           description?: string | null
           id?: string
           is_beacon_synced?: boolean | null
@@ -3907,6 +4566,56 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "document_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_versions: {
+        Row: {
+          category: string | null
+          changed_by: string | null
+          company_id: string | null
+          created_at: string
+          description: string | null
+          document_id: string
+          id: string
+          jurisdiction: string | null
+          storage_path: string | null
+          title: string | null
+          version: number
+        }
+        Insert: {
+          category?: string | null
+          changed_by?: string | null
+          company_id?: string | null
+          created_at?: string
+          description?: string | null
+          document_id: string
+          id?: string
+          jurisdiction?: string | null
+          storage_path?: string | null
+          title?: string | null
+          version: number
+        }
+        Update: {
+          category?: string | null
+          changed_by?: string | null
+          company_id?: string | null
+          created_at?: string
+          description?: string | null
+          document_id?: string
+          id?: string
+          jurisdiction?: string | null
+          storage_path?: string | null
+          title?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "universal_documents"
             referencedColumns: ["id"]
           },
         ]
@@ -4309,6 +5018,48 @@ export type Database = {
           },
         ]
       }
+      employee_compensation: {
+        Row: {
+          company_id: string
+          created_at: string
+          hourly_rate: number | null
+          id: string
+          person_id: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          hourly_rate?: number | null
+          id?: string
+          person_id: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          hourly_rate?: number | null
+          id?: string
+          person_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_compensation_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_compensation_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_reviews: {
         Row: {
           category_ratings: Json | null
@@ -4680,8 +5431,11 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           candidate_id: string | null
+          company_id: string
           content: string | null
           content_type: string | null
+          cover_image_attribution: string | null
+          cover_image_url: string | null
           generated_at: string | null
           id: string
           published_at: string | null
@@ -4694,8 +5448,11 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           candidate_id?: string | null
+          company_id?: string
           content?: string | null
           content_type?: string | null
+          cover_image_attribution?: string | null
+          cover_image_url?: string | null
           generated_at?: string | null
           id: string
           published_at?: string | null
@@ -4708,8 +5465,11 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           candidate_id?: string | null
+          company_id?: string
           content?: string | null
           content_type?: string | null
+          cover_image_attribution?: string | null
+          cover_image_url?: string | null
           generated_at?: string | null
           id?: string
           published_at?: string | null
@@ -4726,6 +5486,13 @@ export type Database = {
             referencedRelation: "content_candidates"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "generated_content_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
         ]
       }
       gmail_connections: {
@@ -4738,6 +5505,8 @@ export type Database = {
           id: string
           last_sync_at: string | null
           refresh_token: string | null
+          signature_html: string | null
+          signature_synced_at: string | null
           sync_enabled: boolean
           token_expires_at: string | null
           updated_at: string
@@ -4752,6 +5521,8 @@ export type Database = {
           id?: string
           last_sync_at?: string | null
           refresh_token?: string | null
+          signature_html?: string | null
+          signature_synced_at?: string | null
           sync_enabled?: boolean
           token_expires_at?: string | null
           updated_at?: string
@@ -4766,6 +5537,8 @@ export type Database = {
           id?: string
           last_sync_at?: string | null
           refresh_token?: string | null
+          signature_html?: string | null
+          signature_synced_at?: string | null
           sync_enabled?: boolean
           token_expires_at?: string | null
           updated_at?: string
@@ -4849,6 +5622,13 @@ export type Database = {
             foreignKeyName: "invoice_activity_log_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "invoice_activity_log_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -4857,6 +5637,80 @@ export type Database = {
             columns: ["performed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_certified_mailings: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          delivered_date: string | null
+          demand_letter_activity_id: string | null
+          id: string
+          invoice_id: string
+          mailed_date: string
+          notes: string | null
+          return_receipt_storage_path: string | null
+          updated_at: string
+          usps_tracking_number: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          delivered_date?: string | null
+          demand_letter_activity_id?: string | null
+          id?: string
+          invoice_id: string
+          mailed_date?: string
+          notes?: string | null
+          return_receipt_storage_path?: string | null
+          updated_at?: string
+          usps_tracking_number: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          delivered_date?: string | null
+          demand_letter_activity_id?: string | null
+          id?: string
+          invoice_id?: string
+          mailed_date?: string
+          notes?: string | null
+          return_receipt_storage_path?: string | null
+          updated_at?: string
+          usps_tracking_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_certified_mailings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_certified_mailings_demand_letter_activity_id_fkey"
+            columns: ["demand_letter_activity_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_activity_log"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_certified_mailings_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "invoice_certified_mailings_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
         ]
@@ -4936,6 +5790,13 @@ export type Database = {
             foreignKeyName: "invoice_disputes_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "invoice_disputes_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -4989,6 +5850,77 @@ export type Database = {
           },
           {
             foreignKeyName: "invoice_follow_ups_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "invoice_follow_ups_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_interest_snapshots: {
+        Row: {
+          accrued_interest: number
+          as_of_date: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          days_overdue_for_interest: number
+          id: string
+          invoice_id: string
+          principal: number
+          rate_apr: number
+          source: string
+        }
+        Insert: {
+          accrued_interest: number
+          as_of_date?: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          days_overdue_for_interest: number
+          id?: string
+          invoice_id: string
+          principal: number
+          rate_apr: number
+          source: string
+        }
+        Update: {
+          accrued_interest?: number
+          as_of_date?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          days_overdue_for_interest?: number
+          id?: string
+          invoice_id?: string
+          principal?: number
+          rate_apr?: number
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_interest_snapshots_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_interest_snapshots_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "invoice_interest_snapshots_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
@@ -5142,6 +6074,13 @@ export type Database = {
             foreignKeyName: "invoices_parent_invoice_id_fkey"
             columns: ["parent_invoice_id"]
             isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "invoices_parent_invoice_id_fkey"
+            columns: ["parent_invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -5278,6 +6217,68 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      kb_deleted_documents: {
+        Row: {
+          company_id: string
+          content: string | null
+          deleted_at: string
+          id: string
+          source_file: string
+        }
+        Insert: {
+          company_id?: string
+          content?: string | null
+          deleted_at?: string
+          id?: string
+          source_file: string
+        }
+        Update: {
+          company_id?: string
+          content?: string | null
+          deleted_at?: string
+          id?: string
+          source_file?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kb_deleted_documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kb_document_versions: {
+        Row: {
+          changed_by: string | null
+          company_id: string
+          content: string | null
+          created_at: string
+          id: string
+          source_file: string
+          version: number
+        }
+        Insert: {
+          changed_by?: string | null
+          company_id: string
+          content?: string | null
+          created_at?: string
+          id?: string
+          source_file: string
+          version: number
+        }
+        Update: {
+          changed_by?: string | null
+          company_id?: string
+          content?: string | null
+          created_at?: string
+          id?: string
+          source_file?: string
+          version?: number
+        }
+        Relationships: []
       }
       lead_notes: {
         Row: {
@@ -5479,11 +6480,14 @@ export type Database = {
           architect_name: string | null
           architect_phone: string | null
           assigned_to: string | null
+          bd_sourced: boolean | null
+          bd_sourced_confirmed_by: string | null
           business_card_photo_url: string | null
           client_id: string | null
           client_type: string | null
           company: string | null
           company_id: string
+          contact_address: string | null
           contact_email: string | null
           contact_id: string | null
           contact_phone: string | null
@@ -5493,6 +6497,7 @@ export type Database = {
           drawings_uploaded: boolean | null
           event_id: string | null
           expected_value: number | null
+          follow_up_note: string | null
           full_name: string
           gc_company: string | null
           gc_email: string | null
@@ -5500,6 +6505,10 @@ export type Database = {
           gc_phone: string | null
           hot_opportunity: boolean
           id: string
+          intro_sent_at: string | null
+          lead_kind: Database["public"]["Enums"]["lead_kind"]
+          lost_reason: string | null
+          next_follow_up_at: string | null
           notes: string | null
           project_timeline:
             | Database["public"]["Enums"]["bd_lead_timeline"]
@@ -5518,6 +6527,7 @@ export type Database = {
           stage: Database["public"]["Enums"]["bd_lead_stage"] | null
           status: string
           subject: string | null
+          tags: string[]
           tpp_email: string | null
           tpp_name: string | null
           updated_at: string
@@ -5531,11 +6541,14 @@ export type Database = {
           architect_name?: string | null
           architect_phone?: string | null
           assigned_to?: string | null
+          bd_sourced?: boolean | null
+          bd_sourced_confirmed_by?: string | null
           business_card_photo_url?: string | null
           client_id?: string | null
           client_type?: string | null
           company?: string | null
           company_id: string
+          contact_address?: string | null
           contact_email?: string | null
           contact_id?: string | null
           contact_phone?: string | null
@@ -5545,6 +6558,7 @@ export type Database = {
           drawings_uploaded?: boolean | null
           event_id?: string | null
           expected_value?: number | null
+          follow_up_note?: string | null
           full_name: string
           gc_company?: string | null
           gc_email?: string | null
@@ -5552,6 +6566,10 @@ export type Database = {
           gc_phone?: string | null
           hot_opportunity?: boolean
           id?: string
+          intro_sent_at?: string | null
+          lead_kind?: Database["public"]["Enums"]["lead_kind"]
+          lost_reason?: string | null
+          next_follow_up_at?: string | null
           notes?: string | null
           project_timeline?:
             | Database["public"]["Enums"]["bd_lead_timeline"]
@@ -5572,6 +6590,7 @@ export type Database = {
           stage?: Database["public"]["Enums"]["bd_lead_stage"] | null
           status?: string
           subject?: string | null
+          tags?: string[]
           tpp_email?: string | null
           tpp_name?: string | null
           updated_at?: string
@@ -5585,11 +6604,14 @@ export type Database = {
           architect_name?: string | null
           architect_phone?: string | null
           assigned_to?: string | null
+          bd_sourced?: boolean | null
+          bd_sourced_confirmed_by?: string | null
           business_card_photo_url?: string | null
           client_id?: string | null
           client_type?: string | null
           company?: string | null
           company_id?: string
+          contact_address?: string | null
           contact_email?: string | null
           contact_id?: string | null
           contact_phone?: string | null
@@ -5599,6 +6621,7 @@ export type Database = {
           drawings_uploaded?: boolean | null
           event_id?: string | null
           expected_value?: number | null
+          follow_up_note?: string | null
           full_name?: string
           gc_company?: string | null
           gc_email?: string | null
@@ -5606,6 +6629,10 @@ export type Database = {
           gc_phone?: string | null
           hot_opportunity?: boolean
           id?: string
+          intro_sent_at?: string | null
+          lead_kind?: Database["public"]["Enums"]["lead_kind"]
+          lost_reason?: string | null
+          next_follow_up_at?: string | null
           notes?: string | null
           project_timeline?:
             | Database["public"]["Enums"]["bd_lead_timeline"]
@@ -5626,6 +6653,7 @@ export type Database = {
           stage?: Database["public"]["Enums"]["bd_lead_stage"] | null
           status?: string
           subject?: string | null
+          tags?: string[]
           tpp_email?: string | null
           tpp_name?: string | null
           updated_at?: string
@@ -5635,6 +6663,13 @@ export type Database = {
           {
             foreignKeyName: "leads_assigned_to_fkey"
             columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_bd_sourced_confirmed_by_fkey"
+            columns: ["bd_sourced_confirmed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -5697,12 +6732,69 @@ export type Database = {
           },
         ]
       }
+      markets: {
+        Row: {
+          checklist: Json
+          commercial_score: number | null
+          company_id: string
+          created_at: string
+          id: string
+          intel: Json
+          mode: string
+          name: string
+          notes: string | null
+          operational_score: number | null
+          state: string
+          tier: number
+          updated_at: string
+        }
+        Insert: {
+          checklist?: Json
+          commercial_score?: number | null
+          company_id: string
+          created_at?: string
+          id?: string
+          intel?: Json
+          mode?: string
+          name: string
+          notes?: string | null
+          operational_score?: number | null
+          state?: string
+          tier: number
+          updated_at?: string
+        }
+        Update: {
+          checklist?: Json
+          commercial_score?: number | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          intel?: Json
+          mode?: string
+          name?: string
+          notes?: string | null
+          operational_score?: number | null
+          state?: string
+          tier?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "markets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           body: string | null
           company_id: string
           created_at: string
           dismissed_at: string | null
+          event_id: string | null
           id: string
           link: string | null
           project_id: string | null
@@ -5716,6 +6808,7 @@ export type Database = {
           company_id: string
           created_at?: string
           dismissed_at?: string | null
+          event_id?: string | null
           id?: string
           link?: string | null
           project_id?: string | null
@@ -5729,6 +6822,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           dismissed_at?: string | null
+          event_id?: string | null
           id?: string
           link?: string | null
           project_id?: string | null
@@ -5743,6 +6837,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "bd_events"
             referencedColumns: ["id"]
           },
           {
@@ -6044,6 +7145,13 @@ export type Database = {
             foreignKeyName: "payment_plans_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "payment_plans_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -6103,6 +7211,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_predictions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
           },
           {
             foreignKeyName: "payment_predictions_invoice_id_fkey"
@@ -6201,6 +7316,13 @@ export type Database = {
             foreignKeyName: "payment_promises_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "payment_promises_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -6256,6 +7378,73 @@ export type Database = {
             columns: ["invited_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      permit_playbooks: {
+        Row: {
+          attachments: Json
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          last_ai_research_at: string | null
+          last_verified_at: string | null
+          market_id: string
+          permit_type: string
+          qa: Json
+          summary: string | null
+          updated_at: string
+        }
+        Insert: {
+          attachments?: Json
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_ai_research_at?: string | null
+          last_verified_at?: string | null
+          market_id: string
+          permit_type: string
+          qa?: Json
+          summary?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attachments?: Json
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_ai_research_at?: string | null
+          last_verified_at?: string | null
+          market_id?: string
+          permit_type?: string
+          qa?: Json
+          summary?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permit_playbooks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "permit_playbooks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "permit_playbooks_market_id_fkey"
+            columns: ["market_id"]
+            isOneToOne: false
+            referencedRelation: "markets"
             referencedColumns: ["id"]
           },
         ]
@@ -6501,9 +7690,9 @@ export type Database = {
           created_at: string | null
           display_name: string | null
           first_name: string | null
-          hourly_rate: number | null
           id: string
           is_active: boolean | null
+          is_comp_admin: boolean
           job_title: string | null
           last_name: string | null
           monthly_goal: number | null
@@ -6531,9 +7720,9 @@ export type Database = {
           created_at?: string | null
           display_name?: string | null
           first_name?: string | null
-          hourly_rate?: number | null
           id?: string
           is_active?: boolean | null
+          is_comp_admin?: boolean
           job_title?: string | null
           last_name?: string | null
           monthly_goal?: number | null
@@ -6561,9 +7750,9 @@ export type Database = {
           created_at?: string | null
           display_name?: string | null
           first_name?: string | null
-          hourly_rate?: number | null
           id?: string
           is_active?: boolean | null
+          is_comp_admin?: boolean
           job_title?: string | null
           last_name?: string | null
           monthly_goal?: number | null
@@ -7686,12 +8875,15 @@ export type Database = {
           gc_name: string | null
           gc_phone: string | null
           id: string
+          interest_compounding: string | null
+          interest_grace_days: number | null
           internal_signature_data: string | null
           internal_signed_at: string | null
           internal_signed_by: string | null
           is_pro_cert: boolean
           job_description: string | null
           last_follow_up_at: string | null
+          late_interest_rate_apr: number | null
           lead_id: string | null
           lead_source: string | null
           metadata: Json | null
@@ -7770,12 +8962,15 @@ export type Database = {
           gc_name?: string | null
           gc_phone?: string | null
           id?: string
+          interest_compounding?: string | null
+          interest_grace_days?: number | null
           internal_signature_data?: string | null
           internal_signed_at?: string | null
           internal_signed_by?: string | null
           is_pro_cert?: boolean
           job_description?: string | null
           last_follow_up_at?: string | null
+          late_interest_rate_apr?: number | null
           lead_id?: string | null
           lead_source?: string | null
           metadata?: Json | null
@@ -7854,12 +9049,15 @@ export type Database = {
           gc_name?: string | null
           gc_phone?: string | null
           id?: string
+          interest_compounding?: string | null
+          interest_grace_days?: number | null
           internal_signature_data?: string | null
           internal_signed_at?: string | null
           internal_signed_by?: string | null
           is_pro_cert?: boolean
           job_description?: string | null
           last_follow_up_at?: string | null
+          late_interest_rate_apr?: number | null
           lead_id?: string | null
           lead_source?: string | null
           metadata?: Json | null
@@ -8178,6 +9376,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retainer_transactions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
           },
           {
             foreignKeyName: "retainer_transactions_invoice_id_fkey"
@@ -9593,6 +10798,7 @@ export type Database = {
           filename: string
           folder_id: string | null
           id: string
+          jurisdiction: string
           mime_type: string | null
           project_id: string | null
           property_id: string | null
@@ -9615,6 +10821,7 @@ export type Database = {
           filename: string
           folder_id?: string | null
           id?: string
+          jurisdiction?: string
           mime_type?: string | null
           project_id?: string | null
           property_id?: string | null
@@ -9637,6 +10844,7 @@ export type Database = {
           filename?: string
           folder_id?: string | null
           id?: string
+          jurisdiction?: string
           mime_type?: string | null
           project_id?: string | null
           property_id?: string | null
@@ -9819,9 +11027,34 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      invoice_balances_with_interest: {
+        Row: {
+          accrued_interest_to_date: number | null
+          company_id: string | null
+          interest_rate_apr: number | null
+          interest_start_date: string | null
+          invoice_id: string | null
+          principal: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      admin_set_profile_role: {
+        Args: {
+          _new_role: Database["public"]["Enums"]["user_role"]
+          _profile_id: string
+        }
+        Returns: Json
+      }
       auto_join_existing_company: {
         Args: { first_name: string; last_name: string }
         Returns: string
@@ -9877,6 +11110,17 @@ export type Database = {
         Returns: Json
       }
       get_client_tax_id: { Args: { _client_id: string }; Returns: string }
+      get_company_goals: {
+        Args: never
+        Returns: {
+          accuracy_goal: number
+          id: string
+          is_active: boolean
+          monthly_goal: number
+          role: string
+          weekly_goal: number
+        }[]
+      }
       get_lead_connections: { Args: { _lead_id: string }; Returns: Json }
       get_my_compensation: {
         Args: never
@@ -9885,6 +11129,31 @@ export type Database = {
           monthly_goal: number
         }[]
       }
+      get_my_gmail_connection_status: {
+        Args: never
+        Returns: {
+          company_id: string
+          created_at: string
+          email_address: string
+          history_id: string
+          id: string
+          last_sync_at: string
+          sync_enabled: boolean
+          token_expires_at: string
+          updated_at: string
+          user_id: string
+        }[]
+      }
+      get_my_gmail_signature: { Args: never; Returns: string }
+      get_my_goals: {
+        Args: never
+        Returns: {
+          accuracy_goal: number
+          monthly_goal: number
+          weekly_goal: number
+        }[]
+      }
+      get_my_hourly_rate: { Args: never; Returns: number }
       get_profile_compensation: {
         Args: { _profile_id: string }
         Returns: {
@@ -9916,6 +11185,13 @@ export type Database = {
       }
       get_user_app_roles: { Args: { _user_id: string }; Returns: string[] }
       get_user_company_id: { Args: never; Returns: string }
+      get_user_hourly_rates: {
+        Args: { _user_ids: string[] }
+        Returns: {
+          hourly_rate: number
+          user_id: string
+        }[]
+      }
       global_search: {
         Args: { _limit?: number; _q: string }
         Returns: {
@@ -9947,6 +11223,7 @@ export type Database = {
         Args: { target_company_id: string }
         Returns: boolean
       }
+      is_comp_admin: { Args: { _user?: string }; Returns: boolean }
       is_company_admin: {
         Args: { target_company_id: string }
         Returns: boolean
@@ -9954,6 +11231,21 @@ export type Database = {
       is_company_member: {
         Args: { target_company_id: string }
         Returns: boolean
+      }
+      lookup_permit_playbook: {
+        Args: {
+          _company_id: string
+          _market_name: string
+          _permit_type: string
+        }
+        Returns: {
+          last_verified_at: string
+          market_name: string
+          permit_type: string
+          qa: Json
+          state: string
+          summary: string
+        }[]
       }
       merge_clients: {
         Args: { duplicate_ids: string[]; primary_id: string }
@@ -10020,6 +11312,10 @@ export type Database = {
       }
       track_proposal_view: { Args: { _token: string }; Returns: undefined }
       track_rfi_view: { Args: { _token: string }; Returns: undefined }
+      upsert_employee_hourly_rate: {
+        Args: { _person_id: string; _rate: number }
+        Returns: undefined
+      }
       user_has_app_role: {
         Args: { _role: string; _user_id: string }
         Returns: boolean
@@ -10034,7 +11330,7 @@ export type Database = {
         | "meeting"
         | "site_visit"
         | "document"
-      app_role: "admin" | "production" | "accounting"
+      app_role: "admin" | "production" | "accounting" | "manager" | "pm"
       application_status:
         | "draft"
         | "filed"
@@ -10064,6 +11360,8 @@ export type Database = {
         | "ATTENDED"
         | "SKIPPED"
         | "CANCELLED"
+        | "SUGGESTED"
+        | "DISMISSED"
       bd_lead_source_type:
         | "EVENT"
         | "REFERRAL"
@@ -10073,6 +11371,7 @@ export type Database = {
         | "GOOGLE"
         | "COLD"
         | "OTHER"
+        | "IN_PERSON"
       bd_lead_stage:
         | "NEW"
         | "CONTACTED"
@@ -10090,6 +11389,14 @@ export type Database = {
         | "PLANNING"
       bd_membership_status: "ACTIVE" | "EXPIRED" | "NOT_MEMBER" | "EVALUATING"
       bd_price_verified: "VERIFIED" | "UNVERIFIED" | "PARTIALLY"
+      bd_referral_source_type: "ARCHITECT" | "GC" | "OWNER" | "PM" | "OTHER"
+      bd_referral_stage:
+        | "ASK_MADE"
+        | "INTRO_RECEIVED"
+        | "MEETING_SET"
+        | "PROPOSAL"
+        | "WON"
+        | "LOST"
       bd_sequence_status: "ACTIVE" | "PAUSED" | "COMPLETED" | "EXITED"
       bd_source_priority: "HIGH" | "MED" | "LOW"
       co_status:
@@ -10099,6 +11406,7 @@ export type Database = {
         | "approved"
         | "rejected"
         | "voided"
+      lead_kind: "PROSPECT" | "CONTACT"
       project_status: "open" | "on_hold" | "closed" | "paid"
       project_waiting_on: "us" | "client" | "agency" | "partner" | "none"
       proposal_status:
@@ -10261,7 +11569,7 @@ export const Constants = {
         "site_visit",
         "document",
       ],
-      app_role: ["admin", "production", "accounting"],
+      app_role: ["admin", "production", "accounting", "manager", "pm"],
       application_status: [
         "draft",
         "filed",
@@ -10293,6 +11601,8 @@ export const Constants = {
         "ATTENDED",
         "SKIPPED",
         "CANCELLED",
+        "SUGGESTED",
+        "DISMISSED",
       ],
       bd_lead_source_type: [
         "EVENT",
@@ -10303,6 +11613,7 @@ export const Constants = {
         "GOOGLE",
         "COLD",
         "OTHER",
+        "IN_PERSON",
       ],
       bd_lead_stage: [
         "NEW",
@@ -10323,6 +11634,15 @@ export const Constants = {
       ],
       bd_membership_status: ["ACTIVE", "EXPIRED", "NOT_MEMBER", "EVALUATING"],
       bd_price_verified: ["VERIFIED", "UNVERIFIED", "PARTIALLY"],
+      bd_referral_source_type: ["ARCHITECT", "GC", "OWNER", "PM", "OTHER"],
+      bd_referral_stage: [
+        "ASK_MADE",
+        "INTRO_RECEIVED",
+        "MEETING_SET",
+        "PROPOSAL",
+        "WON",
+        "LOST",
+      ],
       bd_sequence_status: ["ACTIVE", "PAUSED", "COMPLETED", "EXITED"],
       bd_source_priority: ["HIGH", "MED", "LOW"],
       co_status: [
@@ -10333,6 +11653,7 @@ export const Constants = {
         "rejected",
         "voided",
       ],
+      lead_kind: ["PROSPECT", "CONTACT"],
       project_status: ["open", "on_hold", "closed", "paid"],
       project_waiting_on: ["us", "client", "agency", "partner", "none"],
       proposal_status: [

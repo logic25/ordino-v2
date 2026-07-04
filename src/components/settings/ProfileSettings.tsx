@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +26,19 @@ export function ProfileSettings() {
   const [displayName, setDisplayName] = useState(profile?.display_name || "");
   const [phone, setPhone] = useState(profile?.phone || "");
   const [phoneExtension, setPhoneExtension] = useState((profile as any)?.phone_extension || "");
-  const [hourlyRate, setHourlyRate] = useState((profile as any)?.hourly_rate ? String((profile as any).hourly_rate) : "");
+  const [hourlyRate, setHourlyRate] = useState("");
+
+  // Load own hourly rate from employee_compensation via RPC (compensation
+  // is no longer stored on profiles).
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const { data, error } = await supabase.rpc("get_my_hourly_rate");
+      if (!active || error) return;
+      if (data != null) setHourlyRate(String(data));
+    })();
+    return () => { active = false; };
+  }, []);
 
   const initials = [firstName, lastName]
     .filter(Boolean)
@@ -46,12 +58,12 @@ export function ProfileSettings() {
           display_name: displayName.trim() || [firstName.trim(), lastName.trim()].filter(Boolean).join(" ") || null,
           phone: phone.trim() || null,
           phone_extension: phoneExtension.trim() || null,
-          hourly_rate: hourlyRate ? parseFloat(hourlyRate) : null,
         })
         .eq("id", profile.id);
       if (error) throw error;
       await refreshProfile();
       toast({ title: "Profile updated" });
+
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
@@ -117,22 +129,21 @@ export function ProfileSettings() {
 
           <Separator />
 
-          <div className="space-y-2">
-            <Label className="flex items-center gap-2">
-              <DollarSign className="h-3.5 w-3.5" />
-              Hourly Rate
-            </Label>
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              value={hourlyRate}
-              onChange={(e) => setHourlyRate(e.target.value)}
-              placeholder="0.00"
-              className="max-w-[200px]"
-            />
-            <p className="text-xs text-muted-foreground">Used for billing calculations and time tracking reports</p>
-          </div>
+          {hourlyRate && (
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <DollarSign className="h-3.5 w-3.5" />
+                Hourly Rate
+              </Label>
+              <div className="max-w-[200px] px-3 py-2 rounded-md border bg-muted/40 text-sm font-medium">
+                ${parseFloat(hourlyRate).toFixed(2)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Used for billing calculations. Contact a compensation admin to change this.
+              </p>
+            </div>
+          )}
+
 
           <Button onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}

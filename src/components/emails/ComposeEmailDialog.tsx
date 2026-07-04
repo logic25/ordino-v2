@@ -20,6 +20,7 @@ import { RichTextEditor } from "./RichTextEditor";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useTelemetry } from "@/hooks/useTelemetry";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AttachmentFile {
   file: File;
@@ -48,6 +49,7 @@ export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defau
   const [bcc, setBcc] = useState<string[]>([]);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  const [signatureInjected, setSignatureInjected] = useState(false);
   const [showCcBcc, setShowCcBcc] = useState(false);
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -84,6 +86,48 @@ export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defau
       if (defaultAttachments && defaultAttachments.length > 0) setAttachments(defaultAttachments);
     }
   }, [open, draft, defaultTo, defaultSubject, defaultBody, defaultAttachments]);
+
+  // Pre-fill the user's Gmail signature for fresh compositions. Skip when
+  // editing a draft, replying, or when the caller already supplied a body —
+  // those paths either include the signature in the prior content or expect
+  // an exact template.
+  useEffect(() => {
+    if (!open || draft || defaultBody) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase.rpc("get_my_gmail_signature");
+        const raw = (typeof data === "string" ? data : "")?.trim();
+        if (cancelled || !raw) return;
+        // Convert legacy Gmail <font color size face> tags to <span style="...">
+        // so TipTap's TextStyle/Color marks preserve them.
+        const sig = raw.replace(
+          /<font([^>]*)>/gi,
+          (_m, attrs: string) => {
+            const styles: string[] = [];
+            const color = /\bcolor=["']?([^"'\s>]+)/i.exec(attrs)?.[1];
+            const face = /\bface=["']?([^"'>]+?)["']?(?=\s|>|$)/i.exec(attrs)?.[1];
+            const size = /\bsize=["']?(\d+)/i.exec(attrs)?.[1];
+            if (color) styles.push(`color:${color}`);
+            if (face) styles.push(`font-family:${face}`);
+            if (size) {
+              const px = { "1": 10, "2": 13, "3": 16, "4": 18, "5": 24, "6": 32, "7": 48 }[size];
+              if (px) styles.push(`font-size:${px}px`);
+            }
+            return `<span style="${styles.join(";")}">`;
+          }
+        ).replace(/<\/font>/gi, "</span>");
+        setBody((prev) => {
+          if (prev && prev.trim() !== "" && prev.trim() !== "<p></p>") return prev;
+          setSignatureInjected(true);
+          return `<p></p><p></p><div data-signature="1">${sig}</div>`;
+        });
+      } catch {
+        // Signature is best-effort — never block compose.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, draft, defaultBody]);
 
   // Auto-save draft every 5 seconds when content changes
   useEffect(() => {
@@ -202,6 +246,7 @@ export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defau
         attachments: buildAttachmentsPayload(),
         project_id: projectId,
         tag_category: "other",
+        append_signature: !signatureInjected,
       },
       async () => {
         await cleanupDraftOnSend();

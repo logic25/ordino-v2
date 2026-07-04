@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Bell, Check, CheckCheck, FolderKanban, X, FileText, AlertTriangle, Receipt, Mail, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -7,10 +8,21 @@ import {
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   useNotifications,
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
   useDismissNotification,
+  useDismissAllNotifications,
 } from "@/hooks/useNotifications";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
@@ -37,21 +49,57 @@ export function NotificationDropdown() {
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
   const dismiss = useDismissNotification();
+  const dismissAll = useDismissAllNotifications();
   const navigate = useNavigate();
+
+  // Re-trigger the wiggle animation each time the unread count INCREASES
+  // (i.e. a new realtime insert arrived). The keyed remount restarts the CSS animation.
+  const prevCountRef = useRef(unreadCount);
+  const [wiggleKey, setWiggleKey] = useState(0);
+  useEffect(() => {
+    if (unreadCount > prevCountRef.current) {
+      setWiggleKey((k) => k + 1);
+    }
+    prevCountRef.current = unreadCount;
+  }, [unreadCount]);
+
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
 
   const handleClick = (n: typeof notifications[0]) => {
     if (!n.read_at) markRead.mutate(n.id);
     if (n.link) navigate(n.link);
   };
 
+  const hasUnread = unreadCount > 0;
+  const badgeLabel = unreadCount > 99 ? "99+" : String(unreadCount);
+
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className={cn("h-5 w-5 transition-transform", unreadCount > 0 && "animate-[wiggle_0.5s_ease-in-out]")} />
-          {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center px-1 animate-pulse">
-              {unreadCount > 99 ? "99+" : unreadCount}
+        <Button variant="ghost" size="icon" className="relative h-10 w-10">
+          {/* Soft persistent pulse ring while there are unread notifications */}
+          {hasUnread && (
+            <span
+              aria-hidden
+              className="absolute inset-1 rounded-full bg-destructive/20 animate-ping pointer-events-none"
+            />
+          )}
+          <Bell
+            key={wiggleKey}
+            className={cn(
+              "h-5 w-5 relative",
+              hasUnread && "text-destructive animate-[wiggle_0.8s_ease-in-out]"
+            )}
+          />
+          {hasUnread && (
+            <span
+              className={cn(
+                "absolute -top-1 -right-1 min-w-[22px] h-[22px] rounded-full bg-destructive text-destructive-foreground",
+                "text-[11px] font-bold flex items-center justify-center px-1.5",
+                "ring-2 ring-card shadow-sm"
+              )}
+            >
+              {badgeLabel}
             </span>
           )}
         </Button>
@@ -59,17 +107,31 @@ export function NotificationDropdown() {
       <PopoverContent align="end" className="w-96 p-0">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <h3 className="font-semibold text-sm">Notifications</h3>
-          {unreadCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs gap-1 h-7"
-              onClick={() => markAllRead.mutate()}
-            >
-              <CheckCheck className="h-3.5 w-3.5" />
-              Mark all read
-            </Button>
-          )}
+          <div className="flex items-center gap-1">
+            {unreadCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs gap-1 h-7"
+                onClick={() => markAllRead.mutate()}
+              >
+                <CheckCheck className="h-3.5 w-3.5" />
+                Mark all read
+              </Button>
+            )}
+            {notifications.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs gap-1 h-7 text-destructive hover:text-destructive"
+                disabled={dismissAll.isPending}
+                onClick={() => setConfirmClearOpen(true)}
+              >
+                <X className="h-3.5 w-3.5" />
+                Clear all
+              </Button>
+            )}
+          </div>
         </div>
         <ScrollArea className="max-h-[400px]">
           {isLoading ? (
@@ -128,6 +190,28 @@ export function NotificationDropdown() {
           )}
         </ScrollArea>
       </PopoverContent>
+
+      <AlertDialog open={confirmClearOpen} onOpenChange={setConfirmClearOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear all notifications?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove all {notifications.length} notifications from your inbox.
+              You can't undo this, but new notifications will keep arriving as things happen
+              in Ordino.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep them</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => dismissAll.mutate()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Yes, clear all
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Popover>
   );
 }

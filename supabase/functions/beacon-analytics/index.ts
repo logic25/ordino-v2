@@ -87,8 +87,17 @@ Deno.serve(async (req) => {
         return await getContentStats(supabase);
       case "persist_widget_messages":
         return await persistWidgetMessages(supabase, data);
+      case "get_interactions_for_reclass":
+        return await getInteractionsForReclass(supabase, data);
+      case "update_interaction_topic":
+        return await updateInteractionTopic(supabase, data);
+      case "get_kb_gaps":
+        return await getKbGaps(supabase, data);
+      case "dismiss_kb_gap":
+        return await dismissKbGap(supabase, data);
       default:
         return jsonResponse({ error: `Unknown action: ${action}` }, 400);
+
     }
   } catch (err) {
     console.error("beacon-analytics error:", err);
@@ -97,6 +106,31 @@ Deno.serve(async (req) => {
 });
 
 // ─── Actions ────────────────────────────────────────────────────────
+
+// One-time/maintenance: fetch interactions so Beacon (Railway) can re-classify
+// their topic with the real LLM classifier, then write the corrected topic back
+// via update_interaction_topic. Topic tagging lives in Beacon's Python
+// classifier (single source of truth), so we only read/write here.
+async function getInteractionsForReclass(sb: any, d: any) {
+  const limit = Math.min(Number(d?.limit ?? 5000), 10000);
+  const { data, error } = await sb
+    .from("beacon_interactions")
+    .select("id, question, response, topic")
+    .order("id", { ascending: true })
+    .limit(limit);
+  if (error) return jsonResponse({ error: error.message }, 500);
+  return jsonResponse(data ?? []);
+}
+
+async function updateInteractionTopic(sb: any, d: any) {
+  if (d?.id == null) return jsonResponse({ error: "id required" }, 400);
+  const { error } = await sb
+    .from("beacon_interactions")
+    .update({ topic: d.topic })
+    .eq("id", d.id);
+  if (error) return jsonResponse({ error: error.message }, 500);
+  return jsonResponse({ ok: true });
+}
 
 async function logInteraction(sb: any, d: any) {
   const { error } = await sb.from("beacon_interactions").insert({
@@ -527,10 +561,23 @@ async function updateFeedbackRoadmap(sb: any, d: any) {
 // ─── Content Pipeline Actions ───────────────────────────────────────
 
 async function saveContentCandidate(sb: any, d: any) {
+  // Resolve company_id: prefer payload, else first company in DB (same fallback
+  // pattern as logFeedback). content_candidates.company_id is NOT NULL — without
+  // this, upserts from the Beacon backend seeder silently fail.
+  let companyId = d.company_id;
+  if (!companyId) {
+    const { data: companyRow } = await sb.from("companies").select("id").limit(1).single();
+    companyId = companyRow?.id;
+  }
+  if (!companyId) {
+    return jsonResponse({ error: "No company_id available for content candidate" }, 400);
+  }
+
   const { data, error } = await sb
     .from("content_candidates")
     .upsert({
       id: d.id,
+      company_id: companyId,
       title: d.title,
       content_type: d.content_type ?? "blog_post",
       priority: d.priority ?? "medium",
@@ -590,10 +637,26 @@ async function updateContentCandidate(sb: any, d: any) {
 }
 
 async function saveGeneratedContent(sb: any, d: any) {
+  // Resolve company_id: prefer payload, else inherit from candidate, else first company.
+  let companyId = d.company_id;
+  if (!companyId && d.candidate_id) {
+    const { data: cand } = await sb
+      .from("content_candidates")
+      .select("company_id")
+      .eq("id", d.candidate_id)
+      .maybeSingle();
+    companyId = cand?.company_id;
+  }
+  if (!companyId) {
+    const { data: companyRow } = await sb.from("companies").select("id").limit(1).single();
+    companyId = companyRow?.id;
+  }
+
   const { data, error } = await sb
     .from("generated_content")
     .insert({
       id: d.id,
+      company_id: companyId,
       candidate_id: d.candidate_id,
       content_type: d.content_type ?? "blog_post",
       title: d.title,
@@ -605,7 +668,6 @@ async function saveGeneratedContent(sb: any, d: any) {
     .single();
   if (error) throw error;
 
-  // Update candidate status to drafted
   if (d.candidate_id) {
     await sb
       .from("content_candidates")
@@ -691,7 +753,32 @@ async function persistWidgetMessages(sb: any, d: any) {
     throw new Error("user_email, user_message, and ai_response are required");
   }
 
+  // Derive company_id: prefer payload, else look up via auth.users → profiles
+  let companyId: string | null = d.company_id || null;
+  if (!companyId) {
+    try {
+      const { data: authUsers } = await sb.auth.admin.listUsers();
+      const matched = (authUsers?.users || []).find(
+        (u: any) => u.email?.toLowerCase() === String(d.user_email).toLowerCase()
+      );
+      if (matched) {
+        const { data: prof } = await sb
+          .from("profiles")
+          .select("company_id")
+          .eq("user_id", matched.id)
+          .maybeSingle();
+        companyId = prof?.company_id || null;
+      }
+    } catch (_) { /* swallow */ }
+  }
+  if (!companyId) {
+    const { data: companyRow } = await sb.from("companies").select("id").limit(1).maybeSingle();
+    companyId = companyRow?.id || null;
+  }
+  if (!companyId) throw new Error("Unable to resolve company_id for widget message persistence");
+
   const now = new Date().toISOString();
+  const sessionId = d.session_id || null;
   const { error } = await sb.from("widget_messages").insert([
     {
       user_email: d.user_email,
@@ -699,6 +786,8 @@ async function persistWidgetMessages(sb: any, d: any) {
       content: d.user_message,
       metadata: {},
       created_at: now,
+      company_id: companyId,
+      session_id: sessionId,
     },
     {
       user_email: d.user_email,
@@ -706,8 +795,96 @@ async function persistWidgetMessages(sb: any, d: any) {
       content: d.ai_response,
       metadata: d.metadata || {},
       created_at: now,
+      company_id: companyId,
+      session_id: sessionId,
     },
   ]);
   if (error) throw error;
-  return jsonResponse({ success: true });
+  return jsonResponse({ success: true, company_id: companyId });
 }
+
+// ─── KB Gaps (Teach Beacon queue) ───────────────────────────────────
+// Source of truth for "questions Beacon couldn't answer". We DO NOT
+// overwrite the `command` field on dismissal — historical analytics that
+// filter on command='passive_gap' must keep working. "Open" gaps are the
+// subset where addressed_at IS NULL (column already exists, also used by
+// BeaconKbGaps's topic-level dismiss). No ilike dedup against
+// beacon_corrections — dismissal is the only "handled" signal.
+async function getKbGaps(sb: any, d: any) {
+  const days = Math.min(Number(d?.days ?? 60), 365);
+  const limit = Math.min(Number(d?.limit ?? 50), 200);
+  const since = new Date(Date.now() - days * 86400000).toISOString();
+
+  const { data, error } = await sb
+    .from("beacon_interactions")
+    .select("id, question, topic, command, answered, confidence, timestamp")
+    .gte("timestamp", since)
+    .is("addressed_at", null)
+    .order("timestamp", { ascending: false })
+    .limit(5000);
+  if (error) return jsonResponse({ error: error.message }, 500);
+
+  const rows = (data || []).filter((r: any) => {
+    if (!r.question || String(r.question).trim().length < 6) return false;
+    if (r.command === "passive_gap") return true;
+    return r.answered === false && r.confidence != null && Number(r.confidence) < 0.5;
+  });
+
+  const normalize = (s: string) =>
+    s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+
+  const clusters = new Map<string, {
+    id: number;
+    question: string;
+    topic: string | null;
+    asked_count: number;
+    last_asked_at: string;
+    member_ids: number[];
+  }>();
+
+  for (const r of rows) {
+    const key = normalize(String(r.question));
+    if (!key) continue;
+    const c = clusters.get(key);
+    if (!c) {
+      clusters.set(key, {
+        id: r.id,
+        question: r.question,
+        topic: r.topic ?? null,
+        asked_count: 1,
+        last_asked_at: r.timestamp,
+        member_ids: [r.id],
+      });
+    } else {
+      c.asked_count++;
+      c.member_ids.push(r.id);
+      if (r.timestamp > c.last_asked_at) {
+        c.last_asked_at = r.timestamp;
+        c.id = r.id;
+        c.question = r.question;
+        c.topic = r.topic ?? c.topic;
+      }
+    }
+  }
+
+  const out = Array.from(clusters.values())
+    .sort((a, b) =>
+      b.asked_count - a.asked_count ||
+      b.last_asked_at.localeCompare(a.last_asked_at)
+    )
+    .slice(0, limit);
+
+  return jsonResponse({ gaps: out });
+}
+
+async function dismissKbGap(sb: any, d: any) {
+  const ids: number[] = Array.isArray(d?.member_ids) ? d.member_ids : [];
+  if (!ids.length) return jsonResponse({ error: "member_ids required" }, 400);
+  const { error } = await sb
+    .from("beacon_interactions")
+    .update({ addressed_at: new Date().toISOString() })
+    .in("id", ids);
+  if (error) return jsonResponse({ error: error.message }, 500);
+  return jsonResponse({ ok: true });
+}
+

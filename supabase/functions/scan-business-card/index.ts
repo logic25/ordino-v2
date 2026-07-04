@@ -46,19 +46,26 @@ Deno.serve(async (req) => {
     method: "POST",
     headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "google/gemini-3-flash-preview",
+      // gemini-2.5-flash (full, not -lite) reliably supports vision + function
+      // calling. The previous gemini-3-flash-preview was returning empty
+      // tool_calls for some card photos, which made the UI silently render a
+      // blank form instead of an error toast.
+      model: "google/gemini-2.5-flash",
       messages: [
         {
           role: "system",
           content:
             "You extract contact info from photos of business cards or event badges. " +
             "Return ONLY what is visibly printed — never invent or guess missing fields. " +
-            "If the image is not a business card/badge or is unreadable, set readable=false.",
+            "Distinguish office/direct/main numbers (phone) from cell/mobile/M numbers (mobile). " +
+            "Include the full mailing address as one string. " +
+            "If the image is not a business card/badge or is unreadable, set readable=false. " +
+            "Always call the card_contact function with your result — never reply in plain text.",
         },
         {
           role: "user",
           content: [
-            { type: "text", text: "Extract the contact details from this card." },
+            { type: "text", text: "Extract every visible contact detail from this card." },
             { type: "image_url", image_url: { url: `data:${mime};base64,${image}` } },
           ],
         },
@@ -77,9 +84,10 @@ Deno.serve(async (req) => {
               company: { type: "string" },
               role: { type: "string", description: "Job title as printed" },
               email: { type: "string" },
-              phone: { type: "string" },
+              phone: { type: "string", description: "Office/direct/main number" },
+              mobile: { type: "string", description: "Cell/mobile number if separately printed" },
               website: { type: "string" },
-              address: { type: "string" },
+              address: { type: "string", description: "Full mailing address as one line" },
             },
           },
         },
@@ -92,12 +100,30 @@ Deno.serve(async (req) => {
     const txt = await aiRes.text().catch(() => "");
     console.error("gateway", aiRes.status, txt.slice(0, 300));
     if (aiRes.status === 429) return json({ error: "Rate limited — try again in a moment" }, 429);
+    if (aiRes.status === 402) return json({ error: "AI credits exhausted — add credits in Settings" }, 402);
     return json({ error: `Vision extraction failed (${aiRes.status})` }, 502);
   }
   const aiJson = await aiRes.json();
-  const call = aiJson?.choices?.[0]?.message?.tool_calls?.[0];
-  let contact: Record<string, unknown> = {};
-  try { contact = JSON.parse(call?.function?.arguments ?? "{}"); } catch { /* fall through */ }
+  const msg = aiJson?.choices?.[0]?.message ?? {};
+  const call = msg?.tool_calls?.[0];
+
+  // Robust parsing: prefer the tool call, but fall back to JSON in plain
+  // content (some models emit JSON text instead of tool_calls), and finally
+  // surface readable=false so the UI shows the "couldn't read" toast instead
+  // of silently dropping the user into an empty form.
+  let contact: Record<string, unknown> | null = null;
+  const rawArgs = call?.function?.arguments;
+  if (rawArgs) {
+    try { contact = typeof rawArgs === "string" ? JSON.parse(rawArgs) : rawArgs; } catch { /* ignore */ }
+  }
+  if (!contact && typeof msg?.content === "string" && msg.content.trim()) {
+    const cleaned = msg.content.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
+    try { contact = JSON.parse(cleaned); } catch { /* ignore */ }
+  }
+  if (!contact || Object.keys(contact).length === 0) {
+    console.error("scan-business-card: empty AI response", JSON.stringify(aiJson).slice(0, 800));
+    contact = { readable: false };
+  }
 
   return json({ contact });
 });

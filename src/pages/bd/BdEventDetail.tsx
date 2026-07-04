@@ -1,37 +1,103 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Card } from "@/components/ui/card";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  ArrowLeft, Loader2, MapPin, ExternalLink, Plus, Check, X, Users, Trash2,
+  ArrowLeft, Loader2, MapPin, ExternalLink, Users, Trash2,
+  Sparkles, CalendarPlus, ChevronDown, ChevronRight,
 } from "lucide-react";
+
 import {
   useBdEvent, useUpdateBdEvent, useDeleteBdEvent,
-  useEventAttendees, useAddEventAttendee, useUpdateEventAttendee, useRemoveEventAttendee,
-  useMemberships, type EventStatus, type BdEvent,
+  type EventStatus, type BdEvent,
 } from "@/hooks/useBdEvents";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useToast } from "@/hooks/use-toast";
-import { initials } from "@/components/bd/leadConstants";
 import { BdActivityThread } from "@/components/bd/BdActivityThread";
 import { EventPrepPanel } from "@/components/bd/EventPrepPanel";
+import { EventApprovalActions } from "@/components/bd/EventApprovalActions";
+import { EventTasksCard } from "@/components/bd/EventTasksCard";
+import { AttendeesPicker } from "@/components/bd/AttendeesPicker";
+import { supabase } from "@/integrations/supabase/client";
+
+function icsEscape(v: string) {
+  return v.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;");
+}
+function toIcsDate(date: string) {
+  return date.replace(/-/g, "");
+}
+function addOneDay(date: string) {
+  const d = new Date(date + "T12:00:00");
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+function toIcsDateTime(date: string, time: string) {
+  return `${date.replace(/-/g, "")}T${time.replace(/:/g, "").slice(0, 6).padEnd(6, "0")}`;
+}
+function formatEventTime(start: string | null, end: string | null) {
+  if (!start && !end) return null;
+  const fmt = (value: string) => format(parse(value.slice(0, 5), "HH:mm", new Date()), "h:mm a");
+  return [start ? fmt(start) : null, end ? fmt(end) : null].filter(Boolean).join("–");
+}
+function formatNotes(value: string | null) {
+  return value?.split("|").map((part) => part.trim()).filter(Boolean).join("\n") ?? null;
+}
+function downloadEventIcs(event: BdEvent) {
+  if (!event.start_date) {
+    alert("Add a date before exporting to calendar.");
+    return;
+  }
+  const hasTime = !!event.start_time;
+  const dtStart = hasTime ? toIcsDateTime(event.start_date, event.start_time as string) : toIcsDate(event.start_date);
+  const dtEnd = hasTime
+    ? toIcsDateTime(event.end_date || event.start_date, event.end_time || event.start_time as string)
+    : toIcsDate(addOneDay(event.end_date || event.start_date));
+  const uid = `${event.id}@ordino`;
+  const now = new Date().toISOString().replace(/[-:.]/g, "").slice(0, 15) + "Z";
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Ordino//BD Events//EN",
+    "BEGIN:VEVENT",
+    `UID:${uid}`,
+    `DTSTAMP:${now}`,
+    hasTime ? `DTSTART:${dtStart}` : `DTSTART;VALUE=DATE:${dtStart}`,
+    hasTime ? `DTEND:${dtEnd}` : `DTEND;VALUE=DATE:${dtEnd}`,
+    `SUMMARY:${icsEscape(event.name)}`,
+    event.location ? `LOCATION:${icsEscape(event.location)}` : "",
+    event.notes ? `DESCRIPTION:${icsEscape(event.notes)}` : "",
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].filter(Boolean);
+  const blob = new Blob([lines.join("\r\n")], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${event.name.replace(/[^a-z0-9]+/gi, "_")}.ics`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 
 const STATUS_META: Record<EventStatus, { label: string; className: string }> = {
+  SUGGESTED: { label: "AI Suggested", className: "bg-amber-50 text-amber-800 border-amber-200" },
   PENDING_APPROVAL: { label: "Pending", className: "bg-gray-100 text-gray-700 border-gray-200" },
   APPROVED: { label: "Approved", className: "bg-blue-100 text-blue-700 border-blue-200" },
   REGISTERED: { label: "Registered", className: "bg-purple-100 text-purple-700 border-purple-200" },
   ATTENDED: { label: "Attended", className: "bg-green-100 text-green-700 border-green-200" },
   SKIPPED: { label: "Skipped", className: "bg-amber-100 text-amber-700 border-amber-200" },
   CANCELLED: { label: "Cancelled", className: "bg-red-100 text-red-700 border-red-200" },
+  DISMISSED: { label: "Dismissed", className: "bg-gray-50 text-gray-500 border-gray-200" },
 };
 
 const PRIORITY_OPTIONS = [
@@ -80,7 +146,7 @@ function EditableText({
   }
   return (
     <button
-      className={`text-left text-sm hover:bg-muted/50 rounded px-1 -mx-1 w-full ${className}`}
+      className={`text-left text-sm hover:bg-muted/50 rounded px-1 -mx-1 w-full ${multiline ? "whitespace-pre-wrap" : ""} ${className}`}
       onClick={() => { setDraft(value ?? ""); setEditing(true); }}
     >
       {value || <span className="text-muted-foreground">{placeholder}</span>}
@@ -104,13 +170,10 @@ export default function BdEventDetail() {
   const { data: event, isLoading } = useBdEvent(id);
   const update = useUpdateBdEvent();
   const del = useDeleteBdEvent();
-  const memberships = useMemberships();
   const profiles = useCompanyProfiles();
-  const attendees = useEventAttendees(id);
-  const addAtt = useAddEventAttendee();
-  const updAtt = useUpdateEventAttendee();
-  const rmAtt = useRemoveEventAttendee();
-  const [pickUser, setPickUser] = useState("");
+  const [isDrafting, setIsDrafting] = useState(false);
+  const [showResearch, setShowResearch] = useState(false);
+
 
   if (isLoading) {
     return (
@@ -131,8 +194,25 @@ export default function BdEventDetail() {
     );
   }
 
-  const set = (updates: Partial<BdEvent>) =>
-    update.mutate({ id: event.id, ...updates } as any);
+  const set = (updates: Partial<BdEvent>) => {
+    // Auto-bump status when money goes out — keeps the Invested KPI honest.
+    const enrich: Partial<BdEvent> = { ...updates };
+    const willHavePaidCost =
+      ("cost_actual" in updates && updates.cost_actual != null && Number(updates.cost_actual) > 0) ||
+      ("included_in_membership" in updates && updates.included_in_membership === true);
+    const stillConsidering = !("status" in updates) &&
+      (event.status === "PENDING_APPROVAL" || event.status === "APPROVED");
+    if (willHavePaidCost && stillConsidering) {
+      enrich.status = "REGISTERED";
+    }
+    update.mutate({ id: event.id, ...enrich } as any, {
+      onSuccess: () => {
+        if (enrich.status === "REGISTERED" && !("status" in updates)) {
+          toast({ title: "Marked as Registered", description: "Counted toward Invested." });
+        }
+      },
+    });
+  };
 
   const setIntel = (key: string, value: string | null) => {
     const next = { ...(event.intel ?? {}), [key]: value || undefined };
@@ -141,9 +221,6 @@ export default function BdEventDetail() {
   };
   const intel = (event.intel ?? {}) as Record<string, string | undefined>;
 
-  const presentIds = new Set((attendees.data ?? []).map((a) => a.user_id));
-  const available = (profiles.data ?? []).filter((p) => !presentIds.has(p.id));
-
   return (
     <AppLayout>
       <div className="space-y-4 animate-fade-in max-w-7xl mx-auto p-4">
@@ -151,16 +228,21 @@ export default function BdEventDetail() {
           <Button variant="ghost" size="sm" onClick={() => navigate("/bd/events")}>
             <ArrowLeft className="mr-2 h-4 w-4" />Events
           </Button>
-          <Button variant="ghost" size="sm" className="text-destructive"
-            onClick={() => {
-              if (confirm("Delete this event?")) {
-                del.mutate(event.id, {
-                  onSuccess: () => { toast({ title: "Event deleted" }); navigate("/bd/events"); },
-                });
-              }
-            }}>
-            <Trash2 className="h-4 w-4 mr-1.5" />Delete
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="sm" onClick={() => downloadEventIcs(event)}>
+              <CalendarPlus className="h-4 w-4 mr-1.5" />Export to Calendar
+            </Button>
+            <Button variant="ghost" size="sm" className="text-destructive"
+              onClick={() => {
+                if (confirm("Delete this event?")) {
+                  del.mutate(event.id, {
+                    onSuccess: () => { toast({ title: "Event deleted" }); navigate("/bd/events"); },
+                  });
+                }
+              }}>
+              <Trash2 className="h-4 w-4 mr-1.5" />Delete
+            </Button>
+          </div>
         </div>
 
         <div>
@@ -169,7 +251,12 @@ export default function BdEventDetail() {
           </h1>
           <div className="flex items-center gap-2 mt-2 flex-wrap text-sm text-muted-foreground">
             {event.start_date && (
-              <span>{format(new Date(event.start_date + "T12:00:00"), "MMM d, yyyy")}</span>
+              <span>
+                {format(new Date(event.start_date + "T12:00:00"), "EEE, MMM d, yyyy")}
+              </span>
+            )}
+            {formatEventTime(event.start_time, event.end_time) && (
+              <span>· {formatEventTime(event.start_time, event.end_time)}</span>
             )}
             {event.location && (
               <span className="inline-flex items-center gap-1">
@@ -188,6 +275,36 @@ export default function BdEventDetail() {
                 ))}
               </SelectContent>
             </Select>
+            {/* Priority badge — relocated from the removed Classification card. */}
+            <Select
+              value={event.priority ?? ""}
+              onValueChange={(v) => set({ priority: (v || null) as any })}
+            >
+              <SelectTrigger className="h-7 w-auto border-0 bg-transparent p-0 shadow-none focus:ring-0">
+                <Badge
+                  variant="outline"
+                  className={
+                    event.priority === "GO"
+                      ? "bg-green-100 text-green-700 border-green-200"
+                      : event.priority === "DISCUSS"
+                        ? "bg-yellow-100 text-yellow-800 border-yellow-200"
+                        : event.priority === "SKIP"
+                          ? "bg-gray-100 text-gray-600 border-gray-200"
+                          : "bg-background text-muted-foreground border-dashed"
+                  }
+                >
+                  {event.priority
+                    ? PRIORITY_OPTIONS.find((p) => p.value === event.priority)?.label
+                    : "Set priority"}
+                </Badge>
+              </SelectTrigger>
+              <SelectContent>
+                {PRIORITY_OPTIONS.map((p) => (
+                  <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             {event.source_url && (
               <a href={event.source_url} target="_blank" rel="noreferrer"
                 className="text-xs underline inline-flex items-center gap-1">
@@ -197,6 +314,33 @@ export default function BdEventDetail() {
           </div>
         </div>
 
+        {event.status === "SUGGESTED" && (
+          <Card className="p-4 border-amber-300 bg-amber-50/50">
+            <div className="flex items-start gap-3">
+              <Sparkles className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-amber-900">AI suggested this event</p>
+                <p className="text-xs text-amber-800/80 mt-0.5">
+                  {event.why_it_matters || "Review the strategy below and decide whether to add it to the pipeline."}
+                </p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <Button size="sm" variant="outline"
+                  onClick={() => set({ status: "DISMISSED" })}>
+                  Dismiss
+                </Button>
+                <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white"
+                  onClick={() => set({ status: "PENDING_APPROVAL" })}>
+                  Add to pipeline
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        <EventApprovalActions event={event} />
+
+
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* LEFT */}
           <div className="lg:col-span-3 space-y-4">
@@ -204,14 +348,19 @@ export default function BdEventDetail() {
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
                 Schedule & Logistics
               </p>
-              <Field label="Start date">
+              <Field label="Date">
                 <Input type="date" className="h-8" value={event.start_date ?? ""}
-                  onChange={(e) => set({ start_date: e.target.value || null })} />
+                  onChange={(e) => set({ start_date: e.target.value || null, end_date: e.target.value || null } as any)} />
               </Field>
-              <Field label="End date">
-                <Input type="date" className="h-8" value={event.end_date ?? ""}
-                  onChange={(e) => set({ end_date: e.target.value || null })} />
+              <Field label="Start time">
+                <Input type="time" className="h-8" value={event.start_time?.slice(0, 5) ?? ""}
+                  onChange={(e) => set({ start_time: e.target.value || null } as any)} />
               </Field>
+              <Field label="End time">
+                <Input type="time" className="h-8" value={event.end_time?.slice(0, 5) ?? ""}
+                  onChange={(e) => set({ end_time: e.target.value || null } as any)} />
+              </Field>
+
               <Field label="Location">
                 <EditableText value={event.location} onSave={(v) => set({ location: v })} />
               </Field>
@@ -220,100 +369,51 @@ export default function BdEventDetail() {
               </Field>
             </Card>
 
-            <Card className="p-4 space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                Classification
-              </p>
-              <Field label="Event type">
-                <EditableText value={event.event_type ?? null}
-                  onSave={(v) => set({ event_type: v } as any)}
-                  placeholder="e.g. Conference, Mixer, Panel" />
-              </Field>
-              <Field label="Target audience">
-                <EditableText value={event.target_audience ?? null}
-                  onSave={(v) => set({ target_audience: v } as any)}
-                  placeholder="e.g. Architects + GCs, Owners" />
-              </Field>
-              <Field label="Category">
-                <EditableText value={event.category}
-                  onSave={(v) => set({ category: v })} placeholder="e.g. Conference" />
-              </Field>
-              <Field label="Priority">
-                <Select value={event.priority ?? "DISCUSS"}
-                  onValueChange={(v) => set({ priority: v as any })}>
-                  <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PRIORITY_OPTIONS.map((o) =>
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Next action">
-                <EditableText value={event.next_action}
-                  onSave={(v) => set({ next_action: v })}
-                  placeholder="What's the next step?" />
-              </Field>
-            </Card>
 
-            <Card className="p-4 space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+            <Card className="p-4 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Cost
               </p>
-              <Field label="Member price">
-                <Input type="number" className="h-8" value={event.cost_member ?? ""}
-                  onChange={(e) => set({ cost_member: e.target.value ? Number(e.target.value) : null })} />
-              </Field>
-              <Field label="Non-member">
-                <Input type="number" className="h-8" value={event.cost_nonmember ?? ""}
-                  onChange={(e) => set({ cost_nonmember: e.target.value ? Number(e.target.value) : null })} />
-              </Field>
-              <Field label="Actual paid">
-                <Input type="number" className="h-8" value={event.cost_actual ?? ""}
-                  onChange={(e) => set({ cost_actual: e.target.value === "" ? null : Number(e.target.value) })} />
-              </Field>
-              <Field label="Paid by">
-                <Select
-                  value={event.paid_by_user_id ?? "__none"}
-                  onValueChange={(v) => set({ paid_by_user_id: v === "__none" ? null : v })}>
-                  <SelectTrigger className="h-8"><SelectValue placeholder="—" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none">—</SelectItem>
-                    {(profiles.data ?? []).map((p: any) =>
-                      <SelectItem key={p.id} value={p.id}>
-                        {[p.first_name, p.last_name].filter(Boolean).join(" ") || p.display_name}
-                      </SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Price verified">
-                <Select value={event.price_verified ?? "UNKNOWN"}
-                  onValueChange={(v) => set({ price_verified: v as any })}>
-                  <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PRICE_VERIFIED_OPTIONS.map((o) =>
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Included in membership">
-                <div className="flex items-center gap-2 pt-1.5">
-                  <input type="checkbox" checked={!!event.included_in_membership}
-                    onChange={(e) => set({
-                      included_in_membership: e.target.checked,
-                      ...(e.target.checked ? {} : { membership_id: null }),
-                    } as any)} />
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-xs text-muted-foreground space-y-1">
+                  Member $
+                  <Input type="number" className="h-8" value={event.cost_member ?? ""}
+                    onChange={(e) => set({ cost_member: e.target.value ? Number(e.target.value) : null })} />
+                </label>
+                <label className="text-xs text-muted-foreground space-y-1">
+                  Non-member $
+                  <Input type="number" className="h-8" value={event.cost_nonmember ?? ""}
+                    onChange={(e) => set({ cost_nonmember: e.target.value ? Number(e.target.value) : null })} />
+                </label>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-xs text-muted-foreground space-y-1">
+                  Paid $
+                  <Input type="number" className="h-8" value={event.cost_actual ?? ""}
+                    onChange={(e) => set({ cost_actual: e.target.value === "" ? null : Number(e.target.value) })} />
+                </label>
+                <label className="text-xs text-muted-foreground space-y-1">
+                  Paid by
                   <Select
-                    value={event.membership_id ?? "__none"}
-                    onValueChange={(v) => set({ membership_id: v === "__none" ? null : v })}>
-                    <SelectTrigger className="h-8 flex-1"><SelectValue placeholder="Linked membership" /></SelectTrigger>
+                    value={event.paid_by_user_id ?? "__none"}
+                    onValueChange={(v) => set({ paid_by_user_id: v === "__none" ? null : v })}>
+                    <SelectTrigger className="h-8"><SelectValue placeholder="—" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none">None</SelectItem>
-                      {(memberships.data ?? []).map((m) =>
-                        <SelectItem key={m.id} value={m.id}>{m.organization}</SelectItem>)}
+                      <SelectItem value="__none">—</SelectItem>
+                      {(profiles.data ?? []).map((p: any) =>
+                        <SelectItem key={p.id} value={p.id}>
+                          {[p.first_name, p.last_name].filter(Boolean).join(" ") || p.display_name}
+                        </SelectItem>)}
                     </SelectContent>
                   </Select>
-                </div>
-              </Field>
+                </label>
+              </div>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
+                <input type="checkbox" className="h-3.5 w-3.5"
+                  checked={!!event.included_in_membership}
+                  onChange={(e) => set({ included_in_membership: e.target.checked })} />
+                Included in membership (counted as Invested with $0)
+              </label>
             </Card>
 
             <Card className="p-4 space-y-1">
@@ -326,26 +426,39 @@ export default function BdEventDetail() {
                   multiline
                   placeholder="Why is this event worth our time?" />
               </Field>
-              <Field label="Recent news">
-                <EditableText value={intel.recent_news ?? null}
-                  onSave={(v) => setIntel("recent_news", v)}
-                  multiline placeholder="What's in the news around this event?" />
-              </Field>
-              <Field label="Key attendees">
-                <EditableText value={intel.key_attendees ?? null}
-                  onSave={(v) => setIntel("key_attendees", v)}
-                  multiline placeholder="Who specifically should we talk to?" />
-              </Field>
-              <Field label="Competitive">
-                <EditableText value={intel.competitive_landscape ?? null}
-                  onSave={(v) => setIntel("competitive_landscape", v)}
-                  multiline placeholder="Who else is there competing for the same work?" />
-              </Field>
               <Field label="Notes">
-                <EditableText value={event.notes} onSave={(v) => set({ notes: v })}
+                <EditableText value={formatNotes(event.notes)} onSave={(v) => set({ notes: v })}
                   multiline placeholder="Anything else…" />
               </Field>
+              <button
+                type="button"
+                onClick={() => setShowResearch((v) => !v)}
+                className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                {showResearch ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                {showResearch ? "Hide research" : "Show research"}
+              </button>
+              {showResearch && (
+                <div className="mt-1">
+                  <Field label="Recent news">
+                    <EditableText value={intel.recent_news ?? null}
+                      onSave={(v) => setIntel("recent_news", v)}
+                      multiline placeholder="What's in the news around this event?" />
+                  </Field>
+                  <Field label="Key attendees">
+                    <EditableText value={intel.key_attendees ?? null}
+                      onSave={(v) => setIntel("key_attendees", v)}
+                      multiline placeholder="Who specifically should we talk to?" />
+                  </Field>
+                  <Field label="Competitive">
+                    <EditableText value={intel.competitive_landscape ?? null}
+                      onSave={(v) => setIntel("competitive_landscape", v)}
+                      multiline placeholder="Who else is there competing for the same work?" />
+                  </Field>
+                </div>
+              )}
             </Card>
+
 
             {/* Attendees */}
             <Card className="p-4">
@@ -354,57 +467,18 @@ export default function BdEventDetail() {
                   <Users className="h-3.5 w-3.5" />Attendees
                 </p>
               </div>
-              <div className="flex gap-2 mb-3">
-                <Select value={pickUser} onValueChange={setPickUser}>
-                  <SelectTrigger className="h-8"><SelectValue placeholder="Add teammate…" /></SelectTrigger>
-                  <SelectContent>
-                    {available.map((p: any) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {[p.first_name, p.last_name].filter(Boolean).join(" ") || p.display_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button size="sm" disabled={!pickUser}
-                  onClick={() => { addAtt.mutate({ event_id: event.id, user_id: pickUser }); setPickUser(""); }}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="space-y-1">
-                {(attendees.data ?? []).map((a) => {
-                  const name = [a.user?.first_name, a.user?.last_name].filter(Boolean).join(" ") || "Unknown";
-                  return (
-                    <div key={a.id} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/40">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-7 w-7"><AvatarFallback className="text-xs">{initials(name)}</AvatarFallback></Avatar>
-                        <span className="text-sm">{name}</span>
-                        {a.attended && <Badge variant="outline" className="bg-green-50 text-green-700 text-xs">Attended</Badge>}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button size="icon" variant="ghost" className="h-7 w-7"
-                          title="Toggle attended"
-                          onClick={() => updAtt.mutate({ id: a.id, event_id: event.id, attended: !a.attended })}>
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7"
-                          onClick={() => rmAtt.mutate({ id: a.id, event_id: event.id })}>
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-                {(attendees.data ?? []).length === 0 && (
-                  <p className="text-xs text-muted-foreground py-2">No attendees yet.</p>
-                )}
-              </div>
+              <AttendeesPicker eventId={event.id} />
             </Card>
 
             <EventPrepPanel
               eventId={event.id}
               category={event.category}
               targetAudience={event.target_audience ?? null}
+              notes={event.notes ?? null}
+              intel={(event.intel ?? null) as any}
             />
+
+            <EventTasksCard eventId={event.id} />
           </div>
 
           {/* RIGHT — discussion */}

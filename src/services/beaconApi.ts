@@ -15,6 +15,7 @@ export interface BeaconChatResponse {
   response_time_ms: number;
   is_bug_report?: boolean;
   bug_auto_logged?: boolean;
+  bug_id?: string;
 }
 
 export interface BeaconProjectContext {
@@ -66,14 +67,20 @@ export async function askBeacon(
   userId: string,
   userName: string,
   projectContext?: BeaconProjectContext,
-  conversationHistory?: { role: string; content: string }[]
+  conversationHistory?: { role: string; content: string }[],
+  opts?: { companyId?: string | null; jurisdiction?: string | null },
 ): Promise<BeaconChatResponse> {
+  // jurisdiction: explicitly null until Pinecone KB docs are tagged + Railway jurisdiction change ships.
+  // Sending "NYC" before that would zero out KB retrieval.
+  const jurisdiction = opts && "jurisdiction" in opts ? opts.jurisdiction : null;
   const { data, error } = await supabase.functions.invoke("beacon-proxy?action=chat", {
     body: {
       message,
       user_id: userId,
       user_name: userName,
       space_id: "ordino-web",
+      company_id: opts?.companyId ?? null,
+      jurisdiction,
       ...(projectContext && { project_context: projectContext }),
       ...(conversationHistory && conversationHistory.length > 0 && { conversation_history: conversationHistory }),
     },
@@ -81,6 +88,7 @@ export async function askBeacon(
   if (error) throw new Error(`Beacon API error: ${error.message}`);
   return data as BeaconChatResponse;
 }
+
 
 export interface BeaconProjectQAResponse {
   answer: string;
@@ -103,11 +111,13 @@ export async function askBeaconProjectQA(
 export async function syncDocumentToBeacon(
   file: File | Blob,
   filename: string,
-  folderName: string
+  folderName: string,
+  jurisdiction: string = "NYC",
 ): Promise<{ success: boolean; chunks_created: number }> {
   const formData = new FormData();
   formData.append("file", file, filename);
   formData.append("folder", folderName);
+  formData.append("jurisdiction", jurisdiction || "NYC");
 
   // Use raw fetch for FormData since supabase.functions.invoke doesn't support it well
   const { data: { session } } = await supabase.auth.getSession();
@@ -143,22 +153,65 @@ export interface BeaconKnowledgeData {
   folder_count: number;
 }
 
+interface BeaconKnowledgeDetail {
+  filename?: string;
+  folder?: string;
+  source_type?: string;
+}
+
+const SOURCE_TYPE_TO_FOLDER = Object.fromEntries(
+  Object.entries(FOLDER_TO_SOURCE_TYPE).map(([folder, sourceType]) => [sourceType, folder]),
+) as Record<string, string>;
+
 export async function fetchBeaconKnowledgeList(): Promise<BeaconKnowledgeData> {
   const { data, error } = await supabase.functions.invoke("beacon-proxy?action=knowledge-list");
   if (error) throw new Error(`Beacon API error: ${error.message}`);
 
-  const folders: Record<string, string[]> = {};
-  for (const filePath of (data.files || [])) {
-    const slashIdx = filePath.indexOf('/');
-    if (slashIdx > 0) {
-      const folder = filePath.substring(0, slashIdx);
-      const filename = filePath.substring(slashIdx + 1);
-      if (!folders[folder]) folders[folder] = [];
-      folders[folder].push(filename);
-    } else {
-      if (!folders['_root']) folders['_root'] = [];
-      folders['_root'].push(filePath);
+  let folders: Record<string, string[]> = {};
+
+  if (data.folders && typeof data.folders === "object") {
+    folders = data.folders;
+    if (Array.isArray(data.details)) {
+      for (const detail of data.details as BeaconKnowledgeDetail[]) {
+        const filename = detail.filename?.trim();
+        if (!filename) continue;
+
+        const explicitFolder = detail.folder?.trim();
+        if (explicitFolder) {
+          for (const key of Object.keys(folders)) {
+            folders[key] = (folders[key] || []).filter((f) => f !== filename);
+          }
+          (folders[explicitFolder] ||= []).push(filename);
+        } else if (!Object.values(folders).some((files) => files.includes(filename))) {
+          const folder = SOURCE_TYPE_TO_FOLDER[detail.source_type || ""] || "_root";
+          (folders[folder] ||= []).push(filename);
+        }
+      }
     }
+  } else if (Array.isArray(data.details)) {
+    for (const detail of data.details as BeaconKnowledgeDetail[]) {
+      const filename = detail.filename?.trim();
+      if (!filename) continue;
+
+      const explicitFolder = detail.folder?.trim();
+      const folder = explicitFolder || SOURCE_TYPE_TO_FOLDER[detail.source_type || ""] || "_root";
+      (folders[folder] ||= []).push(filename);
+    }
+  } else {
+    for (const filePath of (data.files || [])) {
+      const slashIdx = filePath.indexOf('/');
+      if (slashIdx > 0) {
+        const folder = filePath.substring(0, slashIdx);
+        const filename = filePath.substring(slashIdx + 1);
+        (folders[folder] ||= []).push(filename);
+      } else {
+        (folders['_root'] ||= []).push(filePath);
+      }
+    }
+  }
+
+  for (const key of Object.keys(folders)) {
+    folders[key] = Array.from(new Set(folders[key])).sort();
   }
 
   return {
@@ -195,3 +248,53 @@ export async function checkBeaconHealth(): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * In-place metadata update on the Railway Beacon backend.
+ * NO re-ingest, NO duplicate chunks. Use this for title / jurisdiction / folder edits.
+ * Admin/manager gated via beacon-proxy.
+ */
+export async function updateBeaconMetadata(params: {
+  source_file: string;
+  title?: string;
+  jurisdiction?: string;
+  folder?: string;
+}): Promise<{ success: boolean; updated?: string[] }> {
+  const { data, error } = await supabase.functions.invoke(
+    "beacon-proxy?action=update-metadata",
+    { body: params }
+  );
+  if (error) throw new Error(`Beacon update-metadata error: ${error.message}`);
+  return data;
+}
+
+/**
+ * Reassign one or more KB files to new folders without re-ingest.
+ * Admin/manager gated via beacon-proxy.
+ */
+export async function assignBeaconFolders(
+  assignments: Record<string, string>,
+): Promise<{ success: boolean; assigned?: number }> {
+  const { data, error } = await supabase.functions.invoke(
+    "beacon-proxy?action=assign-folders",
+    { body: { assignments } }
+  );
+  if (error) throw new Error(`Beacon assign-folders error: ${error.message}`);
+  return data;
+}
+
+/**
+ * Delete a KB document from the Beacon backend (backed up, restorable).
+ * Admin/manager gated via beacon-proxy.
+ */
+export async function deleteBeaconDoc(
+  source_file: string,
+): Promise<{ success: boolean; restorable?: boolean }> {
+  const { data, error } = await supabase.functions.invoke(
+    "beacon-proxy?action=delete-doc",
+    { body: { source_file } }
+  );
+  if (error) throw new Error(`Beacon delete error: ${error.message}`);
+  return data;
+}
+
