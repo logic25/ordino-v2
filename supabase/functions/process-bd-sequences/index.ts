@@ -5,6 +5,7 @@
 // otherwise send the current step via gmail-send (service-role + user_id=owner),
 // log a bd_activities EMAIL row, advance current_step / schedule next_send_at, release claim.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { timingSafeEqual } from "../_shared/timingSafeEqual.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
