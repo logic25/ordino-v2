@@ -28,7 +28,7 @@ export interface BdReferral {
   updated_at: string;
   deleted_at: string | null;
   assignee?: { id: string; first_name: string | null; last_name: string | null } | null;
-  source_contact?: { id: string; name: string; company_name: string | null } | null;
+  source_contact?: { id: string; name: string; company_name: string | null; email: string | null } | null;
   creator?: { id: string; first_name: string | null; last_name: string | null } | null;
 }
 
