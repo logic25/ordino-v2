@@ -28,6 +28,7 @@ import {
   QrCode,
   Sparkles,
   Handshake,
+  Trophy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,7 @@ const mainNav: NavEntry[] = [
       { title: "Events", icon: CalendarDays, href: "/bd/events", resource: "proposals" as ResourceKey },
       { title: "Sequences", icon: Mail, href: "/bd/sequences", resource: "proposals" as ResourceKey },
       { title: "Markets", icon: Globe2, href: "/markets", resource: "proposals" as ResourceKey },
+      { title: "Scorecard", icon: Trophy, href: "/bd/scorecard", resource: "proposals" as ResourceKey },
       { title: "Event Card", icon: QrCode, href: "/bd/event-card", resource: "proposals" as ResourceKey },
     ],
   },
@@ -91,6 +93,7 @@ const routePrefetchMap: Record<string, () => Promise<unknown>> = {
   "/bd/referrals": () => import("@/pages/bd/BdReferrals"),
   "/bd/events": () => import("@/pages/bd/BdEvents"),
   "/bd/sequences": () => import("@/pages/bd/BdSequences"),
+  "/bd/scorecard": () => import("@/pages/bd/BdScorecard"),
   "/bd/follow-ups": () => import("@/pages/bd/BdFollowUps"),
   "/markets": () => import("@/pages/MarketsHub"),
   "/bd/event-card": () => import("@/pages/bd/BdEventCard"),
