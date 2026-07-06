@@ -60,6 +60,9 @@ export default function BdReferrals() {
   }, [profiles, allReferrals, profile?.id]);
 
   const stalledCount = allReferrals.filter(isStalled).length;
+  const fridayCount = allReferrals.filter(isFridayStalled).length;
+
+  const [view, setView] = useState<"board" | "friday">("board");
 
   return (
     <AppLayout>
@@ -70,9 +73,9 @@ export default function BdReferrals() {
             <Handshake className="h-6 w-6" /> Referrals
           </h1>
           <p className="text-sm text-muted-foreground">
-            Referrals you're chasing, grouped by stage.{" "}
+            Referrals you're chasing.{" "}
             {stalledCount > 0 && (
-              <span className="text-red-600 font-medium">{stalledCount} stalled.</span>
+              <span className="text-red-600 font-medium">{stalledCount} overdue.</span>
             )}
           </p>
         </div>
@@ -100,41 +103,63 @@ export default function BdReferrals() {
         ))}
       </div>
 
-      {isLoading ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
-      ) : referrals.length === 0 ? (
-        <Card className="p-8 text-center text-muted-foreground text-sm">
-          No referrals yet. Click <span className="font-medium">New referral</span> to add one.
-        </Card>
-      ) : (
-        ALL_STAGES.map((stage) => {
-          const rows = grouped[stage];
-          if (!rows || rows.length === 0) return null;
-          const meta = STAGE_META[stage];
-          return (
-            <div key={stage} className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span
-                  className={cn(
-                    "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium",
-                    meta.className,
-                  )}
-                >
-                  {meta.label}
-                </span>
-                <span className="text-xs text-muted-foreground">{rows.length}</span>
-              </div>
-              <div className="space-y-1.5">
-                {rows.map((r) => (
-                  <ReferralCard key={r.id} referral={r} profiles={profiles} />
-                ))}
-              </div>
+      <Tabs value={view} onValueChange={(v) => setView(v as "board" | "friday")}>
+        <TabsList>
+          <TabsTrigger value="board" className="gap-1.5">
+            <LayoutList className="h-3.5 w-3.5" /> Board
+          </TabsTrigger>
+          <TabsTrigger value="friday" className="gap-1.5">
+            <CalendarClock className="h-3.5 w-3.5" /> Friday View
+            {fridayCount > 0 && (
+              <span className="ml-1 inline-flex items-center justify-center rounded-full bg-red-100 text-red-700 text-[10px] px-1.5 min-w-[18px] h-[18px]">
+                {fridayCount}
+              </span>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="board" className="mt-4 space-y-4">
+          {isLoading ? (
+            <div className="flex justify-center py-16">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          );
-        })
-      )}
+          ) : referrals.length === 0 ? (
+            <Card className="p-8 text-center text-muted-foreground text-sm">
+              No referrals yet. Click <span className="font-medium">New referral</span> to add one.
+            </Card>
+          ) : (
+            ALL_STAGES.map((stage) => {
+              const rows = grouped[stage];
+              if (!rows || rows.length === 0) return null;
+              const meta = STAGE_META[stage];
+              return (
+                <div key={stage} className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium",
+                        meta.className,
+                      )}
+                    >
+                      {meta.label}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{rows.length}</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {rows.map((r) => (
+                      <ReferralCard key={r.id} referral={r} profiles={profiles} />
+                    ))}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </TabsContent>
+
+        <TabsContent value="friday" className="mt-4">
+          <ReferralFridayView ownerId={resolvedAssignee} />
+        </TabsContent>
+      </Tabs>
 
       <ReferralCaptureDialog open={captureOpen} onOpenChange={setCaptureOpen} />
     </div>
