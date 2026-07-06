@@ -24,7 +24,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, User, UserPlus, X } from "lucide-react";
+import { HelpCircle, Loader2, User, UserPlus, X } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+function LabelWithHelp({ children, help }: { children: React.ReactNode; help: string }) {
+  return (
+    <div className="flex items-center gap-1">
+      <Label>{children}</Label>
+      <TooltipProvider delayDuration={150}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button type="button" tabIndex={-1} className="text-muted-foreground hover:text-foreground">
+              <HelpCircle className="h-3.5 w-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-[240px] text-xs leading-snug">
+            {help}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    </div>
+  );
+}
 import { useAuth } from "@/hooks/useAuth";
 import { useAssignableProfiles } from "@/hooks/useProfiles";
 import { useCreateBdReferral } from "@/hooks/useBdReferrals";
@@ -280,7 +301,7 @@ export function ReferralCaptureDialog({
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
           <div className="space-y-1.5">
-            <Label>Source contact</Label>
+            <LabelWithHelp help="Who introduced this deal to you — an architect, GC, past client, attorney, or other contact who sent the intro. Search your existing contacts; toggle 'Show all' to pick a non-referrer, or type a name to log someone not in the system yet.">Source contact</LabelWithHelp>
             <SourceContactPicker
               contactId={source.contactId}
               name={source.name}
@@ -290,7 +311,7 @@ export function ReferralCaptureDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Source type</Label>
+              <LabelWithHelp help="What kind of source this is — Architect, GC, Owner, PM, or Other. Used later for reporting which channels drive the most business.">Source type</LabelWithHelp>
               <Select
                 value={form.watch("source_type")}
                 onValueChange={(v) => form.setValue("source_type", v as ReferralSourceType)}
@@ -304,7 +325,7 @@ export function ReferralCaptureDialog({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Stage</Label>
+              <LabelWithHelp help="Where the referral is right now. Start at 'Ask Made' when you've asked for the intro but haven't gotten it yet. Advance as it progresses to Intro Received → Meeting Set → Proposal → Won/Lost.">Stage</LabelWithHelp>
               <Select
                 value={form.watch("stage")}
                 onValueChange={(v) => form.setValue("stage", v as ReferralStage)}
@@ -320,7 +341,7 @@ export function ReferralCaptureDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Referred person *</Label>
+            <LabelWithHelp help="The person being introduced TO you — the potential new client or lead. Not the person making the intro (that's the Source contact above).">Referred person *</LabelWithHelp>
             <Input className="h-9" {...form.register("referred_name")} placeholder="Full name" />
             {form.formState.errors.referred_name && (
               <p className="text-xs text-red-600">{form.formState.errors.referred_name.message}</p>
@@ -329,17 +350,17 @@ export function ReferralCaptureDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Company</Label>
+              <LabelWithHelp help="The company the referred person works for, if known. Helps match to an existing client later if they become one.">Company</LabelWithHelp>
               <Input className="h-9" {...form.register("referred_company")} />
             </div>
             <div className="space-y-1.5">
-              <Label>Phone</Label>
+              <LabelWithHelp help="Phone for the referred person. Optional — add it if the source shared it.">Phone</LabelWithHelp>
               <Input className="h-9" {...form.register("referred_phone")} />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label>Email</Label>
+            <LabelWithHelp help="Email for the referred person. Optional but recommended — used to match this referral to inbound Gmail threads automatically.">Email</LabelWithHelp>
             <Input className="h-9" type="email" {...form.register("referred_email")} />
             {form.formState.errors.referred_email && (
               <p className="text-xs text-red-600">{form.formState.errors.referred_email.message}</p>
@@ -348,7 +369,7 @@ export function ReferralCaptureDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Assigned to *</Label>
+              <LabelWithHelp help="Who on the team owns following up. Defaults to you. The owner is who the stalled-referral nudges get sent to.">Assigned to *</LabelWithHelp>
               <Select
                 value={form.watch("assigned_to")}
                 onValueChange={(v) => form.setValue("assigned_to", v)}
@@ -367,13 +388,13 @@ export function ReferralCaptureDialog({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Next action date</Label>
+              <LabelWithHelp help="When you plan to do the next thing (send a nudge, follow up, hold the meeting). If this date passes without an update, the referral gets flagged as 'stalled'.">Next action date</LabelWithHelp>
               <Input className="h-9" type="date" {...form.register("next_action_at")} />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label>Notes</Label>
+            <LabelWithHelp help="Context for the team — what the referred person needs, project size, timing, or anything the source told you. Saved as the first activity on the referral.">Notes</LabelWithHelp>
             <Textarea rows={3} {...form.register("notes")} />
           </div>
 
