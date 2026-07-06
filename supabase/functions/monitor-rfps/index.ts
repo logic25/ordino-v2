@@ -156,10 +156,7 @@ async function scanCompany(
     if (srcErr) throw srcErr;
 
     if (!sources || sources.length === 0) {
-      return new Response(
-        JSON.stringify({ new_count: 0, total_scanned: 0, sources_checked: 0, message: "No active sources configured." }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return { new_count: 0, total_scanned: 0, sources_checked: 0, message: "No active sources configured." };
     }
 
     // Fetch monitoring rules for keyword context
