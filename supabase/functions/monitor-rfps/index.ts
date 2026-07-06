@@ -42,39 +42,58 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    // JWT verification
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    const supabaseAuth = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
     const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
     const sb = createClient(supabaseUrl, supabaseKey);
 
-    // Derive company_id from the authenticated user — never trust body
-    const { data: profile } = await sb
-      .from("profiles")
-      .select("company_id")
-      .eq("user_id", user.id)
-      .single();
-    const company_id = profile?.company_id;
-    if (!company_id) {
-      return new Response(JSON.stringify({ error: "No company for user" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // --- Auth: EITHER x-cron-secret (scheduled, all companies) OR user JWT (single company) ---
+    const cronSecretHeader = req.headers.get("x-cron-secret") || "";
+    let expectedCronSecret = "";
+    try {
+      const { data } = await sb.rpc("internal_get_cron_secret");
+      expectedCronSecret = (data as string) || Deno.env.get("CRON_SECRET") || "";
+    } catch {
+      expectedCronSecret = Deno.env.get("CRON_SECRET") || "";
     }
+    const isCron =
+      !!cronSecretHeader &&
+      !!expectedCronSecret &&
+      timingSafeEqual(cronSecretHeader, expectedCronSecret);
 
+    let companyIds: string[] = [];
+    if (isCron) {
+      // Fan out: every company that has at least one active monitoring rule
+      const { data: ruleCos } = await sb
+        .from("rfp_monitoring_rules")
+        .select("company_id")
+        .eq("active", true);
+      companyIds = Array.from(new Set((ruleCos || []).map((r: any) => r.company_id).filter(Boolean)));
+    } else {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader?.startsWith("Bearer ")) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const supabaseAuth = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+      if (userError || !user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const { data: profile } = await sb
+        .from("profiles")
+        .select("company_id")
+        .eq("user_id", user.id)
+        .single();
+      if (!profile?.company_id) {
+        return new Response(JSON.stringify({ error: "No company for user" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      companyIds = [profile.company_id];
+    }
 
     if (!firecrawlKey) {
       return new Response(
@@ -82,13 +101,51 @@ serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
     if (!lovableKey) {
       return new Response(
         JSON.stringify({ error: "LOVABLE_API_KEY not configured." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    if (companyIds.length === 0) {
+      return new Response(
+        JSON.stringify({ new_count: 0, total_scanned: 0, sources_checked: 0, companies_checked: 0, message: isCron ? "No companies with active monitoring rules." : "No company." }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const aggregate = { new_count: 0, total_scanned: 0, sources_checked: 0, companies_checked: 0, per_company: [] as any[] };
+
+    for (const company_id of companyIds) {
+      const result = await scanCompany(company_id, sb, firecrawlKey, lovableKey);
+      aggregate.new_count += result.new_count;
+      aggregate.total_scanned += result.total_scanned;
+      aggregate.sources_checked += result.sources_checked;
+      aggregate.companies_checked += 1;
+      if (isCron) aggregate.per_company.push({ company_id, ...result });
+    }
+
+    return new Response(
+      JSON.stringify(isCron ? aggregate : aggregate.per_company[0] || aggregate),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (e) {
+    console.error("monitor-rfps handler error:", e);
+    return new Response(
+      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});
+
+async function scanCompany(
+  company_id: string,
+  sb: ReturnType<typeof createClient>,
+  firecrawlKey: string,
+  lovableKey: string,
+) {
+  try {
 
     // Fetch active sources for this company
     const { data: sources, error: srcErr } = await sb
