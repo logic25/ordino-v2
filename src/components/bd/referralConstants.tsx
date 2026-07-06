@@ -58,3 +58,23 @@ export function isStalled(r: { next_action_at: string | null; stage: ReferralSta
   d.setHours(0, 0, 0, 0);
   return d.getTime() < today.getTime();
 }
+
+/** Days since the most recent update (activity or edit). */
+export function daysSinceUpdate(r: { updated_at: string }): number {
+  const now = Date.now();
+  const then = new Date(r.updated_at).getTime();
+  return Math.floor((now - then) / (1000 * 60 * 60 * 24));
+}
+
+/**
+ * "Friday View" stalled: a non-terminal referral where nothing has moved in
+ * more than 7 days. Uses `updated_at` (bumped whenever we log an activity or
+ * change a field) as the freshness signal.
+ */
+export function isFridayStalled(r: {
+  stage: ReferralStage;
+  updated_at: string;
+}): boolean {
+  if (TERMINAL_STAGES.includes(r.stage)) return false;
+  return daysSinceUpdate(r) > 7;
+}
