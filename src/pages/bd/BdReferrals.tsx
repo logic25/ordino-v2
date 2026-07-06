@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { CalendarClock, Handshake, LayoutList, Loader2, Plus } from "lucide-react";
+import { Link } from "react-router-dom";
+import { CalendarClock, Handshake, LayoutList, Loader2, Plus, Trophy } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -79,9 +80,14 @@ export default function BdReferrals() {
             )}
           </p>
         </div>
-        <Button onClick={() => setCaptureOpen(true)} size="sm">
-          <Plus className="h-4 w-4 mr-1.5" /> New referral
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link to="/bd/scorecard"><Trophy className="h-4 w-4 mr-1.5" /> Scorecard</Link>
+          </Button>
+          <Button onClick={() => setCaptureOpen(true)} size="sm">
+            <Plus className="h-4 w-4 mr-1.5" /> New referral
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center gap-1.5 flex-wrap">

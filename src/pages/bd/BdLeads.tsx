@@ -23,7 +23,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   UserPlus, Flame, ArrowUpDown, SlidersHorizontal, Columns3, Download, Trash2,
-  ChevronDown, Plus, Star, Send,
+  ChevronDown, Plus, Star, Send, Trophy, Mail,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAssignableProfiles } from "@/hooks/useProfiles";
@@ -352,7 +352,15 @@ export default function BdLeads() {
             <h1 className="text-3xl font-bold tracking-tight">Leads</h1>
             <p className="text-muted-foreground mt-1">Track every potential new client end-to-end.</p>
           </div>
-          <Button onClick={() => setCaptureOpen(true)}><UserPlus className="mr-2 h-4 w-4" />Lead</Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate("/bd/sequences")}>
+              <Mail className="mr-1.5 h-4 w-4" />Sequences
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => navigate("/bd/scorecard")}>
+              <Trophy className="mr-1.5 h-4 w-4" />Scorecard
+            </Button>
+            <Button onClick={() => setCaptureOpen(true)}><UserPlus className="mr-2 h-4 w-4" />Lead</Button>
+          </div>
         </div>
 
         {/* Saved views */}

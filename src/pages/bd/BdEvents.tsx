@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Calendar, MapPin, ExternalLink, Plus, MoreHorizontal, Check, X, Trash2,
-  Users, Globe, BadgeCheck, ChevronDown, Pencil,
+  Users, Globe, BadgeCheck, ChevronDown, Pencil, QrCode,
 } from "lucide-react";
 import {
   useBdEvents, useCreateBdEvent, useUpdateBdEvent, useDeleteBdEvent,
@@ -205,6 +205,9 @@ export default function BdEvents() {
             <p className="text-sm text-muted-foreground">Industry events, sources to monitor, and your memberships.</p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate("/bd/event-card")}>
+              <QrCode className="h-4 w-4 mr-1.5" />My QR Card
+            </Button>
             <Button variant="outline" onClick={() => setProposeOpen(true)}>
               <Plus className="h-4 w-4 mr-1.5" />Propose event
             </Button>
