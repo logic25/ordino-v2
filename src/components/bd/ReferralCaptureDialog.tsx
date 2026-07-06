@@ -24,7 +24,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, User, UserPlus, X } from "lucide-react";
+import { HelpCircle, Loader2, User, UserPlus, X } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+function LabelWithHelp({ children, help }: { children: React.ReactNode; help: string }) {
+  return (
+    <div className="flex items-center gap-1">
+      <Label>{children}</Label>
+      <TooltipProvider delayDuration={150}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button type="button" tabIndex={-1} className="text-muted-foreground hover:text-foreground">
+              <HelpCircle className="h-3.5 w-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-[240px] text-xs leading-snug">
+            {help}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    </div>
+  );
+}
 import { useAuth } from "@/hooks/useAuth";
 import { useAssignableProfiles } from "@/hooks/useProfiles";
 import { useCreateBdReferral } from "@/hooks/useBdReferrals";
