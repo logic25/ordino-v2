@@ -224,22 +224,23 @@ export function useBdScorecard(personId: string | undefined, sinceDays = 90) {
         if (bucket) bucket.count += 1;
       }
 
-      // Top referral sources (by deal_value won or in-flight)
-      const sourceMap = new Map<string, { value: number; count: number; won: number }>();
+      // Top referral sources (by won value)
+      const sourceMap = new Map<string, { label: string; value: number; count: number; won: number }>();
       for (const r of referrals) {
-        const key = r.source_contact_id || "unknown";
-        const bucket = sourceMap.get(key) || { value: 0, count: 0, won: 0 };
+        const key = r.source_contact_id || r.source_label || "unknown";
+        const label = r.source_label || "Unknown source";
+        const bucket = sourceMap.get(key) || { label, value: 0, count: 0, won: 0 };
         bucket.count += 1;
         if (r.stage === "WON") {
           bucket.won += 1;
-          bucket.value += Number(r.deal_value ?? 0);
+          bucket.value += Number(r.won_value ?? 0);
         }
         sourceMap.set(key, bucket);
       }
       const topSources = Array.from(sourceMap.entries())
         .filter(([k]) => k !== "unknown")
-        .map(([id, v]) => ({ source_contact_id: id, ...v }))
-        .sort((a, b) => b.value - a.value)
+        .map(([id, v]) => ({ id, ...v }))
+        .sort((a, b) => b.value - a.value || b.count - a.count)
         .slice(0, 5);
 
       const priorQualifyRate = priorLeads.length ? priorQualified / priorLeads.length : 0;
