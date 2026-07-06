@@ -27,7 +27,7 @@ export function useUpdateServiceWithDeadline() {
       // 1. Update the service
       const { error: svcErr } = await supabase
         .from("services")
-        .update(updates)
+        .update(updates as any)
         .eq("id", serviceId);
       if (svcErr) throw svcErr;
 

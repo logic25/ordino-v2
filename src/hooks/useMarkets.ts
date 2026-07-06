@@ -88,7 +88,7 @@ export function useUpdateMarket() {
       delete payload.company_id;
       const { data, error } = await supabase
         .from("markets")
-        .update(payload)
+        .update(payload as any)
         .eq("id", id)
         .select()
         .single();

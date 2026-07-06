@@ -115,7 +115,7 @@ async function writePlaybook(id: string, patch: Partial<PermitPlaybook>) {
   delete payload.company_id;
   const { data, error } = await supabase
     .from("permit_playbooks")
-    .update(payload)
+    .update(payload as any)
     .eq("id", id)
     .select()
     .single();

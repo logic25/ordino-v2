@@ -49,7 +49,7 @@ export function useUpdateRfpStatus() {
       
       const { error } = await supabase
         .from("rfps")
-        .update(updates)
+        .update(updates as any)
         .eq("id", id);
       if (error) throw error;
     },
