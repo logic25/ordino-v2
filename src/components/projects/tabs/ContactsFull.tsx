@@ -240,7 +240,7 @@ export function ContactsFull({ contacts, pisStatus, projectId, clientId }: { con
           const { data: newClient, error } = await supabase.from("clients").insert({
             ...data,
             company_id: profile.company_id,
-          }).select("id").single();
+          } as any).select("id").single();
           if (error) throw error;
           toast({ title: "Company created", description: `${data.name} created. Now add a contact.` });
           handleNewClientCreated(newClient.id);

@@ -28,7 +28,7 @@ export function ClientInfoSection({ invoice }: ClientInfoSectionProps) {
       if (clientEdits.phone !== (invoice.clients?.phone || "")) updates.phone = clientEdits.phone.trim() || null as any;
       if (clientEdits.address !== (invoice.clients?.address || "")) updates.address = clientEdits.address.trim() || null as any;
 
-      const { error } = await supabase.from("clients").update(updates).eq("id", invoice.client_id);
+      const { error } = await supabase.from("clients").update(updates as any).eq("id", invoice.client_id);
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
