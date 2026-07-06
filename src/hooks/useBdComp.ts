@@ -123,27 +123,52 @@ export function useMarkIntroSent() {
   });
 }
 
-/** Per-person scorecard metrics. */
+/** Per-person scorecard metrics, with prior-period comparison and 7-day activity spark. */
 export function useBdScorecard(personId: string | undefined, sinceDays = 90) {
   const { profile } = useAuth();
   return useQuery({
     queryKey: ["bd-scorecard", profile?.company_id, personId, sinceDays],
     enabled: !!profile?.company_id && !!personId,
     queryFn: async () => {
-      const since = new Date(Date.now() - sinceDays * 86400_000).toISOString();
-      const [attendR, leadsR] = await Promise.all([
+      const now = Date.now();
+      const since = new Date(now - sinceDays * 86400_000).toISOString();
+      const priorSince = new Date(now - 2 * sinceDays * 86400_000).toISOString();
+      const priorUntil = since;
+      const sevenDaysAgo = new Date(now - 7 * 86400_000).toISOString();
+
+      const [attendR, leadsR, priorLeadsR, activityR, referralsR] = await Promise.all([
         supabase.from("bd_event_attendees" as any)
           .select("event_id, user_id", { count: "exact", head: true })
           .eq("user_id", personId!),
         supabase.from("leads")
-          .select("id, stage, expected_value, intro_sent_at, created_at, proposal_id, bd_sourced, event_id, assigned_to, created_by")
+          .select("id, stage, expected_value, intro_sent_at, created_at, proposal_id, bd_sourced, event_id, assigned_to, created_by, referred_by, source_type")
           .eq("company_id", profile!.company_id)
           .or(`assigned_to.eq.${personId},created_by.eq.${personId}`)
           .gte("created_at", since)
           .is("deleted_at", null),
+        supabase.from("leads")
+          .select("id, stage, expected_value, intro_sent_at, created_at")
+          .eq("company_id", profile!.company_id)
+          .or(`assigned_to.eq.${personId},created_by.eq.${personId}`)
+          .gte("created_at", priorSince)
+          .lt("created_at", priorUntil)
+          .is("deleted_at", null),
+        supabase.from("bd_activities" as any)
+          .select("id, created_at, type")
+          .eq("company_id", profile!.company_id)
+          .eq("created_by", personId!)
+          .gte("created_at", sevenDaysAgo),
+        supabase.from("bd_referrals" as any)
+          .select("id, stage, deal_value, source_contact_id, assigned_to, created_by, created_at")
+          .eq("company_id", profile!.company_id)
+          .or(`assigned_to.eq.${personId},created_by.eq.${personId}`)
+          .gte("created_at", since),
       ]);
       if (leadsR.error) throw leadsR.error;
       const leads = leadsR.data ?? [];
+      const priorLeads = (priorLeadsR.data as any[]) ?? [];
+      const activities = (activityR.data as any[]) ?? [];
+      const referrals = (referralsR.data as any[]) ?? [];
 
       const byStage: Record<string, number> = {};
       let pipeline = 0;
@@ -151,6 +176,7 @@ export function useBdScorecard(personId: string | undefined, sinceDays = 90) {
       let touchN = 0;
       let qualified = 0;
       let won = 0;
+      let proposalsCount = 0;
       for (const l of leads) {
         const s = l.stage ?? "NEW";
         byStage[s] = (byStage[s] ?? 0) + 1;
@@ -163,7 +189,62 @@ export function useBdScorecard(personId: string | undefined, sinceDays = 90) {
         }
         if (s === "QUALIFIED" || s === "WON") qualified += 1;
         if (s === "WON") won += 1;
+        if (l.proposal_id) proposalsCount += 1;
       }
+
+      // Prior period aggregates for delta
+      let priorPipeline = 0;
+      let priorQualified = 0;
+      let priorWon = 0;
+      let priorTouchSumMs = 0;
+      let priorTouchN = 0;
+      for (const l of priorLeads) {
+        const s = l.stage ?? "NEW";
+        if (["NEW", "CONTACTED", "QUALIFIED"].includes(s)) {
+          priorPipeline += Number(l.expected_value ?? 0);
+        }
+        if (l.intro_sent_at && l.created_at) {
+          priorTouchSumMs += new Date(l.intro_sent_at).getTime() - new Date(l.created_at).getTime();
+          priorTouchN += 1;
+        }
+        if (s === "QUALIFIED" || s === "WON") priorQualified += 1;
+        if (s === "WON") priorWon += 1;
+      }
+
+      // 7-day activity spark: count per day, index 0 = 6 days ago … index 6 = today
+      const activitySpark: { day: string; count: number }[] = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now - i * 86400_000);
+        const key = d.toISOString().slice(0, 10);
+        activitySpark.push({ day: key, count: 0 });
+      }
+      for (const a of activities) {
+        const key = new Date(a.created_at).toISOString().slice(0, 10);
+        const bucket = activitySpark.find((b) => b.day === key);
+        if (bucket) bucket.count += 1;
+      }
+
+      // Top referral sources (by deal_value won or in-flight)
+      const sourceMap = new Map<string, { value: number; count: number; won: number }>();
+      for (const r of referrals) {
+        const key = r.source_contact_id || "unknown";
+        const bucket = sourceMap.get(key) || { value: 0, count: 0, won: 0 };
+        bucket.count += 1;
+        if (r.stage === "WON") {
+          bucket.won += 1;
+          bucket.value += Number(r.deal_value ?? 0);
+        }
+        sourceMap.set(key, bucket);
+      }
+      const topSources = Array.from(sourceMap.entries())
+        .filter(([k]) => k !== "unknown")
+        .map(([id, v]) => ({ source_contact_id: id, ...v }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 5);
+
+      const priorQualifyRate = priorLeads.length ? priorQualified / priorLeads.length : 0;
+      const priorWinRate = priorLeads.length ? priorWon / priorLeads.length : 0;
+      const priorAvgTouchHrs = priorTouchN ? priorTouchSumMs / priorTouchN / 3600_000 : null;
 
       return {
         eventsAttended: attendR.count ?? 0,
@@ -174,8 +255,19 @@ export function useBdScorecard(personId: string | undefined, sinceDays = 90) {
         scans: leads.length,
         qualified,
         won,
+        proposalsCount,
         qualifyRate: leads.length ? qualified / leads.length : 0,
         winRate: leads.length ? won / leads.length : 0,
+        activitySpark,
+        activityCount7d: activities.length,
+        topSources,
+        prior: {
+          pipelineValue: priorPipeline,
+          contactsCaptured: priorLeads.length,
+          qualifyRate: priorQualifyRate,
+          winRate: priorWinRate,
+          avgSpeedToTouchHrs: priorAvgTouchHrs,
+        },
       };
     },
   });
