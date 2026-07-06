@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { CalendarClock, Handshake, LayoutList, Loader2, Plus } from "lucide-react";
+import { Link } from "react-router-dom";
+import { CalendarClock, Handshake, LayoutList, Loader2, Plus, Trophy } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
