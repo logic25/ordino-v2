@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Calendar, MapPin, ExternalLink, Plus, MoreHorizontal, Check, X, Trash2,
-  Users, Globe, BadgeCheck, ChevronDown, Pencil,
+  Users, Globe, BadgeCheck, ChevronDown, Pencil, QrCode,
 } from "lucide-react";
 import {
   useBdEvents, useCreateBdEvent, useUpdateBdEvent, useDeleteBdEvent,
