@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ReferralCard } from "@/components/bd/ReferralCard";
 import { ReferralCaptureDialog } from "@/components/bd/ReferralCaptureDialog";
+import { AppLayout } from "@/components/layout/AppLayout";
 
 function ownerName(p?: { first_name: string | null; last_name: string | null } | null) {
   if (!p) return "Unassigned";
@@ -58,6 +59,7 @@ export default function BdReferrals() {
   const stalledCount = allReferrals.filter(isStalled).length;
 
   return (
+    <AppLayout>
     <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
@@ -133,5 +135,6 @@ export default function BdReferrals() {
 
       <ReferralCaptureDialog open={captureOpen} onOpenChange={setCaptureOpen} />
     </div>
+    </AppLayout>
   );
 }
