@@ -55,15 +55,10 @@ const mainNav: NavEntry[] = [
     items: [
       { title: "Leads", icon: Users, href: "/bd/leads", resource: "proposals" as ResourceKey },
       { title: "Referrals", icon: Handshake, href: "/bd/referrals", resource: "proposals" as ResourceKey },
-      
-      
       { title: "Events", icon: CalendarDays, href: "/bd/events", resource: "proposals" as ResourceKey },
-      { title: "Sequences", icon: Mail, href: "/bd/sequences", resource: "proposals" as ResourceKey },
-      { title: "Markets", icon: Globe2, href: "/markets", resource: "proposals" as ResourceKey },
-      { title: "Scorecard", icon: Trophy, href: "/bd/scorecard", resource: "proposals" as ResourceKey },
-      { title: "Event Card", icon: QrCode, href: "/bd/event-card", resource: "proposals" as ResourceKey },
     ],
   },
+  { title: "Markets", icon: Globe2, href: "/markets", resource: "proposals" as ResourceKey },
   { title: "Billing", icon: Receipt, href: "/invoices", resource: "invoices" as ResourceKey },
   { title: "Email", icon: Mail, href: "/emails", resource: "emails" as ResourceKey },
   { title: "Calendar", icon: CalendarDays, href: "/calendar", resource: "calendar" as ResourceKey },
