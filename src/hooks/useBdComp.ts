@@ -159,7 +159,7 @@ export function useBdScorecard(personId: string | undefined, sinceDays = 90) {
           .eq("created_by", personId!)
           .gte("created_at", sevenDaysAgo),
         supabase.from("bd_referrals" as any)
-          .select("id, stage, deal_value, source_contact_id, assigned_to, created_by, created_at")
+          .select("id, stage, won_value, source_contact_id, source_label, assigned_to, created_by, created_at")
           .eq("company_id", profile!.company_id)
           .or(`assigned_to.eq.${personId},created_by.eq.${personId}`)
           .gte("created_at", since),
