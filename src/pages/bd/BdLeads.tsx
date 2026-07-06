@@ -23,7 +23,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   UserPlus, Flame, ArrowUpDown, SlidersHorizontal, Columns3, Download, Trash2,
-  ChevronDown, Plus, Star, Send,
+  ChevronDown, Plus, Star, Send, Trophy, Mail,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAssignableProfiles } from "@/hooks/useProfiles";
