@@ -34,7 +34,7 @@ export interface BdReferral {
 
 const SELECT =
   "*, assignee:profiles!bd_referrals_assigned_to_fkey(id, first_name, last_name), " +
-  "source_contact:client_contacts!bd_referrals_source_contact_id_fkey(id, name, company_name), " +
+  "source_contact:client_contacts!bd_referrals_source_contact_id_fkey(id, name, company_name, email), " +
   "creator:profiles!bd_referrals_created_by_fkey(id, first_name, last_name)";
 
 export interface ReferralFilters {
