@@ -352,7 +352,15 @@ export default function BdLeads() {
             <h1 className="text-3xl font-bold tracking-tight">Leads</h1>
             <p className="text-muted-foreground mt-1">Track every potential new client end-to-end.</p>
           </div>
-          <Button onClick={() => setCaptureOpen(true)}><UserPlus className="mr-2 h-4 w-4" />Lead</Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate("/bd/sequences")}>
+              <Mail className="mr-1.5 h-4 w-4" />Sequences
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => navigate("/bd/scorecard")}>
+              <Trophy className="mr-1.5 h-4 w-4" />Scorecard
+            </Button>
+            <Button onClick={() => setCaptureOpen(true)}><UserPlus className="mr-2 h-4 w-4" />Lead</Button>
+          </div>
         </div>
 
         {/* Saved views */}
