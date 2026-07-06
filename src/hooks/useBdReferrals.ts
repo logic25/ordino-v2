@@ -28,13 +28,13 @@ export interface BdReferral {
   updated_at: string;
   deleted_at: string | null;
   assignee?: { id: string; first_name: string | null; last_name: string | null } | null;
-  source_contact?: { id: string; name: string; company_name: string | null } | null;
+  source_contact?: { id: string; name: string; company_name: string | null; email: string | null } | null;
   creator?: { id: string; first_name: string | null; last_name: string | null } | null;
 }
 
 const SELECT =
   "*, assignee:profiles!bd_referrals_assigned_to_fkey(id, first_name, last_name), " +
-  "source_contact:client_contacts!bd_referrals_source_contact_id_fkey(id, name, company_name), " +
+  "source_contact:client_contacts!bd_referrals_source_contact_id_fkey(id, name, company_name, email), " +
   "creator:profiles!bd_referrals_created_by_fkey(id, first_name, last_name)";
 
 export interface ReferralFilters {
@@ -195,5 +195,56 @@ export function useCreateBdReferralNote() {
     },
     onSuccess: (_d, v) =>
       qc.invalidateQueries({ queryKey: ["bd-referral-activities", v.referralId] }),
+  });
+}
+
+/**
+ * Log a "nudge" against a stalled referral and push the next-action date out
+ * by `bumpDays` (default 7). Used by the Friday View.
+ */
+export function useNudgeBdReferral() {
+  const { profile } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      referralId: string;
+      channel: "email" | "call" | "text" | "in_person";
+      note?: string;
+      bumpDays?: number;
+    }) => {
+      if (!profile?.company_id) throw new Error("No company");
+      const bump = input.bumpDays ?? 7;
+      const next = new Date();
+      next.setDate(next.getDate() + bump);
+      const nextIso = next.toISOString().slice(0, 10);
+
+      const { error: upErr } = await supabase
+        .from("bd_referrals" as any)
+        .update({ next_action_at: nextIso } as any)
+        .eq("id", input.referralId);
+      if (upErr) throw upErr;
+
+      const channelLabel = {
+        email: "Email",
+        call: "Call",
+        text: "Text",
+        in_person: "In person",
+      }[input.channel];
+
+      const { error: actErr } = await supabase.from("bd_activities").insert({
+        company_id: profile.company_id,
+        referral_id: input.referralId,
+        type: "NOTE",
+        content:
+          `Nudge sent (${channelLabel}). Next action in ${bump} days.` +
+          (input.note ? `\n${input.note}` : ""),
+        created_by: profile.id,
+      } as any);
+      if (actErr) throw actErr;
+    },
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ["bd-referrals"] });
+      qc.invalidateQueries({ queryKey: ["bd-referral-activities", v.referralId] });
+    },
   });
 }
