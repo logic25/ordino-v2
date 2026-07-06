@@ -1,19 +1,22 @@
 import { useMemo, useState } from "react";
-import { Handshake, Loader2, Plus } from "lucide-react";
+import { CalendarClock, Handshake, LayoutList, Loader2, Plus } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useBdReferrals } from "@/hooks/useBdReferrals";
 import { useAuth } from "@/hooks/useAuth";
 import { useAssignableProfiles } from "@/hooks/useProfiles";
 import {
   ALL_STAGES,
   STAGE_META,
+  isFridayStalled,
   isStalled,
   type ReferralStage,
 } from "@/components/bd/referralConstants";
 import { cn } from "@/lib/utils";
 import { ReferralCard } from "@/components/bd/ReferralCard";
 import { ReferralCaptureDialog } from "@/components/bd/ReferralCaptureDialog";
+import { ReferralFridayView } from "@/components/bd/ReferralFridayView";
 import { AppLayout } from "@/components/layout/AppLayout";
 
 function ownerName(p?: { first_name: string | null; last_name: string | null } | null) {
