@@ -480,20 +480,19 @@ Only include items that appear to be active procurement opportunities (RFPs, RFQ
       }
     }
 
-    return new Response(
-      JSON.stringify({
-        new_count: newCount,
-        total_scanned: totalScanned,
-        sources_checked: sources.length,
-        source_errors: sourceErrors.length > 0 ? sourceErrors : undefined,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return {
+      new_count: newCount,
+      total_scanned: totalScanned,
+      sources_checked: sources.length,
+      source_errors: sourceErrors.length > 0 ? sourceErrors : undefined,
+    };
   } catch (e) {
-    console.error("monitor-rfps error:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    console.error(`monitor-rfps scan error (company ${company_id}):`, e);
+    return {
+      new_count: 0,
+      total_scanned: 0,
+      sources_checked: 0,
+      error: e instanceof Error ? e.message : "Unknown error",
+    };
   }
-});
+}
