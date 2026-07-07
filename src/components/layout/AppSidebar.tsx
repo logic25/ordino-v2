@@ -75,6 +75,7 @@ const mainNav: NavEntry[] = [
 const secondaryNav = [
   { title: "Companies", icon: Users, href: "/clients", resource: "clients" as ResourceKey },
   { title: "Documents", icon: FileArchive, href: "/documents", resource: "documents" as ResourceKey },
+  { title: "Client Portal", icon: Building2, href: "/portal", resource: "dashboard" as ResourceKey },
   { title: "Settings", icon: Settings, href: "/settings", resource: "settings" as ResourceKey },
   { title: "Help", icon: HelpCircle, href: "/help", resource: "dashboard" as ResourceKey },
 ];
