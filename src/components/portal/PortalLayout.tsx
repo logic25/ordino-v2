@@ -12,6 +12,7 @@ export function PortalLayout({ children }: { children: ReactNode }) {
   const { signOut, profile } = useAuth();
   const { data: notifs = [] } = usePortalNotifications();
   const unread = notifs.filter((n) => !n.read).length;
+  const isStaff = profile?.portal_role !== "client";
 
   const isActive = (path: string) => pathname === path || pathname.startsWith(path + "/");
 
