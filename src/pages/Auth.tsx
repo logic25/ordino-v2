@@ -524,3 +524,62 @@ export default function Auth() {
     </div>
   );
 }
+
+function MagicLinkForm() {
+  const { toast } = useToast();
+  const [email, setEmail] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const send = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleaned = email.trim().toLowerCase();
+    if (!cleaned.includes("@")) {
+      toast({ title: "Enter a valid email", variant: "destructive" });
+      return;
+    }
+    setSending(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: cleaned,
+        options: { emailRedirectTo: `${window.location.origin}/portal` },
+      });
+      if (error) {
+        toast({ title: "Could not send link", description: error.message, variant: "destructive" });
+        return;
+      }
+      setSent(true);
+      toast({ title: "Check your email", description: "We sent you a one-click sign-in link." });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (sent) {
+    return (
+      <div className="text-center py-3 text-sm text-muted-foreground">
+        Sign-in link sent to <span className="font-medium text-foreground">{email}</span>. Check your inbox.
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={send} className="space-y-2">
+      <Input
+        type="email"
+        placeholder="client@company.com"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        className="h-10"
+        autoComplete="email"
+      />
+      <Button type="submit" variant="outline" className="w-full h-10" disabled={sending}>
+        {sending ? "Sending…" : "Email me a sign-in link"}
+      </Button>
+      <p className="text-[11px] text-muted-foreground text-center">
+        For invited clients. You'll be redirected to your portal.
+      </p>
+    </form>
+  );
+}
+
