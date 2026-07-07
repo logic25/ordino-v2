@@ -60,6 +60,14 @@ export function PortalLayout({ children }: { children: ReactNode }) {
               )}
             </Link>
             <div className="ml-2 pl-2 border-l flex items-center gap-2">
+              {isStaff && (
+                <Button variant="ghost" size="sm" asChild className="gap-1.5 text-xs">
+                  <Link to="/dashboard">
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Back to Ordino</span>
+                  </Link>
+                </Button>
+              )}
               <span className="hidden md:inline text-xs text-muted-foreground">
                 {profile?.first_name || profile?.display_name || "Signed in"}
               </span>
