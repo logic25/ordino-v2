@@ -43,6 +43,9 @@ export function InviteClientDialog() {
   const [lastName, setLastName] = useState("");
   const [orgId, setOrgId] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [creatingOrg, setCreatingOrg] = useState(false);
+  const [newOrgName, setNewOrgName] = useState("");
+  const [newOrgType, setNewOrgType] = useState<"brand" | "gc" | "design" | "other">("other");
 
   const { data: invites = [], refetch } = useQuery({
     queryKey: ["client-portal-invites", profile?.company_id],
