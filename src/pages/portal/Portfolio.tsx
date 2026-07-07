@@ -43,6 +43,14 @@ export default function Portfolio() {
 
   return (
     <PortalLayout>
+      {isStaff && (
+        <div className="mb-4 flex items-center justify-between gap-2 rounded-md border border-amber-300/60 bg-amber-50 px-3 py-2">
+          <div className="text-xs text-amber-900">
+            <strong>Staff view.</strong> You're seeing all client orgs. Invite a client to give them scoped access.
+          </div>
+          <InviteClientDialog />
+        </div>
+      )}
       {/* Org switcher (shown only if user has multiple orgs, or for GLE staff who see all) */}
       {orgs.length > 1 && (
         <div className="mb-6">
