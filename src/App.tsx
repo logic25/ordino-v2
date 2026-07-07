@@ -197,6 +197,12 @@ function AppRoutes() {
       <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
       <Route path="/beacon" element={<ProtectedRoute><BeaconHub /></ProtectedRoute>} />
 
+      {/* Ordino Client Portal (customer-facing) */}
+      <Route path="/portal" element={<ProtectedRoute><PortalPortfolio /></ProtectedRoute>} />
+      <Route path="/portal/buildings/:id" element={<ProtectedRoute><PortalBuildingDetail /></ProtectedRoute>} />
+      <Route path="/portal/projects/:id" element={<ProtectedRoute><PortalProjectDetail /></ProtectedRoute>} />
+      <Route path="/portal/notifications" element={<ProtectedRoute><PortalNotifications /></ProtectedRoute>} />
+
       {/* Public RFI form - no auth required */}
       <Route path="/rfi" element={<RfiForm />} />
 
