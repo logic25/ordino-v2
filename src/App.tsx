@@ -108,6 +108,10 @@ const PublicBdCard = lazyWithRetry(() => import("./pages/PublicBdCard"), "public
 const BdScorecard = lazyWithRetry(() => import("./pages/bd/BdScorecard"), "bd-scorecard");
 const BdReferrals = lazyWithRetry(() => import("./pages/bd/BdReferrals"), "bd-referrals");
 const BeaconHub = lazyWithRetry(() => import("./pages/BeaconHub"), "beacon-hub");
+const PortalPortfolio = lazyWithRetry(() => import("./pages/portal/Portfolio"), "portal-portfolio");
+const PortalBuildingDetail = lazyWithRetry(() => import("./pages/portal/BuildingDetail"), "portal-building-detail");
+const PortalProjectDetail = lazyWithRetry(() => import("./pages/portal/PortalProjectDetail"), "portal-project-detail");
+const PortalNotifications = lazyWithRetry(() => import("./pages/portal/PortalNotifications"), "portal-notifications");
 
 function PageSpinner() {
   return (
@@ -192,6 +196,12 @@ function AppRoutes() {
       <Route path="/welcome" element={<ProtectedRoute><Welcome /></ProtectedRoute>} />
       <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
       <Route path="/beacon" element={<ProtectedRoute><BeaconHub /></ProtectedRoute>} />
+
+      {/* Ordino Client Portal (customer-facing) */}
+      <Route path="/portal" element={<ProtectedRoute><PortalPortfolio /></ProtectedRoute>} />
+      <Route path="/portal/buildings/:id" element={<ProtectedRoute><PortalBuildingDetail /></ProtectedRoute>} />
+      <Route path="/portal/projects/:id" element={<ProtectedRoute><PortalProjectDetail /></ProtectedRoute>} />
+      <Route path="/portal/notifications" element={<ProtectedRoute><PortalNotifications /></ProtectedRoute>} />
 
       {/* Public RFI form - no auth required */}
       <Route path="/rfi" element={<RfiForm />} />

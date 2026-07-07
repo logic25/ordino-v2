@@ -1,76 +1,90 @@
-## Two problems, one plan
+## Ordino Client Portal — Phase 1 (revised)
 
-**Problem 1** — BD sidebar ballooned to 7 items (Leads, Referrals, Events, Sequences, Markets, Scorecard, Event Card). Sidebar total is now ~15 rows when BD is expanded. Too noisy.
-
-**Problem 2** — `/bd/scorecard` is six identical gray metric cards + two plain cards. No hierarchy, no color, no story. It reads like a debug dump, not a scoreboard.
+Confirmed: invite-only signup, `/portal/*` sub-route, no admin UI this phase (data edits via SQL). Four amendments from your feedback folded in below, plus a direct answer on auto-status.
 
 ---
 
-## Part 1 — Slim BD sidebar from 7 → 3
+### On auto-updating filing status (question 4)
 
-Keep only the things you touch daily in the sidebar. Move the rest one click deeper.
+**Answer: automatic, with a manual override lane.** Doing it any other way defeats the portal's point — clients will spot stale data instantly and go back to calling GLE.
 
-**New BD group (3 items):**
-- **Leads** (`/bd/leads`)
-- **Referrals** (`/bd/referrals`)
-- **Events** (`/bd/events`)
+Mechanism in Phase 1:
+- A `portal-filing-sync` edge function runs on a cron (every 30 min) and reconciles each `filings` row against Ordino's existing internal sources of truth:
+  - `dob_applications.status` (already tracked in Ordino)
+  - `filing_runs` outcomes (filing agent completions)
+  - NYC Open Data DOB Job Filings / DOB NOW Build (via existing lookup patterns in `useNYCPropertyLookup` / `useDOBApplications`)
+- Mapper translates internal Ordino statuses → the seven client-facing stages (Pre-filing → Filed → In Review → Objections → Approved → Permit Issued → Sign-off).
+- On stage change: insert `filing_events` row (drives timeline + activity feed) and enqueue notifications.
+- Manual override: GLE staff can force a stage via SQL (Phase 1) or admin UI (later); manual entries write `filing_events.source = 'manual'` so the automated sync won't clobber them without a newer signal.
+- `blocked` flag (see below) is separate from stage — set by either the sync (e.g., objections detected) or manually.
 
-**Moved:**
-- **Sequences** → tab inside Leads page (it's just automated email cadences for leads — belongs there).
-- **Scorecard** → promoted to a header button on both Leads and Referrals pages ("View Scorecard" with trophy icon). Also linked from Dashboard.
-- **Event Card** → button inside Events page ("My QR Card"). It's a personal utility for use *at* an event, not a nav destination.
-- **Markets** stays top-level (it's not BD-only — it feeds RFPs too).
-
-Result: sidebar drops from 15 visible → 11. BD stops dominating.
-
----
-
-## Part 2 — Redesign BD Scorecard (the "bland" part)
-
-Commit to the trophy/amber theme already implied by the icon. Give the page a real personality.
-
-**New structure, top to bottom:**
-
-1. **Hero band** — dark slate gradient panel with amber accent stripe. Large person name + avatar, period selector (30/90/365 days), and the single most important number displayed huge: **Pipeline Value**. Below it: delta vs. prior period (▲ +$X or ▼ –$X) in green/red.
-
-2. **KPI row (4 tiles, not 6)** — consolidate the noise:
-   - **Asks made** (activity)
-   - **Qualify rate** with mini sparkline
-   - **Win rate** with mini sparkline
-   - **Speed to 1st touch** with target line (goal: <24h)
-   
-   Each tile: colored icon chip (amber/emerald/sky/rose), big number, tiny trend arrow, previous-period comparison. Not identical gray boxes.
-
-3. **Funnel visualization** — replace the 3-number grid with an actual visual funnel (horizontal bars that narrow: Scans → Qualified → Proposals → Won). Each stage shows count + conversion % to next stage. Uses primary + amber gradient.
-
-4. **Leads by stage** — replace flat badge row with a compact stacked bar (Ask Made | Intro | Meeting | Proposal | Won | Lost), each segment amber-to-emerald based on health.
-
-5. **Top referral sources leaderboard** (new) — top 5 sources by pipeline $, with tier badge (Gold/Silver/Bronze — already in your data). Small avatar/initial, name, $ won. Makes the "who's actually driving deals" story obvious.
-
-6. **This week's activity** (new) — small strip showing last 7 days of BD activity from `bd_activities` (dots by day, count on hover). Answers "am I doing anything this week?" at a glance.
-
-**Visual language:**
-- Dark slate hero → light card body (contrast)
-- Amber (#f59e0b) as the single accent for wins/pipeline, emerald for rates, muted slate for context
-- Tabular-nums for all numbers
-- Sparklines via existing recharts
-- No new libraries needed
+Honest limit: NYC Open Data lags BIS by hours-to-days for some datasets (documented gotcha in the codebase). For filings not yet in Open Data, the portal reflects whatever Ordino's internal record says. This is a known ceiling, not a bug — Phase 1 ships with it and we tighten later if you add a BIS scraper.
 
 ---
 
-## Files to change
+### Amendments to the schema
 
-- `src/components/layout/AppSidebar.tsx` — trim BD group to 3 items, remove Scorecard/Sequences/Markets/Event Card entries (keep routes intact).
-- `src/pages/bd/BdScorecard.tsx` — full visual rewrite; same data hook (`useBdScorecard`), no schema changes.
-- `src/pages/bd/BdLeads.tsx` — add Sequences tab; add "Scorecard" header button.
-- `src/pages/bd/BdReferrals.tsx` — add "Scorecard" header button.
-- `src/pages/bd/BdEvents.tsx` — add "My QR Card" button linking to `/bd/event-card`.
-- `src/hooks/useBdComp.ts` — extend `useBdScorecard` to also return prior-period comparison values and a 7-day activity spark array (single query addition, no new tables).
+**1. Buildings + rollup view**
+- New `buildings` table: id, client_org_id, address, bin (nullable), pm_name, pm_email, notes
+- `projects` gains nullable `building_id`
+- Portfolio UI: if the current client org has any `buildings` rows → **Rollup view** (buildings as top-level cards showing project count, aggregate status pills, PM name; click through to a building detail showing its projects). Orgs with no buildings → the flat project grid from the original plan. Detected automatically, no user toggle.
 
-## Out of scope
-- No changes to Referrals functionality, Friday View, or referral capture.
-- No cron / RFP changes.
-- No new sidebar redesign — just item pruning.
+**2. Blocked flag on filings (co-exists with stage)**
+- `filings` gains: `blocked` (bool, default false), `blocked_reason` (text), `blocked_since` (timestamptz)
+- Rendered as a red "Blocked" badge on the filing row, independent of the stage pill. Blocked filings surface at the top of the project detail and get their own portfolio counter ("Blocked filings").
+- Setting `blocked=true` triggers a notification (see below).
 
-## What I need from you
-Approve the plan, or tell me to also do the "BD Hub landing page" variant instead of promoting Scorecard to a header button.
+**3. Email notifications in Phase 1**
+- Triggers: filing becomes `blocked`, enters `objections`, `approved`, or `permit_issued`; new client-owned action item.
+- Delivery: Lovable's built-in email infrastructure. Requires the email-domain setup dialog on first run (prerequisite; I'll surface it), then `setup_email_infra` + `scaffold_transactional_email`.
+- Templates (React Email .tsx, brand-matched, calm B2B):
+  - `filing-blocked`
+  - `filing-status-changed` (parameterized for objections/approved/permit_issued)
+  - `client-action-required`
+- Send trigger: DB trigger on `filing_events` insert (and on `client_action_items` insert where `owner='client'`) enqueues via `send-transactional-email` with an idempotency key = `${filing_id}:${stage}` so the sync re-running never double-sends.
+- Recipients: all users in the `client_org` (via `client_org_memberships`). Suppression list respected automatically.
+- Per-user preferences deferred to Phase 2 (send-all-triggers on by default).
+
+**4. No other in-app notification changes** — bell icon + `/portal/notifications` list still there.
+
+---
+
+### Revised final scope
+
+**Data model (new tables/columns, all with RLS + explicit GRANTs)**
+- `client_orgs`, `client_org_memberships`, `buildings` (new)
+- `portal_projects_link` extension of existing `projects` via nullable `client_org_id` + `building_id` columns added directly to `projects` (simpler than a link table — projects are already the canonical entity; nullable keeps existing internal projects untouched)
+- `filings` (with `blocked`, `blocked_reason`, `blocked_since`)
+- `filing_events` (with `source` enum: `auto` | `manual`)
+- `client_action_items`
+- `portal_documents` (+ `portal-documents` private storage bucket)
+- `portal_notifications`
+- `profiles.portal_role` (nullable)
+
+**Screens**
+- `/portal` — Rollup view (if buildings exist) OR flat grid; counters include Blocked
+- `/portal/buildings/:id` — building detail with its projects (only when buildings exist)
+- `/portal/projects/:id` — header, tabs: Timeline (per-discipline, with Blocked badges) · Action Items · Documents · Activity
+- `/portal/notifications`
+
+**Backend**
+- `portal-filing-sync` edge function + pg_cron every 30 min
+- Status mapper (internal Ordino → 7 client-facing stages)
+- Notification DB triggers on `filing_events` and `client_action_items`
+- Email templates via Lovable's email infrastructure
+
+**Auth**
+- Invite-only. GLE staff creates auth users + `client_org_memberships` rows via SQL this phase. `portal_role` set on profile. Client users land on `/portal` after login; internal users can still reach `/dashboard`.
+
+**Seed**
+- 3 client orgs: one national brand *with buildings* (demonstrates rollup), one GC *without buildings* (demonstrates flat grid), one design firm with a single small project. Mix of stages including one Blocked filing and one in Objections with a client-owned action item.
+
+---
+
+### Out of scope (unchanged)
+Plan ingestion, CitiSignal/BinCheck, admin CRUD UI, per-user notification preferences, BIS scraper.
+
+### Open items (none blocking — I'll pick sensible defaults)
+- Exact stage-mapping table from Ordino internal statuses → 7 client-facing stages: I'll draft it during build using `dob_applications.status` values already in the DB and confirm with you in the PR/preview.
+
+Ready to build on approval.
