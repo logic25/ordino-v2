@@ -43,8 +43,11 @@ export default function Setup() {
 
         if (error) throw error;
 
-        await refreshProfile();
-        navigate("/dashboard", { replace: true });
+        const updated = await refreshProfile();
+        navigate(
+          (updated as any)?.portal_role === "client" ? "/portal" : "/dashboard",
+          { replace: true }
+        );
       } catch (err: any) {
         console.error("Auto-join failed:", err);
         toast({
