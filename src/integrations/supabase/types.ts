@@ -2870,6 +2870,53 @@ export type Database = {
           },
         ]
       }
+      buildings: {
+        Row: {
+          address: string
+          bin: string | null
+          client_org_id: string
+          company_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          pm_email: string | null
+          pm_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          bin?: string | null
+          client_org_id: string
+          company_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          pm_email?: string | null
+          pm_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          bin?: string | null
+          client_org_id?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          pm_email?: string | null
+          pm_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "buildings_client_org_id_fkey"
+            columns: ["client_org_id"]
+            isOneToOne: false
+            referencedRelation: "client_orgs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_events: {
         Row: {
           all_day: boolean | null
@@ -3417,6 +3464,50 @@ export type Database = {
           },
         ]
       }
+      client_action_items: {
+        Row: {
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          owner: Database["public"]["Enums"]["client_action_owner"]
+          project_id: string
+          status: Database["public"]["Enums"]["client_action_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          owner?: Database["public"]["Enums"]["client_action_owner"]
+          project_id: string
+          status?: Database["public"]["Enums"]["client_action_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          owner?: Database["public"]["Enums"]["client_action_owner"]
+          project_id?: string
+          status?: Database["public"]["Enums"]["client_action_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_action_items_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_billing_rules: {
         Row: {
           cc_markup: number | null
@@ -3607,6 +3698,74 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      client_org_memberships: {
+        Row: {
+          client_org_id: string
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["client_org_member_role"]
+          user_id: string
+        }
+        Insert: {
+          client_org_id: string
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["client_org_member_role"]
+          user_id: string
+        }
+        Update: {
+          client_org_id?: string
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["client_org_member_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_org_memberships_client_org_id_fkey"
+            columns: ["client_org_id"]
+            isOneToOne: false
+            referencedRelation: "client_orgs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_orgs: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          primary_contact_email: string | null
+          primary_contact_name: string | null
+          type: Database["public"]["Enums"]["client_org_type"]
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          primary_contact_email?: string | null
+          primary_contact_name?: string | null
+          type?: Database["public"]["Enums"]["client_org_type"]
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          primary_contact_email?: string | null
+          primary_contact_name?: string | null
+          type?: Database["public"]["Enums"]["client_org_type"]
+          updated_at?: string
+        }
+        Relationships: []
       }
       client_payment_analytics: {
         Row: {
@@ -5310,6 +5469,47 @@ export type Database = {
           },
         ]
       }
+      filing_events: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          filing_id: string
+          id: string
+          note: string | null
+          occurred_at: string
+          source: Database["public"]["Enums"]["filing_event_source"]
+          stage: Database["public"]["Enums"]["filing_stage"] | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          filing_id: string
+          id?: string
+          note?: string | null
+          occurred_at?: string
+          source?: Database["public"]["Enums"]["filing_event_source"]
+          stage?: Database["public"]["Enums"]["filing_stage"] | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          filing_id?: string
+          id?: string
+          note?: string | null
+          occurred_at?: string
+          source?: Database["public"]["Enums"]["filing_event_source"]
+          stage?: Database["public"]["Enums"]["filing_stage"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "filing_events_filing_id_fkey"
+            columns: ["filing_id"]
+            isOneToOne: false
+            referencedRelation: "filings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       filing_runs: {
         Row: {
           agent_session_id: string | null
@@ -5398,6 +5598,62 @@ export type Database = {
             columns: ["service_id"]
             isOneToOne: false
             referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      filings: {
+        Row: {
+          agency: Database["public"]["Enums"]["filing_agency"]
+          blocked: boolean
+          blocked_reason: string | null
+          blocked_since: string | null
+          created_at: string
+          current_stage: Database["public"]["Enums"]["filing_stage"]
+          discipline: Database["public"]["Enums"]["filing_discipline"]
+          expected_next_milestone: string | null
+          filing_number: string | null
+          id: string
+          project_id: string
+          stage_entered_at: string
+          updated_at: string
+        }
+        Insert: {
+          agency?: Database["public"]["Enums"]["filing_agency"]
+          blocked?: boolean
+          blocked_reason?: string | null
+          blocked_since?: string | null
+          created_at?: string
+          current_stage?: Database["public"]["Enums"]["filing_stage"]
+          discipline: Database["public"]["Enums"]["filing_discipline"]
+          expected_next_milestone?: string | null
+          filing_number?: string | null
+          id?: string
+          project_id: string
+          stage_entered_at?: string
+          updated_at?: string
+        }
+        Update: {
+          agency?: Database["public"]["Enums"]["filing_agency"]
+          blocked?: boolean
+          blocked_reason?: string | null
+          blocked_since?: string | null
+          created_at?: string
+          current_stage?: Database["public"]["Enums"]["filing_stage"]
+          discipline?: Database["public"]["Enums"]["filing_discipline"]
+          expected_next_milestone?: string | null
+          filing_number?: string | null
+          id?: string
+          project_id?: string
+          stage_entered_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "filings_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -7537,6 +7793,108 @@ export type Database = {
           },
         ]
       }
+      portal_documents: {
+        Row: {
+          display_name: string
+          doc_type: string
+          external_url: string | null
+          filing_id: string | null
+          id: string
+          project_id: string
+          storage_path: string | null
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          display_name: string
+          doc_type: string
+          external_url?: string | null
+          filing_id?: string | null
+          id?: string
+          project_id: string
+          storage_path?: string | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          display_name?: string
+          doc_type?: string
+          external_url?: string | null
+          filing_id?: string | null
+          id?: string
+          project_id?: string
+          storage_path?: string | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_documents_filing_id_fkey"
+            columns: ["filing_id"]
+            isOneToOne: false
+            referencedRelation: "filings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_documents_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      portal_notifications: {
+        Row: {
+          created_at: string
+          filing_id: string | null
+          id: string
+          message: string | null
+          project_id: string | null
+          read: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          filing_id?: string | null
+          id?: string
+          message?: string | null
+          project_id?: string | null
+          read?: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          filing_id?: string | null
+          id?: string
+          message?: string | null
+          project_id?: string | null
+          read?: boolean
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_notifications_filing_id_fkey"
+            columns: ["filing_id"]
+            isOneToOne: false
+            referencedRelation: "filings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_notifications_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prediction_accuracy_history: {
         Row: {
           company_id: string
@@ -7704,6 +8062,7 @@ export type Database = {
           ooo_to: string | null
           phone: string | null
           phone_extension: string | null
+          portal_role: Database["public"]["Enums"]["portal_role"] | null
           preferences: Json | null
           role: Database["public"]["Enums"]["user_role"]
           signature_data: string | null
@@ -7734,6 +8093,7 @@ export type Database = {
           ooo_to?: string | null
           phone?: string | null
           phone_extension?: string | null
+          portal_role?: Database["public"]["Enums"]["portal_role"] | null
           preferences?: Json | null
           role?: Database["public"]["Enums"]["user_role"]
           signature_data?: string | null
@@ -7764,6 +8124,7 @@ export type Database = {
           ooo_to?: string | null
           phone?: string | null
           phone_extension?: string | null
+          portal_role?: Database["public"]["Enums"]["portal_role"] | null
           preferences?: Json | null
           role?: Database["public"]["Enums"]["user_role"]
           signature_data?: string | null
@@ -8273,9 +8634,11 @@ export type Database = {
           architect_license_type: string | null
           architect_phone: string | null
           assigned_pm_id: string | null
+          building_id: string | null
           building_owner_id: string | null
           building_owner_name: string | null
           client_id: string | null
+          client_org_id: string | null
           client_reference_number: string | null
           company_id: string
           completion_date: string | null
@@ -8293,6 +8656,7 @@ export type Database = {
           gc_contact_name: string | null
           gc_email: string | null
           gc_phone: string | null
+          gle_contact_id: string | null
           id: string
           is_external: boolean
           last_activity_at: string | null
@@ -8302,6 +8666,11 @@ export type Database = {
           notable: boolean
           notes: string | null
           phase: string
+          portal_next_action: string | null
+          portal_overall_stage:
+            | Database["public"]["Enums"]["filing_stage"]
+            | null
+          portal_pct_complete: number | null
           project_complexity_tier: string | null
           project_number: string | null
           project_type: string | null
@@ -8339,9 +8708,11 @@ export type Database = {
           architect_license_type?: string | null
           architect_phone?: string | null
           assigned_pm_id?: string | null
+          building_id?: string | null
           building_owner_id?: string | null
           building_owner_name?: string | null
           client_id?: string | null
+          client_org_id?: string | null
           client_reference_number?: string | null
           company_id: string
           completion_date?: string | null
@@ -8359,6 +8730,7 @@ export type Database = {
           gc_contact_name?: string | null
           gc_email?: string | null
           gc_phone?: string | null
+          gle_contact_id?: string | null
           id?: string
           is_external?: boolean
           last_activity_at?: string | null
@@ -8368,6 +8740,11 @@ export type Database = {
           notable?: boolean
           notes?: string | null
           phase?: string
+          portal_next_action?: string | null
+          portal_overall_stage?:
+            | Database["public"]["Enums"]["filing_stage"]
+            | null
+          portal_pct_complete?: number | null
           project_complexity_tier?: string | null
           project_number?: string | null
           project_type?: string | null
@@ -8405,9 +8782,11 @@ export type Database = {
           architect_license_type?: string | null
           architect_phone?: string | null
           assigned_pm_id?: string | null
+          building_id?: string | null
           building_owner_id?: string | null
           building_owner_name?: string | null
           client_id?: string | null
+          client_org_id?: string | null
           client_reference_number?: string | null
           company_id?: string
           completion_date?: string | null
@@ -8425,6 +8804,7 @@ export type Database = {
           gc_contact_name?: string | null
           gc_email?: string | null
           gc_phone?: string | null
+          gle_contact_id?: string | null
           id?: string
           is_external?: boolean
           last_activity_at?: string | null
@@ -8434,6 +8814,11 @@ export type Database = {
           notable?: boolean
           notes?: string | null
           phase?: string
+          portal_next_action?: string | null
+          portal_overall_stage?:
+            | Database["public"]["Enums"]["filing_stage"]
+            | null
+          portal_pct_complete?: number | null
           project_complexity_tier?: string | null
           project_number?: string | null
           project_type?: string | null
@@ -8470,6 +8855,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "projects_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "projects_building_owner_id_fkey"
             columns: ["building_owner_id"]
             isOneToOne: false
@@ -8481,6 +8873,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_client_org_id_fkey"
+            columns: ["client_org_id"]
+            isOneToOne: false
+            referencedRelation: "client_orgs"
             referencedColumns: ["id"]
           },
           {
@@ -11253,6 +11652,7 @@ export type Database = {
         Args: { target_company_id: string }
         Returns: boolean
       }
+      is_gle_staff: { Args: { _uid: string }; Returns: boolean }
       lookup_permit_playbook: {
         Args: {
           _company_id: string
@@ -11341,6 +11741,7 @@ export type Database = {
         Args: { _person_id: string; _rate: number }
         Returns: undefined
       }
+      user_client_org_ids: { Args: { _uid: string }; Returns: string[] }
       user_has_app_role: {
         Args: { _role: string; _user_id: string }
         Returns: boolean
@@ -11424,6 +11825,10 @@ export type Database = {
         | "LOST"
       bd_sequence_status: "ACTIVE" | "PAUSED" | "COMPLETED" | "EXITED"
       bd_source_priority: "HIGH" | "MED" | "LOW"
+      client_action_owner: "gle" | "client" | "agency"
+      client_action_status: "open" | "done"
+      client_org_member_role: "client_admin" | "client_viewer"
+      client_org_type: "brand" | "gc" | "design" | "other"
       co_status:
         | "draft"
         | "pending_internal"
@@ -11431,7 +11836,25 @@ export type Database = {
         | "approved"
         | "rejected"
         | "voided"
+      filing_agency: "DOB" | "FDNY" | "other"
+      filing_discipline:
+        | "building"
+        | "plumbing"
+        | "sprinkler"
+        | "mechanical"
+        | "electrical"
+        | "fire_alarm"
+      filing_event_source: "auto" | "manual"
+      filing_stage:
+        | "pre_filing"
+        | "filed"
+        | "in_review"
+        | "objections"
+        | "approved"
+        | "permit_issued"
+        | "sign_off"
       lead_kind: "PROSPECT" | "CONTACT"
+      portal_role: "client" | "gle_staff"
       project_status: "open" | "on_hold" | "closed" | "paid"
       project_waiting_on: "us" | "client" | "agency" | "partner" | "none"
       proposal_status:
@@ -11670,6 +12093,10 @@ export const Constants = {
       ],
       bd_sequence_status: ["ACTIVE", "PAUSED", "COMPLETED", "EXITED"],
       bd_source_priority: ["HIGH", "MED", "LOW"],
+      client_action_owner: ["gle", "client", "agency"],
+      client_action_status: ["open", "done"],
+      client_org_member_role: ["client_admin", "client_viewer"],
+      client_org_type: ["brand", "gc", "design", "other"],
       co_status: [
         "draft",
         "pending_internal",
@@ -11678,7 +12105,27 @@ export const Constants = {
         "rejected",
         "voided",
       ],
+      filing_agency: ["DOB", "FDNY", "other"],
+      filing_discipline: [
+        "building",
+        "plumbing",
+        "sprinkler",
+        "mechanical",
+        "electrical",
+        "fire_alarm",
+      ],
+      filing_event_source: ["auto", "manual"],
+      filing_stage: [
+        "pre_filing",
+        "filed",
+        "in_review",
+        "objections",
+        "approved",
+        "permit_issued",
+        "sign_off",
+      ],
       lead_kind: ["PROSPECT", "CONTACT"],
+      portal_role: ["client", "gle_staff"],
       project_status: ["open", "on_hold", "closed", "paid"],
       project_waiting_on: ["us", "client", "agency", "partner", "none"],
       proposal_status: [
