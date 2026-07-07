@@ -31,6 +31,8 @@ type Invite = {
   client_org_id: string;
 };
 
+type ClientRow = { id: string; name: string; email: string | null; client_type: string | null };
+
 export function InviteClientDialog() {
   const { profile } = useAuth();
   const { toast } = useToast();
@@ -41,11 +43,23 @@ export function InviteClientDialog() {
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [orgId, setOrgId] = useState<string>("");
+  const [clientId, setClientId] = useState<string>("");
   const [saving, setSaving] = useState(false);
-  const [creatingOrg, setCreatingOrg] = useState(false);
-  const [newOrgName, setNewOrgName] = useState("");
-  const [newOrgType, setNewOrgType] = useState<"brand" | "gc" | "design" | "other">("other");
+
+  // All CRM clients for this company
+  const { data: clients = [] } = useQuery({
+    queryKey: ["invite-clients", profile?.company_id],
+    enabled: !!profile?.company_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("clients")
+        .select("id, name, email, client_type")
+        .eq("company_id", profile!.company_id!)
+        .order("name");
+      if (error) throw error;
+      return (data ?? []) as ClientRow[];
+    },
+  });
 
   const { data: invites = [], refetch } = useQuery({
     queryKey: ["client-portal-invites", profile?.company_id],
@@ -66,7 +80,16 @@ export function InviteClientDialog() {
     setEmail("");
     setFirstName("");
     setLastName("");
-    setOrgId("");
+    setClientId("");
+  };
+
+  // Map CRM client_type → portal org type enum
+  const mapType = (t: string | null): "brand" | "gc" | "design" | "other" => {
+    const s = (t ?? "").toLowerCase();
+    if (s.includes("brand") || s.includes("retail")) return "brand";
+    if (s.includes("contractor") || s.includes("gc")) return "gc";
+    if (s.includes("design") || s.includes("architect")) return "design";
+    return "other";
   };
 
   const handleInvite = async () => {
@@ -75,14 +98,41 @@ export function InviteClientDialog() {
       toast({ title: "Enter a valid email", variant: "destructive" });
       return;
     }
-    if (!orgId) {
-      toast({ title: "Pick a client organization", variant: "destructive" });
+    if (!clientId) {
+      toast({ title: "Pick a client", variant: "destructive" });
       return;
     }
     if (!profile?.company_id || !profile?.id) return;
 
     setSaving(true);
     try {
+      // Find-or-create the portal client_orgs row linked to this CRM client
+      let orgId: string;
+      const { data: existingOrg } = await supabase
+        .from("client_orgs")
+        .select("id")
+        .eq("client_id", clientId)
+        .maybeSingle();
+
+      if (existingOrg?.id) {
+        orgId = existingOrg.id;
+      } else {
+        const client = clients.find((c) => c.id === clientId);
+        const { data: newOrg, error: orgErr } = await supabase
+          .from("client_orgs")
+          .insert({
+            company_id: profile.company_id,
+            client_id: clientId,
+            name: client?.name ?? "Client",
+            type: mapType(client?.client_type ?? null),
+          } as any)
+          .select("id")
+          .single();
+        if (orgErr) throw orgErr;
+        orgId = newOrg!.id;
+        qc.invalidateQueries({ queryKey: ["portal", "orgs"] });
+      }
+
       const { error } = await supabase.from("client_portal_invites" as any).insert({
         company_id: profile.company_id,
         client_org_id: orgId,
@@ -92,6 +142,7 @@ export function InviteClientDialog() {
         invited_by: profile.id,
       } as any);
       if (error) throw error;
+
 
       const PRODUCTION_URL = "https://ordinopm.com";
       const link = `${PRODUCTION_URL}/auth`;
