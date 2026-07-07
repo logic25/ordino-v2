@@ -3836,6 +3836,67 @@ export type Database = {
           },
         ]
       }
+      client_portal_invites: {
+        Row: {
+          accepted_at: string | null
+          client_org_id: string
+          company_id: string
+          created_at: string
+          email: string
+          expires_at: string
+          first_name: string | null
+          id: string
+          invited_by: string | null
+          last_name: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          client_org_id: string
+          company_id: string
+          created_at?: string
+          email: string
+          expires_at?: string
+          first_name?: string | null
+          id?: string
+          invited_by?: string | null
+          last_name?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          client_org_id?: string
+          company_id?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          first_name?: string | null
+          id?: string
+          invited_by?: string | null
+          last_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_portal_invites_client_org_id_fkey"
+            columns: ["client_org_id"]
+            isOneToOne: false
+            referencedRelation: "client_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_portal_invites_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_portal_invites_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_retainers: {
         Row: {
           client_id: string
@@ -11468,6 +11529,10 @@ export type Database = {
       }
     }
     Functions: {
+      accept_client_portal_invite: {
+        Args: { first_name: string; last_name: string }
+        Returns: string
+      }
       admin_set_profile_role: {
         Args: {
           _new_role: Database["public"]["Enums"]["user_role"]
