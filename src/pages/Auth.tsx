@@ -280,7 +280,7 @@ export default function Auth() {
                 ? "Enter your new password below"
                 : isForgotPassword
                   ? "Enter your email and we'll send you a reset link"
-                  : "Use your Green Light Google account to continue"}
+                  : "GLE staff: use Google. Clients: use the magic-link below."}
             </CardDescription>
           </CardHeader>
           <CardContent>
