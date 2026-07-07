@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { PortalLayout } from "@/components/portal/PortalLayout";
 import { StagePill, STAGE_LABEL } from "@/components/portal/StagePill";
+import { InviteClientDialog } from "@/components/portal/InviteClientDialog";
+import { useAuth } from "@/hooks/useAuth";
 import {
   usePortalOrgs, useBuildings, usePortalProjects, usePortalCounters,
   type FilingStage,
