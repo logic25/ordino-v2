@@ -18,7 +18,7 @@ export default function Setup() {
     // auth/profile race. Skip the RPC entirely if a profile already exists.
     if (profile) {
       calledRef.current = true;
-      navigate("/dashboard", { replace: true });
+      navigate(profile.portal_role === "client" ? "/portal" : "/dashboard", { replace: true });
       return;
     }
     calledRef.current = true;
@@ -43,8 +43,11 @@ export default function Setup() {
 
         if (error) throw error;
 
-        await refreshProfile();
-        navigate("/dashboard", { replace: true });
+        const updated = await refreshProfile();
+        navigate(
+          (updated as any)?.portal_role === "client" ? "/portal" : "/dashboard",
+          { replace: true }
+        );
       } catch (err: any) {
         console.error("Auto-join failed:", err);
         toast({

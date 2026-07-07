@@ -1,4 +1,4 @@
-import { Navigate, useSearchParams } from "react-router-dom";
+import { Navigate, useLocation, useSearchParams } from "react-router-dom";
 import { RouteErrorBoundary } from "./RouteErrorBoundary";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -18,7 +18,8 @@ export function LoadingScreen() {
 
 // Protected route wrapper - requires auth AND profile
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading, profileLoading, hasProfile, signingOut } = useAuth();
+  const { user, profile, loading, profileLoading, hasProfile, signingOut } = useAuth();
+  const location = useLocation();
 
   if (loading || signingOut) {
     return <LoadingScreen />;
@@ -39,12 +40,20 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/setup" replace />;
   }
 
+  // Client portal users are confined to /portal/*
+  if (
+    profile?.portal_role === "client" &&
+    !location.pathname.startsWith("/portal")
+  ) {
+    return <Navigate to="/portal" replace />;
+  }
+
   return <RouteErrorBoundary>{children}</RouteErrorBoundary>;
 }
 
 // Setup route wrapper - requires auth but NO profile yet
 export function SetupRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading, profileLoading, hasProfile } = useAuth();
+  const { user, profile, loading, profileLoading, hasProfile } = useAuth();
 
   if (loading || profileLoading) {
     return <LoadingScreen />;
@@ -54,9 +63,11 @@ export function SetupRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/auth" replace />;
   }
 
-  // If they already have a profile, redirect to dashboard
+  // If they already have a profile, redirect based on portal_role
   if (hasProfile) {
-    return <Navigate to="/dashboard" replace />;
+    return (
+      <Navigate to={profile?.portal_role === "client" ? "/portal" : "/dashboard"} replace />
+    );
   }
 
   return <>{children}</>;
@@ -64,7 +75,7 @@ export function SetupRoute({ children }: { children: React.ReactNode }) {
 
 // Public route wrapper (redirects to dashboard if already logged in with profile)
 export function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading, profileLoading, hasProfile } = useAuth();
+  const { user, profile, loading, profileLoading, hasProfile } = useAuth();
   const [searchParams] = useSearchParams();
 
   // Check if this is a password reset flow - don't redirect
@@ -87,8 +98,10 @@ export function PublicRoute({ children }: { children: React.ReactNode }) {
     if (!hasProfile) {
       return <Navigate to="/setup" replace />;
     }
-    // Otherwise go to dashboard
-    return <Navigate to="/dashboard" replace />;
+    // Client users → /portal, everyone else → /dashboard
+    return (
+      <Navigate to={profile?.portal_role === "client" ? "/portal" : "/dashboard"} replace />
+    );
   }
 
   return <>{children}</>;

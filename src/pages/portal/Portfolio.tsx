@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { PortalLayout } from "@/components/portal/PortalLayout";
 import { StagePill, STAGE_LABEL } from "@/components/portal/StagePill";
+import { InviteClientDialog } from "@/components/portal/InviteClientDialog";
+import { useAuth } from "@/hooks/useAuth";
 import {
   usePortalOrgs, useBuildings, usePortalProjects, usePortalCounters,
   type FilingStage,
@@ -13,6 +15,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 export default function Portfolio() {
+  const { profile } = useAuth();
+  const isStaff = profile?.portal_role === "gle_staff";
   const { data: orgs = [], isLoading: orgsLoading } = usePortalOrgs();
   const [selectedOrgId, setSelectedOrgId] = useState<string | undefined>();
   const activeOrgId = selectedOrgId ?? orgs[0]?.id;
@@ -39,6 +43,14 @@ export default function Portfolio() {
 
   return (
     <PortalLayout>
+      {isStaff && (
+        <div className="mb-4 flex items-center justify-between gap-2 rounded-md border border-amber-300/60 bg-amber-50 px-3 py-2">
+          <div className="text-xs text-amber-900">
+            <strong>Staff view.</strong> You're seeing all client orgs. Invite a client to give them scoped access.
+          </div>
+          <InviteClientDialog />
+        </div>
+      )}
       {/* Org switcher (shown only if user has multiple orgs, or for GLE staff who see all) */}
       {orgs.length > 1 && (
         <div className="mb-6">
