@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Bell, LogOut, Building2 } from "lucide-react";
+import { Bell, LogOut, Building2, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePortalNotifications } from "@/hooks/usePortal";
 import { Button } from "@/components/ui/button";
