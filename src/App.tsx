@@ -108,6 +108,10 @@ const PublicBdCard = lazyWithRetry(() => import("./pages/PublicBdCard"), "public
 const BdScorecard = lazyWithRetry(() => import("./pages/bd/BdScorecard"), "bd-scorecard");
 const BdReferrals = lazyWithRetry(() => import("./pages/bd/BdReferrals"), "bd-referrals");
 const BeaconHub = lazyWithRetry(() => import("./pages/BeaconHub"), "beacon-hub");
+const PortalPortfolio = lazyWithRetry(() => import("./pages/portal/Portfolio"), "portal-portfolio");
+const PortalBuildingDetail = lazyWithRetry(() => import("./pages/portal/BuildingDetail"), "portal-building-detail");
+const PortalProjectDetail = lazyWithRetry(() => import("./pages/portal/PortalProjectDetail"), "portal-project-detail");
+const PortalNotifications = lazyWithRetry(() => import("./pages/portal/PortalNotifications"), "portal-notifications");
 
 function PageSpinner() {
   return (
