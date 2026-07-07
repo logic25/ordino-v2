@@ -18,7 +18,7 @@ export default function Setup() {
     // auth/profile race. Skip the RPC entirely if a profile already exists.
     if (profile) {
       calledRef.current = true;
-      navigate("/dashboard", { replace: true });
+      navigate(profile.portal_role === "client" ? "/portal" : "/dashboard", { replace: true });
       return;
     }
     calledRef.current = true;
