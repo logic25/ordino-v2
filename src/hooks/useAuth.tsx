@@ -104,9 +104,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 
   const refreshProfile = useCallback(async () => {
-    if (!user) return;
+    if (!user) return null;
     const profileData = await runProfileLoad(() => fetchProfile(user.id));
     setProfile(profileData);
+    return profileData;
   }, [user, fetchProfile, runProfileLoad]);
 
   useEffect(() => {
