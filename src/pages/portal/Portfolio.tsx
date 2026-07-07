@@ -15,6 +15,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 export default function Portfolio() {
+  const { profile } = useAuth();
+  const isStaff = profile?.portal_role === "gle_staff";
   const { data: orgs = [], isLoading: orgsLoading } = usePortalOrgs();
   const [selectedOrgId, setSelectedOrgId] = useState<string | undefined>();
   const activeOrgId = selectedOrgId ?? orgs[0]?.id;
