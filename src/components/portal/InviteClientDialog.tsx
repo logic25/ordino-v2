@@ -43,6 +43,9 @@ export function InviteClientDialog() {
   const [lastName, setLastName] = useState("");
   const [orgId, setOrgId] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [creatingOrg, setCreatingOrg] = useState(false);
+  const [newOrgName, setNewOrgName] = useState("");
+  const [newOrgType, setNewOrgType] = useState<"brand" | "gc" | "design" | "other">("other");
 
   const { data: invites = [], refetch } = useQuery({
     queryKey: ["client-portal-invites", profile?.company_id],
@@ -197,17 +200,81 @@ export function InviteClientDialog() {
 
         <div className="space-y-3">
           <div>
-            <Label className="text-xs">Client organization</Label>
-            <Select value={orgId} onValueChange={setOrgId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Pick an organization" />
-              </SelectTrigger>
-              <SelectContent>
-                {orgs.map((o) => (
-                  <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center justify-between mb-1">
+              <Label className="text-xs">Client organization</Label>
+              {!creatingOrg && (
+                <button
+                  type="button"
+                  className="text-[11px] text-primary hover:underline"
+                  onClick={() => { setCreatingOrg(true); setOrgId(""); }}
+                >
+                  + Create new
+                </button>
+              )}
+            </div>
+            {creatingOrg ? (
+              <div className="space-y-2 rounded-md border border-dashed p-2">
+                <Input
+                  placeholder="Organization name (e.g. Acme Retail)"
+                  value={newOrgName}
+                  onChange={(e) => setNewOrgName(e.target.value)}
+                />
+                <div className="flex gap-2">
+                  <Select value={newOrgType} onValueChange={(v) => setNewOrgType(v as any)}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="brand">National brand</SelectItem>
+                      <SelectItem value="gc">General contractor</SelectItem>
+                      <SelectItem value="design">Design firm</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={!newOrgName.trim() || !profile?.company_id}
+                    onClick={async () => {
+                      const { data, error } = await supabase
+                        .from("client_orgs")
+                        .insert({
+                          company_id: profile!.company_id!,
+                          name: newOrgName.trim(),
+                          type: newOrgType,
+                        } as any)
+                        .select("id")
+                        .single();
+                      if (error) {
+                        toast({ title: "Could not create", description: error.message, variant: "destructive" });
+                        return;
+                      }
+                      toast({ title: "Organization created" });
+                      setOrgId(data.id);
+                      setCreatingOrg(false);
+                      setNewOrgName("");
+                      qc.invalidateQueries({ queryKey: ["portal", "orgs"] });
+                    }}
+                  >
+                    Create
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setCreatingOrg(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Select value={orgId} onValueChange={setOrgId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={orgs.length ? "Pick an organization" : "No organizations yet — click + Create new"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {orgs.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
           <div>
             <Label className="text-xs">Email</Label>

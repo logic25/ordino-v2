@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Bell, LogOut, Building2 } from "lucide-react";
+import { Bell, LogOut, Building2, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePortalNotifications } from "@/hooks/usePortal";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ export function PortalLayout({ children }: { children: ReactNode }) {
   const { signOut, profile } = useAuth();
   const { data: notifs = [] } = usePortalNotifications();
   const unread = notifs.filter((n) => !n.read).length;
+  const isStaff = profile?.portal_role !== "client";
 
   const isActive = (path: string) => pathname === path || pathname.startsWith(path + "/");
 
@@ -59,6 +60,14 @@ export function PortalLayout({ children }: { children: ReactNode }) {
               )}
             </Link>
             <div className="ml-2 pl-2 border-l flex items-center gap-2">
+              {isStaff && (
+                <Button variant="ghost" size="sm" asChild className="gap-1.5 text-xs">
+                  <Link to="/dashboard">
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Back to Ordino</span>
+                  </Link>
+                </Button>
+              )}
               <span className="hidden md:inline text-xs text-muted-foreground">
                 {profile?.first_name || profile?.display_name || "Signed in"}
               </span>
