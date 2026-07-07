@@ -31,6 +31,8 @@ type Invite = {
   client_org_id: string;
 };
 
+type ClientRow = { id: string; name: string; email: string | null; client_type: string | null };
+
 export function InviteClientDialog() {
   const { profile } = useAuth();
   const { toast } = useToast();
@@ -41,11 +43,23 @@ export function InviteClientDialog() {
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [orgId, setOrgId] = useState<string>("");
+  const [clientId, setClientId] = useState<string>("");
   const [saving, setSaving] = useState(false);
-  const [creatingOrg, setCreatingOrg] = useState(false);
-  const [newOrgName, setNewOrgName] = useState("");
-  const [newOrgType, setNewOrgType] = useState<"brand" | "gc" | "design" | "other">("other");
+
+  // All CRM clients for this company
+  const { data: clients = [] } = useQuery({
+    queryKey: ["invite-clients", profile?.company_id],
+    enabled: !!profile?.company_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("clients")
+        .select("id, name, email, client_type")
+        .eq("company_id", profile!.company_id!)
+        .order("name");
+      if (error) throw error;
+      return (data ?? []) as ClientRow[];
+    },
+  });
 
   const { data: invites = [], refetch } = useQuery({
     queryKey: ["client-portal-invites", profile?.company_id],
@@ -66,7 +80,16 @@ export function InviteClientDialog() {
     setEmail("");
     setFirstName("");
     setLastName("");
-    setOrgId("");
+    setClientId("");
+  };
+
+  // Map CRM client_type → portal org type enum
+  const mapType = (t: string | null): "brand" | "gc" | "design" | "other" => {
+    const s = (t ?? "").toLowerCase();
+    if (s.includes("brand") || s.includes("retail")) return "brand";
+    if (s.includes("contractor") || s.includes("gc")) return "gc";
+    if (s.includes("design") || s.includes("architect")) return "design";
+    return "other";
   };
 
   const handleInvite = async () => {
@@ -75,14 +98,41 @@ export function InviteClientDialog() {
       toast({ title: "Enter a valid email", variant: "destructive" });
       return;
     }
-    if (!orgId) {
-      toast({ title: "Pick a client organization", variant: "destructive" });
+    if (!clientId) {
+      toast({ title: "Pick a client", variant: "destructive" });
       return;
     }
     if (!profile?.company_id || !profile?.id) return;
 
     setSaving(true);
     try {
+      // Find-or-create the portal client_orgs row linked to this CRM client
+      let orgId: string;
+      const { data: existingOrg } = await supabase
+        .from("client_orgs")
+        .select("id")
+        .eq("client_id", clientId)
+        .maybeSingle();
+
+      if (existingOrg?.id) {
+        orgId = existingOrg.id;
+      } else {
+        const client = clients.find((c) => c.id === clientId);
+        const { data: newOrg, error: orgErr } = await supabase
+          .from("client_orgs")
+          .insert({
+            company_id: profile.company_id,
+            client_id: clientId,
+            name: client?.name ?? "Client",
+            type: mapType(client?.client_type ?? null),
+          } as any)
+          .select("id")
+          .single();
+        if (orgErr) throw orgErr;
+        orgId = newOrg!.id;
+        qc.invalidateQueries({ queryKey: ["portal", "orgs"] });
+      }
+
       const { error } = await supabase.from("client_portal_invites" as any).insert({
         company_id: profile.company_id,
         client_org_id: orgId,
@@ -92,6 +142,7 @@ export function InviteClientDialog() {
         invited_by: profile.id,
       } as any);
       if (error) throw error;
+
 
       const PRODUCTION_URL = "https://ordinopm.com";
       const link = `${PRODUCTION_URL}/auth`;
@@ -200,81 +251,31 @@ export function InviteClientDialog() {
 
         <div className="space-y-3">
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <Label className="text-xs">Client organization</Label>
-              {!creatingOrg && (
-                <button
-                  type="button"
-                  className="text-[11px] text-primary hover:underline"
-                  onClick={() => { setCreatingOrg(true); setOrgId(""); }}
-                >
-                  + Create new
-                </button>
-              )}
-            </div>
-            {creatingOrg ? (
-              <div className="space-y-2 rounded-md border border-dashed p-2">
-                <Input
-                  placeholder="Organization name (e.g. Acme Retail)"
-                  value={newOrgName}
-                  onChange={(e) => setNewOrgName(e.target.value)}
-                />
-                <div className="flex gap-2">
-                  <Select value={newOrgType} onValueChange={(v) => setNewOrgType(v as any)}>
-                    <SelectTrigger className="flex-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="brand">National brand</SelectItem>
-                      <SelectItem value="gc">General contractor</SelectItem>
-                      <SelectItem value="design">Design firm</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={!newOrgName.trim() || !profile?.company_id}
-                    onClick={async () => {
-                      const { data, error } = await supabase
-                        .from("client_orgs")
-                        .insert({
-                          company_id: profile!.company_id!,
-                          name: newOrgName.trim(),
-                          type: newOrgType,
-                        } as any)
-                        .select("id")
-                        .single();
-                      if (error) {
-                        toast({ title: "Could not create", description: error.message, variant: "destructive" });
-                        return;
-                      }
-                      toast({ title: "Organization created" });
-                      setOrgId(data.id);
-                      setCreatingOrg(false);
-                      setNewOrgName("");
-                      qc.invalidateQueries({ queryKey: ["portal", "orgs"] });
-                    }}
-                  >
-                    Create
-                  </Button>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setCreatingOrg(false)}>
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <Select value={orgId} onValueChange={setOrgId}>
-                <SelectTrigger>
-                  <SelectValue placeholder={orgs.length ? "Pick an organization" : "No organizations yet — click + Create new"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {orgs.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+            <Label className="text-xs">Client (from your Clients list)</Label>
+            <Select
+              value={clientId}
+              onValueChange={(v) => {
+                setClientId(v);
+                // Pre-fill email if the client has one and the field is empty
+                const c = clients.find((x) => x.id === v);
+                if (c?.email && !email) setEmail(c.email);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={clients.length ? "Pick a client to invite" : "No clients yet — add one in Clients first"} />
+              </SelectTrigger>
+              <SelectContent>
+                {clients.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                    {c.client_type ? <span className="text-muted-foreground ml-2 text-[11px]">· {c.client_type}</span> : null}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              We'll auto-create the client's portal workspace the first time you invite them.
+            </p>
           </div>
           <div>
             <Label className="text-xs">Email</Label>
@@ -305,7 +306,7 @@ export function InviteClientDialog() {
             <Copy className="h-3 w-3" /> Copy sign-in link
           </Button>
           <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button onClick={handleInvite} disabled={saving || !email || !orgId}>
+          <Button onClick={handleInvite} disabled={saving || !email || !clientId}>
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Send invite"}
           </Button>
         </DialogFooter>

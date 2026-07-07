@@ -3733,6 +3733,7 @@ export type Database = {
       }
       client_orgs: {
         Row: {
+          client_id: string | null
           company_id: string
           created_at: string
           id: string
@@ -3744,6 +3745,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          client_id?: string | null
           company_id: string
           created_at?: string
           id?: string
@@ -3755,6 +3757,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          client_id?: string | null
           company_id?: string
           created_at?: string
           id?: string
@@ -3765,7 +3768,15 @@ export type Database = {
           type?: Database["public"]["Enums"]["client_org_type"]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "client_orgs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       client_payment_analytics: {
         Row: {
