@@ -16,7 +16,8 @@ import { cn } from "@/lib/utils";
 
 export default function Portfolio() {
   const { profile } = useAuth();
-  const isStaff = profile?.portal_role === "gle_staff";
+  // Anything that's not explicitly a portal client is staff (covers NULL legacy profiles)
+  const isStaff = profile?.portal_role !== "client";
   const { data: orgs = [], isLoading: orgsLoading } = usePortalOrgs();
   const [selectedOrgId, setSelectedOrgId] = useState<string | undefined>();
   const activeOrgId = selectedOrgId ?? orgs[0]?.id;

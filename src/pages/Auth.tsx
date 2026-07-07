@@ -280,7 +280,7 @@ export default function Auth() {
                 ? "Enter your new password below"
                 : isForgotPassword
                   ? "Enter your email and we'll send you a reset link"
-                  : "Use your Green Light Google account to continue"}
+                  : "GLE staff: use Google. Clients: use the magic-link below."}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -428,6 +428,14 @@ export default function Auth() {
                   {isLoading ? "Signing in..." : "Continue with Google"}
                 </Button>
 
+                {/* Magic-link login for client-portal users */}
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
+                  <div className="relative flex justify-center text-xs"><span className="bg-background px-2 text-muted-foreground">or client portal</span></div>
+                </div>
+                <MagicLinkForm />
+
+
                 {import.meta.env.DEV && (
                   <>
                     {/* Dev bypass — email/password test login */}
@@ -516,3 +524,62 @@ export default function Auth() {
     </div>
   );
 }
+
+function MagicLinkForm() {
+  const { toast } = useToast();
+  const [email, setEmail] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const send = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleaned = email.trim().toLowerCase();
+    if (!cleaned.includes("@")) {
+      toast({ title: "Enter a valid email", variant: "destructive" });
+      return;
+    }
+    setSending(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: cleaned,
+        options: { emailRedirectTo: `${window.location.origin}/portal` },
+      });
+      if (error) {
+        toast({ title: "Could not send link", description: error.message, variant: "destructive" });
+        return;
+      }
+      setSent(true);
+      toast({ title: "Check your email", description: "We sent you a one-click sign-in link." });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (sent) {
+    return (
+      <div className="text-center py-3 text-sm text-muted-foreground">
+        Sign-in link sent to <span className="font-medium text-foreground">{email}</span>. Check your inbox.
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={send} className="space-y-2">
+      <Input
+        type="email"
+        placeholder="client@company.com"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        className="h-10"
+        autoComplete="email"
+      />
+      <Button type="submit" variant="outline" className="w-full h-10" disabled={sending}>
+        {sending ? "Sending…" : "Email me a sign-in link"}
+      </Button>
+      <p className="text-[11px] text-muted-foreground text-center">
+        For invited clients. You'll be redirected to your portal.
+      </p>
+    </form>
+  );
+}
+
