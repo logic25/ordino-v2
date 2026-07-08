@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingScreen } from "@/components/routing/RouteGuards";
 import { AlertCircle } from "lucide-react";
@@ -7,29 +7,39 @@ import { Button } from "@/components/ui/button";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const handledRef = useRef(false);
   const [timedOut, setTimedOut] = useState(false);
 
+  const rawNext = searchParams.get("next") || "/dashboard";
+  const nextPath = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard";
+
   useEffect(() => {
+    const finish = () => {
+      if (handledRef.current) return;
+      handledRef.current = true;
+      navigate(nextPath, { replace: true });
+    };
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (handledRef.current) return;
 
         if (event === "SIGNED_IN" && session) {
-          handledRef.current = true;
-          navigate("/dashboard", { replace: true });
+          finish();
         } else if (event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") {
           if (session && !handledRef.current) {
             setTimeout(() => {
-              if (!handledRef.current) {
-                handledRef.current = true;
-                navigate("/dashboard", { replace: true });
-              }
+              finish();
             }, 2000);
           }
         }
       }
     );
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) finish();
+    });
 
     const safety = setTimeout(() => {
       if (!handledRef.current) {
@@ -41,7 +51,7 @@ export default function AuthCallback() {
       subscription.unsubscribe();
       clearTimeout(safety);
     };
-  }, [navigate]);
+  }, [navigate, nextPath]);
 
   if (timedOut) {
     return (
@@ -55,7 +65,7 @@ export default function AuthCallback() {
             This can happen if the confirmation link expired or there was a network issue.
           </p>
           <Button asChild variant="default">
-            <Link to="/auth">Try signing in again</Link>
+            <Link to={nextPath.startsWith("/portal") ? "/portal/auth" : "/auth"}>Try signing in again</Link>
           </Button>
         </div>
       </div>
