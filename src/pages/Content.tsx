@@ -744,7 +744,15 @@ export default function Content() {
             <h1 className="text-2xl font-bold flex items-center gap-2"><Sparkles className="h-6 w-6 text-orange-500" /> Content Intelligence</h1>
             <p className="text-sm text-muted-foreground">AI-identified content opportunities from your knowledge base &amp; team questions. Draft, review, publish.</p>
           </div>
-          <Button onClick={() => openCompose(null)}><Plus className="h-4 w-4 mr-1" /> Compose from Scratch</Button>
+          <div className="flex items-center gap-1">
+            <ContentNotificationBell
+              onSelect={(id) => {
+                const found = candidates.find((c) => c.id === id);
+                if (found) setViewing(found);
+              }}
+            />
+            <Button onClick={() => openCompose(null)}><Plus className="h-4 w-4 mr-1" /> Compose from Scratch</Button>
+          </div>
         </div>
 
         {/* "+ Write about…" — ad-hoc topic that creates a manual candidate and drafts it immediately via Beacon */}
