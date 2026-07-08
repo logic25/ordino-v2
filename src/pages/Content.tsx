@@ -350,72 +350,93 @@ function PreviewDialog({
   );
 }
 
-// ── Source badge: where did this idea come from? ────────────────────────────
-// "From N questions" is now a popover button that shows the actual team questions
-// that clustered into this idea (when we have them).
-function SourceBadge({ c }: { c: ContentCandidate }) {
+// ── Source classification ───────────────────────────────────────────────────
+// The TRUE origin of an idea comes from `source_type`, never from
+// team_questions_count (a newsletter story can happen to match team questions
+// too — that's a secondary signal, not its origin).
+type SourceKey = "newsletter" | "question_cluster" | "email" | "manual" | "other";
+
+function classifySource(c: Pick<ContentCandidate, "source_type">): SourceKey {
   const src = (c.source_type || "").toLowerCase();
+  if (src === "newsletter" || src === "newsletter_email") return "newsletter";
+  if (src === "question_cluster" || src === "questions") return "question_cluster";
+  if (src === "email") return "email";
+  if (src === "manual" || src === "scratch" || src === "from_scratch") return "manual";
+  return "other";
+}
+
+const SOURCE_META: Record<SourceKey, { label: string; emoji: string; className: string }> = {
+  newsletter:       { label: "Newsletter",   emoji: "📰", className: "border-primary/30 bg-primary/10 text-primary" },
+  question_cluster: { label: "Team Chat",    emoji: "📊", className: "border-accent bg-accent text-accent-foreground" },
+  email:            { label: "Email",        emoji: "📧", className: "border-secondary bg-secondary text-secondary-foreground" },
+  manual:           { label: "From scratch", emoji: "✍️", className: "border-border bg-muted text-muted-foreground" },
+  other:            { label: "Other",        emoji: "📄", className: "border-border bg-muted/50 text-muted-foreground" },
+};
+
+function SourceBadge({ c }: { c: ContentCandidate }) {
+  const key = classifySource(c);
+  const meta = SOURCE_META[key];
+  return (
+    <Badge
+      variant="outline"
+      className={`text-[11px] ${meta.className}`}
+      title={`Origin: ${meta.label}`}
+    >
+      {meta.emoji} {meta.label}
+    </Badge>
+  );
+}
+
+// Secondary badge — appears IN ADDITION to SourceBadge when the idea also
+// happens to correlate with N team questions. Never the primary identity.
+function TeamQuestionsBadge({ c }: { c: ContentCandidate }) {
   const qCount = c.team_questions_count || 0;
-  const isQuestionCluster = src === "question_cluster" || src === "questions" || qCount > 0;
-  const isManual = src === "manual" || src === "scratch" || src === "from_scratch";
+  if (qCount <= 0) return null;
+  const questions = c.team_questions || [];
+  const label = `📊 ${qCount} question${qCount === 1 ? "" : "s"}`;
 
-  if (isQuestionCluster) {
-    const label = `📊 ${qCount > 0 ? `From ${qCount} question${qCount === 1 ? "" : "s"}` : "From questions"}`;
-    const questions = c.team_questions || [];
-    const badgeClass =
-      "cursor-pointer text-[11px] border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-400 dark:hover:bg-emerald-950/50";
-
-    return (
-      <Popover>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            onClick={(e) => e.stopPropagation()}
-            title="Click to see the actual team questions behind this idea"
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          title="Click to see the actual team questions this idea correlates with"
+        >
+          <Badge
+            variant="outline"
+            className="cursor-pointer text-[11px] border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
           >
-            <Badge variant="outline" className={badgeClass}>{label}</Badge>
-          </button>
-        </PopoverTrigger>
-        <PopoverContent align="start" className="w-[420px] max-h-[60vh] overflow-y-auto">
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-            Team questions ({qCount || questions.length})
-          </div>
-          {questions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {qCount > 0
-                ? `Beacon counted ${qCount} questions in this cluster but the originals weren't saved with this candidate. Re-run the question-clustering job to attach them.`
-                : "No team questions recorded for this idea."}
-            </p>
-          ) : (
-            <ul className="space-y-1.5">
-              {questions.map((q, i) => (
-                <li key={i} className="text-sm text-foreground/90 flex gap-2">
-                  <span className="text-muted-foreground/60 select-none">{i + 1}.</span>
-                  <span className="break-words">{q}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className="mt-3 pt-2 border-t text-[11px] text-muted-foreground">
-            Sourced from your team's real Beacon chat history. Higher counts → stronger client demand signal.
+            {label}
+          </Badge>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-[420px] max-h-[60vh] overflow-y-auto">
+        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+          Team questions ({qCount || questions.length})
+        </div>
+        {questions.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {qCount > 0
+              ? `Beacon counted ${qCount} questions correlated with this idea but the originals weren't saved. Re-run the question-clustering job to attach them.`
+              : "No team questions recorded for this idea."}
           </p>
-        </PopoverContent>
-      </Popover>
-    );
-  }
-
-  if (isManual) {
-    return (
-      <Badge
-        variant="outline"
-        className="text-[11px] text-muted-foreground"
-        title="Composed manually, not derived from team questions"
-      >
-        ✍️ From scratch
-      </Badge>
-    );
-  }
-  return null;
+        ) : (
+          <ul className="space-y-1.5">
+            {questions.map((q, i) => (
+              <li key={i} className="text-sm text-foreground/90 flex gap-2">
+                <span className="text-muted-foreground/60 select-none">{i + 1}.</span>
+                <span className="break-words">{q}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-3 pt-2 border-t text-[11px] text-muted-foreground">
+          Sourced from your team's real Beacon chat history. Higher counts → stronger client demand signal.
+        </p>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 // ── Idea card ───────────────────────────────────────────────────────────────
@@ -506,6 +527,7 @@ function IdeaCard({
             {c.priority && <PriorityBadge priority={c.priority} />}
             <Badge variant="outline" className="gap-1 text-[11px]"><TypeIcon t={c.content_type} className="h-3 w-3" /> {typeLabel(c.content_type)}</Badge>
             <SourceBadge c={c} />
+            <TeamQuestionsBadge c={c} />
           </div>
           <div className="font-semibold leading-snug">{c.title}</div>
           {c.reasoning && <div className="text-sm text-muted-foreground">{c.reasoning}</div>}
@@ -705,6 +727,7 @@ export default function Content() {
   const [composeOpen, setComposeOpen] = useState(false);
   const [composePreset, setComposePreset] = useState<ContentTemplate | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<ContentCandidate | null>(null);
+  const [sourceFilter, setSourceFilter] = useState<"all" | SourceKey>("all");
 
   // Pull all latest drafts for visible candidates so each card can show
   // an inline excerpt + Copy button without N round-trips.
@@ -729,11 +752,18 @@ export default function Content() {
     }
   };
 
+  const filteredCandidates = useMemo(
+    () => sourceFilter === "all"
+      ? candidates
+      : candidates.filter((c) => classifySource(c) === sourceFilter),
+    [candidates, sourceFilter],
+  );
+
   const byStage = useMemo(() => {
     const g: Record<string, ContentCandidate[]> = { pending: [], drafted: [], approved: [], published: [], skipped: [] };
-    for (const c of candidates) (g[c.status] ?? (g[c.status] = [])).push(c);
+    for (const c of filteredCandidates) (g[c.status] ?? (g[c.status] = [])).push(c);
     return g;
-  }, [candidates]);
+  }, [filteredCandidates]);
 
   const doGenerate = async (c: ContentCandidate) => {
     setGeneratingId(c.id);
@@ -798,11 +828,38 @@ export default function Content() {
           </TabsList>
 
           <TabsContent value="pipeline" className="mt-4 space-y-5">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Ideas ({filteredCandidates.length}{sourceFilter !== "all" ? ` of ${candidates.length}` : ""})
+              </div>
+              <div className="flex items-center gap-1 flex-wrap">
+                {([
+                  ["all", "All"],
+                  ["newsletter", `${SOURCE_META.newsletter.emoji} Newsletter`],
+                  ["question_cluster", `${SOURCE_META.question_cluster.emoji} Team Chat`],
+                  ["manual", `${SOURCE_META.manual.emoji} Manual`],
+                ] as const).map(([key, label]) => (
+                  <Button
+                    key={key}
+                    size="sm"
+                    variant={sourceFilter === key ? "default" : "outline"}
+                    className="h-7 text-xs"
+                    onClick={() => setSourceFilter(key)}
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+            </div>
             {isLoading ? (
               <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
             ) : candidates.length === 0 ? (
               <Card className="p-8 text-center text-muted-foreground text-sm">
                 No content ideas yet. Beacon generates them from team questions &amp; ingested DOB updates.
+              </Card>
+            ) : filteredCandidates.length === 0 ? (
+              <Card className="p-8 text-center text-muted-foreground text-sm">
+                No ideas match this source filter. <button className="underline" onClick={() => setSourceFilter("all")}>Clear filter</button>
               </Card>
             ) : (
               STAGES.map((s) => byStage[s.key]?.length ? (
