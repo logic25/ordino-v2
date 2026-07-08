@@ -4438,6 +4438,27 @@ export type Database = {
           },
         ]
       }
+      content_notification_reads: {
+        Row: {
+          created_at: string
+          last_seen_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          last_seen_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          last_seen_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       custom_roles: {
         Row: {
           color: string | null
