@@ -160,13 +160,18 @@ export function useResearchMarket() {
       });
       if (error) throw error;
       const resp = (data ?? {}) as Record<string, any>;
+
+      // entry_steps: prefer structured array from new schema, fall back to prose.
+      const entrySteps: string | EntryStep[] =
+        Array.isArray(resp.entry_steps) ? (resp.entry_steps as EntryStep[]) : (resp.entry_steps ?? "");
+
       const intel: MarketIntel = {
         why_it_matters: resp.why_it_matters,
         requirements: resp.requirements,
         key_contacts: resp.key_contacts,
         competitive_landscape: resp.competitive_landscape,
         fee_structure: resp.fee_structure,
-        entry_steps: resp.entry_steps,
+        entry_steps: entrySteps,
         reference_links: resp.reference_links,
         third_party_review: resp.third_party_review_notes,
         warning: resp.warning,
@@ -182,9 +187,56 @@ export function useResearchMarket() {
       if (typeof resp.third_party_review_source_url === "string" && resp.third_party_review_source_url.trim()) {
         patch.third_party_review_source_url = resp.third_party_review_source_url;
       }
+
+      // Merge suggested_services[] as unverified drafts into market.services.
+      // Skip anything whose label already exists (case-insensitive) so re-runs are idempotent.
+      const suggested = Array.isArray(resp.suggested_services) ? resp.suggested_services : [];
+      let draftedCount = 0;
+      if (suggested.length > 0) {
+        const { data: current } = await supabase
+          .from("markets")
+          .select("services")
+          .eq("id", market.id)
+          .maybeSingle();
+        const existing: MarketService[] = ((current?.services ?? []) as unknown as MarketService[]) ?? [];
+        const existingLabels = new Set(existing.map((s) => s.label.trim().toLowerCase()));
+
+        const fmtFee = (row: any): string => {
+          const { price_low, price_typical, price_high, unit } = row;
+          const fmt = (n: number) => `$${Math.round(n).toLocaleString()}`;
+          const unitSuffix =
+            unit === "per_hour" ? "/hr"
+            : unit === "pct_of_construction_cost" ? " of construction cost"
+            : unit === "pct_of_permit_fee" ? " of permit fee"
+            : unit === "per_filing" ? " per filing"
+            : "";
+          if (price_low != null && price_high != null) return `${fmt(price_low)}–${fmt(price_high)}${unitSuffix}`;
+          if (price_typical != null) return `${fmt(price_typical)}${unitSuffix}`;
+          return "";
+        };
+
+        const newRows: MarketService[] = suggested
+          .filter((r: any) => r?.service_name && !existingLabels.has(String(r.service_name).trim().toLowerCase()))
+          .map((r: any) => ({
+            id: crypto.randomUUID(),
+            category: r.category ?? "Building",
+            label: String(r.service_name).trim(),
+            offered: true,
+            suggested_fee: fmtFee(r),
+            county_fee_note: r.county_fee_note || undefined,
+            note: [r.basis_notes, r.source_url ? `Source: ${r.source_url}` : "", `Confidence: ${r.confidence ?? "low"}`]
+              .filter(Boolean).join(" · "),
+            verified_at: null,
+            verified_by: null,
+          } as MarketService));
+
+        draftedCount = newRows.length;
+        if (newRows.length > 0) patch.services = [...existing, ...newRows] as any;
+      }
+
       const { error: upErr } = await supabase.from("markets").update(patch as any).eq("id", market.id);
       if (upErr) throw upErr;
-      return intel;
+      return { intel, draftedCount };
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
   });
