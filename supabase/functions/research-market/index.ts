@@ -202,13 +202,49 @@ Deno.serve(async (req) => {
     tpr = "unknown";
   }
 
+  // Normalize suggested_services[] — enforce source_url OR confidence='low'
+  const rawServices = Array.isArray(parsed.suggested_services) ? parsed.suggested_services : [];
+  const suggested_services = rawServices
+    .filter((s: any) => s && typeof s.service_name === "string" && s.service_name.trim())
+    .map((s: any) => {
+      const src = typeof s.source_url === "string" ? s.source_url.trim() : "";
+      const hasSrc = /^https?:\/\/\S+\.\S+/i.test(src);
+      const conf = ["low", "medium", "high"].includes(s.confidence) ? s.confidence : "low";
+      return {
+        service_name: String(s.service_name).trim(),
+        category: ["Building", "Trade", "Site / Land Development"].includes(s.category) ? s.category : "Building",
+        price_low: typeof s.price_low === "number" ? s.price_low : null,
+        price_typical: typeof s.price_typical === "number" ? s.price_typical : null,
+        price_high: typeof s.price_high === "number" ? s.price_high : null,
+        unit: typeof s.unit === "string" ? s.unit : "flat",
+        basis_notes: typeof s.basis_notes === "string" ? s.basis_notes : "",
+        county_fee_note: typeof s.county_fee_note === "string" ? s.county_fee_note : "",
+        // Downgrade confidence when no source cited — matches the third-party guardrail pattern.
+        confidence: hasSrc ? conf : "low",
+        source_url: hasSrc ? src : "",
+      };
+    });
+
+  const rawSteps = Array.isArray(parsed.entry_steps) ? parsed.entry_steps : [];
+  const entry_steps = rawSteps
+    .filter((s: any) => s && typeof s.step === "string" && s.step.trim())
+    .map((s: any) => {
+      const src = typeof s.source_url === "string" ? s.source_url.trim() : "";
+      return {
+        step: String(s.step).trim(),
+        detail: typeof s.detail === "string" ? s.detail : "",
+        source_url: /^https?:\/\/\S+\.\S+/i.test(src) ? src : "",
+      };
+    });
+
   return json({
     why_it_matters: (parsed.why_it_matters as string) ?? "",
     requirements: (parsed.requirements as string) ?? "",
     key_contacts: (parsed.key_contacts as string) ?? "",
     competitive_landscape: (parsed.competitive_landscape as string) ?? "",
     fee_structure: (parsed.fee_structure as string) ?? "",
-    entry_steps: (parsed.entry_steps as string) ?? "",
+    suggested_services,
+    entry_steps,
     reference_links: (parsed.reference_links as string) ?? "",
     third_party_review_allowed: tpr,
     third_party_review_notes: (parsed.third_party_review_notes as string) ?? "",
