@@ -134,15 +134,21 @@ export function PortalRoute({ children }: { children: React.ReactNode }) {
         throw new Error("Your invite was accepted, but your portal profile could not be loaded yet. Refresh the page to try again.");
       }
     })()
-      .catch((err: any) => {
+      .catch(async (err: any) => {
         const rawMessage = err?.message ?? "This link may be expired, already used, or tied to a different email address.";
-        if (hasProfile && rawMessage.includes("No pending client portal invite")) {
+        // "No pending invite" is expected when the invite was already accepted
+        // in a prior visit. Re-check the profile (avoids a stale-closure race
+        // where hasProfile hadn't been set yet when the effect fired) and only
+        // surface the error when the user still has no client profile.
+        if (rawMessage.includes("No pending client portal invite")) {
+          const current = await refreshProfile().catch(() => null);
+          if (current) return;
+          setSetupError(
+            "This link does not match an active invite for the signed-in email. Open the invite from the email address it was sent to, or ask your project manager to resend it."
+          );
           return;
         }
-        const friendlyMessage = rawMessage.includes("No pending client portal invite")
-          ? "This link does not match an active invite for the signed-in email. Open the invite from the email address it was sent to, or ask your project manager to resend it."
-          : rawMessage;
-        setSetupError(friendlyMessage);
+        setSetupError(rawMessage);
       })
       .finally(() => setAcceptingInvite(false));
   }, [loading, signingOut, profileLoading, user, hasProfile, profile?.portal_role, refreshProfile]);
