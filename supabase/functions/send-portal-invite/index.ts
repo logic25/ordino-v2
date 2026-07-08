@@ -10,6 +10,7 @@ interface InvitePayload {
 }
 
 const PRODUCTION_URL = 'https://ordinopm.com';
+const PORTAL_CALLBACK_URL = `${PRODUCTION_URL}/auth/callback?next=${encodeURIComponent('/portal')}`;
 
 function buildEmailHtml(args: {
   inviteeName: string;
@@ -98,7 +99,7 @@ Deno.serve(async (req: Request) => {
     const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
       type: 'magiclink',
       email: cleaned,
-      options: { redirectTo: `${PRODUCTION_URL}/portal` },
+      options: { redirectTo: PORTAL_CALLBACK_URL },
     });
     if (linkErr || !linkData?.properties?.action_link) {
       console.error('generateLink failed:', linkErr);
