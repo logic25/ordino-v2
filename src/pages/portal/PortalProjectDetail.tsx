@@ -235,7 +235,6 @@ export default function PortalProjectDetail() {
           )}
         </TabsContent>
 
-        </TabsContent>
 
         {/* ACTIVITY */}
         <TabsContent value="activity" className="mt-4">
