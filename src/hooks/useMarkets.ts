@@ -18,6 +18,17 @@ export type MarketIntel = {
   warning?: string;
   raw?: string;
 };
+export type MarketService = {
+  id: string;
+  category: string;              // e.g. "Building", "Trade", "Site/Land Development"
+  label: string;                 // e.g. "Commercial Tenant Fit-out (Alteration)"
+  offered: boolean;              // are we currently offering this service in this market?
+  suggested_fee: string;         // e.g. "$2,500–$6,000 flat"
+  county_fee_note?: string;      // e.g. "Min $150 + valuation-based"
+  peer_review_required?: boolean;// true = requires third-party peer review
+  note?: string;                 // freeform note
+};
+
 
 export type Market = {
   id: string;
@@ -31,6 +42,7 @@ export type Market = {
   notes: string | null;
   checklist: ChecklistItem[];
   intel: MarketIntel;
+  services: MarketService[];
   created_at: string;
   updated_at: string;
 };

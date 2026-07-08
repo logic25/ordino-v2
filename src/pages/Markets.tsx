@@ -23,6 +23,7 @@ import {
   type Market, type ChecklistItem,
 } from "@/hooks/useMarkets";
 import AddEditMarketDialog from "@/components/markets/AddEditMarketDialog";
+import MarketServicesSection from "@/components/markets/MarketServicesSection";
 import PlaybookList from "@/components/playbooks/PlaybookList";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -123,6 +124,12 @@ function MarketDetailsCard({ market }: { market: Market }) {
             placeholder="Internal notes about this market…" />
         </div>
       </div>
+
+      {/* Services offered */}
+      <div className="border-t pt-3">
+        <MarketServicesSection market={market} />
+      </div>
+
 
 
       {/* Intel */}
