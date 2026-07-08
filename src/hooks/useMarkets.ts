@@ -47,6 +47,9 @@ export type Market = {
   checklist: ChecklistItem[];
   intel: MarketIntel;
   services: MarketService[];
+  third_party_review_allowed: ThirdPartyReviewStatus;
+  third_party_review_notes: string | null;
+  third_party_review_source_url: string | null;
   created_at: string;
   updated_at: string;
 };
