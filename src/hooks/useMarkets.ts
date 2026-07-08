@@ -12,6 +12,9 @@ export type MarketIntel = {
   requirements?: string;
   key_contacts?: string;
   competitive_landscape?: string;
+  fee_structure?: string;
+  entry_steps?: string;
+  reference_links?: string;
   warning?: string;
   raw?: string;
 };

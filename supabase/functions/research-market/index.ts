@@ -62,14 +62,17 @@ Deno.serve(async (req) => {
             "You are a research assistant for Green Light Expediting (GLE), a NYC construction permit " +
             "expediting firm (DOB filings PW1/PW2/PW3, TR1/TR8, objection resolution, COs). GLE is " +
             "evaluating expansion into a new market. Be concrete and reference real agencies, real " +
-            "code differences from NYC DOB, and real competitor types. If you do not know something " +
-            "for sure, say so plainly — do not invent specifics.",
+            "code differences from NYC DOB, and real competitor types. Include real dollar figures / " +
+            "fee formulas where you're confident (cite the fee schedule name/URL); if you are not sure " +
+            "of a specific number, say so plainly and point to where GLE should verify — do not invent specifics.",
         },
         {
           role: "user",
           content:
             `Research the expansion target: ${name}, ${state} (${tierContext}). ` +
-            `Return a concise intel briefing focused on what GLE needs to know to operate there.`,
+            `Return a concise intel briefing focused on what GLE needs to know to operate there, ` +
+            `INCLUDING (a) the local permit fee structure so GLE can price its expediting services on top, ` +
+            `and (b) the concrete steps GLE must take to start doing work in this jurisdiction.`,
         },
       ],
       tools: [{
@@ -96,8 +99,20 @@ Deno.serve(async (req) => {
                 type: "string",
                 description: "Who else does expediting/permit work there — firm types, notable names if known, and how GLE could differentiate.",
               },
+              fee_structure: {
+                type: "string",
+                description: "Local permit / plan review / inspection fee schedule GLE's clients will pay to the jurisdiction (formula, tiers, or $ ranges), PLUS a suggested GLE service-fee range to charge on top for expediting/peer-review coordination. Note flat vs valuation-based, and any peer-review/third-party review fees. If specific numbers aren't verifiable, say so and link to the official fee schedule.",
+              },
+              entry_steps: {
+                type: "string",
+                description: "Numbered, concrete steps GLE must take to legally take on work in this jurisdiction — e.g. register as a foreign LLC with the state, obtain a business license, identify a locally-licensed design professional partner, create an account in the jurisdiction's e-permit portal, attend orientation, etc. Be practical and ordered.",
+              },
+              reference_links: {
+                type: "string",
+                description: "Bullet list of official URLs (fee schedule, permit portal, licensing page, review metrics) GLE staff should bookmark. Real URLs only.",
+              },
             },
-            required: ["why_it_matters", "requirements", "key_contacts", "competitive_landscape"],
+            required: ["why_it_matters", "requirements", "key_contacts", "competitive_landscape", "fee_structure", "entry_steps"],
           },
         },
       }],
@@ -132,5 +147,8 @@ Deno.serve(async (req) => {
     requirements: (parsed.requirements as string) ?? "",
     key_contacts: (parsed.key_contacts as string) ?? "",
     competitive_landscape: (parsed.competitive_landscape as string) ?? "",
+    fee_structure: (parsed.fee_structure as string) ?? "",
+    entry_steps: (parsed.entry_steps as string) ?? "",
+    reference_links: (parsed.reference_links as string) ?? "",
   });
 });
