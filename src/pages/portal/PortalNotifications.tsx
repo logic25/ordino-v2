@@ -19,12 +19,23 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 export default function PortalNotifications() {
+  usePortalNotificationsRealtime();
   const { data: notifs = [], isLoading } = usePortalNotifications();
   const mark = useMarkNotificationRead();
+  const markAll = useMarkAllNotificationsRead();
+  const unreadCount = notifs.filter((n) => !n.read).length;
 
   return (
     <PortalLayout>
-      <h1 className="text-2xl font-semibold text-slate-900 mb-6">Notifications</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-semibold text-slate-900">Notifications</h1>
+        {unreadCount > 0 && (
+          <Button variant="outline" size="sm" onClick={() => markAll.mutate()} disabled={markAll.isPending}>
+            <CheckCheck className="h-3.5 w-3.5 mr-1.5" /> Mark all read
+          </Button>
+        )}
+      </div>
+
 
       {isLoading ? (
         <div className="text-sm text-muted-foreground">Loading…</div>
