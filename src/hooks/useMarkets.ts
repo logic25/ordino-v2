@@ -32,6 +32,9 @@ export type MarketService = {
   offered: boolean;              // are we currently offering this service in this market?
   suggested_fee: string;         // e.g. "$2,500–$6,000 flat"
   county_fee_note?: string;      // e.g. "Min $150 + valuation-based"
+  /** Optional link to a permit_playbooks row. A service can exist without a playbook;
+   *  the row surfaces a "Draft playbook" affordance when this is unset. */
+  playbook_id?: string | null;
   /** @deprecated Third-party plan review is now a market-level attribute, not per-service. Kept for backward compat with existing rows. */
   peer_review_required?: boolean;
   note?: string;                 // freeform note
