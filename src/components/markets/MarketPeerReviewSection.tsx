@@ -19,23 +19,30 @@ import { useToast } from "@/hooks/use-toast";
 // others require the AHJ's own examiner. Tracked here so we know at intake
 // whether GLE can bring a private reviewer to compress plan-check timelines.
 export function ThirdPartyReviewBadge({ status }: { status: ThirdPartyReviewStatus }) {
-  if (status === "yes") {
+  if (status === "accepted") {
     return (
       <Badge variant="outline" className="bg-emerald-100 text-emerald-700 border-emerald-200">
         ✅ 3rd-party review accepted
       </Badge>
     );
   }
-  if (status === "no") {
+  if (status === "accepted_with_restrictions") {
+    return (
+      <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200">
+        ⚠️ Accepted with restrictions
+      </Badge>
+    );
+  }
+  if (status === "not_offered") {
     return (
       <Badge variant="outline" className="bg-rose-100 text-rose-700 border-rose-200">
-        ❌ 3rd-party review not accepted
+        ❌ Not offered
       </Badge>
     );
   }
   return (
     <Badge variant="outline" className="bg-muted text-muted-foreground">
-      ❓ 3rd-party review unknown
+      ❓ Unknown
     </Badge>
   );
 }
