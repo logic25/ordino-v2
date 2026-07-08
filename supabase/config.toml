@@ -138,6 +138,9 @@ verify_jwt = false
 [functions.stock-photos]
 verify_jwt = true
 
+[functions.suggest-stock-query]
+verify_jwt = true
+
 [functions.process-email-queue]
 verify_jwt = true
 
