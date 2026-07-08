@@ -1,16 +1,17 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, Plus, Sparkles, BookOpen, BookPlus } from "lucide-react";
+import { Trash2, Plus, Sparkles, BookOpen, BookPlus, ShieldCheck, ShieldAlert } from "lucide-react";
 import {
   useUpdateMarket,
   type Market,
   type MarketService,
 } from "@/hooks/useMarkets";
-import { usePlaybooksForMarket, useCreatePlaybook } from "@/hooks/usePermitPlaybooks";
+import { usePlaybooksForMarket, useCreatePlaybook, type PermitPlaybook } from "@/hooks/usePermitPlaybooks";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
 // ── Default catalog GLE offers in any US jurisdiction ─────────────────────────
