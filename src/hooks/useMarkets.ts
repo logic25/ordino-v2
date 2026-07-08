@@ -140,11 +140,30 @@ export function useResearchMarket() {
         body: { market_name: market.name, state: market.state, tier: market.tier },
       });
       if (error) throw error;
-      const intel = (data ?? {}) as MarketIntel;
-      const { error: upErr } = await supabase
-        .from("markets")
-        .update({ intel: intel as any })
-        .eq("id", market.id);
+      const resp = (data ?? {}) as Record<string, any>;
+      const intel: MarketIntel = {
+        why_it_matters: resp.why_it_matters,
+        requirements: resp.requirements,
+        key_contacts: resp.key_contacts,
+        competitive_landscape: resp.competitive_landscape,
+        fee_structure: resp.fee_structure,
+        entry_steps: resp.entry_steps,
+        reference_links: resp.reference_links,
+        third_party_review: resp.third_party_review_notes,
+        warning: resp.warning,
+        raw: resp.raw,
+      };
+      const patch: Record<string, any> = { intel };
+      if (resp.third_party_review_allowed) {
+        patch.third_party_review_allowed = resp.third_party_review_allowed;
+      }
+      if (typeof resp.third_party_review_notes === "string" && resp.third_party_review_notes.trim()) {
+        patch.third_party_review_notes = resp.third_party_review_notes;
+      }
+      if (typeof resp.third_party_review_source_url === "string" && resp.third_party_review_source_url.trim()) {
+        patch.third_party_review_source_url = resp.third_party_review_source_url;
+      }
+      const { error: upErr } = await supabase.from("markets").update(patch).eq("id", market.id);
       if (upErr) throw upErr;
       return intel;
     },
