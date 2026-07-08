@@ -7180,6 +7180,7 @@ export type Database = {
           name: string
           notes: string | null
           operational_score: number | null
+          services: Json
           state: string
           tier: number
           updated_at: string
@@ -7195,6 +7196,7 @@ export type Database = {
           name: string
           notes?: string | null
           operational_score?: number | null
+          services?: Json
           state?: string
           tier: number
           updated_at?: string
@@ -7210,6 +7212,7 @@ export type Database = {
           name?: string
           notes?: string | null
           operational_score?: number | null
+          services?: Json
           state?: string
           tier?: number
           updated_at?: string
