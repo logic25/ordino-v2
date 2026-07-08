@@ -828,11 +828,38 @@ export default function Content() {
           </TabsList>
 
           <TabsContent value="pipeline" className="mt-4 space-y-5">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Ideas ({filteredCandidates.length}{sourceFilter !== "all" ? ` of ${candidates.length}` : ""})
+              </div>
+              <div className="flex items-center gap-1 flex-wrap">
+                {([
+                  ["all", "All"],
+                  ["newsletter", `${SOURCE_META.newsletter.emoji} Newsletter`],
+                  ["question_cluster", `${SOURCE_META.question_cluster.emoji} Team Chat`],
+                  ["manual", `${SOURCE_META.manual.emoji} Manual`],
+                ] as const).map(([key, label]) => (
+                  <Button
+                    key={key}
+                    size="sm"
+                    variant={sourceFilter === key ? "default" : "outline"}
+                    className="h-7 text-xs"
+                    onClick={() => setSourceFilter(key)}
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+            </div>
             {isLoading ? (
               <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
             ) : candidates.length === 0 ? (
               <Card className="p-8 text-center text-muted-foreground text-sm">
                 No content ideas yet. Beacon generates them from team questions &amp; ingested DOB updates.
+              </Card>
+            ) : filteredCandidates.length === 0 ? (
+              <Card className="p-8 text-center text-muted-foreground text-sm">
+                No ideas match this source filter. <button className="underline" onClick={() => setSourceFilter("all")}>Clear filter</button>
               </Card>
             ) : (
               STAGES.map((s) => byStage[s.key]?.length ? (
