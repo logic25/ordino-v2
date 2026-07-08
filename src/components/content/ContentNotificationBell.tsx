@@ -12,23 +12,22 @@ interface Props {
 function priorityBadgeClasses(p: string | null) {
   switch ((p || "").toLowerCase()) {
     case "high":
-      return "bg-orange-100 text-orange-700 border-orange-200";
+      return "bg-destructive/10 text-destructive border-destructive/30";
     case "medium":
-      return "bg-amber-50 text-amber-700 border-amber-200";
+      return "bg-warning/15 text-warning border-warning/30";
     default:
       return "bg-muted text-muted-foreground border-border";
   }
 }
 
 function badgeDotClass(highest: string | null) {
-  // Highest priority present drives the dot color; falls back to neutral primary.
   switch ((highest || "").toLowerCase()) {
     case "high":
-      return "bg-orange-500 text-white";
+      return "bg-destructive text-destructive-foreground";
     case "medium":
-      return "bg-amber-500 text-white";
+      return "bg-warning text-warning-foreground";
     case "low":
-      return "bg-muted-foreground text-background";
+      return "bg-muted text-muted-foreground";
     default:
       return "bg-primary text-primary-foreground";
   }
