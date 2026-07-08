@@ -104,10 +104,18 @@ export function PortalRoute({ children }: { children: React.ReactNode }) {
   const attemptedRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (loading || signingOut || profileLoading || !user || hasProfile) return;
-    if (attemptedRef.current === user.id) return;
+    if (loading || signingOut || profileLoading || !user) return;
 
-    attemptedRef.current = user.id;
+    // New invitees have no profile yet. Existing client accounts can also
+    // receive an invite for a new client org, so accept any pending invite
+    // once on portal entry without sending them through the staff setup flow.
+    const shouldAcceptInvite = !hasProfile || profile?.portal_role === "client";
+    if (!shouldAcceptInvite) return;
+
+    const attemptKey = `${user.id}:${hasProfile ? "existing" : "new"}`;
+    if (attemptedRef.current === attemptKey) return;
+
+    attemptedRef.current = attemptKey;
     setAcceptingInvite(true);
     setSetupError(null);
 
@@ -128,13 +136,16 @@ export function PortalRoute({ children }: { children: React.ReactNode }) {
     })()
       .catch((err: any) => {
         const rawMessage = err?.message ?? "This link may be expired, already used, or tied to a different email address.";
+        if (hasProfile && rawMessage.includes("No pending client portal invite")) {
+          return;
+        }
         const friendlyMessage = rawMessage.includes("No pending client portal invite")
           ? "This link does not match an active invite for the signed-in email. Open the invite from the email address it was sent to, or ask your project manager to resend it."
           : rawMessage;
         setSetupError(friendlyMessage);
       })
       .finally(() => setAcceptingInvite(false));
-  }, [loading, signingOut, profileLoading, user, hasProfile, refreshProfile]);
+  }, [loading, signingOut, profileLoading, user, hasProfile, profile?.portal_role, refreshProfile]);
 
   if (loading || signingOut || profileLoading || acceptingInvite) {
     return <PortalSetupScreen />;
