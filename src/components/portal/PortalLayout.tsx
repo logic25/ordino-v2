@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Bell, LogOut, Building2, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { usePortalNotifications } from "@/hooks/usePortal";
+import { usePortalNotifications, usePortalNotificationsRealtime } from "@/hooks/usePortal";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
