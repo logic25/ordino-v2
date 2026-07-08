@@ -80,8 +80,14 @@ function MarketDetailsCard({ market }: { market: Market }) {
 
   const handleResearch = async () => {
     try {
-      await research.mutateAsync({ id: market.id, name: market.name, state: market.state, tier: market.tier });
-      toast({ title: "Research complete" });
+      const result = await research.mutateAsync({ id: market.id, name: market.name, state: market.state, tier: market.tier });
+      const drafted = (result as any)?.draftedCount ?? 0;
+      toast({
+        title: "Research complete",
+        description: drafted > 0
+          ? `${drafted} draft service ${drafted === 1 ? "row" : "rows"} added — verify each before quoting.`
+          : "No new service rows drafted (all suggestions already exist).",
+      });
     } catch (e: any) {
       toast({ title: "Research failed", description: e.message, variant: "destructive" });
     }
@@ -149,7 +155,7 @@ function MarketDetailsCard({ market }: { market: Market }) {
           <div className="text-sm text-muted-foreground italic">No research yet. Click "Research with AI" to generate.</div>
         )}
         {intel.why_it_matters && <IntelBlock label="Why it matters" text={intel.why_it_matters} />}
-        {intel.entry_steps && <IntelBlock label="Steps to enter this market" text={intel.entry_steps} />}
+        {intel.entry_steps && <EntryStepsBlock steps={intel.entry_steps} />}
         {intel.requirements && <IntelBlock label="Requirements" text={intel.requirements} />}
         {intel.fee_structure && <IntelBlock label="Permit fees & suggested GLE pricing" text={intel.fee_structure} />}
         {intel.key_contacts && <IntelBlock label="Key contacts" text={intel.key_contacts} />}
@@ -168,6 +174,32 @@ function IntelBlock({ label, text }: { label: string; text: string }) {
     <details className="group" open>
       <summary className="cursor-pointer text-sm font-medium">{label}</summary>
       <p className="mt-1 text-sm text-muted-foreground whitespace-pre-wrap">{text}</p>
+    </details>
+  );
+}
+
+function EntryStepsBlock({ steps }: { steps: string | Array<{ step: string; detail?: string; source_url?: string }> }) {
+  // Legacy prose → render as one block. Structured array → ordered checklist.
+  if (typeof steps === "string") {
+    return <IntelBlock label="Steps to enter this market" text={steps} />;
+  }
+  if (!Array.isArray(steps) || steps.length === 0) return null;
+  return (
+    <details className="group" open>
+      <summary className="cursor-pointer text-sm font-medium">Steps to enter this market</summary>
+      <ol className="mt-2 space-y-2 list-decimal pl-5">
+        {steps.map((s, i) => (
+          <li key={i} className="text-sm">
+            <div className="font-medium text-foreground">{s.step}</div>
+            {s.detail && <div className="text-muted-foreground mt-0.5">{s.detail}</div>}
+            {s.source_url && (
+              <a href={s.source_url} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline">
+                Source ↗
+              </a>
+            )}
+          </li>
+        ))}
+      </ol>
     </details>
   );
 }
