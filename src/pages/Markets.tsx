@@ -132,6 +132,11 @@ function MarketDetailsCard({ market }: { market: Market }) {
         <MarketServicesSection market={market} />
       </div>
 
+      {/* Competitors & Pricing */}
+      <div className="border-t pt-3">
+        <MarketCompetitorsSection market={market} />
+      </div>
+
 
 
       {/* Intel */}
