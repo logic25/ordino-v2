@@ -125,11 +125,6 @@ export default function MarketServicesSection({ market }: { market: Market }) {
       <div className="flex items-center justify-between">
         <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Services offered ({offeredCount} of {services.length})
-          {flaggedCount > 0 && (
-            <span className="ml-2 inline-flex items-center gap-1 text-amber-700 font-normal normal-case">
-              <AlertTriangle className="h-3 w-3" /> {flaggedCount} flagged (peer review)
-            </span>
-          )}
         </div>
       </div>
 
