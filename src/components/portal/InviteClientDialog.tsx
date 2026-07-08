@@ -394,9 +394,6 @@ export function InviteClientDialog() {
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" size="sm" className="gap-1 mr-auto" onClick={handleCopyLink}>
-            <Copy className="h-3 w-3" /> Copy sign-in link
-          </Button>
           <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
           <Button onClick={handleInvite} disabled={saving || !email || !clientId}>
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Send invite"}
