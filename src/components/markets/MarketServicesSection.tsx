@@ -103,7 +103,6 @@ export default function MarketServicesSection({ market }: { market: Market }) {
   }, [services]);
 
   const offeredCount = services.filter((s) => s.offered).length;
-  const flaggedCount = services.filter((s) => s.peer_review_required && !s.offered).length;
 
   if (services.length === 0) {
     return (
