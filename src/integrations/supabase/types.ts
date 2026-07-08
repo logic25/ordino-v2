@@ -11909,6 +11909,7 @@ export type Database = {
         Args: { _payment_method?: string; _token: string }
         Returns: Json
       }
+      portal_email_has_access: { Args: { _email: string }; Returns: boolean }
       preview_lead_client_match: { Args: { _lead_id: string }; Returns: Json }
       rate_limit_hit: {
         Args: { _bucket_key: string; _limit: number; _window_seconds?: number }

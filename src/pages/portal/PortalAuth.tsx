@@ -14,12 +14,13 @@ export default function PortalAuth() {
           <div className="space-y-1">
             <CardTitle className="text-2xl font-bold">Client Portal</CardTitle>
             <CardDescription>
-              Enter the email address that received the invite and we’ll send you a secure sign-in link.
+              Already got your invite email? Just click the button in it — one click signs you in.
+              Lost it? Enter the invited email below and we'll resend the sign-in link.
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent className="space-y-5">
-          <MagicLinkForm redirectPath="/portal" />
+          <MagicLinkForm redirectPath="/portal" requireInvite />
           <p className="text-center text-xs text-muted-foreground">
             Green Light team member? <Link to="/auth" className="font-medium text-foreground hover:underline">Use staff sign-in</Link>
           </p>
