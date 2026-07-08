@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, Plus, Sparkles, AlertTriangle } from "lucide-react";
+import { Trash2, Plus, Sparkles } from "lucide-react";
 import {
   useUpdateMarket,
   type Market,
@@ -12,50 +12,45 @@ import {
 import { useToast } from "@/hooks/use-toast";
 
 // ── Default catalog GLE offers in any US jurisdiction ─────────────────────────
-// Peer-review-required rows are pre-flagged as NOT offered so a PM doesn't
-// accidentally quote something we don't do yet.
+// Whether the JURISDICTION accepts third-party plan review is tracked at the
+// market level (see MarketPeerReviewSection), not per service line.
 function defaultServices(): MarketService[] {
   const mk = (
     category: string,
     label: string,
     suggested_fee: string,
-    opts: Partial<MarketService> = {},
+    county_fee_note?: string,
+    note?: string,
   ): MarketService => ({
     id: crypto.randomUUID(),
     category,
     label,
     suggested_fee,
-    offered: opts.peer_review_required ? false : true,
-    county_fee_note: opts.county_fee_note,
-    peer_review_required: opts.peer_review_required ?? false,
-    note: opts.note,
+    offered: true,
+    county_fee_note,
+    note,
   });
 
   return [
     // Building
-    mk("Building", "New Commercial Building Permit", "$5,000–$15,000 flat or 10–12% of county fee", { county_fee_note: "Valuation-based + ~65% plan review" }),
-    mk("Building", "Commercial Alteration / Tenant Fit-out", "$2,500–$6,000 flat", { county_fee_note: "Min ~$150 + valuation-based" }),
-    mk("Building", "Change of Use / Occupancy", "$2,000–$4,000", { county_fee_note: "Building fee + zoning review" }),
-    mk("Building", "Shell & Core Permit", "$6,000–$12,000", { county_fee_note: "Valuation-based" }),
-    mk("Building", "Sign Permit", "$500–$1,200 per sign", { county_fee_note: "~$85–$300 per sign" }),
-    mk("Building", "Demolition Permit", "$750–$1,500", { county_fee_note: "~$150–$500" }),
+    mk("Building", "New Commercial Building Permit", "$5,000–$15,000 flat or 10–12% of county fee", "Valuation-based + ~65% plan review"),
+    mk("Building", "Commercial Alteration / Tenant Fit-out", "$2,500–$6,000 flat", "Min ~$150 + valuation-based"),
+    mk("Building", "Change of Use / Occupancy", "$2,000–$4,000", "Building fee + zoning review"),
+    mk("Building", "Shell & Core Permit", "$6,000–$12,000", "Valuation-based"),
+    mk("Building", "Sign Permit", "$500–$1,200 per sign", "~$85–$300 per sign"),
+    mk("Building", "Demolition Permit", "$750–$1,500", "~$150–$500"),
     mk("Building", "Certificate of Occupancy", "$1,500–$3,000"),
 
     // Trade
-    mk("Trade", "Electrical Permit Coordination", "$500–$1,500", { county_fee_note: "~$60 + per-fixture" }),
-    mk("Trade", "Plumbing Permit Coordination", "$500–$1,500", { county_fee_note: "~$60 + per-fixture" }),
-    mk("Trade", "Mechanical / HVAC Coordination", "$500–$1,500", { county_fee_note: "Valuation-based" }),
-    mk("Trade", "Fire Protection (Sprinkler/Alarm)", "$1,000–$2,500", { county_fee_note: "Reviewed by Fire Marshal separately" }),
+    mk("Trade", "Electrical Permit Coordination", "$500–$1,500", "~$60 + per-fixture"),
+    mk("Trade", "Plumbing Permit Coordination", "$500–$1,500", "~$60 + per-fixture"),
+    mk("Trade", "Mechanical / HVAC Coordination", "$500–$1,500", "Valuation-based"),
+    mk("Trade", "Fire Protection (Sprinkler/Alarm)", "$1,000–$2,500", "Reviewed by Fire Marshal separately"),
 
-    // Site / Land Development (peer review commonly required)
-    mk("Site / Land Development", "Site Plan / Grading Permit", "$8,000–$20,000", { peer_review_required: true, note: "Fairfax + most NoVA jurisdictions require third-party plan review." }),
-    mk("Site / Land Development", "Stormwater Management Plan", "$5,000–$12,000", { peer_review_required: true }),
-    mk("Site / Land Development", "Erosion & Sediment Control", "$2,500–$5,000", { peer_review_required: true }),
-
-    // Peer review services (not yet offered)
-    mk("Peer Review", "Structural Peer Review", "TBD", { peer_review_required: true, note: "Requires VA-licensed PE on staff or partnership with listed reviewer (Faisant, ECS, Bowman)." }),
-    mk("Peer Review", "Fire Protection Peer Review", "TBD", { peer_review_required: true }),
-    mk("Peer Review", "MEP Peer Review", "TBD", { peer_review_required: true }),
+    // Site / Land Development
+    mk("Site / Land Development", "Site Plan / Grading Permit", "$8,000–$20,000"),
+    mk("Site / Land Development", "Stormwater Management Plan", "$5,000–$12,000"),
+    mk("Site / Land Development", "Erosion & Sediment Control", "$2,500–$5,000"),
   ];
 }
 
