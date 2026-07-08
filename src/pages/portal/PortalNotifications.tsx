@@ -1,9 +1,14 @@
 import { Link } from "react-router-dom";
 import { PortalLayout } from "@/components/portal/PortalLayout";
-import { usePortalNotifications, useMarkNotificationRead } from "@/hooks/usePortal";
+import {
+  usePortalNotifications, useMarkNotificationRead,
+  useMarkAllNotificationsRead, usePortalNotificationsRealtime,
+} from "@/hooks/usePortal";
 import { Bell, CheckCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { safeFormatDate } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
+
 
 const TYPE_LABEL: Record<string, string> = {
   filing_blocked: "Filing blocked",
