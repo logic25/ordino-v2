@@ -10,7 +10,9 @@ export function PortalLayout({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const nav = useNavigate();
   const { signOut, profile } = useAuth();
+  usePortalNotificationsRealtime();
   const { data: notifs = [] } = usePortalNotifications();
+
   const unread = notifs.filter((n) => !n.read).length;
   const isStaff = profile?.portal_role !== "client";
 
