@@ -19,23 +19,30 @@ import { useToast } from "@/hooks/use-toast";
 // others require the AHJ's own examiner. Tracked here so we know at intake
 // whether GLE can bring a private reviewer to compress plan-check timelines.
 export function ThirdPartyReviewBadge({ status }: { status: ThirdPartyReviewStatus }) {
-  if (status === "yes") {
+  if (status === "accepted") {
     return (
       <Badge variant="outline" className="bg-emerald-100 text-emerald-700 border-emerald-200">
         ✅ 3rd-party review accepted
       </Badge>
     );
   }
-  if (status === "no") {
+  if (status === "accepted_with_restrictions") {
+    return (
+      <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200">
+        ⚠️ Accepted with restrictions
+      </Badge>
+    );
+  }
+  if (status === "not_offered") {
     return (
       <Badge variant="outline" className="bg-rose-100 text-rose-700 border-rose-200">
-        ❌ 3rd-party review not accepted
+        ❌ Not offered
       </Badge>
     );
   }
   return (
     <Badge variant="outline" className="bg-muted text-muted-foreground">
-      ❓ 3rd-party review unknown
+      ❓ Unknown
     </Badge>
   );
 }
@@ -88,8 +95,9 @@ export default function MarketPeerReviewSection({ market }: { market: Market }) 
           <Select value={status} onValueChange={(v) => saveStatus(v as ThirdPartyReviewStatus)}>
             <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="yes">Yes — accepted</SelectItem>
-              <SelectItem value="no">No — AHJ review only</SelectItem>
+              <SelectItem value="accepted">Accepted</SelectItem>
+              <SelectItem value="accepted_with_restrictions">Accepted with restrictions</SelectItem>
+              <SelectItem value="not_offered">Not offered — AHJ review only</SelectItem>
               <SelectItem value="unknown">Unknown — needs research</SelectItem>
             </SelectContent>
           </Select>

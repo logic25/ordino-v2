@@ -113,8 +113,13 @@ Deno.serve(async (req) => {
               },
               third_party_review_allowed: {
                 type: "string",
-                enum: ["yes", "no", "unknown"],
-                description: "Does this jurisdiction ALLOW third-party / peer plan review (a licensed outside reviewer approving plans in lieu of the AHJ)? 'yes' only if there's a named program (e.g. Fairfax Expedited Plan Review). 'no' if the AHJ explicitly does its own review only. 'unknown' if you can't verify.",
+                enum: ["accepted", "accepted_with_restrictions", "not_offered", "unknown"],
+                description:
+                  "Does this jurisdiction ALLOW third-party / peer plan review (a licensed outside reviewer approving plans in lieu of the AHJ)? " +
+                  "'accepted' = named program with no material limits (must cite official URL in third_party_review_source_url). " +
+                  "'accepted_with_restrictions' = allowed only for certain filing types, occupancies, project sizes, or from an approved-reviewer list (must cite URL and state the restriction in notes). " +
+                  "'not_offered' = you found explicit evidence the AHJ does its own review only. " +
+                  "'unknown' = you could not verify a program page. Default to 'unknown' if you cannot cite a real source URL.",
               },
               third_party_review_notes: {
                 type: "string",
@@ -122,7 +127,7 @@ Deno.serve(async (req) => {
               },
               third_party_review_source_url: {
                 type: "string",
-                description: "Single official URL for the third-party / peer / expedited plan review program page. Empty string if none.",
+                description: "Single official URL for the third-party / peer / expedited plan review program page. REQUIRED (non-empty, real https URL) for 'accepted' or 'accepted_with_restrictions'. Empty string if not_offered or unknown.",
               },
             },
             required: ["why_it_matters", "requirements", "key_contacts", "competitive_landscape", "fee_structure", "entry_steps", "third_party_review_allowed"],
@@ -155,7 +160,19 @@ Deno.serve(async (req) => {
     });
   }
 
-  const tpr = ((parsed.third_party_review_allowed as string) ?? "unknown").toLowerCase();
+  const VALID = ["accepted", "accepted_with_restrictions", "not_offered", "unknown"] as const;
+  const rawTpr = ((parsed.third_party_review_allowed as string) ?? "unknown").toLowerCase().trim();
+  const url = ((parsed.third_party_review_source_url as string) ?? "").trim();
+  const hasRealUrl = /^https?:\/\/\S+\.\S+/i.test(url);
+
+  // Guardrails:
+  // 1. Any 'accepted*' state MUST cite a real source URL — else downgrade to 'unknown'.
+  // 2. Preserve the distinction between 'not_offered' (confirmed no) and 'unknown' (couldn't verify).
+  let tpr: string = VALID.includes(rawTpr as any) ? rawTpr : "unknown";
+  if ((tpr === "accepted" || tpr === "accepted_with_restrictions") && !hasRealUrl) {
+    tpr = "unknown";
+  }
+
   return json({
     why_it_matters: (parsed.why_it_matters as string) ?? "",
     requirements: (parsed.requirements as string) ?? "",
@@ -164,8 +181,8 @@ Deno.serve(async (req) => {
     fee_structure: (parsed.fee_structure as string) ?? "",
     entry_steps: (parsed.entry_steps as string) ?? "",
     reference_links: (parsed.reference_links as string) ?? "",
-    third_party_review_allowed: ["yes", "no", "unknown"].includes(tpr) ? tpr : "unknown",
+    third_party_review_allowed: tpr,
     third_party_review_notes: (parsed.third_party_review_notes as string) ?? "",
-    third_party_review_source_url: (parsed.third_party_review_source_url as string) ?? "",
+    third_party_review_source_url: hasRealUrl ? url : "",
   });
 });
