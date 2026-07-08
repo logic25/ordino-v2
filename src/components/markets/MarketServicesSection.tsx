@@ -344,6 +344,34 @@ export default function MarketServicesSection({ market }: { market: Market }) {
                         Draft playbook
                       </button>
                     )}
+                    <span className="flex-1" />
+                    {s.verified_at ? (
+                      <button
+                        type="button"
+                        onClick={() => unverify(s)}
+                        className="text-[11px] text-muted-foreground hover:text-foreground underline decoration-dotted"
+                        title="Clear verification — mark as needs review"
+                      >
+                        Unverify
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => markVerified(s)}
+                        disabled={!s.offered || !s.suggested_fee.trim()}
+                        className="inline-flex items-center gap-1 text-[11px] text-emerald-700 hover:underline disabled:text-muted-foreground disabled:no-underline disabled:cursor-not-allowed"
+                        title={
+                          !s.offered
+                            ? "Turn the service on first"
+                            : !s.suggested_fee.trim()
+                            ? "Add a fee first"
+                            : "Mark this service as verified — proposals and Beacon may quote it authoritatively"
+                        }
+                      >
+                        <ShieldCheck className="h-3 w-3" />
+                        Mark verified
+                      </button>
+                    )}
                   </div>
                 </div>
                 <Button
