@@ -214,6 +214,7 @@ export default function MarketServicesSection({ market }: { market: Market }) {
   }, [services]);
 
   const offeredCount = services.filter((s) => s.offered).length;
+  const verifiedCount = services.filter((s) => s.offered && s.verified_at).length;
 
   if (services.length === 0) {
     return (
