@@ -30,6 +30,7 @@ import {
   type ContentCandidate, type GeneratedContent,
 } from "@/hooks/useContent";
 import { CONTENT_TEMPLATES, type ContentTemplate } from "@/lib/contentTemplates";
+import { ContentNotificationBell } from "@/components/content/ContentNotificationBell";
 
 const STAGES: { key: string; label: string; tone: string }[] = [
   { key: "pending", label: "Ideas", tone: "text-foreground" },
