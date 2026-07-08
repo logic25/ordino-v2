@@ -13,6 +13,7 @@ export type FilingDiscipline =
 
 export interface ClientOrg {
   id: string; company_id: string; name: string; type: string;
+  client_id: string | null;
   primary_contact_name: string | null; primary_contact_email: string | null;
 }
 
@@ -97,6 +98,7 @@ export function useBuildings(clientOrgId?: string) {
 async function resolvePortalScope(userId: string): Promise<{
   clientIds: string[];
   clientOrgIds: string[];
+  clientIdByOrgId: Record<string, string>;
   isInternal: boolean;
 }> {
   // 1. Which client_orgs does this user belong to?
@@ -108,17 +110,32 @@ async function resolvePortalScope(userId: string): Promise<{
 
   if (clientOrgIds.length === 0) {
     // No memberships → internal staff. RLS decides what they see.
-    return { clientIds: [], clientOrgIds: [], isInternal: true };
+    return { clientIds: [], clientOrgIds: [], clientIdByOrgId: {}, isInternal: true };
   }
 
   // 2. Which client (customer) records are those orgs linked to?
   const { data: orgs } = await supabase
     .from("client_orgs")
-    .select("client_id")
+    .select("id, client_id")
     .in("id", clientOrgIds);
   const clientIds = Array.from(new Set((orgs ?? []).map((o: any) => o.client_id).filter(Boolean)));
+  const clientIdByOrgId = Object.fromEntries(
+    (orgs ?? [])
+      .filter((o: any) => o.id && o.client_id)
+      .map((o: any) => [o.id, o.client_id]),
+  );
 
-  return { clientIds, clientOrgIds, isInternal: false };
+  return { clientIds, clientOrgIds, clientIdByOrgId, isInternal: false };
+}
+
+async function resolveClientIdForOrg(clientOrgId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("client_orgs")
+    .select("client_id")
+    .eq("id", clientOrgId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as any)?.client_id ?? null;
 }
 
 export function usePortalProjects(filters?: { clientOrgId?: string; buildingId?: string; stage?: FilingStage }) {
@@ -150,7 +167,17 @@ export function usePortalProjects(filters?: { clientOrgId?: string; buildingId?:
         q = q.or(ors.join(","));
       }
 
-      if (filters?.clientOrgId) q = q.eq("client_org_id", filters.clientOrgId);
+      if (filters?.clientOrgId) {
+        const filteredClientId =
+          scope.clientIdByOrgId[filters.clientOrgId] ??
+          (await resolveClientIdForOrg(filters.clientOrgId));
+        const ors = [`client_org_id.eq.${filters.clientOrgId}`];
+        if (filteredClientId) {
+          ors.push(`client_id.eq.${filteredClientId}`);
+          ors.push(`building_owner_id.eq.${filteredClientId}`);
+        }
+        q = q.or(ors.join(","));
+      }
       if (filters?.buildingId) q = q.eq("building_id", filters.buildingId);
       if (filters?.stage) q = q.eq("portal_overall_stage", filters.stage);
       const { data, error } = await q;
