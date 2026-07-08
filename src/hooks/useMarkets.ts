@@ -163,7 +163,7 @@ export function useResearchMarket() {
       if (typeof resp.third_party_review_source_url === "string" && resp.third_party_review_source_url.trim()) {
         patch.third_party_review_source_url = resp.third_party_review_source_url;
       }
-      const { error: upErr } = await supabase.from("markets").update(patch).eq("id", market.id);
+      const { error: upErr } = await supabase.from("markets").update(patch as any).eq("id", market.id);
       if (upErr) throw upErr;
       return intel;
     },
