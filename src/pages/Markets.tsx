@@ -131,13 +131,16 @@ function MarketDetailsCard({ market }: { market: Market }) {
           <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">AI Research</div>
           {intel.warning && <span className="text-xs text-amber-700">{intel.warning}</span>}
         </div>
-        {!intel.why_it_matters && !intel.requirements && !intel.key_contacts && !intel.competitive_landscape && !intel.raw && (
+        {!intel.why_it_matters && !intel.requirements && !intel.key_contacts && !intel.competitive_landscape && !intel.fee_structure && !intel.entry_steps && !intel.raw && (
           <div className="text-sm text-muted-foreground italic">No research yet. Click "Research with AI" to generate.</div>
         )}
         {intel.why_it_matters && <IntelBlock label="Why it matters" text={intel.why_it_matters} />}
+        {intel.entry_steps && <IntelBlock label="Steps to enter this market" text={intel.entry_steps} />}
         {intel.requirements && <IntelBlock label="Requirements" text={intel.requirements} />}
+        {intel.fee_structure && <IntelBlock label="Permit fees & suggested GLE pricing" text={intel.fee_structure} />}
         {intel.key_contacts && <IntelBlock label="Key contacts" text={intel.key_contacts} />}
         {intel.competitive_landscape && <IntelBlock label="Competitive landscape" text={intel.competitive_landscape} />}
+        {intel.reference_links && <IntelBlock label="Reference links" text={intel.reference_links} />}
         {intel.raw && !intel.why_it_matters && (
           <pre className="text-xs bg-muted rounded p-2 overflow-x-auto whitespace-pre-wrap">{intel.raw}</pre>
         )}
