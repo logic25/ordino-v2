@@ -525,14 +525,22 @@ export default function Auth() {
   );
 }
 
-export function MagicLinkForm({ redirectPath = "/portal" }: { redirectPath?: string }) {
+export function MagicLinkForm({
+  redirectPath = "/portal",
+  requireInvite = false,
+}: {
+  redirectPath?: string;
+  requireInvite?: boolean;
+}) {
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [gateError, setGateError] = useState<string | null>(null);
 
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
+    setGateError(null);
     const cleaned = email.trim().toLowerCase();
     if (!cleaned.includes("@")) {
       toast({ title: "Enter a valid email", variant: "destructive" });
@@ -540,6 +548,27 @@ export function MagicLinkForm({ redirectPath = "/portal" }: { redirectPath?: str
     }
     setSending(true);
     try {
+      if (requireInvite) {
+        const { data: hasAccess, error: gateErr } = await supabase.rpc(
+          "portal_email_has_access",
+          { _email: cleaned },
+        );
+        if (gateErr) {
+          toast({
+            title: "Couldn't verify invite",
+            description: gateErr.message,
+            variant: "destructive",
+          });
+          return;
+        }
+        if (!hasAccess) {
+          setGateError(
+            "This email hasn't been invited to the client portal. Ask your project manager to send you an invite.",
+          );
+          return;
+        }
+      }
+
       const { error } = await supabase.auth.signInWithOtp({
         email: cleaned,
         options: { emailRedirectTo: `${window.location.origin}${redirectPath}` },
