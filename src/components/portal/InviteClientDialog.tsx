@@ -222,6 +222,34 @@ export function InviteClientDialog() {
         }
       }
 
+      // Silently persist manually-entered invitees as non-primary contacts
+      // so they show up in this dropdown next time. Dedupe by email within
+      // the selected client only.
+      if (isManual) {
+        try {
+          const { data: dupe } = await supabase
+            .from("client_contacts")
+            .select("id")
+            .eq("client_id", clientId)
+            .ilike("email", cleaned)
+            .maybeSingle();
+          if (!dupe) {
+            const fullName =
+              [firstName.trim(), lastName.trim()].filter(Boolean).join(" ") ||
+              cleaned.split("@")[0];
+            await supabase.from("client_contacts").insert({
+              client_id: clientId,
+              name: fullName,
+              email: cleaned,
+              is_primary: false,
+            } as any);
+            qc.invalidateQueries({ queryKey: ["client-contacts", clientId] });
+          }
+        } catch (contactErr) {
+          console.warn("Saving invitee to client_contacts failed:", contactErr);
+        }
+      }
+
       await navigator.clipboard.writeText(link).catch(() => {});
       toast({
         title: "Client invited",
