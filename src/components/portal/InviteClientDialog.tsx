@@ -19,6 +19,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { usePortalOrgs } from "@/hooks/usePortal";
+import { useClientContacts } from "@/hooks/useClients";
+
+const MANUAL_CONTACT_VALUE = "__manual__";
 
 type Invite = {
   id: string;
