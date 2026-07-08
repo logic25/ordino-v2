@@ -117,6 +117,17 @@ export function InviteClientDialog() {
     }
   };
 
+  // Auto-select primary contact (or the only contact) when contacts load
+  // for a newly-picked client, unless the user has already made a choice.
+  useEffect(() => {
+    if (!clientId || contactId) return;
+    if (contacts.length === 0) return;
+    const primary = contacts.find((c) => c.is_primary && c.email);
+    const pick = primary ?? (contacts.length === 1 && contacts[0].email ? contacts[0] : null);
+    if (pick) pickContact(pick.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientId, contacts.length]);
+
   // Map CRM client_type → portal org type enum
   const mapType = (t: string | null): "brand" | "gc" | "design" | "other" => {
     const s = (t ?? "").toLowerCase();
