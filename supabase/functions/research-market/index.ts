@@ -155,6 +155,7 @@ Deno.serve(async (req) => {
     });
   }
 
+  const tpr = ((parsed.third_party_review_allowed as string) ?? "unknown").toLowerCase();
   return json({
     why_it_matters: (parsed.why_it_matters as string) ?? "",
     requirements: (parsed.requirements as string) ?? "",
@@ -163,5 +164,8 @@ Deno.serve(async (req) => {
     fee_structure: (parsed.fee_structure as string) ?? "",
     entry_steps: (parsed.entry_steps as string) ?? "",
     reference_links: (parsed.reference_links as string) ?? "",
+    third_party_review_allowed: ["yes", "no", "unknown"].includes(tpr) ? tpr : "unknown",
+    third_party_review_notes: (parsed.third_party_review_notes as string) ?? "",
+    third_party_review_source_url: (parsed.third_party_review_source_url as string) ?? "",
   });
 });
