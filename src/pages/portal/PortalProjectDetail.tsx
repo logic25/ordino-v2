@@ -1,14 +1,21 @@
 import { useParams, Link } from "react-router-dom";
+import { useRef } from "react";
 import { PortalLayout } from "@/components/portal/PortalLayout";
 import { StagePill } from "@/components/portal/StagePill";
 import { DisciplineTimeline } from "@/components/portal/DisciplineTimeline";
 import {
   usePortalProject, useFilings, useFilingEvents, useClientActionItems, usePortalDocuments,
+  useUploadPortalDocument, useDeletePortalDocument, getPortalDocumentUrl,
+  type PortalDocument,
 } from "@/hooks/usePortal";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ArrowLeft, MapPin, FileText, ClipboardList, Activity as ActivityIcon, AlertCircle, Download } from "lucide-react";
+import { ArrowLeft, MapPin, FileText, ClipboardList, Activity as ActivityIcon, AlertCircle, Download, Upload, Loader2, Trash2 } from "lucide-react";
 import { safeFormatDate } from "@/lib/dateUtils";
 import { Skeleton } from "@/components/ui/skeleton";
+
 
 export default function PortalProjectDetail() {
   const { id } = useParams<{ id: string }>();
