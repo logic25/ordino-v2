@@ -188,49 +188,24 @@ export function InviteClientDialog() {
       } as any);
       if (error) throw error;
 
-
-      const PRODUCTION_URL = "https://ordinopm.com";
-      const link = `${PRODUCTION_URL}/portal/auth`;
       const orgName = orgs.find((o) => o.id === orgId)?.name ?? "your projects";
-      const inviteeName = firstName.trim() || "there";
 
-      const session = (await supabase.auth.getSession()).data.session;
-      if (session) {
-        const emailHtml = `
-          <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px">
-            <div style="background:#1e293b;padding:20px 24px;border-radius:12px 12px 0 0">
-              <h1 style="color:#f59e0b;margin:0;font-size:22px">Ordino Client Portal</h1>
-            </div>
-            <div style="background:#ffffff;padding:24px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px">
-              <p style="font-size:16px;color:#1e293b;margin:0 0 12px">Hi ${inviteeName},</p>
-              <p style="font-size:14px;color:#475569;line-height:1.6;margin:0 0 20px">
-                Green Light Expediting invited you to track <strong>${orgName}</strong>'s permits in real time on the Ordino Client Portal.
-              </p>
-              <p style="font-size:14px;color:#475569;line-height:1.6;margin:0 0 20px">
-                Enter this email (<strong>${cleaned}</strong>) to get a secure sign-in link for project status, action items, and documents.
-              </p>
-              <div style="text-align:center;margin:24px 0">
-                <a href="${link}" style="background:#1e293b;color:#f59e0b;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;display:inline-block">
-                  Get secure sign-in link
-                </a>
-              </div>
-              <p style="font-size:12px;color:#94a3b8;margin:16px 0 0;text-align:center">
-                This invite expires in 14 days.
-              </p>
-            </div>
-          </div>`;
-
-        try {
-          await supabase.functions.invoke("gmail-send", {
-            body: {
-              to: cleaned,
-              subject: `You're invited to the Ordino Client Portal`,
-              html_body: emailHtml,
-            },
-          });
-        } catch (emailErr) {
-          console.warn("Invite email failed (invite still created):", emailErr);
-        }
+      // Server mints a magic link and sends the branded email in one step —
+      // the recipient signs in with a single click, no /portal/auth detour.
+      const { data: sendData, error: sendErr } = await supabase.functions.invoke(
+        "send-portal-invite",
+        {
+          body: {
+            email: cleaned,
+            first_name: firstName.trim() || null,
+            last_name: lastName.trim() || null,
+            org_name: orgName,
+            client_org_id: orgId,
+          },
+        },
+      );
+      if (sendErr) {
+        console.warn("send-portal-invite failed (invite row still created):", sendErr, sendData);
       }
 
       // Silently persist manually-entered invitees as non-primary contacts
@@ -261,10 +236,12 @@ export function InviteClientDialog() {
         }
       }
 
-      await navigator.clipboard.writeText(link).catch(() => {});
       toast({
-        title: "Client invited",
-        description: `Invite sent to ${cleaned}. Sign-in link copied.`,
+        title: sendErr ? "Invite created — email may have failed" : "Client invited",
+        description: sendErr
+          ? `Invite row saved for ${cleaned}, but the email couldn't be sent. Check your Gmail connection and try again.`
+          : `${cleaned} will get a one-click sign-in email.`,
+        variant: sendErr ? "destructive" : "default",
       });
       reset();
       await refetch();
