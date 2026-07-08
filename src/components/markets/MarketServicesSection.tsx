@@ -262,6 +262,25 @@ export default function MarketServicesSection({ market }: { market: Market }) {
                     <span className={`text-sm font-medium ${s.offered ? "" : "text-muted-foreground line-through"}`}>
                       {s.label}
                     </span>
+                    {s.verified_at ? (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] bg-emerald-100 text-emerald-700 border-emerald-200 gap-1"
+                        title={`Verified ${new Date(s.verified_at).toLocaleDateString()}${s.verified_by ? " — human confirmed" : ""}`}
+                      >
+                        <ShieldCheck className="h-2.5 w-2.5" />
+                        Verified
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] bg-muted text-muted-foreground gap-1"
+                        title="Not yet verified — downstream tools (proposals, PM briefs, Beacon) will flag this as a guess."
+                      >
+                        <ShieldAlert className="h-2.5 w-2.5" />
+                        Unverified
+                      </Badge>
+                    )}
                     {!s.offered && (
                       <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground">
                         Not offered
