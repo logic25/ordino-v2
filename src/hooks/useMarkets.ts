@@ -42,6 +42,7 @@ export type Market = {
   notes: string | null;
   checklist: ChecklistItem[];
   intel: MarketIntel;
+  services: MarketService[];
   created_at: string;
   updated_at: string;
 };
