@@ -146,11 +146,6 @@ export default function MarketServicesSection({ market }: { market: Market }) {
                     <span className={`text-sm font-medium ${s.offered ? "" : "text-muted-foreground line-through"}`}>
                       {s.label}
                     </span>
-                    {s.peer_review_required && (
-                      <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-800 border-amber-200">
-                        ⚠️ Peer review
-                      </Badge>
-                    )}
                     {!s.offered && (
                       <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground">
                         Not offered
