@@ -38,6 +38,7 @@ import { useToast } from "@/hooks/use-toast";
 import { usePermissions, type ResourceKey } from "@/hooks/usePermissions";
 
 import { useUnreadIndicators } from "@/hooks/useUnreadIndicators";
+import { useContentNotifications } from "@/hooks/useContentNotifications";
 
 type NavItem = { title: string; icon: any; href: string; resource: ResourceKey };
 type NavGroup = { kind: "group"; label: string; items: NavItem[] };
@@ -142,6 +143,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { user, profile, signOut } = useAuth();
   
   const { chatHasUnread, emailHasUnread, emailUnreadCount, billingPendingCount } = useUnreadIndicators();
+  const { newCount: contentNewCount, highestPriority: contentHighestPriority } = useContentNotifications();
 
   const unreadDotMap: Record<string, boolean> = {
     "/chat": chatHasUnread,
@@ -150,6 +152,16 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const unreadCountMap: Record<string, number> = {
     "/emails": emailUnreadCount,
     "/invoices": billingPendingCount,
+    "/content": contentNewCount,
+  };
+
+  const countColorMap: Record<string, string> = {
+    "/content":
+      contentHighestPriority === "high"
+        ? "bg-destructive text-destructive-foreground"
+        : contentHighestPriority === "medium"
+        ? "bg-warning text-warning-foreground"
+        : "bg-muted text-muted-foreground",
   };
 
   const filteredMainNav = useMemo<NavEntry[]>(() =>
@@ -232,7 +244,10 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                 <span className="relative flex-shrink-0">
                   <item.icon className={cn("h-5 w-5", isActive && "text-sidebar-primary")} />
                   {unreadCountMap[item.href] > 0 ? (
-                    <span className="absolute -top-1.5 -right-2.5 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center ring-2 ring-sidebar px-1">
+                    <span className={cn(
+                      "absolute -top-1.5 -right-2.5 min-w-[18px] h-[18px] rounded-full text-[10px] font-bold flex items-center justify-center ring-2 ring-sidebar px-1",
+                      countColorMap[item.href] || "bg-primary text-primary-foreground"
+                    )}>
                       {unreadCountMap[item.href] > 99 ? "99+" : unreadCountMap[item.href]}
                     </span>
                   ) : unreadDotMap[item.href] ? (
