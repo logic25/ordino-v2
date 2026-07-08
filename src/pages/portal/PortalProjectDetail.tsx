@@ -1,14 +1,21 @@
 import { useParams, Link } from "react-router-dom";
+import { useRef } from "react";
 import { PortalLayout } from "@/components/portal/PortalLayout";
 import { StagePill } from "@/components/portal/StagePill";
 import { DisciplineTimeline } from "@/components/portal/DisciplineTimeline";
 import {
   usePortalProject, useFilings, useFilingEvents, useClientActionItems, usePortalDocuments,
+  useUploadPortalDocument, useDeletePortalDocument, getPortalDocumentUrl,
+  type PortalDocument,
 } from "@/hooks/usePortal";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ArrowLeft, MapPin, FileText, ClipboardList, Activity as ActivityIcon, AlertCircle, Download } from "lucide-react";
+import { ArrowLeft, MapPin, FileText, ClipboardList, Activity as ActivityIcon, AlertCircle, Download, Upload, Loader2, Trash2 } from "lucide-react";
 import { safeFormatDate } from "@/lib/dateUtils";
 import { Skeleton } from "@/components/ui/skeleton";
+
 
 export default function PortalProjectDetail() {
   const { id } = useParams<{ id: string }>();
@@ -17,6 +24,45 @@ export default function PortalProjectDetail() {
   const { data: events = [] } = useFilingEvents(id);
   const { data: actionItems = [] } = useClientActionItems(id);
   const { data: docs = [] } = usePortalDocuments(id);
+  const { profile } = useAuth();
+  const { toast } = useToast();
+  const upload = useUploadPortalDocument();
+  const del = useDeletePortalDocument();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const isStaff = profile?.portal_role === "gle_staff";
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !id) return;
+    try {
+      await upload.mutateAsync({ projectId: id, file });
+      toast({ title: "Uploaded", description: file.name });
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      if (e.target) e.target.value = "";
+    }
+  };
+
+  const handleDownload = async (doc: PortalDocument) => {
+    const url = await getPortalDocumentUrl(doc);
+    if (!url) {
+      toast({ title: "Unavailable", description: "This file can't be accessed right now.", variant: "destructive" });
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const handleDelete = async (doc: PortalDocument) => {
+    if (!confirm(`Delete "${doc.display_name}"?`)) return;
+    try {
+      await del.mutateAsync(doc);
+      toast({ title: "Deleted", description: doc.display_name });
+    } catch (err: any) {
+      toast({ title: "Delete failed", description: err.message, variant: "destructive" });
+    }
+  };
+
 
   const clientOpenItems = actionItems.filter((a) => a.owner === "client" && a.status === "open");
   const blockedFilings = filings.filter((f) => f.blocked);
@@ -137,7 +183,19 @@ export default function PortalProjectDetail() {
         </TabsContent>
 
         {/* DOCUMENTS */}
-        <TabsContent value="documents" className="mt-4 space-y-6">
+        <TabsContent value="documents" className="mt-4 space-y-4">
+          {isStaff && (
+            <div className="flex items-center justify-between rounded-lg border bg-white p-3">
+              <div className="text-xs text-muted-foreground">
+                Upload PDFs, plans, permits, or agency correspondence for the client.
+              </div>
+              <input ref={fileInputRef} type="file" className="hidden" onChange={handleUpload} />
+              <Button size="sm" onClick={() => fileInputRef.current?.click()} disabled={upload.isPending}>
+                {upload.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1.5" />}
+                {upload.isPending ? "Uploading…" : "Upload document"}
+              </Button>
+            </div>
+          )}
           {docs.length === 0 ? (
             <div className="text-sm text-muted-foreground border rounded-lg bg-white p-6 text-center">
               No documents uploaded yet.
@@ -158,9 +216,17 @@ export default function PortalProjectDetail() {
                           </div>
                         </div>
                       </div>
-                      <button className="text-xs text-sky-700 hover:underline inline-flex items-center gap-1" disabled>
-                        <Download className="h-3 w-3" /> Download
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button variant="ghost" size="sm" className="h-8 text-xs text-sky-700" onClick={() => handleDownload(d)}>
+                          <Download className="h-3.5 w-3.5 mr-1" /> Download
+                        </Button>
+                        {isStaff && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
+                                  onClick={() => handleDelete(d)} disabled={del.isPending} title="Delete">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -168,6 +234,7 @@ export default function PortalProjectDetail() {
             ))
           )}
         </TabsContent>
+
 
         {/* ACTIVITY */}
         <TabsContent value="activity" className="mt-4">

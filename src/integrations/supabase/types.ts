@@ -11567,6 +11567,10 @@ export type Database = {
         }
         Returns: string
       }
+      can_access_portal_project: {
+        Args: { _project_id: string }
+        Returns: boolean
+      }
       can_modify_operations: {
         Args: { target_company_id: string }
         Returns: boolean
