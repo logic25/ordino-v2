@@ -111,7 +111,7 @@ export default function MarketServicesSection({ market }: { market: Market }) {
           Services offered in this market
         </div>
         <p className="text-sm text-muted-foreground">
-          No services configured yet. Seed the default catalog (Building, Trade, Site/LD, Peer Review) — peer-review items will be pre-flagged as ⚠️ Not offered so you don't accidentally quote them.
+          No services configured yet. Seed the default catalog (Building, Trade, Site/Land Development) to get started.
         </p>
         <Button size="sm" onClick={seed} disabled={update.isPending}>
           <Sparkles className="h-3.5 w-3.5 mr-1.5" /> Seed default service catalog
