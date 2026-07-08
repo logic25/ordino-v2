@@ -100,6 +100,21 @@ export default function MarketServicesSection({ market }: { market: Market }) {
   const removeService = (id: string) =>
     save(services.filter((s) => s.id !== id));
 
+  const draftPlaybookFor = async (s: MarketService) => {
+    try {
+      const pb = await createPlaybook.mutateAsync({
+        market_id: market.id,
+        permit_type: s.label,
+      });
+      // Link the freshly-created playbook back to the service (optional link).
+      await save(services.map((x) => (x.id === s.id ? { ...x, playbook_id: pb.id } : x)));
+      toast({ title: "Playbook drafted", description: `Created a blank playbook for "${s.label}".` });
+    } catch (e: any) {
+      toast({ title: "Could not draft playbook", description: e.message, variant: "destructive" });
+    }
+  };
+
+
   const addService = (category: string) => {
     const label = newLabel.trim();
     if (!label) return;
