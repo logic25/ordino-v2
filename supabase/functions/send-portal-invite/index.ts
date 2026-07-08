@@ -76,7 +76,7 @@ Deno.serve(async (req: Request) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
     const { data: staffCheck, error: staffErr } = await admin.rpc('is_gle_staff', {
-      _user_id: claims.claims.sub,
+      _uid: claims.claims.sub,
     });
     if (staffErr || staffCheck !== true) {
       return new Response(JSON.stringify({ error: 'Forbidden: staff only' }), {
