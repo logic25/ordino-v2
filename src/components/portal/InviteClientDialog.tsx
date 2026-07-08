@@ -270,10 +270,6 @@ export function InviteClientDialog() {
     await refetch();
   };
 
-  const handleCopyLink = async () => {
-    await navigator.clipboard.writeText("https://ordinopm.com/portal/auth");
-    toast({ title: "Sign-in link copied" });
-  };
 
   const statusOf = (i: Invite) => {
     if (i.accepted_at) return "accepted";
