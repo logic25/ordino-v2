@@ -38,6 +38,7 @@ import { useToast } from "@/hooks/use-toast";
 import { usePermissions, type ResourceKey } from "@/hooks/usePermissions";
 
 import { useUnreadIndicators } from "@/hooks/useUnreadIndicators";
+import { useContentNotifications } from "@/hooks/useContentNotifications";
 
 type NavItem = { title: string; icon: any; href: string; resource: ResourceKey };
 type NavGroup = { kind: "group"; label: string; items: NavItem[] };
