@@ -224,6 +224,87 @@ export function useMarkNotificationRead() {
   });
 }
 
+export function useMarkAllNotificationsRead() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("portal_notifications")
+        .update({ read: true })
+        .eq("user_id", user!.id)
+        .eq("read", false);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["portal", "notifications"] }),
+  });
+}
+
+/** Realtime subscription — refresh notifications list on any INSERT for this user */
+export function usePortalNotificationsRealtime() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`portal-notifs-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "portal_notifications", filter: `user_id=eq.${user.id}` },
+        () => qc.invalidateQueries({ queryKey: ["portal", "notifications"] }))
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id, qc]);
+}
+
+/** Upload a portal document (staff only, enforced by storage RLS) */
+export function useUploadPortalDocument() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (args: { projectId: string; file: File; docType?: string; filingId?: string | null }) => {
+      const { projectId, file, docType = "general", filingId = null } = args;
+      const ext = file.name.split(".").pop() || "bin";
+      const path = `${projectId}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("portal-documents").upload(path, file, {
+        contentType: file.type || undefined, upsert: false,
+      });
+      if (upErr) throw upErr;
+      const { data: prof } = await supabase.from("profiles").select("id").eq("user_id", user!.id).maybeSingle();
+      const { error } = await supabase.from("portal_documents").insert({
+        project_id: projectId, filing_id: filingId,
+        doc_type: docType, display_name: file.name,
+        storage_path: path, uploaded_by: prof?.id ?? null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_r, v) => qc.invalidateQueries({ queryKey: ["portal", "documents", v.projectId] }),
+  });
+}
+
+export function useDeletePortalDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (doc: PortalDocument) => {
+      if (doc.storage_path) {
+        await supabase.storage.from("portal-documents").remove([doc.storage_path]);
+      }
+      const { error } = await supabase.from("portal_documents").delete().eq("id", doc.id);
+      if (error) throw error;
+    },
+    onSuccess: (_r, v) => qc.invalidateQueries({ queryKey: ["portal", "documents", v.project_id] }),
+  });
+}
+
+export async function getPortalDocumentUrl(doc: PortalDocument): Promise<string | null> {
+  if (doc.external_url) return doc.external_url;
+  if (!doc.storage_path) return null;
+  const { data, error } = await supabase.storage
+    .from("portal-documents")
+    .createSignedUrl(doc.storage_path, 60 * 10);
+  if (error) return null;
+  return data?.signedUrl ?? null;
+}
+
+
 /** Aggregate counters for the portfolio strip */
 export function usePortalCounters() {
   const { data: projects = [] } = usePortalProjects();
