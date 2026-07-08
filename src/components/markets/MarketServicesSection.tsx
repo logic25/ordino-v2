@@ -58,10 +58,28 @@ function defaultServices(): MarketService[] {
 
 export default function MarketServicesSection({ market }: { market: Market }) {
   const update = useUpdateMarket();
+  const createPlaybook = useCreatePlaybook();
+  const { data: playbooks = [] } = usePlaybooksForMarket(market.id);
   const { toast } = useToast();
   const services = market.services ?? [];
   const [addingCat, setAddingCat] = useState<string | null>(null);
   const [newLabel, setNewLabel] = useState("");
+
+  const playbookById = useMemo(
+    () => new Map(playbooks.map((p) => [p.id, p])),
+    [playbooks],
+  );
+  const playbookByLabel = useMemo(() => {
+    const m = new Map<string, typeof playbooks[number]>();
+    for (const p of playbooks) m.set(p.permit_type.trim().toLowerCase(), p);
+    return m;
+  }, [playbooks]);
+
+  const resolvePlaybook = (s: MarketService) => {
+    if (s.playbook_id) return playbookById.get(s.playbook_id) ?? null;
+    return playbookByLabel.get(s.label.trim().toLowerCase()) ?? null;
+  };
+
 
   const save = async (next: MarketService[]) => {
     try {
