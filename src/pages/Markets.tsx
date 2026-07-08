@@ -92,11 +92,12 @@ function MarketDetailsCard({ market }: { market: Market }) {
     <Card className="p-4 space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-base font-semibold">{market.name}</h3>
             <TierBadge tier={market.tier} />
             <ModeBadge mode={market.mode} />
             <span className="text-xs text-muted-foreground">{market.state}</span>
+            <ThirdPartyReviewBadge status={market.third_party_review_allowed ?? "unknown"} />
           </div>
         </div>
         <Button size="sm" variant="outline" onClick={handleResearch} disabled={research.isPending}>
