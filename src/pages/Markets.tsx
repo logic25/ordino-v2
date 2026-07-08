@@ -24,6 +24,7 @@ import {
 } from "@/hooks/useMarkets";
 import AddEditMarketDialog from "@/components/markets/AddEditMarketDialog";
 import MarketServicesSection from "@/components/markets/MarketServicesSection";
+import MarketCompetitorsSection from "@/components/markets/MarketCompetitorsSection";
 import MarketPeerReviewSection, { ThirdPartyReviewBadge } from "@/components/markets/MarketPeerReviewSection";
 
 import { useToast } from "@/hooks/use-toast";
