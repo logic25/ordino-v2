@@ -1,14 +1,16 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, Plus, Sparkles } from "lucide-react";
+import { Trash2, Plus, Sparkles, BookOpen, BookPlus } from "lucide-react";
 import {
   useUpdateMarket,
   type Market,
   type MarketService,
 } from "@/hooks/useMarkets";
+import { usePlaybooksForMarket, useCreatePlaybook } from "@/hooks/usePermitPlaybooks";
 import { useToast } from "@/hooks/use-toast";
 
 // ── Default catalog GLE offers in any US jurisdiction ─────────────────────────
@@ -56,10 +58,28 @@ function defaultServices(): MarketService[] {
 
 export default function MarketServicesSection({ market }: { market: Market }) {
   const update = useUpdateMarket();
+  const createPlaybook = useCreatePlaybook();
+  const { data: playbooks = [] } = usePlaybooksForMarket(market.id);
   const { toast } = useToast();
   const services = market.services ?? [];
   const [addingCat, setAddingCat] = useState<string | null>(null);
   const [newLabel, setNewLabel] = useState("");
+
+  const playbookById = useMemo(
+    () => new Map(playbooks.map((p) => [p.id, p])),
+    [playbooks],
+  );
+  const playbookByLabel = useMemo(() => {
+    const m = new Map<string, typeof playbooks[number]>();
+    for (const p of playbooks) m.set(p.permit_type.trim().toLowerCase(), p);
+    return m;
+  }, [playbooks]);
+
+  const resolvePlaybook = (s: MarketService) => {
+    if (s.playbook_id) return playbookById.get(s.playbook_id) ?? null;
+    return playbookByLabel.get(s.label.trim().toLowerCase()) ?? null;
+  };
+
 
   const save = async (next: MarketService[]) => {
     try {
@@ -79,6 +99,21 @@ export default function MarketServicesSection({ market }: { market: Market }) {
 
   const removeService = (id: string) =>
     save(services.filter((s) => s.id !== id));
+
+  const draftPlaybookFor = async (s: MarketService) => {
+    try {
+      const pb = await createPlaybook.mutateAsync({
+        market_id: market.id,
+        permit_type: s.label,
+      });
+      // Link the freshly-created playbook back to the service (optional link).
+      await save(services.map((x) => (x.id === s.id ? { ...x, playbook_id: pb.id } : x)));
+      toast({ title: "Playbook drafted", description: `Created a blank playbook for "${s.label}".` });
+    } catch (e: any) {
+      toast({ title: "Could not draft playbook", description: e.message, variant: "destructive" });
+    }
+  };
+
 
   const addService = (category: string) => {
     const label = newLabel.trim();
@@ -132,7 +167,12 @@ export default function MarketServicesSection({ market }: { market: Market }) {
         <div key={cat} className="space-y-1.5">
           <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">{cat}</div>
           <div className="rounded-md border divide-y">
-            {items.map((s) => (
+            {items.map((s) => {
+              const pb = resolvePlaybook(s);
+              const verified = pb ? pb.qa.filter((q) => q.verified).length : 0;
+              const total = pb ? pb.qa.length : 0;
+              const fullyVerified = pb && total > 0 && verified === total;
+              return (
               <div key={s.id} className="flex items-start gap-3 p-2.5">
                 <div className="pt-0.5">
                   <Switch
@@ -167,6 +207,49 @@ export default function MarketServicesSection({ market }: { market: Market }) {
                     />
                   </div>
                   {s.note && <div className="text-[11px] text-muted-foreground">{s.note}</div>}
+                  <div className="flex items-center gap-2 pt-0.5">
+                    {pb ? (
+                      <>
+                        <Link
+                          to={`/markets/${market.id}/playbooks/${pb.id}`}
+                          className="inline-flex items-center gap-1.5 text-[11px] text-primary hover:underline"
+                        >
+                          <BookOpen className="h-3 w-3" />
+                          Playbook
+                        </Link>
+                        <Badge
+                          variant="outline"
+                          className={
+                            fullyVerified
+                              ? "text-[10px] bg-emerald-100 text-emerald-700 border-emerald-200"
+                              : "text-[10px] bg-amber-50 text-amber-700 border-amber-200"
+                          }
+                        >
+                          {verified}/{total} verified
+                        </Badge>
+                        {!s.playbook_id && (
+                          <button
+                            type="button"
+                            onClick={() => updateField(s.id, { playbook_id: pb.id })}
+                            className="text-[10px] text-muted-foreground hover:text-foreground underline decoration-dotted"
+                            title="Match found by name — click to lock this link"
+                          >
+                            link
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => draftPlaybookFor(s)}
+                        disabled={createPlaybook.isPending}
+                        className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-primary"
+                      >
+                        <BookPlus className="h-3 w-3" />
+                        Draft playbook
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <Button
                   size="sm"
@@ -177,7 +260,8 @@ export default function MarketServicesSection({ market }: { market: Market }) {
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
-            ))}
+              );
+            })}
             {addingCat === cat ? (
               <div className="flex items-center gap-2 p-2">
                 <Input
