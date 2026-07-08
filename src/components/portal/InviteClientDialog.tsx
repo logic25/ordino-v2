@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Plus, Mail, Loader2, Trash2, CheckCircle2, Clock, Copy } from "lucide-react";
@@ -19,6 +19,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { usePortalOrgs } from "@/hooks/usePortal";
+import { useClientContacts } from "@/hooks/useClients";
+
+const MANUAL_CONTACT_VALUE = "__manual__";
 
 type Invite = {
   id: string;
@@ -44,6 +47,7 @@ export function InviteClientDialog() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [clientId, setClientId] = useState<string>("");
+  const [contactId, setContactId] = useState<string>(""); // "" = none picked, MANUAL_CONTACT_VALUE = manual entry
   const [saving, setSaving] = useState(false);
 
   // All CRM clients for this company
@@ -60,6 +64,11 @@ export function InviteClientDialog() {
       return (data ?? []) as ClientRow[];
     },
   });
+
+  // Contacts for the currently selected client
+  const { data: contacts = [] } = useClientContacts(clientId || undefined);
+  const hasContacts = contacts.length > 0;
+  const isManual = contactId === MANUAL_CONTACT_VALUE || (!hasContacts && !!clientId);
 
   const { data: invites = [], refetch } = useQuery({
     queryKey: ["client-portal-invites", profile?.company_id],
@@ -81,7 +90,43 @@ export function InviteClientDialog() {
     setFirstName("");
     setLastName("");
     setClientId("");
+    setContactId("");
   };
+
+  const splitName = (full: string | null | undefined): { first: string; last: string } => {
+    const parts = (full ?? "").trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return { first: "", last: "" };
+    if (parts.length === 1) return { first: parts[0], last: "" };
+    return { first: parts[0], last: parts.slice(1).join(" ") };
+  };
+
+  const pickContact = (id: string) => {
+    setContactId(id);
+    if (id === MANUAL_CONTACT_VALUE) {
+      setEmail("");
+      setFirstName("");
+      setLastName("");
+      return;
+    }
+    const c = contacts.find((x) => x.id === id);
+    if (c) {
+      setEmail((c.email ?? "").toLowerCase());
+      const { first, last } = splitName(c.name);
+      setFirstName(first);
+      setLastName(last);
+    }
+  };
+
+  // Auto-select primary contact (or the only contact) when contacts load
+  // for a newly-picked client, unless the user has already made a choice.
+  useEffect(() => {
+    if (!clientId || contactId) return;
+    if (contacts.length === 0) return;
+    const primary = contacts.find((c) => c.is_primary && c.email);
+    const pick = primary ?? (contacts.length === 1 && contacts[0].email ? contacts[0] : null);
+    if (pick) pickContact(pick.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientId, contacts.length]);
 
   // Map CRM client_type → portal org type enum
   const mapType = (t: string | null): "brand" | "gc" | "design" | "other" => {
@@ -188,6 +233,34 @@ export function InviteClientDialog() {
         }
       }
 
+      // Silently persist manually-entered invitees as non-primary contacts
+      // so they show up in this dropdown next time. Dedupe by email within
+      // the selected client only.
+      if (isManual) {
+        try {
+          const { data: dupe } = await supabase
+            .from("client_contacts")
+            .select("id")
+            .eq("client_id", clientId)
+            .ilike("email", cleaned)
+            .maybeSingle();
+          if (!dupe) {
+            const fullName =
+              [firstName.trim(), lastName.trim()].filter(Boolean).join(" ") ||
+              cleaned.split("@")[0];
+            await supabase.from("client_contacts").insert({
+              client_id: clientId,
+              name: fullName,
+              email: cleaned,
+              is_primary: false,
+            } as any);
+            qc.invalidateQueries({ queryKey: ["client-contacts", clientId] });
+          }
+        } catch (contactErr) {
+          console.warn("Saving invitee to client_contacts failed:", contactErr);
+        }
+      }
+
       await navigator.clipboard.writeText(link).catch(() => {});
       toast({
         title: "Client invited",
@@ -256,9 +329,11 @@ export function InviteClientDialog() {
               value={clientId}
               onValueChange={(v) => {
                 setClientId(v);
-                // Pre-fill email if the client has one and the field is empty
-                const c = clients.find((x) => x.id === v);
-                if (c?.email && !email) setEmail(c.email);
+                // Reset contact selection & fields when switching clients.
+                setContactId("");
+                setEmail("");
+                setFirstName("");
+                setLastName("");
               }}
             >
               <SelectTrigger>
@@ -277,27 +352,71 @@ export function InviteClientDialog() {
               We'll auto-create the client's portal workspace the first time you invite them.
             </p>
           </div>
-          <div>
-            <Label className="text-xs">Email</Label>
-            <Input
-              placeholder="client@company.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              type="email"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
+
+          {clientId && hasContacts && (
             <div>
-              <Label className="text-xs">First name</Label>
-              <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+              <Label className="text-xs">Contact (who's actually signing in)</Label>
+              <Select value={contactId} onValueChange={pickContact}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pick a contact" />
+                </SelectTrigger>
+                <SelectContent>
+                  {contacts.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                      {c.email ? <span className="text-muted-foreground ml-2 text-[11px]">· {c.email}</span> : null}
+                      {c.is_primary ? <span className="text-muted-foreground ml-2 text-[11px]">· primary</span> : null}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={MANUAL_CONTACT_VALUE}>
+                    <span className="italic">Invite someone else…</span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div>
-              <Label className="text-xs">Last name</Label>
-              <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
+          )}
+
+          {clientId && !hasContacts && (
+            <p className="text-[11px] text-muted-foreground -mt-1">
+              No contacts on file for this client — enter their details below. We'll save them as a contact.
+            </p>
+          )}
+
+          {clientId && isManual && (
+            <>
+              <div>
+                <Label className="text-xs">Email</Label>
+                <Input
+                  placeholder="person@company.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  type="email"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs">First name</Label>
+                  <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                </div>
+                <div>
+                  <Label className="text-xs">Last name</Label>
+                  <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
+                </div>
+              </div>
+            </>
+          )}
+
+          {clientId && contactId && !isManual && (
+            <div className="rounded-md border bg-muted/30 p-2 text-xs">
+              <div className="font-medium">
+                {[firstName, lastName].filter(Boolean).join(" ") || "(no name on contact)"}
+              </div>
+              <div className="text-muted-foreground">{email || "(no email on contact)"}</div>
             </div>
-          </div>
+          )}
+
           <p className="text-[11px] text-muted-foreground">
-            When the client signs in with this email, they'll join their org's portal automatically. Invite expires in 14 days.
+            When they sign in with this email, they'll join their org's portal automatically. Invite expires in 14 days.
           </p>
         </div>
 
