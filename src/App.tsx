@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
-import { ProtectedRoute, SetupRoute, PublicRoute } from "@/components/routing/RouteGuards";
+import { ProtectedRoute, SetupRoute, PublicRoute, PortalRoute } from "@/components/routing/RouteGuards";
 import { WalkthroughProvider } from "@/components/walkthrough/WalkthroughProvider";
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -207,10 +207,10 @@ function AppRoutes() {
       <Route path="/beacon" element={<ProtectedRoute><BeaconHub /></ProtectedRoute>} />
 
       {/* Ordino Client Portal (customer-facing) */}
-      <Route path="/portal" element={<ProtectedRoute><PortalPortfolio /></ProtectedRoute>} />
-      <Route path="/portal/buildings/:id" element={<ProtectedRoute><PortalBuildingDetail /></ProtectedRoute>} />
-      <Route path="/portal/projects/:id" element={<ProtectedRoute><PortalProjectDetail /></ProtectedRoute>} />
-      <Route path="/portal/notifications" element={<ProtectedRoute><PortalNotifications /></ProtectedRoute>} />
+      <Route path="/portal" element={<PortalRoute><PortalPortfolio /></PortalRoute>} />
+      <Route path="/portal/buildings/:id" element={<PortalRoute><PortalBuildingDetail /></PortalRoute>} />
+      <Route path="/portal/projects/:id" element={<PortalRoute><PortalProjectDetail /></PortalRoute>} />
+      <Route path="/portal/notifications" element={<PortalRoute><PortalNotifications /></PortalRoute>} />
 
       {/* Public RFI form - no auth required */}
       <Route path="/rfi" element={<RfiForm />} />
