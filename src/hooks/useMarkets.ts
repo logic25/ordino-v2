@@ -13,13 +13,16 @@ export type ThirdPartyReviewStatus =
   | "not_offered"
   | "unknown";
 
+export type EntryStep = { step: string; detail?: string; source_url?: string };
+
 export type MarketIntel = {
   why_it_matters?: string;
   requirements?: string;
   key_contacts?: string;
   competitive_landscape?: string;
   fee_structure?: string;
-  entry_steps?: string;
+  /** Legacy: prose string. New: ordered structured steps. Renderer handles both. */
+  entry_steps?: string | EntryStep[];
   reference_links?: string;
   third_party_review?: string; // AI narrative describing the jurisdiction's program (if any)
   warning?: string;
