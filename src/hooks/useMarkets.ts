@@ -198,7 +198,7 @@ export function useResearchMarket() {
           .select("services")
           .eq("id", market.id)
           .maybeSingle();
-        const existing: MarketService[] = ((current?.services ?? []) as unknown as MarketService[]) ?? [];
+        const existing: MarketService[] = (current?.services ?? []) as unknown as MarketService[];
         const existingLabels = new Set(existing.map((s) => s.label.trim().toLowerCase()));
 
         const fmtFee = (row: any): string => {
