@@ -145,7 +145,7 @@ export function InviteClientDialog() {
 
 
       const PRODUCTION_URL = "https://ordinopm.com";
-      const link = `${PRODUCTION_URL}/auth`;
+      const link = `${PRODUCTION_URL}/portal/auth`;
       const orgName = orgs.find((o) => o.id === orgId)?.name ?? "your projects";
       const inviteeName = firstName.trim() || "there";
 
@@ -162,11 +162,11 @@ export function InviteClientDialog() {
                 Green Light Expediting invited you to track <strong>${orgName}</strong>'s permits in real time on the Ordino Client Portal.
               </p>
               <p style="font-size:14px;color:#475569;line-height:1.6;margin:0 0 20px">
-                Sign in with this email (<strong>${cleaned}</strong>) to see project status, action items, and documents.
+                Enter this email (<strong>${cleaned}</strong>) to get a secure sign-in link for project status, action items, and documents.
               </p>
               <div style="text-align:center;margin:24px 0">
                 <a href="${link}" style="background:#1e293b;color:#f59e0b;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;display:inline-block">
-                  Open the Client Portal
+                  Get secure sign-in link
                 </a>
               </div>
               <p style="font-size:12px;color:#94a3b8;margin:16px 0 0;text-align:center">
@@ -221,7 +221,7 @@ export function InviteClientDialog() {
   };
 
   const handleCopyLink = async () => {
-    await navigator.clipboard.writeText("https://ordinopm.com/auth");
+    await navigator.clipboard.writeText("https://ordinopm.com/portal/auth");
     toast({ title: "Sign-in link copied" });
   };
 

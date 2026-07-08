@@ -525,7 +525,7 @@ export default function Auth() {
   );
 }
 
-function MagicLinkForm() {
+export function MagicLinkForm({ redirectPath = "/portal" }: { redirectPath?: string }) {
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [sending, setSending] = useState(false);
@@ -542,7 +542,7 @@ function MagicLinkForm() {
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email: cleaned,
-        options: { emailRedirectTo: `${window.location.origin}/portal` },
+        options: { emailRedirectTo: `${window.location.origin}${redirectPath}` },
       });
       if (error) {
         toast({ title: "Could not send link", description: error.message, variant: "destructive" });
