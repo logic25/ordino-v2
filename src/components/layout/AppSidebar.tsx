@@ -143,6 +143,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { user, profile, signOut } = useAuth();
   
   const { chatHasUnread, emailHasUnread, emailUnreadCount, billingPendingCount } = useUnreadIndicators();
+  const { newCount: contentNewCount, highestPriority: contentHighestPriority } = useContentNotifications();
 
   const unreadDotMap: Record<string, boolean> = {
     "/chat": chatHasUnread,
@@ -151,6 +152,16 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const unreadCountMap: Record<string, number> = {
     "/emails": emailUnreadCount,
     "/invoices": billingPendingCount,
+    "/content": contentNewCount,
+  };
+
+  const countColorMap: Record<string, string> = {
+    "/content":
+      contentHighestPriority === "high"
+        ? "bg-destructive text-destructive-foreground"
+        : contentHighestPriority === "medium"
+        ? "bg-warning text-warning-foreground"
+        : "bg-muted text-muted-foreground",
   };
 
   const filteredMainNav = useMemo<NavEntry[]>(() =>
