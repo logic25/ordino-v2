@@ -1,16 +1,17 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, Plus, Sparkles, BookOpen, BookPlus } from "lucide-react";
+import { Trash2, Plus, Sparkles, BookOpen, BookPlus, ShieldCheck, ShieldAlert } from "lucide-react";
 import {
   useUpdateMarket,
   type Market,
   type MarketService,
 } from "@/hooks/useMarkets";
-import { usePlaybooksForMarket, useCreatePlaybook } from "@/hooks/usePermitPlaybooks";
+import { usePlaybooksForMarket, useCreatePlaybook, type PermitPlaybook } from "@/hooks/usePermitPlaybooks";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
 // ── Default catalog GLE offers in any US jurisdiction ─────────────────────────
@@ -60,6 +61,7 @@ export default function MarketServicesSection({ market }: { market: Market }) {
   const update = useUpdateMarket();
   const createPlaybook = useCreatePlaybook();
   const { data: playbooks = [] } = usePlaybooksForMarket(market.id);
+  const { profile } = useAuth();
   const { toast } = useToast();
   const services = market.services ?? [];
   const [addingCat, setAddingCat] = useState<string | null>(null);
@@ -70,16 +72,21 @@ export default function MarketServicesSection({ market }: { market: Market }) {
     [playbooks],
   );
   const playbookByLabel = useMemo(() => {
-    const m = new Map<string, typeof playbooks[number]>();
+    const m = new Map<string, PermitPlaybook>();
     for (const p of playbooks) m.set(p.permit_type.trim().toLowerCase(), p);
     return m;
   }, [playbooks]);
 
-  const resolvePlaybook = (s: MarketService) => {
+  const resolvePlaybook = (s: MarketService): PermitPlaybook | null => {
     if (s.playbook_id) return playbookById.get(s.playbook_id) ?? null;
     return playbookByLabel.get(s.label.trim().toLowerCase()) ?? null;
   };
 
+  // Is the linked playbook fully human-verified? Uses last_verified_at, which
+  // usePermitPlaybooks only sets when every slot is human-verified. This is the
+  // AI-vs-human contract: AI drafts alone can never satisfy this.
+  const isPlaybookFullyVerified = (pb: PermitPlaybook | null): boolean =>
+    !!pb && pb.qa.length > 0 && !!pb.last_verified_at;
 
   const save = async (next: MarketService[]) => {
     try {
@@ -91,14 +98,81 @@ export default function MarketServicesSection({ market }: { market: Market }) {
 
   const seed = () => save(defaultServices());
 
+  // ── Verification integrity: any edit that changes the underlying data
+  //    invalidates a prior verification. Downstream code trusts verified_at,
+  //    so we must never leave a stale "verified" pointing at edited data.
+  const clearVerification = <T extends Partial<MarketService>>(patch: T): T => ({
+    ...patch,
+    verified_at: null,
+    verified_by: null,
+  });
+
   const toggleOffered = (id: string) =>
-    save(services.map((s) => (s.id === id ? { ...s, offered: !s.offered } : s)));
+    save(services.map((s) => {
+      if (s.id !== id) return s;
+      const next = { ...s, offered: !s.offered };
+      // Turning a service off invalidates its verified status — it's no longer
+      // a claim we're making. Turning it on requires re-verifying.
+      return { ...next, verified_at: null, verified_by: null };
+    }));
 
   const updateField = (id: string, patch: Partial<MarketService>) =>
-    save(services.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+    save(services.map((s) => {
+      if (s.id !== id) return s;
+      // Only editable-data patches invalidate verification. Callers passing
+      // verified_at/verified_by directly (verify / unverify) skip this branch.
+      const editsData =
+        "suggested_fee" in patch ||
+        "county_fee_note" in patch ||
+        "label" in patch ||
+        "playbook_id" in patch ||
+        "note" in patch;
+      return editsData ? { ...s, ...clearVerification(patch) } : { ...s, ...patch };
+    }));
 
   const removeService = (id: string) =>
     save(services.filter((s) => s.id !== id));
+
+  const markVerified = (s: MarketService) => {
+    if (!s.offered) {
+      toast({ title: "Turn the service on first", description: "Only offered services can be marked verified." });
+      return;
+    }
+    if (!s.suggested_fee.trim()) {
+      toast({ title: "Add a fee first", description: "Verification requires a GLE fee on the row." });
+      return;
+    }
+    save(services.map((x) => (x.id === s.id ? {
+      ...x,
+      verified_at: new Date().toISOString(),
+      verified_by: profile?.id ?? null,
+    } : x)));
+    toast({ title: "Service verified", description: `"${s.label}" is now authoritative for downstream use.` });
+  };
+
+  const unverify = (s: MarketService) =>
+    save(services.map((x) => (x.id === s.id ? { ...x, verified_at: null, verified_by: null } : x)));
+
+  // Auto-flip: once per market load, promote any service whose linked playbook
+  // is fully human-verified AND has a fee — as long as it's not already verified
+  // and isn't already stale (edited since). Runs at most once per services array.
+  useEffect(() => {
+    if (services.length === 0) return;
+    let dirty = false;
+    const next = services.map((s) => {
+      if (s.verified_at) return s;
+      if (!s.offered) return s;
+      if (!s.suggested_fee.trim()) return s;
+      const pb = resolvePlaybook(s);
+      if (!isPlaybookFullyVerified(pb)) return s;
+      dirty = true;
+      return { ...s, verified_at: new Date().toISOString(), verified_by: profile?.id ?? null };
+    });
+    if (dirty) save(next);
+    // Intentionally narrow deps — we want this to react to playbook verification
+    // changes and to the services array itself, not to every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playbooks, market.id]);
 
   const draftPlaybookFor = async (s: MarketService) => {
     try {
@@ -106,13 +180,15 @@ export default function MarketServicesSection({ market }: { market: Market }) {
         market_id: market.id,
         permit_type: s.label,
       });
-      // Link the freshly-created playbook back to the service (optional link).
+      // Link but do NOT verify — a fresh playbook has zero verified slots.
       await save(services.map((x) => (x.id === s.id ? { ...x, playbook_id: pb.id } : x)));
       toast({ title: "Playbook drafted", description: `Created a blank playbook for "${s.label}".` });
     } catch (e: any) {
       toast({ title: "Could not draft playbook", description: e.message, variant: "destructive" });
     }
   };
+
+
 
 
   const addService = (category: string) => {
@@ -138,6 +214,7 @@ export default function MarketServicesSection({ market }: { market: Market }) {
   }, [services]);
 
   const offeredCount = services.filter((s) => s.offered).length;
+  const verifiedCount = services.filter((s) => s.offered && s.verified_at).length;
 
   if (services.length === 0) {
     return (
@@ -160,6 +237,10 @@ export default function MarketServicesSection({ market }: { market: Market }) {
       <div className="flex items-center justify-between">
         <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Services offered ({offeredCount} of {services.length})
+          {" · "}
+          <span className={verifiedCount === offeredCount && offeredCount > 0 ? "text-emerald-700" : "text-amber-700"}>
+            {verifiedCount}/{offeredCount} verified
+          </span>
         </div>
       </div>
 
@@ -186,6 +267,25 @@ export default function MarketServicesSection({ market }: { market: Market }) {
                     <span className={`text-sm font-medium ${s.offered ? "" : "text-muted-foreground line-through"}`}>
                       {s.label}
                     </span>
+                    {s.verified_at ? (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] bg-emerald-100 text-emerald-700 border-emerald-200 gap-1"
+                        title={`Verified ${new Date(s.verified_at).toLocaleDateString()}${s.verified_by ? " — human confirmed" : ""}`}
+                      >
+                        <ShieldCheck className="h-2.5 w-2.5" />
+                        Verified
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] bg-muted text-muted-foreground gap-1"
+                        title="Not yet verified — downstream tools (proposals, PM briefs, Beacon) will flag this as a guess."
+                      >
+                        <ShieldAlert className="h-2.5 w-2.5" />
+                        Unverified
+                      </Badge>
+                    )}
                     {!s.offered && (
                       <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground">
                         Not offered
@@ -247,6 +347,34 @@ export default function MarketServicesSection({ market }: { market: Market }) {
                       >
                         <BookPlus className="h-3 w-3" />
                         Draft playbook
+                      </button>
+                    )}
+                    <span className="flex-1" />
+                    {s.verified_at ? (
+                      <button
+                        type="button"
+                        onClick={() => unverify(s)}
+                        className="text-[11px] text-muted-foreground hover:text-foreground underline decoration-dotted"
+                        title="Clear verification — mark as needs review"
+                      >
+                        Unverify
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => markVerified(s)}
+                        disabled={!s.offered || !s.suggested_fee.trim()}
+                        className="inline-flex items-center gap-1 text-[11px] text-emerald-700 hover:underline disabled:text-muted-foreground disabled:no-underline disabled:cursor-not-allowed"
+                        title={
+                          !s.offered
+                            ? "Turn the service on first"
+                            : !s.suggested_fee.trim()
+                            ? "Add a fee first"
+                            : "Mark this service as verified — proposals and Beacon may quote it authoritatively"
+                        }
+                      >
+                        <ShieldCheck className="h-3 w-3" />
+                        Mark verified
                       </button>
                     )}
                   </div>

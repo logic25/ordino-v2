@@ -35,10 +35,19 @@ export type MarketService = {
   /** Optional link to a permit_playbooks row. A service can exist without a playbook;
    *  the row surfaces a "Draft playbook" affordance when this is unset. */
   playbook_id?: string | null;
-  /** @deprecated Third-party plan review is now a market-level attribute, not per-service. Kept for backward compat with existing rows. */
+  /** Verification gate — the flywheel spine. When set, downstream consumers
+   *  (proposals, PM briefs, Beacon) may treat this service as authoritative.
+   *  Set by (a) explicit human click on "Mark verified", or
+   *  (b) auto-flip when the linked playbook is fully human-verified AND suggested_fee is non-empty.
+   *  Cleared when the underlying data changes (fee edited, playbook unlinked, offered toggled off). */
+  verified_at?: string | null;   // ISO timestamp
+  verified_by?: string | null;   // profile.id of the human who verified
+  /** @deprecated Third-party plan review is now a market-level attribute, not per-service. */
   peer_review_required?: boolean;
   note?: string;                 // freeform note
 };
+
+
 
 
 export type Market = {
