@@ -25,7 +25,7 @@ import {
 import AddEditMarketDialog from "@/components/markets/AddEditMarketDialog";
 import MarketServicesSection from "@/components/markets/MarketServicesSection";
 import MarketPeerReviewSection, { ThirdPartyReviewBadge } from "@/components/markets/MarketPeerReviewSection";
-import PlaybookList from "@/components/playbooks/PlaybookList";
+
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
