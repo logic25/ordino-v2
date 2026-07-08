@@ -80,8 +80,14 @@ function MarketDetailsCard({ market }: { market: Market }) {
 
   const handleResearch = async () => {
     try {
-      await research.mutateAsync({ id: market.id, name: market.name, state: market.state, tier: market.tier });
-      toast({ title: "Research complete" });
+      const result = await research.mutateAsync({ id: market.id, name: market.name, state: market.state, tier: market.tier });
+      const drafted = (result as any)?.draftedCount ?? 0;
+      toast({
+        title: "Research complete",
+        description: drafted > 0
+          ? `${drafted} draft service ${drafted === 1 ? "row" : "rows"} added — verify each before quoting.`
+          : "No new service rows drafted (all suggestions already exist).",
+      });
     } catch (e: any) {
       toast({ title: "Research failed", description: e.message, variant: "destructive" });
     }
