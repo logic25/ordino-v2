@@ -167,7 +167,12 @@ export default function MarketServicesSection({ market }: { market: Market }) {
         <div key={cat} className="space-y-1.5">
           <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">{cat}</div>
           <div className="rounded-md border divide-y">
-            {items.map((s) => (
+            {items.map((s) => {
+              const pb = resolvePlaybook(s);
+              const verified = pb ? pb.qa.filter((q) => q.verified).length : 0;
+              const total = pb ? pb.qa.length : 0;
+              const fullyVerified = pb && total > 0 && verified === total;
+              return (
               <div key={s.id} className="flex items-start gap-3 p-2.5">
                 <div className="pt-0.5">
                   <Switch
@@ -202,6 +207,49 @@ export default function MarketServicesSection({ market }: { market: Market }) {
                     />
                   </div>
                   {s.note && <div className="text-[11px] text-muted-foreground">{s.note}</div>}
+                  <div className="flex items-center gap-2 pt-0.5">
+                    {pb ? (
+                      <>
+                        <Link
+                          to={`/markets/${market.id}/playbooks/${pb.id}`}
+                          className="inline-flex items-center gap-1.5 text-[11px] text-primary hover:underline"
+                        >
+                          <BookOpen className="h-3 w-3" />
+                          Playbook
+                        </Link>
+                        <Badge
+                          variant="outline"
+                          className={
+                            fullyVerified
+                              ? "text-[10px] bg-emerald-100 text-emerald-700 border-emerald-200"
+                              : "text-[10px] bg-amber-50 text-amber-700 border-amber-200"
+                          }
+                        >
+                          {verified}/{total} verified
+                        </Badge>
+                        {!s.playbook_id && (
+                          <button
+                            type="button"
+                            onClick={() => updateField(s.id, { playbook_id: pb.id })}
+                            className="text-[10px] text-muted-foreground hover:text-foreground underline decoration-dotted"
+                            title="Match found by name — click to lock this link"
+                          >
+                            link
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => draftPlaybookFor(s)}
+                        disabled={createPlaybook.isPending}
+                        className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-primary"
+                      >
+                        <BookPlus className="h-3 w-3" />
+                        Draft playbook
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <Button
                   size="sm"
@@ -212,7 +260,8 @@ export default function MarketServicesSection({ market }: { market: Market }) {
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
-            ))}
+              );
+            })}
             {addingCat === cat ? (
               <div className="flex items-center gap-2 p-2">
                 <Input
