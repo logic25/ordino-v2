@@ -116,12 +116,9 @@ function MarketDetailsCard({ market }: { market: Market }) {
           </div>
         )}
 
-        {/* Notes */}
-        <div className="space-y-2">
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notes</div>
-          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} onBlur={saveNotes} rows={5}
-            placeholder="Internal notes about this market…" />
-        </div>
+        {/* Generic Notes retired — structured knowledge lives in Services, Third-Party Review,
+            and Playbooks. Existing markets.notes values are preserved in the column and remain
+            editable via AddEditMarketDialog. */}
       </div>
 
       {/* Third-party plan review (jurisdiction-level) */}
