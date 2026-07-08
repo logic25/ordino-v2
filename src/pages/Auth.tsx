@@ -598,16 +598,23 @@ export function MagicLinkForm({
         type="email"
         placeholder="client@company.com"
         value={email}
-        onChange={(e) => setEmail(e.target.value)}
+        onChange={(e) => {
+          setEmail(e.target.value);
+          if (gateError) setGateError(null);
+        }}
         className="h-10"
         autoComplete="email"
       />
       <Button type="submit" variant="outline" className="w-full h-10" disabled={sending}>
         {sending ? "Sending…" : "Email me a sign-in link"}
       </Button>
-      <p className="text-[11px] text-muted-foreground text-center">
-        For invited clients. You'll be redirected to your portal.
-      </p>
+      {gateError ? (
+        <p className="text-[11px] text-destructive text-center">{gateError}</p>
+      ) : (
+        <p className="text-[11px] text-muted-foreground text-center">
+          For invited clients. You'll be redirected to your portal.
+        </p>
+      )}
     </form>
   );
 }
