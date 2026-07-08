@@ -350,72 +350,93 @@ function PreviewDialog({
   );
 }
 
-// ── Source badge: where did this idea come from? ────────────────────────────
-// "From N questions" is now a popover button that shows the actual team questions
-// that clustered into this idea (when we have them).
-function SourceBadge({ c }: { c: ContentCandidate }) {
+// ── Source classification ───────────────────────────────────────────────────
+// The TRUE origin of an idea comes from `source_type`, never from
+// team_questions_count (a newsletter story can happen to match team questions
+// too — that's a secondary signal, not its origin).
+type SourceKey = "newsletter" | "question_cluster" | "email" | "manual" | "other";
+
+function classifySource(c: Pick<ContentCandidate, "source_type">): SourceKey {
   const src = (c.source_type || "").toLowerCase();
+  if (src === "newsletter" || src === "newsletter_email") return "newsletter";
+  if (src === "question_cluster" || src === "questions") return "question_cluster";
+  if (src === "email") return "email";
+  if (src === "manual" || src === "scratch" || src === "from_scratch") return "manual";
+  return "other";
+}
+
+const SOURCE_META: Record<SourceKey, { label: string; emoji: string; className: string }> = {
+  newsletter:       { label: "Newsletter",   emoji: "📰", className: "border-primary/30 bg-primary/10 text-primary" },
+  question_cluster: { label: "Team Chat",    emoji: "📊", className: "border-accent bg-accent text-accent-foreground" },
+  email:            { label: "Email",        emoji: "📧", className: "border-secondary bg-secondary text-secondary-foreground" },
+  manual:           { label: "From scratch", emoji: "✍️", className: "border-border bg-muted text-muted-foreground" },
+  other:            { label: "Other",        emoji: "📄", className: "border-border bg-muted/50 text-muted-foreground" },
+};
+
+function SourceBadge({ c }: { c: ContentCandidate }) {
+  const key = classifySource(c);
+  const meta = SOURCE_META[key];
+  return (
+    <Badge
+      variant="outline"
+      className={`text-[11px] ${meta.className}`}
+      title={`Origin: ${meta.label}`}
+    >
+      {meta.emoji} {meta.label}
+    </Badge>
+  );
+}
+
+// Secondary badge — appears IN ADDITION to SourceBadge when the idea also
+// happens to correlate with N team questions. Never the primary identity.
+function TeamQuestionsBadge({ c }: { c: ContentCandidate }) {
   const qCount = c.team_questions_count || 0;
-  const isQuestionCluster = src === "question_cluster" || src === "questions" || qCount > 0;
-  const isManual = src === "manual" || src === "scratch" || src === "from_scratch";
+  if (qCount <= 0) return null;
+  const questions = c.team_questions || [];
+  const label = `📊 ${qCount} question${qCount === 1 ? "" : "s"}`;
 
-  if (isQuestionCluster) {
-    const label = `📊 ${qCount > 0 ? `From ${qCount} question${qCount === 1 ? "" : "s"}` : "From questions"}`;
-    const questions = c.team_questions || [];
-    const badgeClass =
-      "cursor-pointer text-[11px] border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-400 dark:hover:bg-emerald-950/50";
-
-    return (
-      <Popover>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            onClick={(e) => e.stopPropagation()}
-            title="Click to see the actual team questions behind this idea"
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          title="Click to see the actual team questions this idea correlates with"
+        >
+          <Badge
+            variant="outline"
+            className="cursor-pointer text-[11px] border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
           >
-            <Badge variant="outline" className={badgeClass}>{label}</Badge>
-          </button>
-        </PopoverTrigger>
-        <PopoverContent align="start" className="w-[420px] max-h-[60vh] overflow-y-auto">
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-            Team questions ({qCount || questions.length})
-          </div>
-          {questions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {qCount > 0
-                ? `Beacon counted ${qCount} questions in this cluster but the originals weren't saved with this candidate. Re-run the question-clustering job to attach them.`
-                : "No team questions recorded for this idea."}
-            </p>
-          ) : (
-            <ul className="space-y-1.5">
-              {questions.map((q, i) => (
-                <li key={i} className="text-sm text-foreground/90 flex gap-2">
-                  <span className="text-muted-foreground/60 select-none">{i + 1}.</span>
-                  <span className="break-words">{q}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className="mt-3 pt-2 border-t text-[11px] text-muted-foreground">
-            Sourced from your team's real Beacon chat history. Higher counts → stronger client demand signal.
+            {label}
+          </Badge>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-[420px] max-h-[60vh] overflow-y-auto">
+        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+          Team questions ({qCount || questions.length})
+        </div>
+        {questions.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {qCount > 0
+              ? `Beacon counted ${qCount} questions correlated with this idea but the originals weren't saved. Re-run the question-clustering job to attach them.`
+              : "No team questions recorded for this idea."}
           </p>
-        </PopoverContent>
-      </Popover>
-    );
-  }
-
-  if (isManual) {
-    return (
-      <Badge
-        variant="outline"
-        className="text-[11px] text-muted-foreground"
-        title="Composed manually, not derived from team questions"
-      >
-        ✍️ From scratch
-      </Badge>
-    );
-  }
-  return null;
+        ) : (
+          <ul className="space-y-1.5">
+            {questions.map((q, i) => (
+              <li key={i} className="text-sm text-foreground/90 flex gap-2">
+                <span className="text-muted-foreground/60 select-none">{i + 1}.</span>
+                <span className="break-words">{q}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-3 pt-2 border-t text-[11px] text-muted-foreground">
+          Sourced from your team's real Beacon chat history. Higher counts → stronger client demand signal.
+        </p>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 // ── Idea card ───────────────────────────────────────────────────────────────
