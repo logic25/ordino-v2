@@ -125,6 +125,12 @@ function MarketDetailsCard({ market }: { market: Market }) {
         </div>
       </div>
 
+      {/* Services offered */}
+      <div className="border-t pt-3">
+        <MarketServicesSection market={market} />
+      </div>
+
+
 
       {/* Intel */}
       <div className="space-y-2 border-t pt-3">
