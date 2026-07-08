@@ -26,7 +26,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    return <Navigate to={location.pathname.startsWith("/portal") ? "/portal/auth" : "/auth"} replace />;
   }
 
   // Wait for profile fetch to settle before deciding setup vs dashboard,
