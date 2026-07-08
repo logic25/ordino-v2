@@ -1,0 +1,1 @@
+ALTER VIEW public.market_readiness SET (security_invoker = true);

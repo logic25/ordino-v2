@@ -7892,6 +7892,13 @@ export type Database = {
             foreignKeyName: "permit_playbooks_market_id_fkey"
             columns: ["market_id"]
             isOneToOne: false
+            referencedRelation: "market_readiness"
+            referencedColumns: ["market_id"]
+          },
+          {
+            foreignKeyName: "permit_playbooks_market_id_fkey"
+            columns: ["market_id"]
+            isOneToOne: false
             referencedRelation: "markets"
             referencedColumns: ["id"]
           },
@@ -11678,6 +11685,31 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "invoices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      market_readiness: {
+        Row: {
+          company_id: string | null
+          market_id: string | null
+          name: string | null
+          playbooks_fully_verified: number | null
+          playbooks_total: number | null
+          services_offered: number | null
+          services_total: number | null
+          services_verified: number | null
+          state: string | null
+          third_party_review_allowed: string | null
+          third_party_review_known: boolean | null
+          tier: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "markets_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
