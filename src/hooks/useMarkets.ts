@@ -7,6 +7,8 @@ export type MarketTier = 1 | 2 | 3;
 
 export type ChecklistItem = { id: string; label: string; done: boolean };
 
+export type ThirdPartyReviewStatus = "yes" | "no" | "unknown";
+
 export type MarketIntel = {
   why_it_matters?: string;
   requirements?: string;
@@ -15,6 +17,7 @@ export type MarketIntel = {
   fee_structure?: string;
   entry_steps?: string;
   reference_links?: string;
+  third_party_review?: string; // AI narrative describing the jurisdiction's program (if any)
   warning?: string;
   raw?: string;
 };
@@ -25,7 +28,8 @@ export type MarketService = {
   offered: boolean;              // are we currently offering this service in this market?
   suggested_fee: string;         // e.g. "$2,500–$6,000 flat"
   county_fee_note?: string;      // e.g. "Min $150 + valuation-based"
-  peer_review_required?: boolean;// true = requires third-party peer review
+  /** @deprecated Third-party plan review is now a market-level attribute, not per-service. Kept for backward compat with existing rows. */
+  peer_review_required?: boolean;
   note?: string;                 // freeform note
 };
 
