@@ -12028,6 +12028,15 @@ export type Database = {
         Returns: Json
       }
       portal_email_has_access: { Args: { _email: string }; Returns: boolean }
+      portal_user_can_access_project: {
+        Args: {
+          _project_building_owner_id: string
+          _project_client_id: string
+          _project_client_org_id: string
+          _uid: string
+        }
+        Returns: boolean
+      }
       preview_lead_client_match: { Args: { _lead_id: string }; Returns: Json }
       rate_limit_hit: {
         Args: { _bucket_key: string; _limit: number; _window_seconds?: number }
@@ -12106,6 +12115,7 @@ export type Database = {
         Args: { _role: string; _user_id: string }
         Returns: boolean
       }
+      user_portal_client_ids: { Args: { _uid: string }; Returns: string[] }
     }
     Enums: {
       activity_type:
