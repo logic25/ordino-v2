@@ -90,15 +90,66 @@ export function useBuildings(clientOrgId?: string) {
   });
 }
 
+/**
+ * Resolve the current user's portal scope: which client_ids and client_org_ids
+ * they can see projects for. Empty arrays = internal staff (see all — RLS still applies).
+ */
+async function resolvePortalScope(userId: string): Promise<{
+  clientIds: string[];
+  clientOrgIds: string[];
+  isInternal: boolean;
+}> {
+  // 1. Which client_orgs does this user belong to?
+  const { data: mems } = await supabase
+    .from("client_org_memberships")
+    .select("client_org_id")
+    .eq("user_id", userId);
+  const clientOrgIds = Array.from(new Set((mems ?? []).map((m: any) => m.client_org_id).filter(Boolean)));
+
+  if (clientOrgIds.length === 0) {
+    // No memberships → internal staff. RLS decides what they see.
+    return { clientIds: [], clientOrgIds: [], isInternal: true };
+  }
+
+  // 2. Which client (customer) records are those orgs linked to?
+  const { data: orgs } = await supabase
+    .from("client_orgs")
+    .select("client_id")
+    .in("id", clientOrgIds);
+  const clientIds = Array.from(new Set((orgs ?? []).map((o: any) => o.client_id).filter(Boolean)));
+
+  return { clientIds, clientOrgIds, isInternal: false };
+}
+
 export function usePortalProjects(filters?: { clientOrgId?: string; buildingId?: string; stage?: FilingStage }) {
+  const { user } = useAuth();
   return useQuery({
-    queryKey: ["portal", "projects", filters],
+    queryKey: ["portal", "projects", user?.id, filters],
+    enabled: !!user,
     queryFn: async () => {
+      const scope = await resolvePortalScope(user!.id);
+
       let q = supabase
         .from("projects")
-        .select("id, name, project_number, filing_type, client_org_id, building_id, portal_overall_stage, portal_pct_complete, portal_next_action, properties(address, borough)")
-        .not("client_org_id", "is", null)
+        .select("id, name, project_number, filing_type, client_id, client_org_id, building_id, building_owner_id, portal_overall_stage, portal_pct_complete, portal_next_action, properties(address, borough)")
         .order("updated_at", { ascending: false });
+
+      // For portal users: OR across (client_id, client_org_id, building_owner_id).
+      // Legacy data lives on client_id; new portal-native data on client_org_id.
+      if (!scope.isInternal) {
+        const ors: string[] = [];
+        if (scope.clientIds.length) {
+          const list = scope.clientIds.join(",");
+          ors.push(`client_id.in.(${list})`);
+          ors.push(`building_owner_id.in.(${list})`);
+        }
+        if (scope.clientOrgIds.length) {
+          ors.push(`client_org_id.in.(${scope.clientOrgIds.join(",")})`);
+        }
+        if (ors.length === 0) return [] as PortalProject[];
+        q = q.or(ors.join(","));
+      }
+
       if (filters?.clientOrgId) q = q.eq("client_org_id", filters.clientOrgId);
       if (filters?.buildingId) q = q.eq("building_id", filters.buildingId);
       if (filters?.stage) q = q.eq("portal_overall_stage", filters.stage);
@@ -116,7 +167,7 @@ export function usePortalProject(id: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("projects")
-        .select("id, name, project_number, filing_type, client_org_id, building_id, portal_overall_stage, portal_pct_complete, portal_next_action, properties(address, borough, block, lot, bin)")
+        .select("id, name, project_number, filing_type, client_id, client_org_id, building_id, building_owner_id, portal_overall_stage, portal_pct_complete, portal_next_action, properties(address, borough, block, lot, bin)")
         .eq("id", id!)
         .maybeSingle();
       if (error) throw error;
