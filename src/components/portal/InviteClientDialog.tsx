@@ -318,9 +318,11 @@ export function InviteClientDialog() {
               value={clientId}
               onValueChange={(v) => {
                 setClientId(v);
-                // Pre-fill email if the client has one and the field is empty
-                const c = clients.find((x) => x.id === v);
-                if (c?.email && !email) setEmail(c.email);
+                // Reset contact selection & fields when switching clients.
+                setContactId("");
+                setEmail("");
+                setFirstName("");
+                setLastName("");
               }}
             >
               <SelectTrigger>
@@ -339,27 +341,71 @@ export function InviteClientDialog() {
               We'll auto-create the client's portal workspace the first time you invite them.
             </p>
           </div>
-          <div>
-            <Label className="text-xs">Email</Label>
-            <Input
-              placeholder="client@company.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              type="email"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
+
+          {clientId && hasContacts && (
             <div>
-              <Label className="text-xs">First name</Label>
-              <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+              <Label className="text-xs">Contact (who's actually signing in)</Label>
+              <Select value={contactId} onValueChange={pickContact}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pick a contact" />
+                </SelectTrigger>
+                <SelectContent>
+                  {contacts.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                      {c.email ? <span className="text-muted-foreground ml-2 text-[11px]">· {c.email}</span> : null}
+                      {c.is_primary ? <span className="text-muted-foreground ml-2 text-[11px]">· primary</span> : null}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={MANUAL_CONTACT_VALUE}>
+                    <span className="italic">Invite someone else…</span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div>
-              <Label className="text-xs">Last name</Label>
-              <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
+          )}
+
+          {clientId && !hasContacts && (
+            <p className="text-[11px] text-muted-foreground -mt-1">
+              No contacts on file for this client — enter their details below. We'll save them as a contact.
+            </p>
+          )}
+
+          {clientId && isManual && (
+            <>
+              <div>
+                <Label className="text-xs">Email</Label>
+                <Input
+                  placeholder="person@company.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  type="email"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs">First name</Label>
+                  <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                </div>
+                <div>
+                  <Label className="text-xs">Last name</Label>
+                  <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
+                </div>
+              </div>
+            </>
+          )}
+
+          {clientId && contactId && !isManual && (
+            <div className="rounded-md border bg-muted/30 p-2 text-xs">
+              <div className="font-medium">
+                {[firstName, lastName].filter(Boolean).join(" ") || "(no name on contact)"}
+              </div>
+              <div className="text-muted-foreground">{email || "(no email on contact)"}</div>
             </div>
-          </div>
+          )}
+
           <p className="text-[11px] text-muted-foreground">
-            When the client signs in with this email, they'll join their org's portal automatically. Invite expires in 14 days.
+            When they sign in with this email, they'll join their org's portal automatically. Invite expires in 14 days.
           </p>
         </div>
 
