@@ -283,7 +283,7 @@ export function useUpdateMarketCompetitor() {
       delete payload.company_id;
       const { data, error } = await supabase
         .from("market_competitors")
-        .update(payload)
+        .update(payload as any)
         .eq("id", id)
         .select()
         .single();
