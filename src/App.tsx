@@ -112,6 +112,7 @@ const PortalPortfolio = lazyWithRetry(() => import("./pages/portal/Portfolio"), 
 const PortalBuildingDetail = lazyWithRetry(() => import("./pages/portal/BuildingDetail"), "portal-building-detail");
 const PortalProjectDetail = lazyWithRetry(() => import("./pages/portal/PortalProjectDetail"), "portal-project-detail");
 const PortalNotifications = lazyWithRetry(() => import("./pages/portal/PortalNotifications"), "portal-notifications");
+const PortalAuth = lazyWithRetry(() => import("./pages/portal/PortalAuth"), "portal-auth");
 
 function PageSpinner() {
   return (
@@ -145,6 +146,14 @@ function AppRoutes() {
         }
       />
       <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route
+        path="/portal/auth"
+        element={
+          <PublicRoute>
+            <PortalAuth />
+          </PublicRoute>
+        }
+      />
 
       {/* Setup route - requires auth but no profile */}
       <Route
