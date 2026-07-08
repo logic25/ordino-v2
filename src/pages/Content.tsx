@@ -119,10 +119,28 @@ function CoverImagePicker({
 
   useEffect(() => {
     if (open && !query) {
-      // seed query from key_topics or title
-      const seed = (candidate.key_topics?.[0] || candidate.title || "construction").toString();
-      setQuery(seed);
-      runSearch(seed);
+      // Ask the AI to derive a visual, photographable search phrase from the
+      // actual post body — acronyms like "PAA" or "ALT-1" never surface good
+      // stock photos, so we don't want to seed with candidate.key_topics[0].
+      const fallback = (candidate.title || "construction").toString();
+      setLoading(true);
+      supabase.functions
+        .invoke("suggest-stock-query", {
+          body: {
+            title: candidate.title,
+            topics: candidate.key_topics || [],
+            body: body || "",
+          },
+        })
+        .then(({ data }) => {
+          const q = (data as any)?.query?.toString().trim() || fallback;
+          setQuery(q);
+          runSearch(q);
+        })
+        .catch(() => {
+          setQuery(fallback);
+          runSearch(fallback);
+        });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
