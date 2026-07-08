@@ -24,6 +24,7 @@ import {
 } from "@/hooks/useMarkets";
 import AddEditMarketDialog from "@/components/markets/AddEditMarketDialog";
 import MarketServicesSection from "@/components/markets/MarketServicesSection";
+import MarketPeerReviewSection, { ThirdPartyReviewBadge } from "@/components/markets/MarketPeerReviewSection";
 import PlaybookList from "@/components/playbooks/PlaybookList";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -91,11 +92,12 @@ function MarketDetailsCard({ market }: { market: Market }) {
     <Card className="p-4 space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-base font-semibold">{market.name}</h3>
             <TierBadge tier={market.tier} />
             <ModeBadge mode={market.mode} />
             <span className="text-xs text-muted-foreground">{market.state}</span>
+            <ThirdPartyReviewBadge status={market.third_party_review_allowed ?? "unknown"} />
           </div>
         </div>
         <Button size="sm" variant="outline" onClick={handleResearch} disabled={research.isPending}>
@@ -123,6 +125,11 @@ function MarketDetailsCard({ market }: { market: Market }) {
           <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} onBlur={saveNotes} rows={5}
             placeholder="Internal notes about this market…" />
         </div>
+      </div>
+
+      {/* Third-party plan review (jurisdiction-level) */}
+      <div className="border-t pt-3">
+        <MarketPeerReviewSection market={market} />
       </div>
 
       {/* Services offered */}

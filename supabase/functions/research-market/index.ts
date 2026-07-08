@@ -111,8 +111,21 @@ Deno.serve(async (req) => {
                 type: "string",
                 description: "Bullet list of official URLs (fee schedule, permit portal, licensing page, review metrics) GLE staff should bookmark. Real URLs only.",
               },
+              third_party_review_allowed: {
+                type: "string",
+                enum: ["yes", "no", "unknown"],
+                description: "Does this jurisdiction ALLOW third-party / peer plan review (a licensed outside reviewer approving plans in lieu of the AHJ)? 'yes' only if there's a named program (e.g. Fairfax Expedited Plan Review). 'no' if the AHJ explicitly does its own review only. 'unknown' if you can't verify.",
+              },
+              third_party_review_notes: {
+                type: "string",
+                description: "1-3 sentences on the third-party plan review program: program name, what filing types it covers, any approved-reviewer list, restrictions. Empty string if not offered or unknown.",
+              },
+              third_party_review_source_url: {
+                type: "string",
+                description: "Single official URL for the third-party / peer / expedited plan review program page. Empty string if none.",
+              },
             },
-            required: ["why_it_matters", "requirements", "key_contacts", "competitive_landscape", "fee_structure", "entry_steps"],
+            required: ["why_it_matters", "requirements", "key_contacts", "competitive_landscape", "fee_structure", "entry_steps", "third_party_review_allowed"],
           },
         },
       }],
@@ -142,6 +155,7 @@ Deno.serve(async (req) => {
     });
   }
 
+  const tpr = ((parsed.third_party_review_allowed as string) ?? "unknown").toLowerCase();
   return json({
     why_it_matters: (parsed.why_it_matters as string) ?? "",
     requirements: (parsed.requirements as string) ?? "",
@@ -150,5 +164,8 @@ Deno.serve(async (req) => {
     fee_structure: (parsed.fee_structure as string) ?? "",
     entry_steps: (parsed.entry_steps as string) ?? "",
     reference_links: (parsed.reference_links as string) ?? "",
+    third_party_review_allowed: ["yes", "no", "unknown"].includes(tpr) ? tpr : "unknown",
+    third_party_review_notes: (parsed.third_party_review_notes as string) ?? "",
+    third_party_review_source_url: (parsed.third_party_review_source_url as string) ?? "",
   });
 });

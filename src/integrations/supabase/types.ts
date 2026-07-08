@@ -7182,6 +7182,9 @@ export type Database = {
           operational_score: number | null
           services: Json
           state: string
+          third_party_review_allowed: string
+          third_party_review_notes: string | null
+          third_party_review_source_url: string | null
           tier: number
           updated_at: string
         }
@@ -7198,6 +7201,9 @@ export type Database = {
           operational_score?: number | null
           services?: Json
           state?: string
+          third_party_review_allowed?: string
+          third_party_review_notes?: string | null
+          third_party_review_source_url?: string | null
           tier: number
           updated_at?: string
         }
@@ -7214,6 +7220,9 @@ export type Database = {
           operational_score?: number | null
           services?: Json
           state?: string
+          third_party_review_allowed?: string
+          third_party_review_notes?: string | null
+          third_party_review_source_url?: string | null
           tier?: number
           updated_at?: string
         }

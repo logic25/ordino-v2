@@ -1,53 +1,37 @@
-## Two problems, two fixes
+## Reframe: Peer review is a jurisdiction attribute, not a service
 
-### Fix 1 — One-click branded invite (no more double email)
+You're right. "Peer review" (a.k.a. third-party plan review / expedited plan review) is a **program the jurisdiction offers** — some AHJs allow a licensed outside reviewer to approve plans in place of the county, some don't. It's a property of the market, not of each service line. Fairfax allows it; NYC DOB has its own PW1 examiner track with no third-party equivalent; many small towns don't offer it at all.
 
-**Today:** invite email → click → `/portal/auth` → type email → Supabase magic-link email → click → in.
-**After:** invite email → click → in.
+### What changes
 
-The invite email's CTA will BE the magic link, minted via Supabase Admin API server-side.
+**1. Add jurisdiction-level fields on `markets`**
+- `third_party_review_allowed`: `'yes' | 'no' | 'unknown'` (default `unknown`)
+- `third_party_review_notes`: freeform (e.g. "Fairfax accepts reviewers on published list — Faisant, ECS, Bowman. Expedited Plan Review program.")
+- `third_party_review_source_url`: link to the jurisdiction's program page
 
-**New edge function `send-portal-invite`** (`verify_jwt = true`):
-- Input: `{ email, first_name, last_name, org_name, client_org_id }`.
-- Verifies caller is GLE staff (`is_gle_staff(auth.uid())`).
-- Uses the service-role client to call `supabase.auth.admin.generateLink({ type: 'magiclink', email, options: { redirectTo: 'https://ordinopm.com/portal' } })` — this returns an `action_link` **without** Supabase sending its own email.
-- Sends the existing Ordino-branded HTML through `gmail-send` (forwarding the caller's `Authorization` header so the send uses the staff Gmail connection) with the CTA button pointing at that `action_link`.
-- Returns `{ ok: true }` (or error).
+Shown on the Market detail as a small badge near the header:
+- ✅ Third-party plan review accepted
+- ❌ Not accepted
+- ❓ Unknown — needs research
 
-**`InviteClientDialog` changes:**
-- Keep the existing local work: find-or-create `client_orgs`, insert `client_portal_invites`, silent contact upsert for manual entries (already shipped).
-- Replace the inline `gmail-send` call with `supabase.functions.invoke('send-portal-invite', { body: {...} })`.
-- Toast copy: *"Invite sent to <email> — one click and they're in."*
-- "Copy sign-in link" button is removed (the link is now per-invite and single-use — a static `/portal/auth` link would just resurrect the old two-step flow).
+**2. Simplify the Services catalog**
+Remove `peer_review_required` from `MarketService`. The service catalog goes back to being just "what we offer + what we charge." Whether GLE can *use* a third-party reviewer to speed up any given filing is answered once, at the market level.
 
-### Fix 2 — Block uninvited emails at `/portal/auth`
+The "Peer Review" category rows (Structural / Fire / MEP Peer Review) in the seed catalog get dropped — those aren't services we sell today, and if we ever do, they belong in a separate "GLE can act as third-party reviewer" capability, not in the per-market permit fee list.
 
-`/portal/auth` becomes the "lost your invite" fallback, not an open door.
+**3. AI research prompt update**
+`research-market` edge function starts asking: "Does this jurisdiction accept third-party / peer plan review? If yes, name the program and link the page. If unknown, say so." Result populates the three new fields automatically on Research with AI.
 
-**New SECURITY DEFINER RPC `portal_email_has_access(_email text) returns boolean`:**
-- Returns true if there's a non-expired, non-accepted row in `client_portal_invites` for `_email`, OR the email is already tied to a `client_org_memberships` row (accepted invites, so they can re-request).
-- `GRANT EXECUTE ... TO anon, authenticated` — the page runs unauthenticated.
-- Case-insensitive match (lower(email)).
-
-**`MagicLinkForm` (portal path only) changes:**
-- Before calling `signInWithOtp`, call `supabase.rpc('portal_email_has_access', { _email })`.
-- If false → toast + inline error: *"This email hasn't been invited to the client portal. Ask your project manager to send you an invite."* Nothing sent.
-- If true → same `signInWithOtp` as today. This becomes the resend path for lost/expired invite emails.
-- Staff path (`/auth`) is unaffected — the check only runs for the portal variant. Add a `requireInvite?: boolean` prop to `MagicLinkForm`, default false, set true from `PortalAuth`.
-
-**`PortalAuth.tsx` copy update:**
-> "Already got your invite email? Just click the button in it — one click signs you in.
-> Lost it? Enter the invited email and we'll resend the link."
-
-### Out of scope
-- No changes to the invite table schema (no token column — magic link IS the token, minted on-demand).
-- No changes to `client_orgs`, membership provisioning, staff `/auth` flow, or accepted-invite handling.
-- No email-domain / template scaffolding — we keep sending through the existing `gmail-send` function so the invite comes from a real Green Light inbox.
-- No bulk/multi-recipient invites.
+**4. Migration notes**
+Existing markets: default `third_party_review_allowed = 'unknown'`. Existing services keep working; the `peer_review_required` field is left in the type as optional/ignored so old rows don't break, and the seed catalog stops setting it. No data loss.
 
 ### Files touched
-- `supabase/functions/send-portal-invite/index.ts` (new)
-- `supabase/migrations/<new>.sql` — `portal_email_has_access` function + grants
-- `src/components/portal/InviteClientDialog.tsx` — swap gmail-send for send-portal-invite; drop "copy link" button; updated toast
-- `src/pages/Auth.tsx` — add `requireInvite` prop to `MagicLinkForm`; RPC pre-check
-- `src/pages/portal/PortalAuth.tsx` — pass `requireInvite`, updated copy
+- migration: add 3 columns to `markets`
+- `src/hooks/useMarkets.ts`: add fields to `Market` type, drop `peer_review_required` from `MarketService` (or mark deprecated)
+- `src/components/markets/MarketServicesSection.tsx`: remove peer-review seed rows + the ⚠️ badge logic
+- new `src/components/markets/MarketPeerReviewBadge.tsx` (or inline in `Markets.tsx` header)
+- `src/pages/Markets.tsx`: render the badge + editable "Third-party plan review" block
+- `supabase/functions/research-market/index.ts`: extend schema + prompt
+
+### Open question before I build
+Do you want the field to be a simple **yes / no / unknown** dropdown, or a richer status like **`accepted` / `accepted_with_restrictions` / `not_offered` / `unknown`**? Fairfax is a clean "accepted." Some jurisdictions only allow it for certain occupancy types, which is where the "with restrictions" state earns its keep.
