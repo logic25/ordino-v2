@@ -24,6 +24,45 @@ export default function PortalProjectDetail() {
   const { data: events = [] } = useFilingEvents(id);
   const { data: actionItems = [] } = useClientActionItems(id);
   const { data: docs = [] } = usePortalDocuments(id);
+  const { profile } = useAuth();
+  const { toast } = useToast();
+  const upload = useUploadPortalDocument();
+  const del = useDeletePortalDocument();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const isStaff = profile?.portal_role === "gle_staff";
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !id) return;
+    try {
+      await upload.mutateAsync({ projectId: id, file });
+      toast({ title: "Uploaded", description: file.name });
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      if (e.target) e.target.value = "";
+    }
+  };
+
+  const handleDownload = async (doc: PortalDocument) => {
+    const url = await getPortalDocumentUrl(doc);
+    if (!url) {
+      toast({ title: "Unavailable", description: "This file can't be accessed right now.", variant: "destructive" });
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const handleDelete = async (doc: PortalDocument) => {
+    if (!confirm(`Delete "${doc.display_name}"?`)) return;
+    try {
+      await del.mutateAsync(doc);
+      toast({ title: "Deleted", description: doc.display_name });
+    } catch (err: any) {
+      toast({ title: "Delete failed", description: err.message, variant: "destructive" });
+    }
+  };
+
 
   const clientOpenItems = actionItems.filter((a) => a.owner === "client" && a.status === "open");
   const blockedFilings = filings.filter((f) => f.blocked);
