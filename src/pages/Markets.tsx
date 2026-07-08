@@ -127,6 +127,11 @@ function MarketDetailsCard({ market }: { market: Market }) {
         </div>
       </div>
 
+      {/* Third-party plan review (jurisdiction-level) */}
+      <div className="border-t pt-3">
+        <MarketPeerReviewSection market={market} />
+      </div>
+
       {/* Services offered */}
       <div className="border-t pt-3">
         <MarketServicesSection market={market} />
