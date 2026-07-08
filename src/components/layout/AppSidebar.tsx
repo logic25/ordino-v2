@@ -244,7 +244,10 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                 <span className="relative flex-shrink-0">
                   <item.icon className={cn("h-5 w-5", isActive && "text-sidebar-primary")} />
                   {unreadCountMap[item.href] > 0 ? (
-                    <span className="absolute -top-1.5 -right-2.5 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center ring-2 ring-sidebar px-1">
+                    <span className={cn(
+                      "absolute -top-1.5 -right-2.5 min-w-[18px] h-[18px] rounded-full text-[10px] font-bold flex items-center justify-center ring-2 ring-sidebar px-1",
+                      countColorMap[item.href] || "bg-primary text-primary-foreground"
+                    )}>
                       {unreadCountMap[item.href] > 99 ? "99+" : unreadCountMap[item.href]}
                     </span>
                   ) : unreadDotMap[item.href] ? (
