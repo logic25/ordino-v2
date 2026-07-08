@@ -47,6 +47,7 @@ export function InviteClientDialog() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [clientId, setClientId] = useState<string>("");
+  const [contactId, setContactId] = useState<string>(""); // "" = none picked, MANUAL_CONTACT_VALUE = manual entry
   const [saving, setSaving] = useState(false);
 
   // All CRM clients for this company
@@ -63,6 +64,11 @@ export function InviteClientDialog() {
       return (data ?? []) as ClientRow[];
     },
   });
+
+  // Contacts for the currently selected client
+  const { data: contacts = [] } = useClientContacts(clientId || undefined);
+  const hasContacts = contacts.length > 0;
+  const isManual = contactId === MANUAL_CONTACT_VALUE || (!hasContacts && !!clientId);
 
   const { data: invites = [], refetch } = useQuery({
     queryKey: ["client-portal-invites", profile?.company_id],
@@ -84,6 +90,31 @@ export function InviteClientDialog() {
     setFirstName("");
     setLastName("");
     setClientId("");
+    setContactId("");
+  };
+
+  const splitName = (full: string | null | undefined): { first: string; last: string } => {
+    const parts = (full ?? "").trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return { first: "", last: "" };
+    if (parts.length === 1) return { first: parts[0], last: "" };
+    return { first: parts[0], last: parts.slice(1).join(" ") };
+  };
+
+  const pickContact = (id: string) => {
+    setContactId(id);
+    if (id === MANUAL_CONTACT_VALUE) {
+      setEmail("");
+      setFirstName("");
+      setLastName("");
+      return;
+    }
+    const c = contacts.find((x) => x.id === id);
+    if (c) {
+      setEmail((c.email ?? "").toLowerCase());
+      const { first, last } = splitName(c.name);
+      setFirstName(first);
+      setLastName(last);
+    }
   };
 
   // Map CRM client_type → portal org type enum
