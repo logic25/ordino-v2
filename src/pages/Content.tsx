@@ -752,11 +752,18 @@ export default function Content() {
     }
   };
 
+  const filteredCandidates = useMemo(
+    () => sourceFilter === "all"
+      ? candidates
+      : candidates.filter((c) => classifySource(c) === sourceFilter),
+    [candidates, sourceFilter],
+  );
+
   const byStage = useMemo(() => {
     const g: Record<string, ContentCandidate[]> = { pending: [], drafted: [], approved: [], published: [], skipped: [] };
-    for (const c of candidates) (g[c.status] ?? (g[c.status] = [])).push(c);
+    for (const c of filteredCandidates) (g[c.status] ?? (g[c.status] = [])).push(c);
     return g;
-  }, [candidates]);
+  }, [filteredCandidates]);
 
   const doGenerate = async (c: ContentCandidate) => {
     setGeneratingId(c.id);
