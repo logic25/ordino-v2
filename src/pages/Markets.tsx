@@ -23,6 +23,7 @@ import {
   type Market, type ChecklistItem,
 } from "@/hooks/useMarkets";
 import AddEditMarketDialog from "@/components/markets/AddEditMarketDialog";
+import MarketServicesSection from "@/components/markets/MarketServicesSection";
 import PlaybookList from "@/components/playbooks/PlaybookList";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
