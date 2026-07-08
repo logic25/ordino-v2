@@ -527,6 +527,7 @@ function IdeaCard({
             {c.priority && <PriorityBadge priority={c.priority} />}
             <Badge variant="outline" className="gap-1 text-[11px]"><TypeIcon t={c.content_type} className="h-3 w-3" /> {typeLabel(c.content_type)}</Badge>
             <SourceBadge c={c} />
+            <TeamQuestionsBadge c={c} />
           </div>
           <div className="font-semibold leading-snug">{c.title}</div>
           {c.reasoning && <div className="text-sm text-muted-foreground">{c.reasoning}</div>}
