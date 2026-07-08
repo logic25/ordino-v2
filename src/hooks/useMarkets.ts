@@ -7,7 +7,11 @@ export type MarketTier = 1 | 2 | 3;
 
 export type ChecklistItem = { id: string; label: string; done: boolean };
 
-export type ThirdPartyReviewStatus = "yes" | "no" | "unknown";
+export type ThirdPartyReviewStatus =
+  | "accepted"
+  | "accepted_with_restrictions"
+  | "not_offered"
+  | "unknown";
 
 export type MarketIntel = {
   why_it_matters?: string;
