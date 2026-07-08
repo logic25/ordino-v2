@@ -24,6 +24,7 @@ import {
 } from "@/hooks/useMarkets";
 import AddEditMarketDialog from "@/components/markets/AddEditMarketDialog";
 import MarketServicesSection from "@/components/markets/MarketServicesSection";
+import MarketCompetitorsSection from "@/components/markets/MarketCompetitorsSection";
 import MarketPeerReviewSection, { ThirdPartyReviewBadge } from "@/components/markets/MarketPeerReviewSection";
 
 import { useToast } from "@/hooks/use-toast";
@@ -129,6 +130,11 @@ function MarketDetailsCard({ market }: { market: Market }) {
       {/* Services offered */}
       <div className="border-t pt-3">
         <MarketServicesSection market={market} />
+      </div>
+
+      {/* Competitors & Pricing */}
+      <div className="border-t pt-3">
+        <MarketCompetitorsSection market={market} />
       </div>
 
 

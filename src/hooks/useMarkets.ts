@@ -186,3 +186,182 @@ export function useResearchMarket() {
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
   });
 }
+
+// ---------------- Market Competitors ----------------
+
+export type CompetitorScope = "solo" | "local" | "regional" | "national";
+export type CompetitorPricingModel = "flat" | "hourly" | "percent" | "mixed" | "unknown";
+
+export type MarketCompetitor = {
+  id: string;
+  market_id: string;
+  company_id: string;
+  name: string;
+  url: string | null;
+  scope: CompetitorScope;
+  pricing_text: string | null;
+  pricing_model: CompetitorPricingModel;
+  source_url: string | null;
+  signal_notes: string | null;
+  research_model: string | null;
+  research_run_id: string | null;
+  verified_at: string | null;
+  verified_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ParsedCompetitor = {
+  name: string;
+  url?: string;
+  scope?: CompetitorScope;
+  pricing_text?: string;
+  pricing_model?: CompetitorPricingModel;
+  source_url?: string;
+  signal_notes?: string;
+};
+
+const competitorsKey = (marketId: string) => ["market_competitors", marketId] as const;
+
+export function useMarketCompetitors(marketId: string | undefined) {
+  return useQuery({
+    enabled: !!marketId,
+    queryKey: competitorsKey(marketId ?? ""),
+    queryFn: async (): Promise<MarketCompetitor[]> => {
+      const { data, error } = await supabase
+        .from("market_competitors")
+        .select("*")
+        .eq("market_id", marketId!)
+        .order("verified_at", { ascending: false, nullsFirst: false })
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as MarketCompetitor[];
+    },
+  });
+}
+
+function invalidateCompetitors(qc: ReturnType<typeof useQueryClient>, marketId: string) {
+  qc.invalidateQueries({ queryKey: competitorsKey(marketId) });
+  qc.invalidateQueries({ queryKey: KEY });
+}
+
+export function useAddMarketCompetitor() {
+  const qc = useQueryClient();
+  const { profile } = useAuth();
+  return useMutation({
+    mutationFn: async (input: Partial<MarketCompetitor> & { market_id: string; name: string }) => {
+      if (!profile?.company_id) throw new Error("No company");
+      const { data, error } = await supabase
+        .from("market_competitors")
+        .insert({
+          market_id: input.market_id,
+          company_id: profile.company_id,
+          name: input.name,
+          url: input.url ?? null,
+          scope: (input.scope ?? "local") as CompetitorScope,
+          pricing_text: input.pricing_text ?? null,
+          pricing_model: (input.pricing_model ?? "unknown") as CompetitorPricingModel,
+          source_url: input.source_url ?? null,
+          signal_notes: input.signal_notes ?? null,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (row: any) => invalidateCompetitors(qc, row.market_id),
+  });
+}
+
+export function useUpdateMarketCompetitor() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, market_id, ...patch }: Partial<MarketCompetitor> & { id: string; market_id: string }) => {
+      const payload: Record<string, any> = { ...patch };
+      delete payload.created_at;
+      delete payload.updated_at;
+      delete payload.company_id;
+      const { data, error } = await supabase
+        .from("market_competitors")
+        .update(payload as any)
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_row, vars) => invalidateCompetitors(qc, vars.market_id),
+  });
+}
+
+export function useVerifyMarketCompetitor() {
+  const qc = useQueryClient();
+  const { profile } = useAuth();
+  return useMutation({
+    mutationFn: async ({ id, market_id, verified }: { id: string; market_id: string; verified: boolean }) => {
+      const { error } = await supabase
+        .from("market_competitors")
+        .update({
+          verified_at: verified ? new Date().toISOString() : null,
+          verified_by: verified ? profile?.id ?? null : null,
+        })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_r, vars) => invalidateCompetitors(qc, vars.market_id),
+  });
+}
+
+export function useDeleteMarketCompetitor() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, market_id }: { id: string; market_id: string }) => {
+      const { error } = await supabase.from("market_competitors").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_r, vars) => invalidateCompetitors(qc, vars.market_id),
+  });
+}
+
+export function useImportMarketCompetitors() {
+  const qc = useQueryClient();
+  const { profile } = useAuth();
+  return useMutation({
+    mutationFn: async ({
+      marketId,
+      rows,
+      research_model,
+    }: {
+      marketId: string;
+      rows: ParsedCompetitor[];
+      research_model?: string;
+    }): Promise<{ inserted: number; skipped: number }> => {
+      if (!profile?.company_id) throw new Error("No company");
+      const clean = rows.filter((r) => (r.name ?? "").trim().length > 0);
+      const skipped = rows.length - clean.length;
+      if (clean.length === 0) return { inserted: 0, skipped };
+      const runId = (crypto as any).randomUUID?.() ?? null;
+      const validScopes: CompetitorScope[] = ["solo", "local", "regional", "national"];
+      const validModels: CompetitorPricingModel[] = ["flat", "hourly", "percent", "mixed", "unknown"];
+      const payload = clean.map((r) => ({
+        market_id: marketId,
+        company_id: profile.company_id!,
+        name: r.name.trim(),
+        url: r.url?.trim() || null,
+        scope: (validScopes.includes(r.scope as CompetitorScope) ? r.scope : "local") as CompetitorScope,
+        pricing_text: r.pricing_text?.trim() || null,
+        pricing_model: (validModels.includes(r.pricing_model as CompetitorPricingModel)
+          ? r.pricing_model
+          : "unknown") as CompetitorPricingModel,
+        source_url: r.source_url?.trim() || null,
+        signal_notes: r.signal_notes?.trim() || null,
+        research_model: research_model ?? null,
+        research_run_id: runId,
+      }));
+      const { error } = await supabase.from("market_competitors").insert(payload);
+      if (error) throw error;
+      return { inserted: payload.length, skipped };
+    },
+    onSuccess: (_r, vars) => invalidateCompetitors(qc, vars.marketId),
+  });
+}
