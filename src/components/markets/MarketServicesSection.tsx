@@ -236,6 +236,10 @@ export default function MarketServicesSection({ market }: { market: Market }) {
       <div className="flex items-center justify-between">
         <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Services offered ({offeredCount} of {services.length})
+          {" · "}
+          <span className={verifiedCount === offeredCount && offeredCount > 0 ? "text-emerald-700" : "text-amber-700"}>
+            {verifiedCount}/{offeredCount} verified
+          </span>
         </div>
       </div>
 
