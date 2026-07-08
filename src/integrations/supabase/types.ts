@@ -7168,6 +7168,78 @@ export type Database = {
           },
         ]
       }
+      market_competitors: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          market_id: string
+          name: string
+          pricing_model: Database["public"]["Enums"]["competitor_pricing_model"]
+          pricing_text: string | null
+          research_model: string | null
+          research_run_id: string | null
+          scope: Database["public"]["Enums"]["competitor_scope"]
+          signal_notes: string | null
+          source_url: string | null
+          updated_at: string
+          url: string | null
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          market_id: string
+          name: string
+          pricing_model?: Database["public"]["Enums"]["competitor_pricing_model"]
+          pricing_text?: string | null
+          research_model?: string | null
+          research_run_id?: string | null
+          scope?: Database["public"]["Enums"]["competitor_scope"]
+          signal_notes?: string | null
+          source_url?: string | null
+          updated_at?: string
+          url?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          market_id?: string
+          name?: string
+          pricing_model?: Database["public"]["Enums"]["competitor_pricing_model"]
+          pricing_text?: string | null
+          research_model?: string | null
+          research_run_id?: string | null
+          scope?: Database["public"]["Enums"]["competitor_scope"]
+          signal_notes?: string | null
+          source_url?: string | null
+          updated_at?: string
+          url?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "market_competitors_market_id_fkey"
+            columns: ["market_id"]
+            isOneToOne: false
+            referencedRelation: "market_readiness"
+            referencedColumns: ["market_id"]
+          },
+          {
+            foreignKeyName: "market_competitors_market_id_fkey"
+            columns: ["market_id"]
+            isOneToOne: false
+            referencedRelation: "markets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       markets: {
         Row: {
           checklist: Json
@@ -11695,6 +11767,8 @@ export type Database = {
       market_readiness: {
         Row: {
           company_id: string | null
+          competitors_total: number | null
+          competitors_verified: number | null
           market_id: string | null
           name: string | null
           playbooks_fully_verified: number | null
@@ -12122,6 +12196,13 @@ export type Database = {
         | "approved"
         | "rejected"
         | "voided"
+      competitor_pricing_model:
+        | "flat"
+        | "hourly"
+        | "percent"
+        | "mixed"
+        | "unknown"
+      competitor_scope: "solo" | "local" | "regional" | "national"
       filing_agency: "DOB" | "FDNY" | "other"
       filing_discipline:
         | "building"
@@ -12391,6 +12472,14 @@ export const Constants = {
         "rejected",
         "voided",
       ],
+      competitor_pricing_model: [
+        "flat",
+        "hourly",
+        "percent",
+        "mixed",
+        "unknown",
+      ],
+      competitor_scope: ["solo", "local", "regional", "national"],
       filing_agency: ["DOB", "FDNY", "other"],
       filing_discipline: [
         "building",
