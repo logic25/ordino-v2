@@ -1,73 +1,48 @@
-## Goal
+## Problem
 
-Show a bell on `/content` with a badge counting `content_candidates` rows where `status='pending'` and `created_at >` the current user's last-seen timestamp. Opening the bell lists them and clears the badge. Replaces the Google Chat ping idea.
+`InviteClientDialog` picks a **client (company)** and makes you retype email/name. Company-level email is often generic (`info@…`) or missing, and companies don't have first/last names — so invites go to the wrong inbox or arrive with a blank greeting.
 
-## Scope
+Portals are used by **people**. The invite should be built around a **contact**.
 
-Ordino-side only. Beacon already writes to `content_candidates`. No changes to Beacon or the beacon-proxy.
+## Proposed flow
 
-## Steps
+Two-step picker in the same dialog:
 
-### 1. Per-user "last seen" table (migration)
+1. **Client (company)** — unchanged dropdown from `clients`. Determines the portal org.
+2. **Contact (person)** — new dropdown from `client_contacts` where `client_id = <selected client>`. Selecting a contact auto-fills:
+   - `email` ← `contact.email`
+   - `first_name` / `last_name` ← split from `contact.name`
+   - primary contact pre-selected when present
 
-New table `content_notification_reads`, keyed by `auth.users.id` (not email — matches every other RLS pattern in this repo):
+Escape hatch: **"Invite someone else…"** option at the bottom of the contact dropdown reveals manual email + first/last-name fields.
 
-```
-user_id       uuid PK references auth.users on delete cascade
-last_seen_at  timestamptz not null default now()
-updated_at    timestamptz not null default now()
-```
+Behavior:
+- Zero contacts on the selected client → manual fields shown directly with hint *"No contacts on file — enter their details."*
+- Client-level `clients.email` is no longer auto-filled (source of the generic-email bug). Only a real contact's email pre-fills.
+- Send disabled until `clientId` + valid `email`.
+- Greeting uses contact's first name; falls back to `"there"`.
 
-- Grants: `SELECT, INSERT, UPDATE` to `authenticated`; `ALL` to `service_role`.
-- RLS enabled. Policy: users can select/insert/update only rows where `user_id = auth.uid()`.
-- Update trigger on `updated_at`.
+## "Invite someone else" persistence
 
-Also enable realtime on the candidates table:
-`ALTER PUBLICATION supabase_realtime ADD TABLE public.content_candidates;`
-(Skip if already added — check first.)
+On send, if the invitee came from the manual path, silently upsert into `client_contacts`:
 
-### 2. Hook: `useContentNotifications`
+- `client_id` = selected client
+- `name` = `"${firstName} ${lastName}".trim()` (or email local-part if both blank)
+- `email` = entered email (stored lowercased)
+- `is_primary` = **always `false`** (never auto-promote)
+- Any other columns left to defaults
 
-New file `src/hooks/useContentNotifications.ts`. Responsibilities:
+**Dedupe:** before insert, query `client_contacts` for `client_id = <selected> AND lower(email) = lower(<entered>)`. If a row exists, skip insert. Scope is **email-within-client only** — same email on a different client creates a new row.
 
-- Fetch current user's `last_seen_at` (upsert a default row on first load).
-- Query `content_candidates` where `status='pending'` ordered by `created_at desc`, select `id, title, priority, content_type, team_questions_count, created_at`.
-- Derive `newCandidates = candidates.filter(c => c.created_at > last_seen_at)`.
-- Subscribe to `postgres_changes` INSERT/UPDATE on `content_candidates` inside a `useEffect`, invalidate the query on change. Tear channel down on unmount (per the cloud-realtime rule).
-- `markAllRead()` mutation → upsert `last_seen_at = now()`, invalidate.
+No toast, no confirm dialog. If the insert errors, log and continue — the invite itself still succeeds.
 
-Returns: `{ newCandidates, allPending, newCount, highestPriority, markAllRead, isLoading }`.
+## Files touched
 
-### 3. Component: `ContentNotificationBell`
-
-New file `src/components/content/ContentNotificationBell.tsx`. Popover trigger = `Bell` icon (lucide) with a `Badge` overlay:
-
-- Hidden when `newCount === 0`.
-- Color: red-ish when `highestPriority === 'high'`, amber for medium, muted for low. Uses semantic tokens defined in `index.css` (no hardcoded hex/`bg-red-500` — follow the design-system rule).
-- Popover content: list of new candidates, newest first, one row each = `[PRIORITY badge] Title — N team questions`. Clicking a row scrolls to / opens that candidate in the pipeline (emit an event or accept an `onSelect` prop that the Content page wires to its existing candidate opener).
-- Footer button: "Mark all as read" → calls `markAllRead()`.
-- Opening the popover also calls `markAllRead()` (mark-on-open), so the badge clears immediately.
-
-### 4. Wire into `/content`
-
-In `src/pages/Content.tsx`, add `<ContentNotificationBell onSelect={...} />` into the header row (lines 741–747), next to the "Compose from Scratch" button. Pass a handler that opens the matching candidate card the same way clicking a pipeline row does today.
-
-### 5. Acceptance verification
-
-Playwright pass:
-- Visit `/content` as an authed user → bell renders, badge count == pending rows newer than `last_seen_at`.
-- Click bell → dropdown lists those candidates → badge disappears.
-- Insert a new `pending` row via SQL → badge reappears without refresh (realtime).
-
-## Technical notes
-
-- Uses `auth.uid()` throughout (not email) so RLS is trivial and matches the rest of the app.
-- Query key: `["content-notifications", userId]`. Invalidated by the realtime channel and by `markAllRead`.
-- No dependency on Google Chat, no changes to `beaconApi.ts`, and no calls to `/api/content/notifications` — we query Supabase directly so realtime works.
-- Falls back gracefully if realtime isn't enabled: badge still updates on the next page load / react-query refetch.
+- `src/components/portal/InviteClientDialog.tsx` — add contact dropdown, auto-fill, manual escape hatch, post-send contact upsert.
+- Reuse `useClientContacts(clientId)` from `@/hooks/useClients`.
 
 ## Out of scope
 
-- Bell in the global `TopBar` (spec asks for /content page bell only).
-- Notification for stage transitions (drafted/review/approved). Only new `pending` candidates count as "new."
-- Beacon-side changes.
+- No schema changes, no migration, no RLS changes.
+- No changes to `client_portal_invites`, `client_orgs` provisioning, edge functions, or sign-in flow.
+- No bulk/multi-contact invite.
