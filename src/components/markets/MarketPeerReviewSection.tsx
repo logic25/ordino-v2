@@ -95,8 +95,9 @@ export default function MarketPeerReviewSection({ market }: { market: Market }) 
           <Select value={status} onValueChange={(v) => saveStatus(v as ThirdPartyReviewStatus)}>
             <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="yes">Yes — accepted</SelectItem>
-              <SelectItem value="no">No — AHJ review only</SelectItem>
+              <SelectItem value="accepted">Accepted</SelectItem>
+              <SelectItem value="accepted_with_restrictions">Accepted with restrictions</SelectItem>
+              <SelectItem value="not_offered">Not offered — AHJ review only</SelectItem>
               <SelectItem value="unknown">Unknown — needs research</SelectItem>
             </SelectContent>
           </Select>
