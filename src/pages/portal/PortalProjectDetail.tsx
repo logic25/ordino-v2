@@ -25,6 +25,8 @@ export default function PortalProjectDetail() {
   const { data: events = [] } = useFilingEvents(id);
   const { data: actionItems = [] } = useClientActionItems(id);
   const { data: docs = [] } = usePortalDocuments(id);
+  const { data: allTrackerRows = [] } = usePortalTrackerRows();
+  const filingRows = allTrackerRows.filter((r) => r.project_id === id);
   const { profile } = useAuth();
   const { toast } = useToast();
   const upload = useUploadPortalDocument();
