@@ -243,14 +243,16 @@ export default function PortalProjectDetail() {
               {events.map((e) => (
                 <div key={e.id} className="p-3 text-sm">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="font-mono">{safeFormatDate(e.occurred_at, "MMM d, HH:mm")}</span>
-                    {e.stage && <StagePill stage={e.stage} />}
-                    <span className="ml-auto text-[10px] uppercase tracking-wide">{e.source}</span>
+                    <span className="font-mono">{safeFormatDate(e.created_at, "MMM d, HH:mm")}</span>
+                    <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">
+                      {e.event_type.replace(/_/g, " ")}
+                    </span>
                   </div>
-                  {e.note && <div className="mt-1 text-slate-800">{e.note}</div>}
+                  {e.description && <div className="mt-1 text-slate-800">{e.description}</div>}
                 </div>
               ))}
             </div>
+
           )}
         </TabsContent>
       </Tabs>
