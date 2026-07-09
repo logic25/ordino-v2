@@ -136,19 +136,11 @@ export default function PortalProjectDetail() {
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
-        {/* TIMELINE — per discipline */}
+        {/* FILINGS — one row per app #, PAAs nested under parent */}
         <TabsContent value="timeline" className="mt-4 space-y-3">
-          {filings.length === 0 ? (
-            <div className="text-sm text-muted-foreground border rounded-lg bg-white p-6 text-center">
-              No filings on this project yet.
-            </div>
-          ) : (
-            <>
-              {blockedFilings.map((f) => <DisciplineTimeline key={f.id} filing={f} />)}
-              {filings.filter((f) => !f.blocked).map((f) => <DisciplineTimeline key={f.id} filing={f} />)}
-            </>
-          )}
+          <FilingsTable rows={filingRows} />
         </TabsContent>
+
 
         {/* ACTION ITEMS */}
         <TabsContent value="actions" className="mt-4 space-y-6">
