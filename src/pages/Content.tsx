@@ -30,7 +30,7 @@ import {
   type ContentCandidate, type GeneratedContent,
 } from "@/hooks/useContent";
 import { CONTENT_TEMPLATES, type ContentTemplate } from "@/lib/contentTemplates";
-import { ContentNotificationBell } from "@/components/content/ContentNotificationBell";
+import { formatDistanceToNow, format } from "date-fns";
 
 const STAGES: { key: string; label: string; tone: string }[] = [
   { key: "pending", label: "Ideas", tone: "text-foreground" },
@@ -591,6 +591,18 @@ function IdeaCard({
         {draft?.word_count != null && (
           <span className="inline-flex items-center gap-1"><FileText className="h-3 w-3" /><strong className="text-foreground">{draft.word_count}</strong> words</span>
         )}
+        {(c as any).created_at && (
+          <Tooltip delayDuration={150}>
+            <TooltipTrigger asChild>
+              <span className="inline-flex items-center gap-1 cursor-help">
+                Added {formatDistanceToNow(new Date((c as any).created_at), { addSuffix: true })}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="z-[100]">
+              {format(new Date((c as any).created_at), "PPpp")}
+            </TooltipContent>
+          </Tooltip>
+        )}
       </div>
 
 
@@ -793,12 +805,6 @@ export default function Content() {
             <p className="text-sm text-muted-foreground">AI-identified content opportunities from your knowledge base &amp; team questions. Draft, review, publish.</p>
           </div>
           <div className="flex items-center gap-1">
-            <ContentNotificationBell
-              onSelect={(id) => {
-                const found = candidates.find((c) => c.id === id);
-                if (found) setViewing(found);
-              }}
-            />
             <Button onClick={() => openCompose(null)}><Plus className="h-4 w-4 mr-1" /> Compose from Scratch</Button>
           </div>
         </div>
