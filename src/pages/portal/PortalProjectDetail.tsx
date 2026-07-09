@@ -2,7 +2,8 @@ import { useParams, Link } from "react-router-dom";
 import { useRef } from "react";
 import { PortalLayout } from "@/components/portal/PortalLayout";
 import { StagePill } from "@/components/portal/StagePill";
-import { DisciplineTimeline } from "@/components/portal/DisciplineTimeline";
+import { FilingsTable } from "@/components/portal/FilingsTable";
+import { usePortalTrackerRows } from "@/hooks/usePortalTracker";
 import {
   usePortalProject, useFilings, useFilingEvents, useClientActionItems, usePortalDocuments,
   useUploadPortalDocument, useDeletePortalDocument, getPortalDocumentUrl,
@@ -24,6 +25,8 @@ export default function PortalProjectDetail() {
   const { data: events = [] } = useFilingEvents(id);
   const { data: actionItems = [] } = useClientActionItems(id);
   const { data: docs = [] } = usePortalDocuments(id);
+  const { data: allTrackerRows = [] } = usePortalTrackerRows();
+  const filingRows = allTrackerRows.filter((r) => r.project_id === id);
   const { profile } = useAuth();
   const { toast } = useToast();
   const upload = useUploadPortalDocument();
@@ -127,25 +130,18 @@ export default function PortalProjectDetail() {
 
       <Tabs defaultValue="timeline">
         <TabsList className="bg-white border">
-          <TabsTrigger value="timeline"><ActivityIcon className="h-3.5 w-3.5 mr-1.5" />Timeline</TabsTrigger>
+          <TabsTrigger value="timeline"><FileText className="h-3.5 w-3.5 mr-1.5" />Filings</TabsTrigger>
           <TabsTrigger value="actions"><ClipboardList className="h-3.5 w-3.5 mr-1.5" />Action Items{clientOpenItems.length > 0 && <span className="ml-1.5 rounded-full bg-amber-500 text-white text-[10px] px-1.5">{clientOpenItems.length}</span>}</TabsTrigger>
           <TabsTrigger value="documents"><FileText className="h-3.5 w-3.5 mr-1.5" />Documents</TabsTrigger>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
+          <TabsTrigger value="activity"><ActivityIcon className="h-3.5 w-3.5 mr-1.5" />Activity</TabsTrigger>
         </TabsList>
 
-        {/* TIMELINE — per discipline */}
+
+        {/* FILINGS — one row per app #, PAAs nested under parent */}
         <TabsContent value="timeline" className="mt-4 space-y-3">
-          {filings.length === 0 ? (
-            <div className="text-sm text-muted-foreground border rounded-lg bg-white p-6 text-center">
-              No filings on this project yet.
-            </div>
-          ) : (
-            <>
-              {blockedFilings.map((f) => <DisciplineTimeline key={f.id} filing={f} />)}
-              {filings.filter((f) => !f.blocked).map((f) => <DisciplineTimeline key={f.id} filing={f} />)}
-            </>
-          )}
+          <FilingsTable rows={filingRows} />
         </TabsContent>
+
 
         {/* ACTION ITEMS */}
         <TabsContent value="actions" className="mt-4 space-y-6">
@@ -247,14 +243,16 @@ export default function PortalProjectDetail() {
               {events.map((e) => (
                 <div key={e.id} className="p-3 text-sm">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="font-mono">{safeFormatDate(e.occurred_at, "MMM d, HH:mm")}</span>
-                    {e.stage && <StagePill stage={e.stage} />}
-                    <span className="ml-auto text-[10px] uppercase tracking-wide">{e.source}</span>
+                    <span className="font-mono">{safeFormatDate(e.created_at, "MMM d, HH:mm")}</span>
+                    <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">
+                      {e.event_type.replace(/_/g, " ")}
+                    </span>
                   </div>
-                  {e.note && <div className="mt-1 text-slate-800">{e.note}</div>}
+                  {e.description && <div className="mt-1 text-slate-800">{e.description}</div>}
                 </div>
               ))}
             </div>
+
           )}
         </TabsContent>
       </Tabs>

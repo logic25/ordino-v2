@@ -8,11 +8,13 @@ import {
   usePortalOrgs, useBuildings, usePortalProjects, usePortalCounters,
   type FilingStage,
 } from "@/hooks/usePortal";
-import { Building2, MapPin, ChevronRight, AlertTriangle, CheckCircle2, Clock, Search } from "lucide-react";
+import { Building2, MapPin, ChevronRight, AlertTriangle, CheckCircle2, Clock, Search, LayoutGrid, Table as TableIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { PortfolioTracker } from "@/components/portal/PortfolioTracker";
 
 export default function Portfolio() {
   const { profile } = useAuth();
@@ -28,6 +30,7 @@ export default function Portfolio() {
 
   const [stageFilter, setStageFilter] = useState<FilingStage | "all">("all");
   const [q, setQ] = useState("");
+  const [view, setView] = useState<"cards" | "tracker">("cards");
 
   const filteredProjects = useMemo(() => {
     return projects.filter((p) => {
@@ -77,37 +80,65 @@ export default function Portfolio() {
         <CounterTile icon={AlertTriangle} label="Actions you owe"    value={counters?.actionsNeeded ?? "—"}  tone="amber" />
       </div>
 
-      {/* Filter bar */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by address, project name, or number"
-            value={q} onChange={(e) => setQ(e.target.value)}
-            className="pl-9 bg-white"
-          />
+      {/* View toggle */}
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="inline-flex rounded-md border bg-white p-0.5">
+          <Button
+            size="sm"
+            variant={view === "cards" ? "default" : "ghost"}
+            className="h-7 px-3 text-xs"
+            onClick={() => setView("cards")}
+          >
+            <LayoutGrid className="h-3.5 w-3.5 mr-1.5" /> Cards
+          </Button>
+          <Button
+            size="sm"
+            variant={view === "tracker" ? "default" : "ghost"}
+            className="h-7 px-3 text-xs"
+            onClick={() => setView("tracker")}
+          >
+            <TableIcon className="h-3.5 w-3.5 mr-1.5" /> Tracker
+          </Button>
         </div>
-        <Select value={stageFilter} onValueChange={(v) => setStageFilter(v as any)}>
-          <SelectTrigger className="w-full sm:w-56 bg-white">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All stages</SelectItem>
-            {(Object.keys(STAGE_LABEL) as FilingStage[]).map((s) => (
-              <SelectItem key={s} value={s}>{STAGE_LABEL[s]}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
-      {orgsLoading || projLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3, 4, 5, 6].map((i) => <Skeleton key={i} className="h-40" />)}
-        </div>
-      ) : useRollup ? (
-        <RollupView buildings={buildings} projects={filteredProjects} />
+      {view === "cards" ? (
+        <>
+          {/* Filter bar */}
+          <div className="flex flex-col sm:flex-row gap-3 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by address, project name, or number"
+                value={q} onChange={(e) => setQ(e.target.value)}
+                className="pl-9 bg-white"
+              />
+            </div>
+            <Select value={stageFilter} onValueChange={(v) => setStageFilter(v as any)}>
+              <SelectTrigger className="w-full sm:w-56 bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All stages</SelectItem>
+                {(Object.keys(STAGE_LABEL) as FilingStage[]).map((s) => (
+                  <SelectItem key={s} value={s}>{STAGE_LABEL[s]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {orgsLoading || projLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3, 4, 5, 6].map((i) => <Skeleton key={i} className="h-40" />)}
+            </div>
+          ) : useRollup ? (
+            <RollupView buildings={buildings} projects={filteredProjects} />
+          ) : (
+            <FlatGrid projects={filteredProjects} />
+          )}
+        </>
       ) : (
-        <FlatGrid projects={filteredProjects} />
+        <PortfolioTracker clientOrgId={activeOrgId} />
       )}
 
       {!orgsLoading && orgs.length === 0 && (
