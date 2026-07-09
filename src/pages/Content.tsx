@@ -836,7 +836,7 @@ export default function Content() {
           <TabsContent value="pipeline" className="mt-4 space-y-5">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Ideas ({filteredCandidates.length}{sourceFilter !== "all" ? ` of ${candidates.length}` : ""})
+                All candidates ({filteredCandidates.length}{sourceFilter !== "all" ? ` of ${candidates.length}` : ""}) — grouped by stage below
               </div>
               <div className="flex items-center gap-1 flex-wrap">
                 {([
