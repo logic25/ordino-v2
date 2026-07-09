@@ -2,7 +2,8 @@ import { useParams, Link } from "react-router-dom";
 import { useRef } from "react";
 import { PortalLayout } from "@/components/portal/PortalLayout";
 import { StagePill } from "@/components/portal/StagePill";
-import { DisciplineTimeline } from "@/components/portal/DisciplineTimeline";
+import { FilingsTable } from "@/components/portal/FilingsTable";
+import { usePortalTrackerRows } from "@/hooks/usePortalTracker";
 import {
   usePortalProject, useFilings, useFilingEvents, useClientActionItems, usePortalDocuments,
   useUploadPortalDocument, useDeletePortalDocument, getPortalDocumentUrl,
