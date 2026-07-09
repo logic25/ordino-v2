@@ -30,6 +30,7 @@ export default function Portfolio() {
 
   const [stageFilter, setStageFilter] = useState<FilingStage | "all">("all");
   const [q, setQ] = useState("");
+  const [view, setView] = useState<"cards" | "tracker">("cards");
 
   const filteredProjects = useMemo(() => {
     return projects.filter((p) => {
