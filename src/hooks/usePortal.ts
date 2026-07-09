@@ -219,24 +219,41 @@ export function useFilings(projectId: string | undefined) {
   });
 }
 
+export interface PortalActivityEvent {
+  id: string;
+  project_id: string;
+  event_type: string;
+  description: string | null;
+  created_at: string;
+  metadata: any;
+}
+
+const CLIENT_VISIBLE_EVENT_TYPES = [
+  "service_filed", "objections_received", "service_approved", "permit_issued",
+  "paa_filed", "paa_approved",
+  "document_uploaded",
+  "client_submitted_item", "action_item_created",
+  "invoice_sent",
+];
+
 export function useFilingEvents(projectId: string | undefined) {
   return useQuery({
-    queryKey: ["portal", "filing-events", projectId],
+    queryKey: ["portal", "activity", projectId],
     enabled: !!projectId,
     queryFn: async () => {
-      const { data: filings } = await supabase.from("filings").select("id").eq("project_id", projectId!);
-      const ids = (filings ?? []).map((f: any) => f.id);
-      if (ids.length === 0) return [];
       const { data, error } = await supabase
-        .from("filing_events")
-        .select("*")
-        .in("filing_id", ids)
-        .order("occurred_at", { ascending: false });
+        .from("project_timeline_events")
+        .select("id, project_id, event_type, description, created_at, metadata")
+        .eq("project_id", projectId!)
+        .in("event_type", CLIENT_VISIBLE_EVENT_TYPES)
+        .order("created_at", { ascending: false })
+        .limit(200);
       if (error) throw error;
-      return (data ?? []) as FilingEvent[];
+      return (data ?? []) as PortalActivityEvent[];
     },
   });
 }
+
 
 export function useClientActionItems(projectId: string | undefined) {
   return useQuery({
