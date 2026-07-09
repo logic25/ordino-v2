@@ -130,11 +130,12 @@ export default function PortalProjectDetail() {
 
       <Tabs defaultValue="timeline">
         <TabsList className="bg-white border">
-          <TabsTrigger value="timeline"><ActivityIcon className="h-3.5 w-3.5 mr-1.5" />Timeline</TabsTrigger>
+          <TabsTrigger value="timeline"><FileText className="h-3.5 w-3.5 mr-1.5" />Filings</TabsTrigger>
           <TabsTrigger value="actions"><ClipboardList className="h-3.5 w-3.5 mr-1.5" />Action Items{clientOpenItems.length > 0 && <span className="ml-1.5 rounded-full bg-amber-500 text-white text-[10px] px-1.5">{clientOpenItems.length}</span>}</TabsTrigger>
           <TabsTrigger value="documents"><FileText className="h-3.5 w-3.5 mr-1.5" />Documents</TabsTrigger>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
+          <TabsTrigger value="activity"><ActivityIcon className="h-3.5 w-3.5 mr-1.5" />Activity</TabsTrigger>
         </TabsList>
+
 
         {/* FILINGS — one row per app #, PAAs nested under parent */}
         <TabsContent value="timeline" className="mt-4 space-y-3">
