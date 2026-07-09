@@ -8438,6 +8438,7 @@ export type Database = {
           gchat_space_id: string | null
           gchat_thread_id: string | null
           id: string
+          owner_facing: boolean
           priority: string
           project_id: string
           service_id: string | null
@@ -8459,6 +8460,7 @@ export type Database = {
           gchat_space_id?: string | null
           gchat_thread_id?: string | null
           id?: string
+          owner_facing?: boolean
           priority?: string
           project_id: string
           service_id?: string | null
@@ -8480,6 +8482,7 @@ export type Database = {
           gchat_space_id?: string | null
           gchat_thread_id?: string | null
           id?: string
+          owner_facing?: boolean
           priority?: string
           project_id?: string
           service_id?: string | null
@@ -8787,6 +8790,7 @@ export type Database = {
       project_notes: {
         Row: {
           body: string
+          client_visible: boolean
           company_id: string
           created_at: string
           id: string
@@ -8798,6 +8802,7 @@ export type Database = {
         }
         Insert: {
           body: string
+          client_visible?: boolean
           company_id: string
           created_at?: string
           id?: string
@@ -8809,6 +8814,7 @@ export type Database = {
         }
         Update: {
           body?: string
+          client_visible?: boolean
           company_id?: string
           created_at?: string
           id?: string
@@ -11062,6 +11068,7 @@ export type Database = {
         Row: {
           actual_hours: number | null
           application_id: string
+          approved_at: string | null
           assigned_to: string | null
           assigned_to_name: string | null
           bill_date_reasoning: string | null
@@ -11084,6 +11091,7 @@ export type Database = {
           estimated_bill_date_computed_at: string | null
           estimated_hours: number | null
           filed_at: string | null
+          filing_type: string
           fixed_price: number | null
           hourly_rate: number | null
           id: string
@@ -11096,6 +11104,7 @@ export type Database = {
           notes: string | null
           objections_received_at: string | null
           parent_service_id: string | null
+          permit_issued_at: string | null
           project_id: string | null
           qb_invoice_id: string | null
           status: Database["public"]["Enums"]["service_status"] | null
@@ -11105,6 +11114,7 @@ export type Database = {
         Insert: {
           actual_hours?: number | null
           application_id: string
+          approved_at?: string | null
           assigned_to?: string | null
           assigned_to_name?: string | null
           bill_date_reasoning?: string | null
@@ -11127,6 +11137,7 @@ export type Database = {
           estimated_bill_date_computed_at?: string | null
           estimated_hours?: number | null
           filed_at?: string | null
+          filing_type?: string
           fixed_price?: number | null
           hourly_rate?: number | null
           id?: string
@@ -11139,6 +11150,7 @@ export type Database = {
           notes?: string | null
           objections_received_at?: string | null
           parent_service_id?: string | null
+          permit_issued_at?: string | null
           project_id?: string | null
           qb_invoice_id?: string | null
           status?: Database["public"]["Enums"]["service_status"] | null
@@ -11148,6 +11160,7 @@ export type Database = {
         Update: {
           actual_hours?: number | null
           application_id?: string
+          approved_at?: string | null
           assigned_to?: string | null
           assigned_to_name?: string | null
           bill_date_reasoning?: string | null
@@ -11170,6 +11183,7 @@ export type Database = {
           estimated_bill_date_computed_at?: string | null
           estimated_hours?: number | null
           filed_at?: string | null
+          filing_type?: string
           fixed_price?: number | null
           hourly_rate?: number | null
           id?: string
@@ -11182,6 +11196,7 @@ export type Database = {
           notes?: string | null
           objections_received_at?: string | null
           parent_service_id?: string | null
+          permit_issued_at?: string | null
           project_id?: string | null
           qb_invoice_id?: string | null
           status?: Database["public"]["Enums"]["service_status"] | null
