@@ -8,11 +8,13 @@ import {
   usePortalOrgs, useBuildings, usePortalProjects, usePortalCounters,
   type FilingStage,
 } from "@/hooks/usePortal";
-import { Building2, MapPin, ChevronRight, AlertTriangle, CheckCircle2, Clock, Search } from "lucide-react";
+import { Building2, MapPin, ChevronRight, AlertTriangle, CheckCircle2, Clock, Search, LayoutGrid, Table as TableIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { PortfolioTracker } from "@/components/portal/PortfolioTracker";
 
 export default function Portfolio() {
   const { profile } = useAuth();
