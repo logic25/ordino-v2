@@ -1915,6 +1915,7 @@ export type Database = {
       beacon_api_usage: {
         Row: {
           api_name: string
+          company_id: string | null
           cost_usd: number | null
           id: number
           operation: string
@@ -1923,6 +1924,7 @@ export type Database = {
         }
         Insert: {
           api_name: string
+          company_id?: string | null
           cost_usd?: number | null
           id?: never
           operation: string
@@ -1931,6 +1933,7 @@ export type Database = {
         }
         Update: {
           api_name?: string
+          company_id?: string | null
           cost_usd?: number | null
           id?: never
           operation?: string

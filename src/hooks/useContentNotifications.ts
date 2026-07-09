@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -55,27 +55,13 @@ export function useContentNotifications() {
         pending: (pending || []) as ContentNotificationCandidate[],
       };
     },
+    // Poll for updates. Realtime `postgres_changes` on content_candidates
+    // broadcasts row payloads to every subscriber regardless of RLS, which
+    // leaked other companies' candidate rows. Polling keeps the fetch path
+    // subject to RLS so cross-company data can't reach the browser.
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
-
-  // Live updates: any INSERT/UPDATE/DELETE on content_candidates → refetch.
-  useEffect(() => {
-    if (!userId) return;
-    const channel = supabase
-      .channel(`content-notifications-${userId}-${Math.random().toString(36).slice(2)}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "content_candidates" },
-        () => {
-          qc.invalidateQueries({ queryKey });
-        }
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-    // queryKey is stable per userId
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, qc]);
 
   const markAllRead = useMutation({
     mutationFn: async () => {
