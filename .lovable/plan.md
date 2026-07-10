@@ -1,89 +1,23 @@
-## Two integrations between Ordino and the marketing site
+## Sync CONTENT_PUBLISH_SECRET on Ordino
 
-Ordino V2 (this project) is the **workbench**. The marketing site is the **public face**. Two hand-offs cross between them:
+Marketing site has rotated `CONTENT_PUBLISH_SECRET`. To restore the handshake, Ordino's edge function `publish-to-blog` needs the identical value in its own secret store.
 
-```text
-Marketing site  ──(1) lead from AI chat/booking──▶  Ordino  (receive-lead)
-Ordino          ──(2) approved blog post──────────▶  Marketing site  (receive-post)
-```
+### Step 1 — Open secure form
+Call `update_secret` for `CONTENT_PUBLISH_SECRET`. A secure input appears in the chat; you paste the exact value the marketing site is using. The value is never logged, never echoed, and never visible to me — it just becomes available as `Deno.env.get("CONTENT_PUBLISH_SECRET")` inside the edge function.
 
-The AI chat, scheduler, and paid booking UI live on the marketing site and must be planned/approved in that project (`Greenlight Expediting Refresh`). This plan covers only the Ordino side.
+### Step 2 — Redeploy `publish-to-blog`
+Edge functions read env vars at cold start, so after the secret changes I'll redeploy `publish-to-blog` to guarantee it picks up the new value on the very next invocation instead of whenever its current instance recycles.
 
----
+### Step 3 — You test-publish
+You click Publish on a drafted candidate on `/content`. Expected outcomes:
 
-### 1. Marketing site → Ordino (leads)
+- Success: toast shows the returned marketing-site URL, card flips to `published`, `generated_content.published_url` is set.
+- 401 from marketing site: secrets don't match — we re-run Step 1.
+- 409 from marketing site: slug collision on their side (a different candidate already used that slug) — separate issue, not a secret problem.
 
-Already built here. The marketing project just needs to POST to `receive-lead`.
+### Out of scope
+- No code changes to `publish-to-blog/index.ts` — the payload contract is already correct (`external_candidate_ref` / `external_draft_ref`, 401/409/502 handling in `usePublish` via `data.error`).
+- No changes to `MARKETING_SITE_URL`.
+- No slug-editing UI in the publish dialog (parked; only becomes relevant if you hit a real 409).
 
-Contract the marketing site will use:
-
-```text
-POST https://<ordino-functions-host>/receive-lead
-Headers:
-  x-webhook-secret: <LEAD_WEBHOOK_SECRET>
-Body:
-  { first_name, last_name, email, phone, address,
-    service_needed, description, source, company_slug: "nyc-permits-llc" }
-```
-
-Ordino side: I'll generate `LEAD_WEBHOOK_SECRET` here so the same value can be set on the marketing project.
-
----
-
-### 2. Ordino → Marketing site (content publishing)
-
-Today, clicking **Publish** on `/content` only flips `status = published` and lets you paste a `published_url` manually. To actually push the post to the blog after review:
-
-Add a **two-step publish flow**:
-
-1. **Approve** (admin-only) — draft → `approved` status. Nothing external happens yet; this is the human review gate.
-2. **Publish to blog** — Ordino calls a new marketing-site endpoint `POST /functions/v1/receive-post` with the approved draft. Marketing site inserts a blog row and returns the live URL. Ordino saves that URL as `published_url` and flips status to `published`.
-
-Contract Ordino will send:
-
-```text
-POST https://<marketing-site>/functions/v1/receive-post
-Headers:
-  x-webhook-secret: <CONTENT_PUBLISH_SECRET>
-Body:
-  { candidate_id, title, slug, content_type ("blog_post"|"newsletter"),
-    body_markdown, excerpt, cover_image_url, cover_image_attribution,
-    published_at }
-Response:
-  { url: "https://marketingsite.com/blog/the-slug" }
-```
-
-Newsletters get the same push for now — they land on the site as posts. When an email tool (Omnisend, etc.) is chosen later, that tool can read the same post record. **No email work in this plan.**
-
----
-
-### Changes required in Ordino (this project)
-
-1. **Fix `/content` counter** → "Ideas (30) · 117 skipped", with a collapsible Skipped section to review/restore.
-2. **Add `approved` stage** to the pipeline UI — it's already in `STAGES`; wire an **Approve** button on drafted cards, admin-only.
-3. **New edge function `publish-to-blog`** — takes a draft ID, POSTs to the marketing site's `receive-post` with the shared secret, stores the returned URL on the draft, marks published.
-4. **Store three secrets** here: `LEAD_WEBHOOK_SECRET`, `CONTENT_PUBLISH_SECRET`, and `MARKETING_SITE_URL`. I'll generate the two secrets and give you the values to paste into the marketing project.
-5. **No schema changes needed** — `generated_content.published_url` already exists.
-
----
-
-### What the marketing site needs to add (for their own planning)
-
-- `receive-lead` client call from the AI chat + booking flows (contract above).
-- `receive-post` edge function that verifies `x-webhook-secret`, upserts a blog row keyed by `candidate_id`, and returns the public URL.
-- A public `/blog` route that renders those rows.
-
----
-
-### Out of scope for this plan
-
-- Newsletter email sending (waiting on your email tool choice).
-- AI chat, Stripe booking, and admin scheduler on the marketing site — those are that project's plan.
-- RSS/pull-based sync — the two-way secret-signed push is simpler and gives Ordino the resulting URL immediately.
-
----
-
-### Open item before build
-
-1. Do you have the marketing project's Supabase project URL yet, or should I stub `MARKETING_SITE_URL` and you'll set it when the site is up?
-2. Approve button — admin-only, or any role with Content access can approve?
+Approve and I'll open the secure form, then redeploy the function.
