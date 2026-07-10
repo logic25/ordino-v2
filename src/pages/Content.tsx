@@ -379,11 +379,11 @@ function classifySource(c: Pick<ContentCandidate, "source_type">): SourceKey {
 }
 
 const SOURCE_META: Record<SourceKey, { label: string; emoji: string; className: string }> = {
-  newsletter:       { label: "Newsletter",   emoji: "📰", className: "border-primary/30 bg-primary/10 text-primary" },
-  question_cluster: { label: "Team Chat",    emoji: "📊", className: "border-accent bg-accent text-accent-foreground" },
-  email:            { label: "Email",        emoji: "📧", className: "border-secondary bg-secondary text-secondary-foreground" },
-  manual:           { label: "From scratch", emoji: "✍️", className: "border-border bg-muted text-muted-foreground" },
-  other:            { label: "Other",        emoji: "📄", className: "border-border bg-muted/50 text-muted-foreground" },
+  newsletter:       { label: "Newsletter draft", emoji: "📰", className: "border-primary/30 bg-primary/10 text-primary" },
+  question_cluster: { label: "Team chat",        emoji: "📊", className: "border-accent bg-accent text-accent-foreground" },
+  email:            { label: "Email",            emoji: "📧", className: "border-secondary bg-secondary text-secondary-foreground" },
+  manual:           { label: "From scratch",     emoji: "✍️", className: "border-border bg-muted text-muted-foreground" },
+  other:            { label: "Other",            emoji: "📄", className: "border-border bg-muted/50 text-muted-foreground" },
 };
 
 function SourceBadge({ c }: { c: ContentCandidate }) {
@@ -393,9 +393,9 @@ function SourceBadge({ c }: { c: ContentCandidate }) {
     <Badge
       variant="outline"
       className={`text-[11px] ${meta.className}`}
-      title={`Origin: ${meta.label}`}
+      title={`Where this idea came from: ${meta.label}`}
     >
-      {meta.emoji} {meta.label}
+      From: {meta.emoji} {meta.label}
     </Badge>
   );
 }
@@ -538,8 +538,8 @@ function IdeaCard({
         <div className="min-w-0 space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
             {c.priority && <PriorityBadge priority={c.priority} />}
-            <Badge variant="outline" className="gap-1 text-[11px]"><TypeIcon t={c.content_type} className="h-3 w-3" /> {typeLabel(c.content_type)}</Badge>
             <SourceBadge c={c} />
+            <Badge variant="outline" className="gap-1 text-[11px]" title={`Will be published as a ${typeLabel(c.content_type).toLowerCase()}`}><TypeIcon t={c.content_type} className="h-3 w-3" /> Publish as: {typeLabel(c.content_type)}</Badge>
             <TeamQuestionsBadge c={c} />
           </div>
           <div className="font-semibold leading-snug">{c.title}</div>
