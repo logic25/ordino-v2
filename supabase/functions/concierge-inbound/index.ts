@@ -240,12 +240,12 @@ Deno.serve(async (req) => {
 async function getPmProfile(supabase: any, pmId: string) {
   const { data } = await supabase
     .from("profiles")
-    .select("id, first_name, last_name, display_name, scheduling_link, email")
+    .select("id, first_name, last_name, display_name")
     .eq("id", pmId)
     .maybeSingle();
   if (!data) return null;
   const name = data.display_name || [data.first_name, data.last_name].filter(Boolean).join(" ") || "your PM";
-  return { id: data.id, name, scheduling_link: data.scheduling_link ?? null, email: data.email };
+  return { id: data.id, name, scheduling_link: null as string | null };
 }
 
 async function logConversation(supabase: any, row: Record<string, unknown>) {
