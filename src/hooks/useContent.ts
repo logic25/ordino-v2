@@ -224,23 +224,40 @@ export function useQuickGenerate() {
 }
 
 // Save an edited draft body back to generated_content (re-counts words).
+// Optionally updates the title too — used by the "Remove placeholders" cleanup
+// action so it can scrub the title in the same round-trip.
 export function useSaveDraft() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, candidateId, content }: { id: string; candidateId: string; content: string }) => {
-      const word_count = content.split(/\s+/).filter(Boolean).length;
+    mutationFn: async ({ id, candidateId, content, title }: { id: string; candidateId: string; content: string; title?: string }) => {
+      const cleanedContent = stripEditorialPlaceholders(content);
+      const word_count = cleanedContent.split(/\s+/).filter(Boolean).length;
+      const patch: Record<string, unknown> = { content: cleanedContent, word_count };
+      if (typeof title === "string") patch.title = stripEditorialPlaceholders(title);
       const { error } = await (supabase as any)
         .from("generated_content")
-        .update({ content, word_count })
+        .update(patch)
         .eq("id", id);
       if (error) throw error;
+      // Mirror any title change onto the candidate row so the pipeline card
+      // and Published tab don't keep showing the old placeholder-laden title.
+      if (typeof title === "string") {
+        await (supabase as any)
+          .from("content_candidates")
+          .update({ title: stripEditorialPlaceholders(title), updated_at: new Date().toISOString() })
+          .eq("id", candidateId);
+      }
       return { candidateId };
     },
     onSuccess: ({ candidateId }) => {
       qc.invalidateQueries({ queryKey: ["generated-content", candidateId] });
+      qc.invalidateQueries({ queryKey: ["generated-content-many"] });
+      qc.invalidateQueries({ queryKey: ["content-candidates"] });
+      qc.invalidateQueries({ queryKey: ["published-content"] });
     },
   });
 }
+
 
 // Hard-delete a candidate and ALL of its generated drafts. Used by the trash
 // icon on each idea card (admin/manager gated in the UI). The "skip" status
