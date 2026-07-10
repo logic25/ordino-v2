@@ -282,9 +282,46 @@ function PreviewDialog({
     setEditing(false);
     toast({ title: "Saved", description: "Your edits are stored." });
   };
+
+  // Detect Beacon's "[[CONFIRM: ...]]" / "[[TODO: ...]]" editorial markers
+  // in the current body AND in the title. Publish is blocked while any remain;
+  // the banner offers a one-click strip that saves cleaned title + body.
+  const bodyPlaceholders = findEditorialPlaceholders(body);
+  const titlePlaceholders = findEditorialPlaceholders(candidate?.title || "");
+  const hasPlaceholders = bodyPlaceholders.length + titlePlaceholders.length > 0;
+
+  const removePlaceholders = async () => {
+    if (!draft || !candidate) return;
+    const cleanedBody = stripEditorialPlaceholders(body);
+    const cleanedTitle = stripEditorialPlaceholders(candidate.title);
+    setBody(cleanedBody);
+    await saveDraft.mutateAsync({
+      id: draft.id,
+      candidateId: candidate.id,
+      content: cleanedBody,
+      title: cleanedTitle,
+    });
+    setEditing(false);
+    toast({ title: "Placeholders removed", description: "Draft is ready to publish." });
+  };
+
   const doPublish = async () => {
     if (!draft || !isAdmin) return;
     if (editing) await save();
+    // Client-side mirror of the publish-to-blog server guard — instant feedback
+    // instead of a round-trip 400.
+    const still = [
+      ...findEditorialPlaceholders(body),
+      ...findEditorialPlaceholders(candidate?.title || ""),
+    ];
+    if (still.length > 0) {
+      toast({
+        title: "Publish blocked",
+        description: `Draft still contains ${still.length} editorial placeholder(s). Use "Remove placeholders" and try again.`,
+        variant: "destructive",
+      });
+      return;
+    }
     const result = await publish.mutateAsync({ draftId: draft.id, candidateId: candidate!.id });
     if (result?.published_url) {
       toast({ title: "Published", description: `Live at ${result.published_url}` });
