@@ -38,6 +38,32 @@ export interface GeneratedContent {
   cover_image_attribution?: string | null;
 }
 
+// ── Editorial-placeholder scrubber ───────────────────────────────────────
+// Beacon's content generator sometimes emits human-review markers like
+// "[[CONFIRM: verify the objection rate]]" or "[[TODO: add stat]]". They must
+// never reach the live site, so we strip them defensively at three layers:
+//   1. right after Beacon returns a draft (useGenerateDraft / useQuickGenerate)
+//   2. every time the editor saves (useSaveDraft)
+//   3. server-side inside publish-to-blog as a final publish guard
+export const EDITORIAL_PLACEHOLDER_RE = /\[\[(?:CONFIRM|TODO|VERIFY|CHECK|FACT-?CHECK)\b[^\]]*\]\]/gi;
+
+export function stripEditorialPlaceholders(text: string | null | undefined): string {
+  if (!text) return "";
+  return text
+    .replace(EDITORIAL_PLACEHOLDER_RE, "")
+    // Collapse the whitespace left behind so titles/paragraphs don't get gappy.
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\s+([.,;:!?])/g, "$1")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+export function findEditorialPlaceholders(text: string | null | undefined): string[] {
+  if (!text) return [];
+  return text.match(EDITORIAL_PLACEHOLDER_RE) || [];
+}
+
+
 
 export function useContentCandidates() {
   return useQuery({
