@@ -4346,6 +4346,99 @@ export type Database = {
           },
         ]
       }
+      concierge_conversations: {
+        Row: {
+          channel: string
+          client_contact_id: string | null
+          client_id: string | null
+          company_id: string
+          created_at: string
+          escalated: boolean
+          id: string
+          inbound_subject: string | null
+          inbound_text: string | null
+          intent_confidence: number | null
+          matched_intent: string | null
+          outbound_text: string | null
+          pm_user_id: string | null
+          project_id: string | null
+          sender_email: string | null
+          sender_verified: boolean
+        }
+        Insert: {
+          channel?: string
+          client_contact_id?: string | null
+          client_id?: string | null
+          company_id: string
+          created_at?: string
+          escalated?: boolean
+          id?: string
+          inbound_subject?: string | null
+          inbound_text?: string | null
+          intent_confidence?: number | null
+          matched_intent?: string | null
+          outbound_text?: string | null
+          pm_user_id?: string | null
+          project_id?: string | null
+          sender_email?: string | null
+          sender_verified?: boolean
+        }
+        Update: {
+          channel?: string
+          client_contact_id?: string | null
+          client_id?: string | null
+          company_id?: string
+          created_at?: string
+          escalated?: boolean
+          id?: string
+          inbound_subject?: string | null
+          inbound_text?: string | null
+          intent_confidence?: number | null
+          matched_intent?: string | null
+          outbound_text?: string | null
+          pm_user_id?: string | null
+          project_id?: string | null
+          sender_email?: string | null
+          sender_verified?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "concierge_conversations_client_contact_id_fkey"
+            columns: ["client_contact_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "concierge_conversations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "concierge_conversations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "concierge_conversations_pm_user_id_fkey"
+            columns: ["pm_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "concierge_conversations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       content_candidates: {
         Row: {
           affects_services: Json | null
