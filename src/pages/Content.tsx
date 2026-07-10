@@ -743,6 +743,7 @@ export default function Content() {
   const { isAdmin, userRoles, canAccess, loading: permsLoading } = usePermissions();
   const { data: candidates = [], isLoading } = useContentCandidates();
   const { data: published = [] } = usePublishedContent();
+  const republish = usePublish();
   const updateStatus = useUpdateCandidateStatus();
   const generate = useGenerateDraft();
   const deleteCandidate = useDeleteCandidate();
@@ -952,14 +953,40 @@ export default function Content() {
                     <TypeIcon t={g.content_type} className="h-3 w-3" /> {typeLabel(g.content_type)} · {g.word_count} words
                   </div>
                 </div>
-                {g.published_url && (
-                  <a href={g.published_url} target="_blank" rel="noreferrer"
-                     className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 shrink-0">
-                    <ExternalLink className="h-3 w-3" /> Live
-                  </a>
-                )}
+                <div className="flex items-center gap-2 shrink-0">
+                  {isAdmin && g.candidate_id && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={republish.isPending}
+                      onClick={async () => {
+                        try {
+                          const result = await republish.mutateAsync({ draftId: g.id, candidateId: g.candidate_id! });
+                          toast({
+                            title: "Republished",
+                            description: result?.published_url
+                              ? `Updated at ${result.published_url}`
+                              : "Marketing site updated.",
+                          });
+                        } catch (e: any) {
+                          toast({ title: "Republish failed", description: e?.message || "Try again.", variant: "destructive" });
+                        }
+                      }}
+                    >
+                      {republish.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />}
+                      Republish
+                    </Button>
+                  )}
+                  {g.published_url && (
+                    <a href={g.published_url} target="_blank" rel="noreferrer"
+                       className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+                      <ExternalLink className="h-3 w-3" /> Live
+                    </a>
+                  )}
+                </div>
               </Card>
             ))}
+
           </TabsContent>
 
           <TabsContent value="templates" className="mt-4 space-y-4">
