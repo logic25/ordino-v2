@@ -28,6 +28,26 @@ function firstParagraph(markdown: string) {
   return first.slice(0, 240).trimEnd() + (first.length > 240 ? "…" : "");
 }
 
+// Marketing site renders the cover image + attribution from cover_image_url /
+// cover_image_attribution. The draft body also has that block embedded
+// (Content.tsx inserts it for in-app preview), so strip it before publishing to
+// avoid the hero image + attribution rendering twice on the live post.
+function stripLeadingCoverBlock(markdown: string) {
+  return markdown.replace(
+    /^\s*!\[[^\]]*\]\([^)]+\)\s*\n+(?:\*Photo by [^\n]+\*\s*\n+)?/,
+    ""
+  );
+}
+
+// Shorten a markdown-linked Unsplash/Pexels credit
+// ("Photo by [Jack Cohen](https://…) on [Unsplash](https://…)") to plain text
+// ("Photo by Jack Cohen on Unsplash") so the marketing site doesn't render raw
+// markdown link syntax under the hero.
+function plainAttribution(attr: string | null): string | null {
+  if (!attr) return null;
+  return attr.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").trim();
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
