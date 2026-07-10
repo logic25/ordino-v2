@@ -13,7 +13,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import {
   Loader2, Sparkles, Check, X, Send, FileText, Mail, Eye, Copy, Pencil,
   Users, ExternalLink, HelpCircle, Plus, LayoutTemplate, Trash2, ImagePlus, Upload, Target,
+  ChevronDown, ChevronRight,
 } from "lucide-react";
+
 import ReactMarkdown from "react-markdown";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
