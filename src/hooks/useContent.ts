@@ -347,14 +347,15 @@ export function useGenerateDraft() {
         },
       });
       if (error) throw new Error(error.message);
-      const content = (data as any)?.content || "";
-      const word_count = (data as any)?.word_count || content.split(/\s+/).filter(Boolean).length;
+      const content = stripEditorialPlaceholders((data as any)?.content || "");
+      const cleanTitle = stripEditorialPlaceholders(candidate.title);
+      const word_count = content.split(/\s+/).filter(Boolean).length;
 
       await (supabase as any).from("generated_content").insert({
         id: `gen-${candidate.id}-${Date.now()}`,
         candidate_id: candidate.id,
         content_type: candidate.content_type,
-        title: candidate.title,
+        title: cleanTitle,
         content,
         word_count,
         status: "draft",
@@ -362,7 +363,7 @@ export function useGenerateDraft() {
       });
       await (supabase as any)
         .from("content_candidates")
-        .update({ status: "drafted", updated_at: new Date().toISOString() })
+        .update({ status: "drafted", title: cleanTitle, updated_at: new Date().toISOString() })
         .eq("id", candidate.id);
       return { content, word_count };
     },
