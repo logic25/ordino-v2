@@ -29,6 +29,7 @@ import {
   useContentCandidates, useGeneratedFor, useGeneratedForMany, usePublishedContent,
   useUpdateCandidateStatus, useGenerateDraft, useSaveDraft, usePublish, useComposeContent,
   useQuickGenerate, useDeleteCandidate, useSetCoverImage,
+  stripEditorialPlaceholders, findEditorialPlaceholders,
   type ContentCandidate, type GeneratedContent,
 } from "@/hooks/useContent";
 import { CONTENT_TEMPLATES, type ContentTemplate } from "@/lib/contentTemplates";
