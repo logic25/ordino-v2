@@ -958,7 +958,7 @@ export default function Content() {
                     <Button
                       size="sm"
                       variant="outline"
-                      disabled={republish.isPending}
+                      disabled={republish.isPending && republish.variables?.draftId === g.id}
                       onClick={async () => {
                         try {
                           const result = await republish.mutateAsync({ draftId: g.id, candidateId: g.candidate_id! });
@@ -973,7 +973,9 @@ export default function Content() {
                         }
                       }}
                     >
-                      {republish.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />}
+                      {republish.isPending && republish.variables?.draftId === g.id
+                        ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                        : <Send className="h-3.5 w-3.5 mr-1" />}
                       Republish
                     </Button>
                   )}
