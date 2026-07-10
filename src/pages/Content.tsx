@@ -29,6 +29,7 @@ import {
   useContentCandidates, useGeneratedFor, useGeneratedForMany, usePublishedContent,
   useUpdateCandidateStatus, useGenerateDraft, useSaveDraft, usePublish, useComposeContent,
   useQuickGenerate, useDeleteCandidate, useSetCoverImage,
+  stripEditorialPlaceholders, findEditorialPlaceholders,
   type ContentCandidate, type GeneratedContent,
 } from "@/hooks/useContent";
 import { CONTENT_TEMPLATES, type ContentTemplate } from "@/lib/contentTemplates";
@@ -281,9 +282,46 @@ function PreviewDialog({
     setEditing(false);
     toast({ title: "Saved", description: "Your edits are stored." });
   };
+
+  // Detect Beacon's "[[CONFIRM: ...]]" / "[[TODO: ...]]" editorial markers
+  // in the current body AND in the title. Publish is blocked while any remain;
+  // the banner offers a one-click strip that saves cleaned title + body.
+  const bodyPlaceholders = findEditorialPlaceholders(body);
+  const titlePlaceholders = findEditorialPlaceholders(candidate?.title || "");
+  const hasPlaceholders = bodyPlaceholders.length + titlePlaceholders.length > 0;
+
+  const removePlaceholders = async () => {
+    if (!draft || !candidate) return;
+    const cleanedBody = stripEditorialPlaceholders(body);
+    const cleanedTitle = stripEditorialPlaceholders(candidate.title);
+    setBody(cleanedBody);
+    await saveDraft.mutateAsync({
+      id: draft.id,
+      candidateId: candidate.id,
+      content: cleanedBody,
+      title: cleanedTitle,
+    });
+    setEditing(false);
+    toast({ title: "Placeholders removed", description: "Draft is ready to publish." });
+  };
+
   const doPublish = async () => {
     if (!draft || !isAdmin) return;
     if (editing) await save();
+    // Client-side mirror of the publish-to-blog server guard — instant feedback
+    // instead of a round-trip 400.
+    const still = [
+      ...findEditorialPlaceholders(body),
+      ...findEditorialPlaceholders(candidate?.title || ""),
+    ];
+    if (still.length > 0) {
+      toast({
+        title: "Publish blocked",
+        description: `Draft still contains ${still.length} editorial placeholder(s). Use "Remove placeholders" and try again.`,
+        variant: "destructive",
+      });
+      return;
+    }
     const result = await publish.mutateAsync({ draftId: draft.id, candidateId: candidate!.id });
     if (result?.published_url) {
       toast({ title: "Published", description: `Live at ${result.published_url}` });
@@ -315,6 +353,43 @@ function PreviewDialog({
           )}
           <span className="ml-auto text-xs text-muted-foreground">{words} words</span>
         </div>
+
+        {hasPlaceholders && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-800 p-3 text-xs">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="font-semibold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                  <HelpCircle className="h-3.5 w-3.5" />
+                  Editorial placeholders detected ({bodyPlaceholders.length + titlePlaceholders.length})
+                </div>
+                <p className="mt-1 text-amber-900/80 dark:text-amber-200/80">
+                  Publish is blocked while these are present. Review each one, then remove them (or address the claim).
+                </p>
+                <ul className="mt-1.5 list-disc pl-4 text-amber-900 dark:text-amber-200 space-y-0.5 max-h-24 overflow-y-auto">
+                  {titlePlaceholders.map((p, i) => (
+                    <li key={`t-${i}`}><span className="font-medium">Title:</span> <code className="text-[10.5px]">{p}</code></li>
+                  ))}
+                  {bodyPlaceholders.map((p, i) => (
+                    <li key={`b-${i}`}><span className="font-medium">Body:</span> <code className="text-[10.5px]">{p}</code></li>
+                  ))}
+                </ul>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0 border-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900"
+                onClick={removePlaceholders}
+                disabled={saveDraft.isPending}
+              >
+                {saveDraft.isPending
+                  ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                  : <Trash2 className="h-3.5 w-3.5 mr-1" />}
+                Remove placeholders
+              </Button>
+            </div>
+          </div>
+        )}
+
 
         <div className="flex-1 overflow-y-auto rounded-md border bg-muted/30 p-4" style={{ maxHeight: "62vh" }}>
           {isLoading ? (

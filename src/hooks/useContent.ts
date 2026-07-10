@@ -38,6 +38,32 @@ export interface GeneratedContent {
   cover_image_attribution?: string | null;
 }
 
+// ── Editorial-placeholder scrubber ───────────────────────────────────────
+// Beacon's content generator sometimes emits human-review markers like
+// "[[CONFIRM: verify the objection rate]]" or "[[TODO: add stat]]". They must
+// never reach the live site, so we strip them defensively at three layers:
+//   1. right after Beacon returns a draft (useGenerateDraft / useQuickGenerate)
+//   2. every time the editor saves (useSaveDraft)
+//   3. server-side inside publish-to-blog as a final publish guard
+export const EDITORIAL_PLACEHOLDER_RE = /\[\[(?:CONFIRM|TODO|VERIFY|CHECK|FACT-?CHECK)\b[^\]]*\]\]/gi;
+
+export function stripEditorialPlaceholders(text: string | null | undefined): string {
+  if (!text) return "";
+  return text
+    .replace(EDITORIAL_PLACEHOLDER_RE, "")
+    // Collapse the whitespace left behind so titles/paragraphs don't get gappy.
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\s+([.,;:!?])/g, "$1")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+export function findEditorialPlaceholders(text: string | null | undefined): string[] {
+  if (!text) return [];
+  return text.match(EDITORIAL_PLACEHOLDER_RE) || [];
+}
+
+
 
 export function useContentCandidates() {
   return useQuery({
@@ -172,23 +198,25 @@ export function useQuickGenerate() {
         body: { candidate_id: id, title, content_type, topics: [], reasoning: "Ad-hoc topic" },
       });
       if (error) throw new Error(error.message);
-      const content = (data as any)?.content || "";
-      const word_count = (data as any)?.word_count || content.split(/\s+/).filter(Boolean).length;
+      const rawContent = (data as any)?.content || "";
+      const content = stripEditorialPlaceholders(rawContent);
+      const cleanTitle = stripEditorialPlaceholders(title);
+      const word_count = content.split(/\s+/).filter(Boolean).length;
 
       await (supabase as any).from("generated_content").insert({
         id: `gen-${id}-${Date.now()}`,
         candidate_id: id,
         content_type,
-        title,
+        title: cleanTitle,
         content,
         word_count,
         status: "draft",
         company_id: profile?.company_id,
       });
       await (supabase as any).from("content_candidates")
-        .update({ status: "drafted", updated_at: new Date().toISOString() }).eq("id", id);
+        .update({ status: "drafted", title: cleanTitle, updated_at: new Date().toISOString() }).eq("id", id);
 
-      return { id, title, content_type, status: "drafted", priority: "medium", source_type: "manual" } as unknown as ContentCandidate;
+      return { id, title: cleanTitle, content_type, status: "drafted", priority: "medium", source_type: "manual" } as unknown as ContentCandidate;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["content-candidates"] });
@@ -198,23 +226,40 @@ export function useQuickGenerate() {
 }
 
 // Save an edited draft body back to generated_content (re-counts words).
+// Optionally updates the title too — used by the "Remove placeholders" cleanup
+// action so it can scrub the title in the same round-trip.
 export function useSaveDraft() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, candidateId, content }: { id: string; candidateId: string; content: string }) => {
-      const word_count = content.split(/\s+/).filter(Boolean).length;
+    mutationFn: async ({ id, candidateId, content, title }: { id: string; candidateId: string; content: string; title?: string }) => {
+      const cleanedContent = stripEditorialPlaceholders(content);
+      const word_count = cleanedContent.split(/\s+/).filter(Boolean).length;
+      const patch: Record<string, unknown> = { content: cleanedContent, word_count };
+      if (typeof title === "string") patch.title = stripEditorialPlaceholders(title);
       const { error } = await (supabase as any)
         .from("generated_content")
-        .update({ content, word_count })
+        .update(patch)
         .eq("id", id);
       if (error) throw error;
+      // Mirror any title change onto the candidate row so the pipeline card
+      // and Published tab don't keep showing the old placeholder-laden title.
+      if (typeof title === "string") {
+        await (supabase as any)
+          .from("content_candidates")
+          .update({ title: stripEditorialPlaceholders(title), updated_at: new Date().toISOString() })
+          .eq("id", candidateId);
+      }
       return { candidateId };
     },
     onSuccess: ({ candidateId }) => {
       qc.invalidateQueries({ queryKey: ["generated-content", candidateId] });
+      qc.invalidateQueries({ queryKey: ["generated-content-many"] });
+      qc.invalidateQueries({ queryKey: ["content-candidates"] });
+      qc.invalidateQueries({ queryKey: ["published-content"] });
     },
   });
 }
+
 
 // Hard-delete a candidate and ALL of its generated drafts. Used by the trash
 // icon on each idea card (admin/manager gated in the UI). The "skip" status
@@ -302,14 +347,15 @@ export function useGenerateDraft() {
         },
       });
       if (error) throw new Error(error.message);
-      const content = (data as any)?.content || "";
-      const word_count = (data as any)?.word_count || content.split(/\s+/).filter(Boolean).length;
+      const content = stripEditorialPlaceholders((data as any)?.content || "");
+      const cleanTitle = stripEditorialPlaceholders(candidate.title);
+      const word_count = content.split(/\s+/).filter(Boolean).length;
 
       await (supabase as any).from("generated_content").insert({
         id: `gen-${candidate.id}-${Date.now()}`,
         candidate_id: candidate.id,
         content_type: candidate.content_type,
-        title: candidate.title,
+        title: cleanTitle,
         content,
         word_count,
         status: "draft",
@@ -317,7 +363,7 @@ export function useGenerateDraft() {
       });
       await (supabase as any)
         .from("content_candidates")
-        .update({ status: "drafted", updated_at: new Date().toISOString() })
+        .update({ status: "drafted", title: cleanTitle, updated_at: new Date().toISOString() })
         .eq("id", candidate.id);
       return { content, word_count };
     },
