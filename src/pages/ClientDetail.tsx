@@ -68,6 +68,7 @@ import { ClientDialog } from "@/components/clients/ClientDialog";
 import { AddContactDialog } from "@/components/clients/AddContactDialog";
 import { ReviewsSection } from "@/components/clients/ReviewsSection";
 import { ClientProposalsModal } from "@/components/clients/ClientProposalsModal";
+import { ConciergeSection } from "@/components/clients/ConciergeSection";
 import { useCompanyProfiles, type Profile } from "@/hooks/useProfiles";
 
 function useClientDetail(id: string | undefined) {
