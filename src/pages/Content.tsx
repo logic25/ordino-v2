@@ -743,6 +743,7 @@ export default function Content() {
   const { isAdmin, userRoles, canAccess, loading: permsLoading } = usePermissions();
   const { data: candidates = [], isLoading } = useContentCandidates();
   const { data: published = [] } = usePublishedContent();
+  const republish = usePublish();
   const updateStatus = useUpdateCandidateStatus();
   const generate = useGenerateDraft();
   const deleteCandidate = useDeleteCandidate();
