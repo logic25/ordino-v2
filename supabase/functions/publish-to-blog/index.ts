@@ -106,7 +106,8 @@ serve(async (req) => {
 
     const title = draft.title || candidate.title || "Untitled";
     const slug = slugify(title);
-    const body = draft.content || "";
+    const rawBody = draft.content || "";
+    const body = stripLeadingCoverBlock(rawBody);
     const contentType = draft.content_type || candidate.content_type || "blog_post";
     const excerpt = firstParagraph(body);
     const publishedAt = new Date().toISOString();
@@ -114,9 +115,6 @@ serve(async (req) => {
     let publishedUrl: string | null = null;
 
     if (marketingSiteUrl && publishSecret) {
-      // Note: candidate_id / draft_id are Ordino-internal string IDs (e.g. "cand_..."),
-      // not UUIDs. The marketing site stores its own UUID primary key, so we send
-      // them as external_ref strings instead of trying to coerce them to UUID.
       const payload = {
         external_candidate_ref: candidate_id,
         external_draft_ref: draft_id,
@@ -126,7 +124,7 @@ serve(async (req) => {
         body_markdown: body,
         excerpt,
         cover_image_url: draft.cover_image_url || null,
-        cover_image_attribution: draft.cover_image_attribution || null,
+        cover_image_attribution: plainAttribution(draft.cover_image_attribution),
         published_at: publishedAt,
         key_topics: candidate.key_topics || [],
         reasoning: candidate.reasoning || null,
