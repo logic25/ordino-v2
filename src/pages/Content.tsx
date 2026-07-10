@@ -347,9 +347,14 @@ function PreviewDialog({
               ) : (
                 <Button variant="outline" size="sm" onClick={() => setEditing(true)}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>
               )}
-              <Button size="sm" onClick={doPublish} disabled={publish.isPending}>
-                {publish.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />} Publish
-              </Button>
+              {isAdmin ? (
+                <Button size="sm" onClick={doPublish} disabled={publish.isPending}>
+                  {publish.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />} Publish to blog
+                </Button>
+              ) : (
+                <span className="text-[11px] text-muted-foreground">Only admins can publish to the site.</span>
+              )}
+
             </div>
           </div>
         )}
