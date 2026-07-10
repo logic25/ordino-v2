@@ -852,7 +852,16 @@ export default function Content() {
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Ideas ({byStage.pending?.length || 0})
-                {byStage.skipped?.length ? ` · ${byStage.skipped.length} skipped` : ""}
+                {byStage.skipped?.length ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowSkipped((v) => !v)}
+                    className="ml-1 hover:text-foreground underline decoration-dotted underline-offset-2"
+                    title={showSkipped ? "Hide skipped ideas" : "Show skipped ideas"}
+                  >
+                    · {byStage.skipped.length} skipped
+                  </button>
+                ) : null}
                 {sourceFilter !== "all" && (
                   <span className="font-normal normal-case ml-1">({filteredCandidates.length} of {candidates.length})</span>
                 )}
