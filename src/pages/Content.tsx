@@ -379,11 +379,11 @@ function classifySource(c: Pick<ContentCandidate, "source_type">): SourceKey {
 }
 
 const SOURCE_META: Record<SourceKey, { label: string; emoji: string; className: string }> = {
-  newsletter:       { label: "Newsletter",   emoji: "📰", className: "border-primary/30 bg-primary/10 text-primary" },
-  question_cluster: { label: "Team Chat",    emoji: "📊", className: "border-accent bg-accent text-accent-foreground" },
-  email:            { label: "Email",        emoji: "📧", className: "border-secondary bg-secondary text-secondary-foreground" },
-  manual:           { label: "From scratch", emoji: "✍️", className: "border-border bg-muted text-muted-foreground" },
-  other:            { label: "Other",        emoji: "📄", className: "border-border bg-muted/50 text-muted-foreground" },
+  newsletter:       { label: "Newsletter draft", emoji: "📰", className: "border-primary/30 bg-primary/10 text-primary" },
+  question_cluster: { label: "Team chat",        emoji: "📊", className: "border-accent bg-accent text-accent-foreground" },
+  email:            { label: "Email",            emoji: "📧", className: "border-secondary bg-secondary text-secondary-foreground" },
+  manual:           { label: "From scratch",     emoji: "✍️", className: "border-border bg-muted text-muted-foreground" },
+  other:            { label: "Other",            emoji: "📄", className: "border-border bg-muted/50 text-muted-foreground" },
 };
 
 function SourceBadge({ c }: { c: ContentCandidate }) {
@@ -393,9 +393,9 @@ function SourceBadge({ c }: { c: ContentCandidate }) {
     <Badge
       variant="outline"
       className={`text-[11px] ${meta.className}`}
-      title={`Origin: ${meta.label}`}
+      title={`Where this idea came from: ${meta.label}`}
     >
-      {meta.emoji} {meta.label}
+      From: {meta.emoji} {meta.label}
     </Badge>
   );
 }
