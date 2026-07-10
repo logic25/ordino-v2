@@ -258,6 +258,7 @@ function PreviewDialog({
   candidate, open, onClose,
 }: { candidate: ContentCandidate | null; open: boolean; onClose: () => void }) {
   const { toast } = useToast();
+  const { isAdmin } = usePermissions();
   const { data: draft, isLoading } = useGeneratedFor(open ? candidate?.id ?? null : null);
   const saveDraft = useSaveDraft();
   const publish = usePublish();
@@ -269,7 +270,7 @@ function PreviewDialog({
 
   const copy = () => {
     navigator.clipboard.writeText(body || "");
-    toast({ title: "Copied", description: "Paste it into your site, LinkedIn, or newsletter to publish." });
+    toast({ title: "Copied", description: "Draft body copied to clipboard." });
   };
   const save = async () => {
     if (!draft) return;
@@ -278,10 +279,14 @@ function PreviewDialog({
     toast({ title: "Saved", description: "Your edits are stored." });
   };
   const doPublish = async () => {
-    if (!draft) return;
+    if (!draft || !isAdmin) return;
     if (editing) await save();
-    await publish.mutateAsync({ draftId: draft.id, candidateId: candidate!.id });
-    toast({ title: "Published", description: "Marked as published. Copy it into your site to go live." });
+    const result = await publish.mutateAsync({ draftId: draft.id, candidateId: candidate!.id });
+    if (result?.published_url) {
+      toast({ title: "Published", description: `Live at ${result.published_url}` });
+    } else {
+      toast({ title: "Published", description: "The post is marked as published. No marketing site URL is configured yet." });
+    }
     onClose();
   };
 
@@ -296,6 +301,7 @@ function PreviewDialog({
             <span className="truncate">Preview: {candidate?.title}</span>
           </DialogTitle>
         </DialogHeader>
+
 
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="gap-1 text-[11px]">
