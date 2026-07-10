@@ -13,7 +13,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import {
   Loader2, Sparkles, Check, X, Send, FileText, Mail, Eye, Copy, Pencil,
   Users, ExternalLink, HelpCircle, Plus, LayoutTemplate, Trash2, ImagePlus, Upload, Target,
+  ChevronDown, ChevronRight,
 } from "lucide-react";
+
 import ReactMarkdown from "react-markdown";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -258,6 +260,7 @@ function PreviewDialog({
   candidate, open, onClose,
 }: { candidate: ContentCandidate | null; open: boolean; onClose: () => void }) {
   const { toast } = useToast();
+  const { isAdmin } = usePermissions();
   const { data: draft, isLoading } = useGeneratedFor(open ? candidate?.id ?? null : null);
   const saveDraft = useSaveDraft();
   const publish = usePublish();
@@ -269,7 +272,7 @@ function PreviewDialog({
 
   const copy = () => {
     navigator.clipboard.writeText(body || "");
-    toast({ title: "Copied", description: "Paste it into your site, LinkedIn, or newsletter to publish." });
+    toast({ title: "Copied", description: "Draft body copied to clipboard." });
   };
   const save = async () => {
     if (!draft) return;
@@ -278,10 +281,14 @@ function PreviewDialog({
     toast({ title: "Saved", description: "Your edits are stored." });
   };
   const doPublish = async () => {
-    if (!draft) return;
+    if (!draft || !isAdmin) return;
     if (editing) await save();
-    await publish.mutateAsync({ draftId: draft.id, candidateId: candidate!.id });
-    toast({ title: "Published", description: "Marked as published. Copy it into your site to go live." });
+    const result = await publish.mutateAsync({ draftId: draft.id, candidateId: candidate!.id });
+    if (result?.published_url) {
+      toast({ title: "Published", description: `Live at ${result.published_url}` });
+    } else {
+      toast({ title: "Published", description: "The post is marked as published. No marketing site URL is configured yet." });
+    }
     onClose();
   };
 
@@ -296,6 +303,7 @@ function PreviewDialog({
             <span className="truncate">Preview: {candidate?.title}</span>
           </DialogTitle>
         </DialogHeader>
+
 
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="gap-1 text-[11px]">
@@ -339,9 +347,14 @@ function PreviewDialog({
               ) : (
                 <Button variant="outline" size="sm" onClick={() => setEditing(true)}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>
               )}
-              <Button size="sm" onClick={doPublish} disabled={publish.isPending}>
-                {publish.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />} Publish
-              </Button>
+              {isAdmin ? (
+                <Button size="sm" onClick={doPublish} disabled={publish.isPending}>
+                  {publish.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />} Publish to blog
+                </Button>
+              ) : (
+                <span className="text-[11px] text-muted-foreground">Only admins can publish to the site.</span>
+              )}
+
             </div>
           </div>
         )}
@@ -740,6 +753,8 @@ export default function Content() {
   const [composePreset, setComposePreset] = useState<ContentTemplate | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<ContentCandidate | null>(null);
   const [sourceFilter, setSourceFilter] = useState<"all" | SourceKey>("all");
+  const [showSkipped, setShowSkipped] = useState(false);
+
 
   // Pull all latest drafts for visible candidates so each card can show
   // an inline excerpt + Copy button without N round-trips.
@@ -836,8 +851,13 @@ export default function Content() {
           <TabsContent value="pipeline" className="mt-4 space-y-5">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                All candidates ({filteredCandidates.length}{sourceFilter !== "all" ? ` of ${candidates.length}` : ""}) — grouped by stage below
+                Ideas ({byStage.pending?.length || 0})
+                {byStage.skipped?.length ? ` · ${byStage.skipped.length} skipped` : ""}
+                {sourceFilter !== "all" && (
+                  <span className="font-normal normal-case ml-1">({filteredCandidates.length} of {candidates.length})</span>
+                )}
               </div>
+
               <div className="flex items-center gap-1 flex-wrap">
                 {([
                   ["all", "All"],
@@ -881,7 +901,30 @@ export default function Content() {
                 </div>
               ) : null)
             )}
+            {byStage.skipped?.length > 0 && (
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSkipped((v) => !v)}
+                  className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground"
+                >
+                  {showSkipped ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                  Skipped ({byStage.skipped.length})
+                </button>
+                {showSkipped && (
+                  <div className="space-y-2">
+                    {byStage.skipped.map((c) => (
+                      <IdeaCard key={c.id} c={c} draft={draftsByCandidate[c.id]} generatingId={generatingId}
+                        canDelete={canDelete}
+                        onGenerate={doGenerate} onView={setViewing} onStatus={setStatus}
+                        onDelete={setConfirmDelete} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </TabsContent>
+
 
           <TabsContent value="published" className="mt-4 space-y-2">
             {published.length === 0 ? (

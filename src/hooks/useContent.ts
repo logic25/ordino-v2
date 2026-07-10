@@ -260,29 +260,30 @@ export function useSetCoverImage() {
 }
 
 
-// Publish: mark both the draft row and its candidate as published.
+// Publish: push an approved draft to the marketing site and mark both the
+// draft row and its candidate as published. The server-side edge function does
+// the marketing-site POST + database updates so the shared secret never leaves
+// the backend.
 export function usePublish() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ draftId, candidateId, url }: { draftId: string; candidateId: string; url?: string }) => {
-      const { error: e1 } = await (supabase as any)
-        .from("generated_content")
-        .update({ status: "published", published_url: url || null })
-        .eq("id", draftId);
-      if (e1) throw e1;
-      const { error: e2 } = await (supabase as any)
-        .from("content_candidates")
-        .update({ status: "published", updated_at: new Date().toISOString() })
-        .eq("id", candidateId);
-      if (e2) throw e2;
+    mutationFn: async ({ draftId, candidateId }: { draftId: string; candidateId: string }) => {
+      const { data, error } = await supabase.functions.invoke("publish-to-blog", {
+        body: { draft_id: draftId, candidate_id: candidateId },
+      });
+      if (error) throw new Error(error.message);
+      if ((data as any)?.error) throw new Error((data as any).error);
+      return (data as any) || null;
     },
     onSuccess: (_d, { candidateId }) => {
       qc.invalidateQueries({ queryKey: ["content-candidates"] });
       qc.invalidateQueries({ queryKey: ["published-content"] });
       qc.invalidateQueries({ queryKey: ["generated-content", candidateId] });
+      qc.invalidateQueries({ queryKey: ["generated-content-many"] });
     },
   });
 }
+
 
 // Draft a candidate via Beacon's real LLM (beacon-proxy → /api/content/generate),
 // save the draft, and advance the candidate to 'drafted'.
