@@ -354,6 +354,43 @@ function PreviewDialog({
           <span className="ml-auto text-xs text-muted-foreground">{words} words</span>
         </div>
 
+        {hasPlaceholders && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-800 p-3 text-xs">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="font-semibold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                  <HelpCircle className="h-3.5 w-3.5" />
+                  Editorial placeholders detected ({bodyPlaceholders.length + titlePlaceholders.length})
+                </div>
+                <p className="mt-1 text-amber-900/80 dark:text-amber-200/80">
+                  Publish is blocked while these are present. Review each one, then remove them (or address the claim).
+                </p>
+                <ul className="mt-1.5 list-disc pl-4 text-amber-900 dark:text-amber-200 space-y-0.5 max-h-24 overflow-y-auto">
+                  {titlePlaceholders.map((p, i) => (
+                    <li key={`t-${i}`}><span className="font-medium">Title:</span> <code className="text-[10.5px]">{p}</code></li>
+                  ))}
+                  {bodyPlaceholders.map((p, i) => (
+                    <li key={`b-${i}`}><span className="font-medium">Body:</span> <code className="text-[10.5px]">{p}</code></li>
+                  ))}
+                </ul>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0 border-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900"
+                onClick={removePlaceholders}
+                disabled={saveDraft.isPending}
+              >
+                {saveDraft.isPending
+                  ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                  : <Trash2 className="h-3.5 w-3.5 mr-1" />}
+                Remove placeholders
+              </Button>
+            </div>
+          </div>
+        )}
+
+
         <div className="flex-1 overflow-y-auto rounded-md border bg-muted/30 p-4" style={{ maxHeight: "62vh" }}>
           {isLoading ? (
             <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
