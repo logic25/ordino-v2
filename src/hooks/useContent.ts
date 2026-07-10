@@ -198,23 +198,25 @@ export function useQuickGenerate() {
         body: { candidate_id: id, title, content_type, topics: [], reasoning: "Ad-hoc topic" },
       });
       if (error) throw new Error(error.message);
-      const content = (data as any)?.content || "";
-      const word_count = (data as any)?.word_count || content.split(/\s+/).filter(Boolean).length;
+      const rawContent = (data as any)?.content || "";
+      const content = stripEditorialPlaceholders(rawContent);
+      const cleanTitle = stripEditorialPlaceholders(title);
+      const word_count = content.split(/\s+/).filter(Boolean).length;
 
       await (supabase as any).from("generated_content").insert({
         id: `gen-${id}-${Date.now()}`,
         candidate_id: id,
         content_type,
-        title,
+        title: cleanTitle,
         content,
         word_count,
         status: "draft",
         company_id: profile?.company_id,
       });
       await (supabase as any).from("content_candidates")
-        .update({ status: "drafted", updated_at: new Date().toISOString() }).eq("id", id);
+        .update({ status: "drafted", title: cleanTitle, updated_at: new Date().toISOString() }).eq("id", id);
 
-      return { id, title, content_type, status: "drafted", priority: "medium", source_type: "manual" } as unknown as ContentCandidate;
+      return { id, title: cleanTitle, content_type, status: "drafted", priority: "medium", source_type: "manual" } as unknown as ContentCandidate;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["content-candidates"] });
