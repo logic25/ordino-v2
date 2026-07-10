@@ -748,6 +748,8 @@ export default function Content() {
   const [composePreset, setComposePreset] = useState<ContentTemplate | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<ContentCandidate | null>(null);
   const [sourceFilter, setSourceFilter] = useState<"all" | SourceKey>("all");
+  const [showSkipped, setShowSkipped] = useState(false);
+
 
   // Pull all latest drafts for visible candidates so each card can show
   // an inline excerpt + Copy button without N round-trips.
