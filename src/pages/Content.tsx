@@ -851,8 +851,13 @@ export default function Content() {
           <TabsContent value="pipeline" className="mt-4 space-y-5">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                All candidates ({filteredCandidates.length}{sourceFilter !== "all" ? ` of ${candidates.length}` : ""}) — grouped by stage below
+                Ideas ({byStage.pending?.length || 0})
+                {byStage.skipped?.length ? ` · ${byStage.skipped.length} skipped` : ""}
+                {sourceFilter !== "all" && (
+                  <span className="font-normal normal-case ml-1">({filteredCandidates.length} of {candidates.length})</span>
+                )}
               </div>
+
               <div className="flex items-center gap-1 flex-wrap">
                 {([
                   ["all", "All"],
