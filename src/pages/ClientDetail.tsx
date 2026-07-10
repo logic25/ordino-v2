@@ -430,6 +430,9 @@ export default function ClientDetail() {
 
             {/* Reviews */}
             {id && <ReviewsSection clientId={id} contacts={contacts} />}
+
+            {/* Beacon Concierge activity log */}
+            {id && <ConciergeSection clientId={id} />}
           </div>
         </div>
       </div>
