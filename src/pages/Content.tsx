@@ -845,8 +845,13 @@ export default function Content() {
           <TabsList>
             <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
             <TabsTrigger value="published">Published ({published.length})</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="templates">Templates ({CONTENT_TEMPLATES.length})</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="analytics" className="mt-4">
+            <ContentAnalyticsTab />
+          </TabsContent>
 
           <TabsContent value="pipeline" className="mt-4 space-y-5">
             <div className="flex items-center justify-between gap-3 flex-wrap">
