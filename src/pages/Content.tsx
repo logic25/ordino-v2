@@ -32,6 +32,7 @@ import {
   type ContentCandidate, type GeneratedContent,
 } from "@/hooks/useContent";
 import { CONTENT_TEMPLATES, type ContentTemplate } from "@/lib/contentTemplates";
+import { ContentAnalyticsTab } from "@/components/content/ContentAnalyticsTab";
 import { formatDistanceToNow, format } from "date-fns";
 
 const STAGES: { key: string; label: string; tone: string }[] = [
