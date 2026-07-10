@@ -28,6 +28,26 @@ function firstParagraph(markdown: string) {
   return first.slice(0, 240).trimEnd() + (first.length > 240 ? "…" : "");
 }
 
+// Marketing site renders the cover image + attribution from cover_image_url /
+// cover_image_attribution. The draft body also has that block embedded
+// (Content.tsx inserts it for in-app preview), so strip it before publishing to
+// avoid the hero image + attribution rendering twice on the live post.
+function stripLeadingCoverBlock(markdown: string) {
+  return markdown.replace(
+    /^\s*!\[[^\]]*\]\([^)]+\)\s*\n+(?:\*Photo by [^\n]+\*\s*\n+)?/,
+    ""
+  );
+}
+
+// Shorten a markdown-linked Unsplash/Pexels credit
+// ("Photo by [Jack Cohen](https://…) on [Unsplash](https://…)") to plain text
+// ("Photo by Jack Cohen on Unsplash") so the marketing site doesn't render raw
+// markdown link syntax under the hero.
+function plainAttribution(attr: string | null): string | null {
+  if (!attr) return null;
+  return attr.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").trim();
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -86,7 +106,8 @@ serve(async (req) => {
 
     const title = draft.title || candidate.title || "Untitled";
     const slug = slugify(title);
-    const body = draft.content || "";
+    const rawBody = draft.content || "";
+    const body = stripLeadingCoverBlock(rawBody);
     const contentType = draft.content_type || candidate.content_type || "blog_post";
     const excerpt = firstParagraph(body);
     const publishedAt = new Date().toISOString();
@@ -94,9 +115,6 @@ serve(async (req) => {
     let publishedUrl: string | null = null;
 
     if (marketingSiteUrl && publishSecret) {
-      // Note: candidate_id / draft_id are Ordino-internal string IDs (e.g. "cand_..."),
-      // not UUIDs. The marketing site stores its own UUID primary key, so we send
-      // them as external_ref strings instead of trying to coerce them to UUID.
       const payload = {
         external_candidate_ref: candidate_id,
         external_draft_ref: draft_id,
@@ -106,7 +124,7 @@ serve(async (req) => {
         body_markdown: body,
         excerpt,
         cover_image_url: draft.cover_image_url || null,
-        cover_image_attribution: draft.cover_image_attribution || null,
+        cover_image_attribution: plainAttribution(draft.cover_image_attribution),
         published_at: publishedAt,
         key_topics: candidate.key_topics || [],
         reasoning: candidate.reasoning || null,
