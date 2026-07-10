@@ -901,7 +901,30 @@ export default function Content() {
                 </div>
               ) : null)
             )}
+            {byStage.skipped?.length > 0 && (
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSkipped((v) => !v)}
+                  className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground"
+                >
+                  {showSkipped ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                  Skipped ({byStage.skipped.length})
+                </button>
+                {showSkipped && (
+                  <div className="space-y-2">
+                    {byStage.skipped.map((c) => (
+                      <IdeaCard key={c.id} c={c} draft={draftsByCandidate[c.id]} generatingId={generatingId}
+                        canDelete={canDelete}
+                        onGenerate={doGenerate} onView={setViewing} onStatus={setStatus}
+                        onDelete={setConfirmDelete} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </TabsContent>
+
 
           <TabsContent value="published" className="mt-4 space-y-2">
             {published.length === 0 ? (
