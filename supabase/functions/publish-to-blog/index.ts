@@ -41,11 +41,52 @@ function stripLeadingCoverBlock(markdown: string) {
 
 // Shorten a markdown-linked Unsplash/Pexels credit
 // ("Photo by [Jack Cohen](https://…) on [Unsplash](https://…)") to plain text
-// ("Photo by Jack Cohen on Unsplash") so the marketing site doesn't render raw
-// markdown link syntax under the hero.
+// ("Photo by Jack Cohen on Unsplash") for legacy consumers that don't render
+// the structured credit object.
 function plainAttribution(attr: string | null): string | null {
   if (!attr) return null;
   return attr.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").trim();
+}
+
+// Parse an Unsplash/Pexels-style markdown attribution string
+// ("Photo by [Jack Cohen](https://…) on [Unsplash](https://…)")
+// into structured fields so the marketing site can render real <a> tags
+// (Unsplash's attribution guidelines require clickable links back to the
+// photographer and source, with utm params preserved).
+function parseAttribution(attr: string | null): null | {
+  photographer_name: string;
+  photographer_url: string | null;
+  source_name: string;
+  source_url: string | null;
+} {
+  if (!attr) return null;
+  const linkRe = /\[([^\]]+)\]\(([^)]+)\)/g;
+  const links: Array<{ name: string; url: string }> = [];
+  let m: RegExpExecArray | null;
+  while ((m = linkRe.exec(attr)) !== null) links.push({ name: m[1], url: m[2] });
+  // Expect: "Photo by [name](url) on [source](url)"
+  const plain = attr.replace(linkRe, "$1");
+  const match = plain.match(/^Photo by\s+(.+?)\s+on\s+(.+?)\.?\s*$/i);
+  if (!match) return null;
+  const [, photographerName, sourceName] = match;
+  const photographer = links.find((l) => l.name === photographerName) ?? links[0];
+  const source = links.find((l) => l.name === sourceName) ?? links[1];
+  return {
+    photographer_name: photographerName.trim(),
+    photographer_url: photographer?.url ?? null,
+    source_name: sourceName.trim(),
+    source_url: source?.url ?? null,
+  };
+}
+
+// Editorial placeholders emitted by the content generator for human review
+// (e.g. "[[CONFIRM: verify or remove the objection rate claim]]"). These must
+// never reach the live site. Server-side guard mirrors the client pre-check;
+// both use the same regex so the failure modes stay in sync.
+const EDITORIAL_PLACEHOLDER_RE = /\[\[(?:CONFIRM|TODO|VERIFY|CHECK|FACT-?CHECK)\b[^\]]*\]\]/i;
+function findEditorialPlaceholders(text: string): string[] {
+  const re = new RegExp(EDITORIAL_PLACEHOLDER_RE.source, "gi");
+  return text.match(re) || [];
 }
 
 serve(async (req) => {
