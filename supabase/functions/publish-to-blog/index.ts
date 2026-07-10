@@ -153,6 +153,24 @@ serve(async (req) => {
     const excerpt = firstParagraph(body);
     const publishedAt = new Date().toISOString();
 
+    // Editorial-placeholder guard: never publish drafts that still contain
+    // "[[CONFIRM: …]]" / "[[TODO: …]]" style human-review markers. Mirrors the
+    // client pre-check in Content.tsx so a bypass (curl, older UI, etc.) still
+    // fails safely.
+    const placeholders = [
+      ...findEditorialPlaceholders(title),
+      ...findEditorialPlaceholders(body),
+    ];
+    if (placeholders.length > 0) {
+      return new Response(
+        JSON.stringify({
+          error: `Draft still contains editorial placeholders (${placeholders.slice(0, 3).join(", ")}). Remove them before publishing.`,
+          placeholders,
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     let publishedUrl: string | null = null;
 
     if (marketingSiteUrl && publishSecret) {
@@ -165,7 +183,10 @@ serve(async (req) => {
         body_markdown: body,
         excerpt,
         cover_image_url: draft.cover_image_url || null,
+        // Legacy plain-text fallback for older marketing-site templates.
         cover_image_attribution: plainAttribution(draft.cover_image_attribution),
+        // Structured credit for the new template — renders as real <a> tags.
+        cover_image_credit: parseAttribution(draft.cover_image_attribution),
         published_at: publishedAt,
         key_topics: candidate.key_topics || [],
         reasoning: candidate.reasoning || null,
