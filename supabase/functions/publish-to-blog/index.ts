@@ -181,6 +181,7 @@ serve(async (req) => {
     // one-way: KB validates posts (via /api/content/generate RAG); posts
     // never feed the KB.
     if (marketingSiteUrl && publishSecret) {
+      const credit = parseAttribution(draft.cover_image_attribution);
       const payload = {
         external_candidate_ref: candidate_id,
         external_draft_ref: draft_id,
@@ -193,7 +194,12 @@ serve(async (req) => {
         // Legacy plain-text fallback for older marketing-site templates.
         cover_image_attribution: plainAttribution(draft.cover_image_attribution),
         // Structured credit for the new template — renders as real <a> tags.
-        cover_image_credit: parseAttribution(draft.cover_image_attribution),
+        cover_image_credit: credit,
+        // Flat fields the marketing site's receive-post reads directly to render
+        // compliant "Photo by [name] on Unsplash" links with UTM params.
+        photographer_name: credit?.photographer_name ?? null,
+        photographer_url: credit?.photographer_url ?? null,
+        image_source_url: credit?.source_url ?? null,
         published_at: publishedAt,
         key_topics: candidate.key_topics || [],
         reasoning: candidate.reasoning || null,
