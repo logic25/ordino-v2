@@ -29,9 +29,10 @@ import {
   useContentCandidates, useGeneratedFor, useGeneratedForMany, usePublishedContent,
   useUpdateCandidateStatus, useGenerateDraft, useSaveDraft, usePublish, useComposeContent,
   useQuickGenerate, useDeleteCandidate, useSetCoverImage,
-  stripEditorialPlaceholders, findEditorialPlaceholders,
-  type ContentCandidate, type GeneratedContent,
+  stripEditorialPlaceholders, findEditorialPlaceholders, findVerifyPlaceholders,
+  type ContentCandidate, type GeneratedContent, type Grounding,
 } from "@/hooks/useContent";
+import { askBeacon } from "@/services/beaconApi";
 import { CONTENT_TEMPLATES, type ContentTemplate } from "@/lib/contentTemplates";
 import { ContentAnalyticsTab } from "@/components/content/ContentAnalyticsTab";
 import { formatDistanceToNow, format } from "date-fns";
@@ -257,6 +258,140 @@ function CoverImagePicker({
 }
 
 
+const VERIFY_RE = /^\[\[VERIFY\b/i;
+
+function GroundingPill({ grounding }: { grounding: Grounding | null }) {
+  if (!grounding) return null;
+  const conf = grounding.kb_confidence_avg;
+  const hasSources = (grounding.kb_sources?.length ?? 0) > 0;
+  if (conf == null && !hasSources) return null;
+  const pct = conf != null ? Math.round(conf * 100) : 0;
+  let tone = "border-emerald-300 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-900/40 dark:text-emerald-400";
+  let label = `Grounded • ${pct}% avg KB confidence`;
+  if (!hasSources || (conf != null && conf < 0.4)) {
+    tone = "border-red-300 bg-red-50 text-red-700 dark:bg-red-950/30 dark:border-red-900/40 dark:text-red-400";
+    label = `Weakly grounded • ${pct}%`;
+  } else if (conf != null && conf < 0.7) {
+    tone = "border-amber-300 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-400";
+    label = `Partially grounded • ${pct}%`;
+  }
+  const sourceCount = grounding.kb_sources?.length ?? 0;
+  return (
+    <Tooltip delayDuration={150}>
+      <TooltipTrigger asChild>
+        <Badge variant="outline" className={`text-[11px] cursor-help ${tone}`}>{label}</Badge>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs z-[100]">
+        <div className="text-xs">
+          <div className="font-semibold mb-1">KB retrieval at generate time</div>
+          <div>{sourceCount} source{sourceCount === 1 ? "" : "s"} retrieved{conf != null ? ` · avg score ${pct}%` : ""}.</div>
+          {grounding.verify_flags?.length > 0 && (
+            <div className="mt-1 text-muted-foreground">{grounding.verify_flags.length} verify flag(s) at generation.</div>
+          )}
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+// Per-VERIFY-flag resolver: opens askBeacon scoped to the flagged fact and
+// lets the editor replace the [[VERIFY:...]] token with a KB-sourced answer.
+function VerifyFlagResolver({ flag, onReplace }: { flag: string; onReplace: (text: string) => Promise<void> }) {
+  const { user, profile } = useAuth();
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [answer, setAnswer] = useState<string>("");
+  const [replacement, setReplacement] = useState<string>("");
+  const [sources, setSources] = useState<string[]>([]);
+
+  const factText = flag.replace(/^\[\[VERIFY:\s*/i, "").replace(/\]\]$/, "").trim();
+
+  const ask = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const res = await askBeacon(
+        `Answer this specific fact for a construction/DOB blog post: ${factText}. Only reply if you have a KB source. Give a concise 1–2 sentence answer with the source filename.`,
+        user.id,
+        profile?.display_name || profile?.first_name || "Editor",
+        undefined,
+        undefined,
+        { companyId: profile?.company_id ?? null },
+      );
+      setAnswer(res.response || "");
+      setReplacement(res.response || "");
+      setSources((res as any)?.sources_used ? [] : []);
+    } catch (e: any) {
+      toast({ title: "Beacon lookup failed", description: e?.message || "Try again.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="outline"
+        className="shrink-0 h-6 text-[10.5px] px-2"
+        onClick={() => { setOpen(true); if (!answer) ask(); }}
+      >
+        <Sparkles className="h-3 w-3 mr-1" /> KB lookup
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-sm flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-orange-500" /> Resolve verify flag
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="text-xs">
+              <div className="text-muted-foreground uppercase tracking-wide mb-1">Flagged fact</div>
+              <code className="block bg-muted p-2 rounded text-[11px] break-all">{factText}</code>
+            </div>
+            {loading ? (
+              <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Asking Beacon…
+              </div>
+            ) : (
+              <>
+                <div>
+                  <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Replacement text</div>
+                  <Textarea
+                    value={replacement}
+                    onChange={(e) => setReplacement(e.target.value)}
+                    className="min-h-[120px] text-sm"
+                    placeholder="Edit before inserting…"
+                  />
+                </div>
+                {answer && sources.length > 0 && (
+                  <div className="text-[11px] text-muted-foreground">Sources: {sources.join(", ")}</div>
+                )}
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button variant="outline" size="sm" onClick={ask} disabled={loading}>
+              <Sparkles className="h-3.5 w-3.5 mr-1" /> Ask again
+            </Button>
+            <Button
+              size="sm"
+              disabled={loading || !replacement.trim()}
+              onClick={async () => { await onReplace(replacement.trim()); setOpen(false); }}
+            >
+              <Check className="h-3.5 w-3.5 mr-1" /> Replace in draft
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+
 // ── Preview / Review modal with inline edit + publish ───────────────────────
 function PreviewDialog({
   candidate, open, onClose,
@@ -283,12 +418,18 @@ function PreviewDialog({
     toast({ title: "Saved", description: "Your edits are stored." });
   };
 
-  // Detect Beacon's "[[CONFIRM: ...]]" / "[[TODO: ...]]" editorial markers
-  // in the current body AND in the title. Publish is blocked while any remain;
-  // the banner offers a one-click strip that saves cleaned title + body.
+  // Detect editorial markers. CONFIRM/TODO/CHECK are removable in bulk.
+  // [[VERIFY:...]] are fact-guard flags — must be resolved individually
+  // (KB lookup or edit). Publish is blocked while any remain.
   const bodyPlaceholders = findEditorialPlaceholders(body);
   const titlePlaceholders = findEditorialPlaceholders(candidate?.title || "");
+  const bodyVerifyFlags = findVerifyPlaceholders(body);
+  const bodyRemovable = bodyPlaceholders.filter((p) => !VERIFY_RE.test(p));
+  const titleRemovable = titlePlaceholders.filter((p) => !VERIFY_RE.test(p));
   const hasPlaceholders = bodyPlaceholders.length + titlePlaceholders.length > 0;
+  const hasRemovable = bodyRemovable.length + titleRemovable.length > 0;
+
+  const grounding = (draft?.grounding || null) as Grounding | null;
 
   const removePlaceholders = async () => {
     if (!draft || !candidate) return;
@@ -305,6 +446,15 @@ function PreviewDialog({
     toast({ title: "Placeholders removed", description: "Draft is ready to publish." });
   };
 
+  // Swap a single [[VERIFY:...]] token for the editor-provided text.
+  const replaceVerifyFlag = async (flag: string, replacement: string) => {
+    if (!draft || !candidate) return;
+    const next = body.split(flag).join(replacement);
+    setBody(next);
+    await saveDraft.mutateAsync({ id: draft.id, candidateId: candidate.id, content: next });
+    toast({ title: "Flag resolved", description: "Fact replaced from KB." });
+  };
+
   const doPublish = async () => {
     if (!draft || !isAdmin) return;
     if (editing) await save();
@@ -317,7 +467,7 @@ function PreviewDialog({
     if (still.length > 0) {
       toast({
         title: "Publish blocked",
-        description: `Draft still contains ${still.length} editorial placeholder(s). Use "Remove placeholders" and try again.`,
+        description: `Draft still contains ${still.length} editorial placeholder(s). Resolve them and try again.`,
         variant: "destructive",
       });
       return;
@@ -344,13 +494,14 @@ function PreviewDialog({
         </DialogHeader>
 
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Badge variant="outline" className="gap-1 text-[11px]">
             <TypeIcon t={candidate?.content_type} className="h-3 w-3" /> {typeLabel(candidate?.content_type)}
           </Badge>
           {candidate?.priority && (
             <Badge variant="outline" className={`text-[11px] ${priorityClasses(candidate.priority)}`}>{candidate.priority}</Badge>
           )}
+          <GroundingPill grounding={grounding} />
           <span className="ml-auto text-xs text-muted-foreground">{words} words</span>
         </div>
 
@@ -360,35 +511,52 @@ function PreviewDialog({
               <div className="min-w-0">
                 <div className="font-semibold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
                   <HelpCircle className="h-3.5 w-3.5" />
-                  Editorial placeholders detected ({bodyPlaceholders.length + titlePlaceholders.length})
+                  Editorial flags detected ({bodyPlaceholders.length + titlePlaceholders.length})
                 </div>
                 <p className="mt-1 text-amber-900/80 dark:text-amber-200/80">
-                  Publish is blocked while these are present. Review each one, then remove them (or address the claim).
+                  Publish is blocked until these are resolved. CONFIRM/TODO markers can be stripped in bulk; VERIFY flags are fact-guard hits — replace each with a KB-sourced fact or edit the sentence.
                 </p>
-                <ul className="mt-1.5 list-disc pl-4 text-amber-900 dark:text-amber-200 space-y-0.5 max-h-24 overflow-y-auto">
+                <ul className="mt-1.5 pl-4 text-amber-900 dark:text-amber-200 space-y-1 max-h-40 overflow-y-auto list-disc">
                   {titlePlaceholders.map((p, i) => (
                     <li key={`t-${i}`}><span className="font-medium">Title:</span> <code className="text-[10.5px]">{p}</code></li>
                   ))}
-                  {bodyPlaceholders.map((p, i) => (
-                    <li key={`b-${i}`}><span className="font-medium">Body:</span> <code className="text-[10.5px]">{p}</code></li>
-                  ))}
+                  {bodyPlaceholders.map((p, i) => {
+                    const isVerify = VERIFY_RE.test(p);
+                    return (
+                      <li key={`b-${i}`} className="flex items-start gap-2">
+                        <div className="min-w-0 flex-1">
+                          <span className="font-medium">{isVerify ? "Verify:" : "Body:"}</span>{" "}
+                          <code className="text-[10.5px] break-all">{p}</code>
+                        </div>
+                        {isVerify && (
+                          <VerifyFlagResolver
+                            flag={p}
+                            onReplace={(text) => replaceVerifyFlag(p, text)}
+                          />
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                className="shrink-0 border-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900"
-                onClick={removePlaceholders}
-                disabled={saveDraft.isPending}
-              >
-                {saveDraft.isPending
-                  ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                  : <Trash2 className="h-3.5 w-3.5 mr-1" />}
-                Remove placeholders
-              </Button>
+              {hasRemovable && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 border-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900"
+                  onClick={removePlaceholders}
+                  disabled={saveDraft.isPending}
+                >
+                  {saveDraft.isPending
+                    ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                    : <Trash2 className="h-3.5 w-3.5 mr-1" />}
+                  Strip CONFIRM/TODO
+                </Button>
+              )}
             </div>
           </div>
         )}
+
 
 
         <div className="flex-1 overflow-y-auto rounded-md border bg-muted/30 p-4" style={{ maxHeight: "62vh" }}>

@@ -5969,6 +5969,7 @@ export type Database = {
           cover_image_attribution: string | null
           cover_image_url: string | null
           generated_at: string | null
+          grounding: Json | null
           id: string
           published_at: string | null
           published_url: string | null
@@ -5986,6 +5987,7 @@ export type Database = {
           cover_image_attribution?: string | null
           cover_image_url?: string | null
           generated_at?: string | null
+          grounding?: Json | null
           id: string
           published_at?: string | null
           published_url?: string | null
@@ -6003,6 +6005,7 @@ export type Database = {
           cover_image_attribution?: string | null
           cover_image_url?: string | null
           generated_at?: string | null
+          grounding?: Json | null
           id?: string
           published_at?: string | null
           published_url?: string | null
