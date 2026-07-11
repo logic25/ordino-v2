@@ -5,6 +5,15 @@ import { supabase } from "@/integrations/supabase/client";
  * Content Analytics — read-only aggregations over data we already have.
  * NO estimates, NO mocks. If a metric has zero rows, we return zeros and
  * the UI shows an honest "No data yet" empty state.
+ *
+ * IMPORTANT: we deliberately do NOT compute "Beacon citations per post"
+ * anymore. Published posts are not (and must not be) ingested into the
+ * Beacon KB — see the comment in publish-to-blog/index.ts. That metric
+ * would always be 0 by construction, so it was measuring the wrong thing.
+ * External engagement (page views, contact conversions, search impressions)
+ * belongs to Google Analytics + Search Console; we surface a connect-prompt
+ * until those are wired. Internal content quality is now the "Grounding
+ * health" panel below.
  */
 
 export interface FunnelStats {
@@ -21,21 +30,44 @@ export interface SourceMixRow {
   beacon: number;
 }
 
-export interface PublishedPost {
-  id: string;
-  candidate_id: string | null;
-  title: string;
-  content_type: string;
-  published_at: string | null;
-  citations: number;
-  ai_cost_usd: number; // 0 when no ai_usage_logs row references this candidate
-}
-
 export interface ContentGap {
   cluster: string;
   question_count: number;
   sample_questions: string[];
   avg_confidence: number | null;
+}
+
+export interface GroundingHealth {
+  postCount: number;
+  postsWithGrounding: number;
+  avgKbConfidence: number | null;
+  cleanDraftPct: number | null; // % of published posts where verify_flags was empty at generate
+  verifyFlagsResolved: number; // total flags produced by generator that no longer appear in final content
+  perPost: {
+    id: string;
+    title: string;
+    content_type: string;
+    published_at: string | null;
+    kb_confidence_avg: number | null;
+    verify_flags_at_generate: number;
+    ai_cost_usd: number;
+  }[];
+}
+
+export interface PostPerformance {
+  connected: boolean;
+  ga_connected: boolean;
+  gsc_connected: boolean;
+  rows: {
+    id: string;
+    title: string;
+    published_at: string | null;
+    published_url: string | null;
+    page_views: number | null;
+    conversions: number | null;
+    search_impressions: number | null;
+    search_clicks: number | null;
+  }[];
 }
 
 const CONFIDENCE_THRESHOLD = 0.6;
@@ -115,38 +147,25 @@ export function useContentFunnel() {
   });
 }
 
-// --- Published posts + Beacon citations + cost -----------------------------
-export function usePublishedPostAnalytics() {
+// --- Grounding health (internal content quality) ---------------------------
+// Uses the new generated_content.grounding jsonb column plus ai_usage_logs.
+// Empty until posts generated with the new pipeline start landing.
+const VERIFY_RE = /\[\[VERIFY\b[^\]]*\]\]/gi;
+
+export function useGroundingHealth() {
   return useQuery({
-    queryKey: ["content-analytics", "published-posts"],
-    queryFn: async (): Promise<PublishedPost[]> => {
+    queryKey: ["content-analytics", "grounding-health"],
+    queryFn: async (): Promise<GroundingHealth> => {
       const { data: posts, error } = await (supabase as any)
         .from("generated_content")
-        .select("id, candidate_id, title, content_type, published_at")
+        .select("id, candidate_id, title, content, content_type, published_at, grounding")
         .eq("status", "published")
         .order("published_at", { ascending: false });
       if (error) throw error;
       const published = (posts || []) as any[];
-      if (published.length === 0) return [];
 
-      // Fetch Beacon interactions that returned any sources — we'll substring
-      // match post titles against the sources_used JSON text. It's imprecise
-      // but honest: we count only interactions that DID cite something.
-      const { data: interactions } = await (supabase as any)
-        .from("beacon_interactions")
-        .select("sources_used, timestamp")
-        .eq("had_sources", true)
-        .not("sources_used", "is", null);
-
-      const sourceStrings = ((interactions || []) as any[]).map(
-        (r) => (r.sources_used || "") as string,
-      );
-
-      // AI cost per candidate — from ai_usage_logs.metadata.candidate_id.
-      // When no rows exist for a candidate, cost is 0 (shown honestly).
-      const candIds = published
-        .map((p) => p.candidate_id)
-        .filter(Boolean) as string[];
+      // Cost per candidate (mirrors the old panel — we relocate this here).
+      const candIds = published.map((p) => p.candidate_id).filter(Boolean) as string[];
       const costByCandidate = new Map<string, number>();
       if (candIds.length) {
         const { data: usage } = await (supabase as any)
@@ -163,27 +182,61 @@ export function usePublishedPostAnalytics() {
         }
       }
 
-      return published.map((p) => {
-        const title = (p.title || "").trim();
-        let citations = 0;
-        if (title.length >= 4) {
-          const needle = title.toLowerCase();
-          for (const s of sourceStrings) {
-            if (s.toLowerCase().includes(needle)) citations += 1;
-          }
-        }
+      const perPost = published.map((p) => {
+        const g = p.grounding || null;
+        const flagsAtGen = Array.isArray(g?.verify_flags) ? g.verify_flags.length : 0;
         return {
           id: p.id,
-          candidate_id: p.candidate_id,
           title: p.title || "(untitled)",
           content_type: p.content_type || "blog_post",
           published_at: p.published_at,
-          citations,
-          ai_cost_usd: p.candidate_id
-            ? costByCandidate.get(p.candidate_id) || 0
-            : 0,
+          kb_confidence_avg: typeof g?.kb_confidence_avg === "number" ? g.kb_confidence_avg : null,
+          verify_flags_at_generate: flagsAtGen,
+          verify_flags_remaining: ((p.content || "").match(VERIFY_RE) || []).length,
+          ai_cost_usd: p.candidate_id ? costByCandidate.get(p.candidate_id) || 0 : 0,
         };
       });
+
+      const withGrounding = perPost.filter((p) => p.kb_confidence_avg != null);
+      const avgKbConfidence = withGrounding.length
+        ? withGrounding.reduce((a, b) => a + (b.kb_confidence_avg || 0), 0) / withGrounding.length
+        : null;
+      const cleanCount = withGrounding.filter((p) => p.verify_flags_at_generate === 0).length;
+      const cleanDraftPct = withGrounding.length ? (cleanCount / withGrounding.length) * 100 : null;
+      const verifyFlagsResolved = perPost.reduce(
+        (acc, p) => acc + Math.max(0, p.verify_flags_at_generate - (p as any).verify_flags_remaining),
+        0,
+      );
+
+      return {
+        postCount: perPost.length,
+        postsWithGrounding: withGrounding.length,
+        avgKbConfidence,
+        cleanDraftPct,
+        verifyFlagsResolved,
+        perPost: perPost.map(({ verify_flags_remaining, ...rest }: any) => rest),
+      };
+    },
+  });
+}
+
+// --- Post performance (external engagement, GA4 + GSC) ---------------------
+// Neither connector is wired yet. We return { connected: false } and the UI
+// renders an honest "Connect Google Analytics & Search Console" prompt —
+// no fabricated 0s or placeholder rows.
+export function usePostPerformance() {
+  return useQuery({
+    queryKey: ["content-analytics", "post-performance"],
+    queryFn: async (): Promise<PostPerformance> => {
+      // TODO: once google_analytics + google_search_console app connectors are
+      // linked, fetch page views / conversions / impressions per published_url
+      // and merge into rows. Until then, honest empty state.
+      return {
+        connected: false,
+        ga_connected: false,
+        gsc_connected: false,
+        rows: [],
+      };
     },
   });
 }

@@ -173,6 +173,13 @@ serve(async (req) => {
 
     let publishedUrl: string | null = null;
 
+    // ⚠️ DO NOT pipe published posts into the Beacon KB (/api/ingest).
+    // The KB must hold only authoritative primary sources (DOB rules, code, our
+    // real documents). Ingesting our own generated posts creates a
+    // self-referential loop — the model would cite its own prior output as
+    // authoritative and any error would seed the next post. Direction is
+    // one-way: KB validates posts (via /api/content/generate RAG); posts
+    // never feed the KB.
     if (marketingSiteUrl && publishSecret) {
       const payload = {
         external_candidate_ref: candidate_id,

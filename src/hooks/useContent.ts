@@ -24,6 +24,18 @@ export interface ContentCandidate {
   created_at: string;
 }
 
+export interface GroundingSource {
+  source_file: string;
+  score?: number;
+  excerpt?: string;
+}
+
+export interface Grounding {
+  kb_sources: GroundingSource[];
+  verify_flags: string[];
+  kb_confidence_avg: number | null;
+}
+
 export interface GeneratedContent {
   id: string;
   candidate_id: string | null;
@@ -36,16 +48,24 @@ export interface GeneratedContent {
   published_url: string | null;
   cover_image_url?: string | null;
   cover_image_attribution?: string | null;
+  grounding?: Grounding | null;
 }
 
 // ── Editorial-placeholder scrubber ───────────────────────────────────────
 // Beacon's content generator sometimes emits human-review markers like
-// "[[CONFIRM: verify the objection rate]]" or "[[TODO: add stat]]". They must
-// never reach the live site, so we strip them defensively at three layers:
+// "[[CONFIRM: verify the objection rate]]" or "[[TODO: add stat]]". We now
+// ALSO emit "[[VERIFY: <fact>]]" ourselves as a fact-guard safety net when a
+// specific numeric/citational claim isn't backed by a retrieved KB chunk.
+// The publish path treats all of these the same: block until removed/resolved.
 //   1. right after Beacon returns a draft (useGenerateDraft / useQuickGenerate)
 //   2. every time the editor saves (useSaveDraft)
 //   3. server-side inside publish-to-blog as a final publish guard
-export const EDITORIAL_PLACEHOLDER_RE = /\[\[(?:CONFIRM|TODO|VERIFY|CHECK|FACT-?CHECK)\b[^\]]*\]\]/gi;
+// stripEditorialPlaceholders removes CONFIRM/TODO/CHECK/FACT-CHECK markers,
+// but NOT [[VERIFY:...]] — those require an editor decision (replace with a
+// KB-sourced fact or remove the sentence). The publish guard blocks all of them.
+export const EDITORIAL_PLACEHOLDER_RE = /\[\[(?:CONFIRM|TODO|CHECK|FACT-?CHECK)\b[^\]]*\]\]/gi;
+export const VERIFY_PLACEHOLDER_RE = /\[\[VERIFY\b[^\]]*\]\]/gi;
+export const ANY_PLACEHOLDER_RE = /\[\[(?:CONFIRM|TODO|VERIFY|CHECK|FACT-?CHECK)\b[^\]]*\]\]/gi;
 
 export function stripEditorialPlaceholders(text: string | null | undefined): string {
   if (!text) return "";
@@ -60,9 +80,82 @@ export function stripEditorialPlaceholders(text: string | null | undefined): str
 
 export function findEditorialPlaceholders(text: string | null | undefined): string[] {
   if (!text) return [];
-  return text.match(EDITORIAL_PLACEHOLDER_RE) || [];
+  return text.match(ANY_PLACEHOLDER_RE) || [];
 }
 
+export function findVerifyPlaceholders(text: string | null | undefined): string[] {
+  if (!text) return [];
+  return text.match(VERIFY_PLACEHOLDER_RE) || [];
+}
+
+// ── Client-side fact-guard safety net ────────────────────────────────────
+// Independent of Railway. If a draft comes back weakly grounded (no KB sources
+// retrieved, or avg confidence below the floor), scan for specific factual
+// tokens (dollar amounts, day/month counts, percentages, code sections, form
+// numbers) and wrap the enclosing sentence in [[VERIFY:...]] so it can't be
+// published without editor review. Conservative by design: when KB sources
+// exist we trust Railway's own verify_flags and don't double-flag here.
+const FACT_TOKEN_RE = /(\$[\d,]+(?:\.\d+)?|\b\d+\s*(?:business\s+)?days?\b|\b\d+\s*months?\b|\b\d+%|\b(?:BC|MC|AC|NYCECC)\s*\d+(?:\.\d+)*\b|\bPW[123]\b|\bTR[18]\b)/gi;
+
+const WEAK_GROUNDING_THRESHOLD = 0.4;
+
+export function applyClientFactGuard(content: string, grounding: Grounding | null | undefined): string {
+  if (!content) return content;
+  const hasSources = (grounding?.kb_sources?.length ?? 0) > 0;
+  const conf = grounding?.kb_confidence_avg ?? null;
+  const weak = !hasSources || (conf !== null && conf < WEAK_GROUNDING_THRESHOLD);
+  if (!weak) return content;
+
+  // Split into sentences on . ? ! but keep paragraphs intact.
+  return content.replace(/([^\n.!?]+[.!?]+)(\s|$)/g, (match, sentence: string, trail: string) => {
+    // Skip if the sentence already has a placeholder anywhere.
+    if (ANY_PLACEHOLDER_RE.test(sentence)) return match;
+    // Reset the regex state (global flag makes it stateful).
+    FACT_TOKEN_RE.lastIndex = 0;
+    const hit = FACT_TOKEN_RE.exec(sentence);
+    if (!hit) return match;
+    // Skip if the sentence appears to cite a source inline.
+    if (/\(source:/i.test(sentence)) return match;
+    return `${sentence.trimEnd()} [[VERIFY: ${hit[1]}]]${trail}`;
+  });
+}
+
+// Lightweight pull of the low-confidence topics from Beacon interactions —
+// used to enrich the Railway generate request so it auto-flags known gaps.
+async function fetchLowConfidenceTopics(): Promise<{ topic: string; avg_confidence: number; question_count: number }[]> {
+  const { data } = await (supabase as any)
+    .from("beacon_interactions")
+    .select("topic, confidence, had_sources, sources_used")
+    .order("timestamp", { ascending: false })
+    .limit(1000);
+  const rows = (data || []) as any[];
+  const byTopic = new Map<string, { confs: number[]; count: number }>();
+  for (const r of rows) {
+    const topic = (r.topic || "").trim();
+    if (!topic) continue;
+    const entry = byTopic.get(topic) || { confs: [], count: 0 };
+    entry.count += 1;
+    if (r.confidence != null) entry.confs.push(Number(r.confidence));
+    byTopic.set(topic, entry);
+  }
+  const out: { topic: string; avg_confidence: number; question_count: number }[] = [];
+  for (const [topic, v] of byTopic.entries()) {
+    if (!v.confs.length) continue;
+    const avg = v.confs.reduce((a, b) => a + b, 0) / v.confs.length;
+    if (avg < 0.6) out.push({ topic, avg_confidence: avg, question_count: v.count });
+  }
+  return out.sort((a, b) => a.avg_confidence - b.avg_confidence).slice(0, 10);
+}
+
+function extractGrounding(data: any): Grounding | null {
+  const g = data?.grounding;
+  if (!g || typeof g !== "object") return null;
+  return {
+    kb_sources: Array.isArray(g.kb_sources) ? g.kb_sources : [],
+    verify_flags: Array.isArray(g.verify_flags) ? g.verify_flags : [],
+    kb_confidence_avg: typeof g.kb_confidence_avg === "number" ? g.kb_confidence_avg : null,
+  };
+}
 
 
 export function useContentCandidates() {
@@ -194,12 +287,18 @@ export function useQuickGenerate() {
       });
       if (cErr) throw cErr;
 
+      const lowConfTopics = await fetchLowConfidenceTopics().catch(() => []);
       const { data, error } = await supabase.functions.invoke("beacon-proxy?action=content-generate", {
-        body: { candidate_id: id, title, content_type, topics: [], reasoning: "Ad-hoc topic" },
+        body: {
+          candidate_id: id, title, content_type, topics: [], reasoning: "Ad-hoc topic",
+          low_confidence_topics: lowConfTopics,
+        },
       });
       if (error) throw new Error(error.message);
+      const grounding = extractGrounding(data);
       const rawContent = (data as any)?.content || "";
-      const content = stripEditorialPlaceholders(rawContent);
+      const guarded = applyClientFactGuard(rawContent, grounding);
+      const content = stripEditorialPlaceholders(guarded);
       const cleanTitle = stripEditorialPlaceholders(title);
       const word_count = content.split(/\s+/).filter(Boolean).length;
 
@@ -212,6 +311,7 @@ export function useQuickGenerate() {
         word_count,
         status: "draft",
         company_id: profile?.company_id,
+        grounding,
       });
       await (supabase as any).from("content_candidates")
         .update({ status: "drafted", title: cleanTitle, updated_at: new Date().toISOString() }).eq("id", id);
@@ -228,6 +328,8 @@ export function useQuickGenerate() {
 // Save an edited draft body back to generated_content (re-counts words).
 // Optionally updates the title too — used by the "Remove placeholders" cleanup
 // action so it can scrub the title in the same round-trip.
+// NOTE: only CONFIRM/TODO/CHECK/FACT-CHECK are stripped automatically. [[VERIFY:...]]
+// stays put — the editor must resolve it (KB lookup or delete the sentence).
 export function useSaveDraft() {
   const qc = useQueryClient();
   return useMutation({
@@ -309,6 +411,9 @@ export function useSetCoverImage() {
 // draft row and its candidate as published. The server-side edge function does
 // the marketing-site POST + database updates so the shared secret never leaves
 // the backend.
+//
+// NOTE: published posts are DELIBERATELY NOT ingested back into the Beacon KB.
+// See the comment in publish-to-blog/index.ts for why (self-referential loop).
 export function usePublish() {
   const qc = useQueryClient();
   return useMutation({
@@ -337,6 +442,12 @@ export function useGenerateDraft() {
   const { profile } = useAuth();
   return useMutation({
     mutationFn: async (candidate: ContentCandidate) => {
+      const lowConfTopics = await fetchLowConfidenceTopics().catch(() => []);
+      // Confidence + question count for this candidate's own topic cluster
+      // (if any) so Railway can weight retrieval accordingly.
+      const primaryTopic = (candidate.key_topics || [])[0] || null;
+      const topicMatch = primaryTopic ? lowConfTopics.find((t) => t.topic === primaryTopic) : null;
+
       const { data, error } = await supabase.functions.invoke("beacon-proxy?action=content-generate", {
         body: {
           candidate_id: candidate.id,
@@ -344,10 +455,16 @@ export function useGenerateDraft() {
           content_type: candidate.content_type,
           topics: candidate.key_topics,
           reasoning: candidate.reasoning,
+          topic_confidence: topicMatch?.avg_confidence ?? null,
+          topic_question_count: topicMatch?.question_count ?? candidate.team_questions_count ?? null,
+          low_confidence_topics: lowConfTopics,
         },
       });
       if (error) throw new Error(error.message);
-      const content = stripEditorialPlaceholders((data as any)?.content || "");
+      const grounding = extractGrounding(data);
+      const rawContent = (data as any)?.content || "";
+      const guarded = applyClientFactGuard(rawContent, grounding);
+      const content = stripEditorialPlaceholders(guarded);
       const cleanTitle = stripEditorialPlaceholders(candidate.title);
       const word_count = content.split(/\s+/).filter(Boolean).length;
 
@@ -360,12 +477,13 @@ export function useGenerateDraft() {
         word_count,
         status: "draft",
         company_id: profile?.company_id,
+        grounding,
       });
       await (supabase as any)
         .from("content_candidates")
         .update({ status: "drafted", title: cleanTitle, updated_at: new Date().toISOString() })
         .eq("id", candidate.id);
-      return { content, word_count };
+      return { content, word_count, grounding };
     },
     onSuccess: (_d, candidate) => {
       qc.invalidateQueries({ queryKey: ["content-candidates"] });
