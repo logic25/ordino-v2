@@ -7407,6 +7407,48 @@ export type Database = {
           },
         ]
       }
+      mcp_audit_log: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          ip_address: string | null
+          oauth_client_id: string | null
+          parameters: Json
+          result_status: string
+          tool_name: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          ip_address?: string | null
+          oauth_client_id?: string | null
+          parameters?: Json
+          result_status?: string
+          tool_name: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          ip_address?: string | null
+          oauth_client_id?: string | null
+          parameters?: Json
+          result_status?: string
+          tool_name?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null
