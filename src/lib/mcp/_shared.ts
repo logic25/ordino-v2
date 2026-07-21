@@ -18,8 +18,12 @@ export const limitSchema = z
 
 /** Build a Supabase client scoped to the calling user. RLS runs as that user. */
 export function supabaseForUser(ctx: ToolContext): SupabaseClient {
-  const url = process.env.SUPABASE_URL!;
-  const anon = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY!;
+  // `process.env` is provided by the Deno edge-function runtime that bundles
+  // this module. Declared as `any` so the frontend TS config doesn't need
+  // @types/node — this file only ever runs server-side.
+  const env = (globalThis as any).process?.env ?? {};
+  const url = env.SUPABASE_URL as string;
+  const anon = (env.SUPABASE_PUBLISHABLE_KEY ?? env.SUPABASE_ANON_KEY) as string;
   return createClient(url, anon, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
     auth: { persistSession: false, autoRefreshToken: false },
