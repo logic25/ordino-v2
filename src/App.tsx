@@ -65,6 +65,7 @@ function lazyWithRetry<T extends React.ComponentType<any>>(
 import Auth from "./pages/Auth";
 import Setup from "./pages/Setup";
 import AuthCallback from "./pages/AuthCallback";
+import OAuthConsent from "./pages/OAuthConsent";
 import NotFound from "./pages/NotFound";
 
 // Lazy-loaded pages
@@ -146,6 +147,8 @@ function AppRoutes() {
         }
       />
       <Route path="/auth/callback" element={<AuthCallback />} />
+      {/* OAuth 2.1 consent route for external MCP clients (ChatGPT, Claude, etc.) */}
+      <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
       <Route
         path="/portal/auth"
         element={
