@@ -59,27 +59,43 @@ Deno.serve(async (req) => {
     }
 
     // Past-due invoices for this client (or just this property)
-    let invQuery = supabase
-      .from("invoices")
-      .select(`
+    const invSelect = `
         id, invoice_number, status, due_date, created_at, total_due, retainer_applied, line_items,
         project_id,
         projects:projects!invoices_project_id_fkey (id, name, address, proposal_id)
-      `)
-      .eq("company_id", company_id)
-      .eq("client_id", trigInv.client_id)
-      .neq("status", "paid")
-      .neq("status", "draft");
+      `;
 
-    if (scope === "property" && trigInv.project_id) {
-      invQuery = invQuery.eq("project_id", trigInv.project_id);
+    let invoicesRaw: any[] = [];
+    if (trigInv.client_id) {
+      let invQuery = supabase
+        .from("invoices")
+        .select(invSelect)
+        .eq("company_id", company_id)
+        .eq("client_id", trigInv.client_id)
+        .neq("status", "paid")
+        .neq("status", "draft");
+      if (scope === "property" && trigInv.project_id) {
+        invQuery = invQuery.eq("project_id", trigInv.project_id);
+      }
+      const { data } = await invQuery;
+      invoicesRaw = data || [];
     }
-    const { data: invoicesRaw } = await invQuery;
+
+    // Guarantee the trigger invoice is present even if client_id is null or filters excluded it.
+    if (!invoicesRaw.some((i: any) => i.id === invoice_id)) {
+      const { data: trigFull } = await supabase
+        .from("invoices")
+        .select(invSelect)
+        .eq("id", invoice_id)
+        .eq("company_id", company_id)
+        .maybeSingle();
+      if (trigFull) invoicesRaw = [trigFull, ...invoicesRaw];
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const overdueInvoices = (invoicesRaw || []).filter((inv: any) => {
-      // Always include the invoice the user triggered the demand from.
+    const overdueInvoices = invoicesRaw.filter((inv: any) => {
       if (inv.id === invoice_id) return true;
       if (!inv.due_date) return false;
       const d = new Date(inv.due_date);
@@ -92,6 +108,7 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     // Pull proposals (signed agreements) for those projects
     const proposalIds = Array.from(new Set(
