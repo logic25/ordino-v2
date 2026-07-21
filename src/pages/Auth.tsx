@@ -46,6 +46,13 @@ export default function Auth() {
   const { toast } = useToast();
   const { signIn } = useAuth();
 
+  // Preserve `?next=` through sign-in / sign-up / Google OAuth so OAuth consent
+  // (and other deep links) return the user to the intended page instead of
+  // dropping them on /dashboard.
+  const rawNext = searchParams.get("next") || "";
+  const nextPath =
+    rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard";
+
   // Detect OAuth error redirect (e.g. signup disabled bouncing Google login)
   useEffect(() => {
     const errorCode = searchParams.get("error_code");
