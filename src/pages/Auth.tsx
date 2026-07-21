@@ -506,7 +506,7 @@ export default function Auth() {
                               } else {
                                 toast({ title: "Account created — signing in..." });
                                 const { error: signInErr } = await signIn(email, password);
-                                if (!signInErr) navigate("/dashboard");
+                                if (!signInErr) navigate(nextPath);
                               }
                             } finally { setIsLoading(false); }
                           }}
