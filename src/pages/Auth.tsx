@@ -46,6 +46,13 @@ export default function Auth() {
   const { toast } = useToast();
   const { signIn } = useAuth();
 
+  // Preserve `?next=` through sign-in / sign-up / Google OAuth so OAuth consent
+  // (and other deep links) return the user to the intended page instead of
+  // dropping them on /dashboard.
+  const rawNext = searchParams.get("next") || "";
+  const nextPath =
+    rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard";
+
   // Detect OAuth error redirect (e.g. signup disabled bouncing Google login)
   useEffect(() => {
     const errorCode = searchParams.get("error_code");
@@ -127,7 +134,7 @@ export default function Auth() {
         }
         return;
       }
-      navigate("/dashboard");
+      navigate(nextPath);
     } finally {
       setIsLoading(false);
     }
@@ -200,7 +207,7 @@ export default function Auth() {
         description: "Your password has been successfully changed.",
       });
       setIsPasswordReset(false);
-      navigate("/dashboard");
+      navigate(nextPath);
     } finally {
       setIsLoading(false);
     }
@@ -401,7 +408,7 @@ export default function Auth() {
                     setIsLoading(true);
                     try {
                       const { error } = await lovable.auth.signInWithOAuth("google", {
-                        redirect_uri: `${window.location.origin}/auth/callback`,
+                        redirect_uri: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
                         extraParams: {
                           hd: "greenlightexpediting.com",
                           prompt: "select_account",
@@ -499,7 +506,7 @@ export default function Auth() {
                               } else {
                                 toast({ title: "Account created — signing in..." });
                                 const { error: signInErr } = await signIn(email, password);
-                                if (!signInErr) navigate("/dashboard");
+                                if (!signInErr) navigate(nextPath);
                               }
                             } finally { setIsLoading(false); }
                           }}
