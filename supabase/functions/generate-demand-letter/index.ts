@@ -79,6 +79,8 @@ Deno.serve(async (req) => {
     today.setHours(0, 0, 0, 0);
 
     const overdueInvoices = (invoicesRaw || []).filter((inv: any) => {
+      // Always include the invoice the user triggered the demand from.
+      if (inv.id === invoice_id) return true;
       if (!inv.due_date) return false;
       const d = new Date(inv.due_date);
       d.setHours(0, 0, 0, 0);
@@ -86,7 +88,7 @@ Deno.serve(async (req) => {
     });
 
     if (overdueInvoices.length === 0) {
-      return new Response(JSON.stringify({ error: "No past-due invoices found for this client" }), {
+      return new Response(JSON.stringify({ error: "Invoice not found for demand letter" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
