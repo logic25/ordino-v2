@@ -134,7 +134,7 @@ export default function Auth() {
         }
         return;
       }
-      navigate("/dashboard");
+      navigate(nextPath);
     } finally {
       setIsLoading(false);
     }
@@ -207,7 +207,7 @@ export default function Auth() {
         description: "Your password has been successfully changed.",
       });
       setIsPasswordReset(false);
-      navigate("/dashboard");
+      navigate(nextPath);
     } finally {
       setIsLoading(false);
     }
@@ -408,7 +408,7 @@ export default function Auth() {
                     setIsLoading(true);
                     try {
                       const { error } = await lovable.auth.signInWithOAuth("google", {
-                        redirect_uri: `${window.location.origin}/auth/callback`,
+                        redirect_uri: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
                         extraParams: {
                           hd: "greenlightexpediting.com",
                           prompt: "select_account",
