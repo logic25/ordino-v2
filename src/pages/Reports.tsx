@@ -16,6 +16,7 @@ import OpenServicesReport from "@/components/reports/OpenServicesReport";
 import ServiceLevelReport from "@/components/reports/ServiceLevelReport";
 import BdReports from "@/components/reports/BdReports";
 import RfpReports from "@/components/reports/RfpReports";
+import ClientHealthTab from "@/components/reports/ClientHealthTab";
 
 export default function Reports() {
   const { track } = useTelemetry();
@@ -40,6 +41,7 @@ export default function Reports() {
             <TabsTrigger value="services">Services</TabsTrigger>
             <TabsTrigger value="time">Time</TabsTrigger>
             <TabsTrigger value="proposals">Proposals</TabsTrigger>
+            <TabsTrigger value="client-health">Client Health</TabsTrigger>
             <TabsTrigger value="operations">Operations</TabsTrigger>
             <TabsTrigger value="bd">BD / Leads</TabsTrigger>
             <TabsTrigger value="rfp">RFPs</TabsTrigger>
@@ -56,6 +58,7 @@ export default function Reports() {
           </TabsContent>
           <TabsContent value="time"><TimeReports /></TabsContent>
           <TabsContent value="proposals"><ProposalReports /></TabsContent>
+          <TabsContent value="client-health"><ClientHealthTab /></TabsContent>
           <TabsContent value="operations"><OperationsReports /></TabsContent>
           <TabsContent value="bd"><BdReports /></TabsContent>
           <TabsContent value="rfp"><RfpReports /></TabsContent>

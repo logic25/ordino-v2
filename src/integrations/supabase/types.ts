@@ -80,6 +80,13 @@ export type Database = {
             foreignKeyName: "ach_authorizations_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "client_health"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "ach_authorizations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -642,6 +649,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_logs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_health"
+            referencedColumns: ["client_id"]
           },
           {
             foreignKeyName: "automation_logs_client_id_fkey"
@@ -3017,6 +3031,13 @@ export type Database = {
             foreignKeyName: "calendar_events_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "client_health"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "calendar_events_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -3434,6 +3455,13 @@ export type Database = {
             foreignKeyName: "claimflow_referrals_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "client_health"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "claimflow_referrals_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -3565,6 +3593,13 @@ export type Database = {
             foreignKeyName: "client_billing_rules_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "client_health"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "client_billing_rules_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -3683,6 +3718,13 @@ export type Database = {
             foreignKeyName: "client_contacts_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "client_health"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "client_contacts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -3701,6 +3743,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      client_health_settings: {
+        Row: {
+          company_id: string
+          concentration_badge_enabled: boolean
+          concentration_max_active_projects: number
+          concentration_ratio: number
+          created_at: string
+          dormancy_days: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          concentration_badge_enabled?: boolean
+          concentration_max_active_projects?: number
+          concentration_ratio?: number
+          created_at?: string
+          dormancy_days?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          concentration_badge_enabled?: boolean
+          concentration_max_active_projects?: number
+          concentration_ratio?: number
+          created_at?: string
+          dormancy_days?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       client_org_memberships: {
         Row: {
@@ -3776,6 +3848,13 @@ export type Database = {
             foreignKeyName: "client_orgs_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "client_health"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "client_orgs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -3834,6 +3913,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "client_payment_analytics_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_health"
+            referencedColumns: ["client_id"]
+          },
           {
             foreignKeyName: "client_payment_analytics_client_id_fkey"
             columns: ["client_id"]
@@ -3952,6 +4038,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "client_retainers_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_health"
+            referencedColumns: ["client_id"]
+          },
           {
             foreignKeyName: "client_retainers_client_id_fkey"
             columns: ["client_id"]
@@ -4313,6 +4406,13 @@ export type Database = {
             foreignKeyName: "company_reviews_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "client_health"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "company_reviews_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -4408,6 +4508,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "client_contacts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "concierge_conversations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_health"
+            referencedColumns: ["client_id"]
           },
           {
             foreignKeyName: "concierge_conversations_client_id_fkey"
@@ -6311,6 +6418,13 @@ export type Database = {
             foreignKeyName: "invoice_disputes_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "client_health"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "invoice_disputes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -6583,6 +6697,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "billing_requests"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_health"
+            referencedColumns: ["client_id"]
           },
           {
             foreignKeyName: "invoices_client_id_fkey"
@@ -7213,6 +7334,13 @@ export type Database = {
             foreignKeyName: "leads_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "client_health"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "leads_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -7792,6 +7920,13 @@ export type Database = {
             foreignKeyName: "payment_plans_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "client_health"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "payment_plans_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -7859,6 +7994,13 @@ export type Database = {
           risk_score?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_predictions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_health"
+            referencedColumns: ["client_id"]
+          },
           {
             foreignKeyName: "payment_predictions_client_id_fkey"
             columns: ["client_id"]
@@ -7951,6 +8093,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_promises_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_health"
+            referencedColumns: ["client_id"]
           },
           {
             foreignKeyName: "payment_promises_client_id_fkey"
@@ -9286,8 +9435,22 @@ export type Database = {
             foreignKeyName: "projects_building_owner_id_fkey"
             columns: ["building_owner_id"]
             isOneToOne: false
+            referencedRelation: "client_health"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "projects_building_owner_id_fkey"
+            columns: ["building_owner_id"]
+            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_health"
+            referencedColumns: ["client_id"]
           },
           {
             foreignKeyName: "projects_client_id_fkey"
@@ -9475,6 +9638,13 @@ export type Database = {
           sort_order?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "proposal_contacts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_health"
+            referencedColumns: ["client_id"]
+          },
           {
             foreignKeyName: "proposal_contacts_client_id_fkey"
             columns: ["client_id"]
@@ -9924,6 +10094,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_health"
+            referencedColumns: ["client_id"]
           },
           {
             foreignKeyName: "proposals_client_id_fkey"
@@ -10552,6 +10729,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "discovered_rfps"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfp_partner_outreach_partner_client_id_fkey"
+            columns: ["partner_client_id"]
+            isOneToOne: false
+            referencedRelation: "client_health"
+            referencedColumns: ["client_id"]
           },
           {
             foreignKeyName: "rfp_partner_outreach_partner_client_id_fkey"
@@ -11901,6 +12085,45 @@ export type Database = {
       }
     }
     Views: {
+      client_health: {
+        Row: {
+          active_project_count: number | null
+          any_owner_inferred: boolean | null
+          avg_days_to_payment: number | null
+          client_id: string | null
+          client_name: string | null
+          client_type: string | null
+          company_id: string | null
+          concentration_badge_enabled: boolean | null
+          converted_total: number | null
+          days_since_last_activity: number | null
+          expected_annual_value: number | null
+          first_proposal_date: string | null
+          has_incomplete_data: boolean | null
+          is_concentrated: boolean | null
+          is_dormant: boolean | null
+          last_activity_date: string | null
+          lead_sources: string[] | null
+          lifetime_billed_value: number | null
+          owner_ids: string[] | null
+          payment_reliability_score: number | null
+          proposals_missing_sent_at: number | null
+          proposals_sent_total: number | null
+          ytd_conversion_rate: number | null
+          ytd_converted_count: number | null
+          ytd_proposed_value: number | null
+          ytd_sent_count: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_balances_with_interest: {
         Row: {
           accrued_interest_to_date: number | null
