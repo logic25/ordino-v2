@@ -194,6 +194,10 @@ export default function Clients() {
               </>
             ) : (
               <>
+                <Button variant="outline" size="sm" onClick={() => navigate("/reports?tab=client-health")}>
+                  <HeartPulse className="h-4 w-4 mr-2" />
+                  Client Health
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => setMergeMode(true)} disabled={filteredClients.length < 2}>
                   <Merge className="h-4 w-4 mr-2" />
                   Merge Duplicates
