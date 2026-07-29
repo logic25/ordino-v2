@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building2, Plus, Search, Loader2, UserPlus, Contact, Download, Users, Merge } from "lucide-react";
+import { Building2, Plus, Search, Loader2, UserPlus, Contact, Download, Users, Merge, HeartPulse } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ClientDialog } from "@/components/clients/ClientDialog";
