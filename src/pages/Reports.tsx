@@ -16,6 +16,7 @@ import OpenServicesReport from "@/components/reports/OpenServicesReport";
 import ServiceLevelReport from "@/components/reports/ServiceLevelReport";
 import BdReports from "@/components/reports/BdReports";
 import RfpReports from "@/components/reports/RfpReports";
+import ClientHealthTab from "@/components/reports/ClientHealthTab";
 
 export default function Reports() {
   const { track } = useTelemetry();
