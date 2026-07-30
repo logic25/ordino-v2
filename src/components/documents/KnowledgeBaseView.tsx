@@ -64,7 +64,7 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   const [moveSaving, setMoveSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
-  const [renameTarget, setRenameTarget] = useState<{ id: string; filename: string; title: string } | null>(null);
+  const [renameTarget, setRenameTarget] = useState<{ id: string | null; filename: string; title: string; folder: string } | null>(null);
   const [renameTitle, setRenameTitle] = useState("");
 
   const documentByFilename = useMemo(() => {
@@ -78,9 +78,9 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   // the original Beacon folder so "Reset to original folder" can call the backend
   // to put it back, not just clear a display-only override.
   const overrideMap = useMemo(() => {
-    const m = new Map<string, { display_folder: string; hidden: boolean; notes: string | null }>();
+    const m = new Map<string, { display_folder: string; display_title: string | null; hidden: boolean; notes: string | null }>();
     for (const o of overrides) {
-      m.set(o.source_file, { display_folder: o.display_folder, hidden: o.hidden_from_original, notes: o.notes });
+      m.set(o.source_file, { display_folder: o.display_folder, display_title: o.display_title ?? null, hidden: o.hidden_from_original, notes: o.notes });
     }
     return m;
   }, [overrides]);
