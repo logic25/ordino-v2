@@ -58,17 +58,22 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
   const versionCount = versions.data?.length || 0;
   const [renaming, setRenaming] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
+  // The parent passes a snapshot of the row, so hold the renamed title locally
+  // until the documents query refetches.
+  const [localTitle, setLocalTitle] = useState<string | null>(null);
   const updateTitle = useUpdateDocumentTitle();
   // Titles are metadata, so renaming isn't limited to text/markdown files —
   // but Beacon-KB titles stay admin-only, matching content editing.
   const canRename = !isBeaconFolder || !!isAdmin;
+  const displayTitle = localTitle ?? doc?.title ?? "";
 
   const handleRename = async () => {
     if (!doc) return;
     const next = titleDraft.trim();
-    if (!next || next === doc.title) { setRenaming(false); return; }
+    if (!next || next === displayTitle) { setRenaming(false); return; }
     try {
       await updateTitle.mutateAsync({ id: doc.id, title: next });
+      setLocalTitle(next);
       setRenaming(false);
       toast({ title: "Title updated" });
     } catch (err: any) {
