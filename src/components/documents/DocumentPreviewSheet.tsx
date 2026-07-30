@@ -56,6 +56,25 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const versions = useDocumentVersions(doc?.id);
   const versionCount = versions.data?.length || 0;
+  const [renaming, setRenaming] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+  const updateTitle = useUpdateDocumentTitle();
+  // Titles are metadata, so renaming isn't limited to text/markdown files —
+  // but Beacon-KB titles stay admin-only, matching content editing.
+  const canRename = !isBeaconFolder || !!isAdmin;
+
+  const handleRename = async () => {
+    if (!doc) return;
+    const next = titleDraft.trim();
+    if (!next || next === doc.title) { setRenaming(false); return; }
+    try {
+      await updateTitle.mutateAsync({ id: doc.id, title: next });
+      setRenaming(false);
+      toast({ title: "Title updated" });
+    } catch (err: any) {
+      toast({ title: "Rename failed", description: err.message, variant: "destructive" });
+    }
+  };
 
   const previewType = doc ? getPreviewType(doc.mime_type, doc.filename) : "unsupported";
   const isEditable = previewType === "text" || previewType === "markdown";
