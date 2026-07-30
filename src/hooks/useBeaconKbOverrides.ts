@@ -8,6 +8,7 @@ export interface BeaconKbOverride {
   company_id: string;
   source_file: string;
   display_folder: string;
+  display_title: string | null;
   hidden_from_original: boolean;
   notes: string | null;
   created_by: string | null;
