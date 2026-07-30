@@ -90,6 +90,28 @@ export function useUploadDocument() {
   });
 }
 
+/**
+ * Rename a document's display title only.
+ * Deliberately does NOT touch `filename` or `storage_path` — Beacon/Pinecone
+ * chunks are keyed off the filename, so renaming the title is metadata-only.
+ */
+export function useUpdateDocumentTitle() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: { id: string; title: string }) => {
+      const title = input.title.trim();
+      if (!title) throw new Error("Title can't be empty");
+      const { error } = await supabase
+        .from("universal_documents")
+        .update({ title } as any)
+        .eq("id", input.id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["universal-documents"] }),
+  });
+}
+
 export function useDeleteDocument() {
   const qc = useQueryClient();
 
