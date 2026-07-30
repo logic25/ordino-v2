@@ -12302,6 +12302,15 @@ export type Database = {
           monthly_goal: number
         }[]
       }
+      get_public_bd_card: {
+        Args: { _slug: string }
+        Returns: {
+          cover_url: string
+          fields: Json
+          logo_cfg: Json
+          photo_url: string
+        }[]
+      }
       get_public_company_info: { Args: { _company_id: string }; Returns: Json }
       get_public_profile_info: { Args: { _profile_id: string }; Returns: Json }
       get_public_proposal: { Args: { _token: string }; Returns: Json }
