@@ -9,7 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import ReactMarkdown from "react-markdown";
-import type { UniversalDocument } from "@/hooks/useUniversalDocuments";
+import { Input } from "@/components/ui/input";
+import { useUpdateDocumentTitle, type UniversalDocument } from "@/hooks/useUniversalDocuments";
 import { useDocumentVersions, versionChangerName, type DocumentVersion } from "@/hooks/useDocumentVersions";
 import { useAuth } from "@/hooks/useAuth";
 import { syncDocumentToBeacon } from "@/services/beaconApi";
@@ -55,6 +56,30 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const versions = useDocumentVersions(doc?.id);
   const versionCount = versions.data?.length || 0;
+  const [renaming, setRenaming] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+  // The parent passes a snapshot of the row, so hold the renamed title locally
+  // until the documents query refetches.
+  const [localTitle, setLocalTitle] = useState<string | null>(null);
+  const updateTitle = useUpdateDocumentTitle();
+  // Titles are metadata, so renaming isn't limited to text/markdown files —
+  // but Beacon-KB titles stay admin-only, matching content editing.
+  const canRename = !isBeaconFolder || !!isAdmin;
+  const displayTitle = localTitle ?? doc?.title ?? "";
+
+  const handleRename = async () => {
+    if (!doc) return;
+    const next = titleDraft.trim();
+    if (!next || next === displayTitle) { setRenaming(false); return; }
+    try {
+      await updateTitle.mutateAsync({ id: doc.id, title: next });
+      setLocalTitle(next);
+      setRenaming(false);
+      toast({ title: "Title updated" });
+    } catch (err: any) {
+      toast({ title: "Rename failed", description: err.message, variant: "destructive" });
+    }
+  };
 
   const previewType = doc ? getPreviewType(doc.mime_type, doc.filename) : "unsupported";
   const isEditable = previewType === "text" || previewType === "markdown";
@@ -67,6 +92,8 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
     setContent("");
     setOriginalContent("");
     setSignedUrl(null);
+    setRenaming(false);
+    setLocalTitle(null);
 
     if (previewType === "pdf" || previewType === "image") {
       supabase.storage.from(bucket).createSignedUrl(doc.storage_path, 3600)
@@ -216,8 +243,36 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
           <>
             <SheetHeader className="p-4 pb-3 pr-14 border-b space-y-2">
               <div className="flex items-start justify-between gap-2">
-                <SheetTitle className="text-lg">{doc.title}</SheetTitle>
+                {renaming ? (
+                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                    <Input
+                      value={titleDraft}
+                      onChange={(e) => setTitleDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") { e.preventDefault(); handleRename(); }
+                        if (e.key === "Escape") setRenaming(false);
+                      }}
+                      className="h-8 text-base"
+                      autoFocus
+                    />
+                    <Button size="sm" onClick={handleRename} disabled={updateTitle.isPending || !titleDraft.trim() || titleDraft.trim() === displayTitle}>
+                      {updateTitle.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setRenaming(false)}>Cancel</Button>
+                  </div>
+                ) : (
+                  <SheetTitle className="text-lg">{displayTitle}</SheetTitle>
+                )}
                 <div className="flex items-center gap-1.5 shrink-0">
+                  {canRename && !renaming && panel === "doc" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => { setTitleDraft(displayTitle); setRenaming(true); }}
+                    >
+                      <Pencil className="h-3.5 w-3.5 mr-1" /> Rename
+                    </Button>
+                  )}
                   {isEditable && (!isBeaconFolder || isAdmin) && mode === "preview" && panel === "doc" && (
                     <Button variant="outline" size="sm" onClick={() => setMode("edit")}>
                       <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
@@ -325,7 +380,7 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
               ) : previewType === "html" && signedUrl ? (
                 <iframe src={signedUrl} className="w-full h-[70vh] rounded border bg-white" sandbox="allow-same-origin" />
               ) : previewType === "image" && signedUrl ? (
-                <img src={signedUrl} alt={doc.title} className="max-w-full rounded border" />
+                <img src={signedUrl} alt={displayTitle} className="max-w-full rounded border" />
               ) : previewType === "markdown" ? (
                 <div className="prose prose-sm max-w-none">
                   <ReactMarkdown>{content}</ReactMarkdown>

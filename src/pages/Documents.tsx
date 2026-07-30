@@ -23,13 +23,13 @@ import {
 import {
   FileText, Upload, Search, Download, Trash2, Loader2, File, FileImage,
   FileSpreadsheet, FolderPlus, Eye, Brain, RefreshCw, ChevronRight, Tag,
-  MoreVertical, FolderInput,
+  MoreVertical, FolderInput, Pencil,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { useUniversalDocuments, useUploadDocument, useDeleteDocument, useMoveDocument, type UniversalDocument } from "@/hooks/useUniversalDocuments";
+import { useUniversalDocuments, useUploadDocument, useDeleteDocument, useMoveDocument, useUpdateDocumentTitle, type UniversalDocument } from "@/hooks/useUniversalDocuments";
 import { useDocumentFolders, useSeedFolders, useCreateFolder, useDeleteFolder, useRenameFolder, type DocumentFolder } from "@/hooks/useDocumentFolders";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -100,6 +100,20 @@ export default function Documents() {
   const createFolder = useCreateFolder();
   const delFolder = useDeleteFolder();
   const renameFolder = useRenameFolder();
+  const updateDocTitle = useUpdateDocumentTitle();
+
+  const handleRenameDoc = async () => {
+    if (!renameDocTarget) return;
+    const next = renameDocTitle.trim();
+    if (!next || next === renameDocTarget.title) { setRenameDocTarget(null); return; }
+    try {
+      await updateDocTitle.mutateAsync({ id: renameDocTarget.id, title: next });
+      setRenameDocTarget(null);
+      toast({ title: "Title updated" });
+    } catch (err: any) {
+      toast({ title: "Rename failed", description: err.message, variant: "destructive" });
+    }
+  };
 
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -116,6 +130,8 @@ export default function Documents() {
   const [renameName, setRenameName] = useState("");
   const [previewDoc, setPreviewDoc] = useState<UniversalDocument | null>(null);
   const [moveTarget, setMoveTarget] = useState<UniversalDocument | null>(null);
+  const [renameDocTarget, setRenameDocTarget] = useState<UniversalDocument | null>(null);
+  const [renameDocTitle, setRenameDocTitle] = useState("");
 
   // Upload form state
   const [title, setTitle] = useState("");
@@ -558,6 +574,13 @@ export default function Documents() {
                                           </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end" className="w-44">
+                                          {(!isBeaconFolder || isAdmin) && (
+                                            <DropdownMenuItem
+                                              onClick={() => { setRenameDocTarget(doc); setRenameDocTitle(doc.title); }}
+                                            >
+                                              <Pencil className="h-3.5 w-3.5 mr-2" /> Rename…
+                                            </DropdownMenuItem>
+                                          )}
                                           <DropdownMenuItem onClick={() => setMoveTarget(doc)}>
                                             <FolderInput className="h-3.5 w-3.5 mr-2" /> Move to folder…
                                           </DropdownMenuItem>
@@ -679,6 +702,34 @@ export default function Documents() {
           toast({ title: "Folder created" });
         }}
       />
+
+      {/* Rename Document Dialog — title only, never filename/storage path */}
+      <Dialog open={!!renameDocTarget} onOpenChange={() => setRenameDocTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Document</DialogTitle>
+          </DialogHeader>
+          <div>
+            <Label>Title</Label>
+            <Input
+              value={renameDocTitle}
+              onChange={(e) => setRenameDocTitle(e.target.value)}
+              className="mt-1"
+              onKeyDown={(e) => { if (e.key === "Enter") handleRenameDoc(); if (e.key === "Escape") setRenameDocTarget(null); }}
+              autoFocus
+            />
+            <p className="text-xs text-muted-foreground mt-2">
+              File name stays {renameDocTarget?.filename} — only the display title changes.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameDocTarget(null)}>Cancel</Button>
+            <Button onClick={handleRenameDoc} disabled={!renameDocTitle.trim() || updateDocTitle.isPending}>
+              {updateDocTitle.isPending ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Rename Folder Dialog */}
       <Dialog open={!!renameTarget} onOpenChange={() => setRenameTarget(null)}>
