@@ -272,8 +272,17 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   const handleConfirmRename = async () => {
     if (!renameTarget || !renameTitle.trim()) return;
     try {
-      await updateDocumentTitle.mutateAsync({ id: renameTarget.id, title: renameTitle });
-      toast({ title: "Title updated" });
+      if (renameTarget.id) {
+        await updateDocumentTitle.mutateAsync({ id: renameTarget.id, title: renameTitle });
+        toast({ title: "Title updated" });
+      } else {
+        await setKbTitle.mutateAsync({
+          source_file: renameTarget.filename,
+          display_title: renameTitle.trim(),
+          current_folder: renameTarget.folder,
+          hidden_from_original: overrideMap.get(renameTarget.filename)?.hidden ?? false,
+        });
+      }
       setRenameTarget(null);
       setRenameTitle("");
     } catch (err: any) {
