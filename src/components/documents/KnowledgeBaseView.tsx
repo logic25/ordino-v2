@@ -528,9 +528,9 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
             <Button variant="outline" onClick={() => setRenameTarget(null)}>Cancel</Button>
             <Button
               onClick={handleConfirmRename}
-              disabled={!renameTitle.trim() || updateDocumentTitle.isPending}
+              disabled={!renameTitle.trim() || updateDocumentTitle.isPending || setKbTitle.isPending}
             >
-              {updateDocumentTitle.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {(updateDocumentTitle.isPending || setKbTitle.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Save
             </Button>
           </DialogFooter>
