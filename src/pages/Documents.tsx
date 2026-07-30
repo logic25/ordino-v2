@@ -23,7 +23,7 @@ import {
 import {
   FileText, Upload, Search, Download, Trash2, Loader2, File, FileImage,
   FileSpreadsheet, FolderPlus, Eye, Brain, RefreshCw, ChevronRight, Tag,
-  MoreVertical, FolderInput,
+  MoreVertical, FolderInput, Pencil,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
