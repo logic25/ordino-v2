@@ -87,6 +87,8 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
     setContent("");
     setOriginalContent("");
     setSignedUrl(null);
+    setRenaming(false);
+    setLocalTitle(null);
 
     if (previewType === "pdf" || previewType === "image") {
       supabase.storage.from(bucket).createSignedUrl(doc.storage_path, 3600)
