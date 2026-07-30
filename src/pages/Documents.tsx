@@ -29,7 +29,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { useUniversalDocuments, useUploadDocument, useDeleteDocument, useMoveDocument, type UniversalDocument } from "@/hooks/useUniversalDocuments";
+import { useUniversalDocuments, useUploadDocument, useDeleteDocument, useMoveDocument, useUpdateDocumentTitle, type UniversalDocument } from "@/hooks/useUniversalDocuments";
 import { useDocumentFolders, useSeedFolders, useCreateFolder, useDeleteFolder, useRenameFolder, type DocumentFolder } from "@/hooks/useDocumentFolders";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
