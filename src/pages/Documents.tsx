@@ -558,6 +558,13 @@ export default function Documents() {
                                           </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end" className="w-44">
+                                          {(!isBeaconFolder || isAdmin) && (
+                                            <DropdownMenuItem
+                                              onClick={() => { setRenameDocTarget(doc); setRenameDocTitle(doc.title); }}
+                                            >
+                                              <Pencil className="h-3.5 w-3.5 mr-2" /> Rename…
+                                            </DropdownMenuItem>
+                                          )}
                                           <DropdownMenuItem onClick={() => setMoveTarget(doc)}>
                                             <FolderInput className="h-3.5 w-3.5 mr-2" /> Move to folder…
                                           </DropdownMenuItem>
