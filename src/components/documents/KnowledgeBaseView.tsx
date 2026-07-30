@@ -368,7 +368,7 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                         {files.sort().map((filename) => {
                           const ov = overrideMap.get(filename);
                           const universalDocument = documentByFilename.get(filename);
-                          const displayTitle = universalDocument?.title || filename;
+                          const displayTitle = universalDocument?.title || ov?.display_title || filename;
                           return (
                             <div
                               key={filename}
@@ -382,7 +382,7 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                               >
                                 {displayTitle}
                               </button>
-                              {ov && (
+                              {ov?.hidden && (
                                 <Badge variant="outline" className="text-[10px] opacity-70">moved</Badge>
                               )}
                               <DropdownMenu>
@@ -398,10 +398,15 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-52">
-                                  {isAdmin && universalDocument && (
+                                  {isAdmin && (
                                     <DropdownMenuItem
                                       onClick={() => {
-                                        setRenameTarget({ id: universalDocument.id, filename, title: displayTitle });
+                                        setRenameTarget({
+                                          id: universalDocument?.id ?? null,
+                                          filename,
+                                          title: displayTitle,
+                                          folder: folderName,
+                                        });
                                         setRenameTitle(displayTitle);
                                       }}
                                     >
