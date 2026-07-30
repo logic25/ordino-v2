@@ -2112,6 +2112,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           display_folder: string
+          display_title: string | null
           hidden_from_original: boolean
           id: string
           notes: string | null
@@ -2123,6 +2124,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           display_folder: string
+          display_title?: string | null
           hidden_from_original?: boolean
           id?: string
           notes?: string | null
@@ -2134,6 +2136,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           display_folder?: string
+          display_title?: string | null
           hidden_from_original?: boolean
           id?: string
           notes?: string | null
