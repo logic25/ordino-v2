@@ -100,6 +100,20 @@ export default function Documents() {
   const createFolder = useCreateFolder();
   const delFolder = useDeleteFolder();
   const renameFolder = useRenameFolder();
+  const updateDocTitle = useUpdateDocumentTitle();
+
+  const handleRenameDoc = async () => {
+    if (!renameDocTarget) return;
+    const next = renameDocTitle.trim();
+    if (!next || next === renameDocTarget.title) { setRenameDocTarget(null); return; }
+    try {
+      await updateDocTitle.mutateAsync({ id: renameDocTarget.id, title: next });
+      setRenameDocTarget(null);
+      toast({ title: "Title updated" });
+    } catch (err: any) {
+      toast({ title: "Rename failed", description: err.message, variant: "destructive" });
+    }
+  };
 
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
