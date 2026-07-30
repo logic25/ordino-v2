@@ -50,6 +50,7 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   const isAdmin = useIsAdmin();
   const updateDocumentTitle = useUpdateDocumentTitle();
   const { data: overrides = [] } = useBeaconKbOverrides();
+  const setKbTitle = useSetBeaconKbTitle();
   const upsertOverride = useUpsertBeaconKbOverride();
   const clearOverride = useClearBeaconKbOverride();
   const upload = useUploadToBeaconKB();
