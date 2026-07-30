@@ -17,10 +17,12 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
-  FileText, FolderOpen, Upload, Loader2, AlertCircle, File, MoreVertical, FolderInput, RotateCcw, Trash2,
+  FileText, FolderOpen, Upload, Loader2, AlertCircle, File, MoreVertical, FolderInput, RotateCcw, Trash2, Pencil,
 } from "lucide-react";
 import { useBeaconKnowledge, useUploadToBeaconKB } from "@/hooks/useBeaconKnowledge";
 import { useBeaconKbOverrides, useUpsertBeaconKbOverride, useClearBeaconKbOverride } from "@/hooks/useBeaconKbOverrides";
+import { useUniversalDocuments, useUpdateDocumentTitle } from "@/hooks/useUniversalDocuments";
+import { useIsAdmin } from "@/hooks/useUserRoles";
 import { FOLDER_TO_SOURCE_TYPE, assignBeaconFolders, deleteBeaconDoc } from "@/services/beaconApi";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -44,6 +46,9 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   const { toast } = useToast();
   const qc = useQueryClient();
   const { data, isLoading, isError } = useBeaconKnowledge();
+  const { data: universalDocuments = [] } = useUniversalDocuments();
+  const isAdmin = useIsAdmin();
+  const updateDocumentTitle = useUpdateDocumentTitle();
   const { data: overrides = [] } = useBeaconKbOverrides();
   const upsertOverride = useUpsertBeaconKbOverride();
   const clearOverride = useClearBeaconKbOverride();
@@ -59,6 +64,14 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   const [moveSaving, setMoveSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<{ id: string; filename: string; title: string } | null>(null);
+  const [renameTitle, setRenameTitle] = useState("");
+
+  const documentByFilename = useMemo(() => {
+    const map = new Map<string, (typeof universalDocuments)[number]>();
+    for (const document of universalDocuments) map.set(document.filename, document);
+    return map;
+  }, [universalDocuments]);
 
   // Build override map: source_file -> { display_folder, hidden_from_original, notes }
   // notes prefixed with "__orig__:<slug>" means a real backend move; the slug is
@@ -256,6 +269,18 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
     }
   };
 
+  const handleConfirmRename = async () => {
+    if (!renameTarget || !renameTitle.trim()) return;
+    try {
+      await updateDocumentTitle.mutateAsync({ id: renameTarget.id, title: renameTitle });
+      toast({ title: "Title updated" });
+      setRenameTarget(null);
+      setRenameTitle("");
+    } catch (err: any) {
+      toast({ title: "Rename failed", description: err.message, variant: "destructive" });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -333,6 +358,8 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                       <div className="grid gap-1 pl-6">
                         {files.sort().map((filename) => {
                           const ov = overrideMap.get(filename);
+                          const universalDocument = documentByFilename.get(filename);
+                          const displayTitle = universalDocument?.title || filename;
                           return (
                             <div
                               key={filename}
@@ -344,7 +371,7 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                                 className="truncate flex-1 text-left cursor-pointer"
                                 onClick={() => setViewingFile(filename)}
                               >
-                                {filename}
+                                {displayTitle}
                               </button>
                               {ov && (
                                 <Badge variant="outline" className="text-[10px] opacity-70">moved</Badge>
@@ -362,6 +389,16 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-52">
+                                  {isAdmin && universalDocument && (
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        setRenameTarget({ id: universalDocument.id, filename, title: displayTitle });
+                                        setRenameTitle(displayTitle);
+                                      }}
+                                    >
+                                      <Pencil className="h-3.5 w-3.5 mr-2" /> Rename…
+                                    </DropdownMenuItem>
+                                  )}
                                   <DropdownMenuItem
                                     onClick={() => {
                                       setMoveTarget(filename);
@@ -444,6 +481,42 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
             <Button onClick={handleUpload} disabled={selectedFiles.length === 0 || !targetFolder || !!uploadProgress}>
               {uploadProgress ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
               Upload {selectedFiles.length > 1 ? `${selectedFiles.length} Files` : ""}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename dialog — updates the display title only, never the Beacon filename. */}
+      <Dialog open={!!renameTarget} onOpenChange={(open) => { if (!open) { setRenameTarget(null); setRenameTitle(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename document</DialogTitle>
+            <DialogDescription>
+              Changes the displayed title. The underlying file name and Beacon index stay unchanged.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="kb-document-title">Title</Label>
+            <Input
+              id="kb-document-title"
+              value={renameTitle}
+              onChange={(event) => setRenameTitle(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") handleConfirmRename();
+                if (event.key === "Escape") setRenameTarget(null);
+              }}
+              autoFocus
+            />
+            <p className="text-xs text-muted-foreground">File name: {renameTarget?.filename}</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameTarget(null)}>Cancel</Button>
+            <Button
+              onClick={handleConfirmRename}
+              disabled={!renameTitle.trim() || updateDocumentTitle.isPending}
+            >
+              {updateDocumentTitle.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Save
             </Button>
           </DialogFooter>
         </DialogContent>
