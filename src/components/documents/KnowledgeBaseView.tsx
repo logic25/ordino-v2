@@ -20,7 +20,7 @@ import {
   FileText, FolderOpen, Upload, Loader2, AlertCircle, File, MoreVertical, FolderInput, RotateCcw, Trash2, Pencil,
 } from "lucide-react";
 import { useBeaconKnowledge, useUploadToBeaconKB } from "@/hooks/useBeaconKnowledge";
-import { useBeaconKbOverrides, useUpsertBeaconKbOverride, useClearBeaconKbOverride } from "@/hooks/useBeaconKbOverrides";
+import { useBeaconKbOverrides, useUpsertBeaconKbOverride, useClearBeaconKbOverride, useSetBeaconKbTitle } from "@/hooks/useBeaconKbOverrides";
 import { useUniversalDocuments, useUpdateDocumentTitle } from "@/hooks/useUniversalDocuments";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { FOLDER_TO_SOURCE_TYPE, assignBeaconFolders, deleteBeaconDoc } from "@/services/beaconApi";
@@ -50,6 +50,7 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   const isAdmin = useIsAdmin();
   const updateDocumentTitle = useUpdateDocumentTitle();
   const { data: overrides = [] } = useBeaconKbOverrides();
+  const setKbTitle = useSetBeaconKbTitle();
   const upsertOverride = useUpsertBeaconKbOverride();
   const clearOverride = useClearBeaconKbOverride();
   const upload = useUploadToBeaconKB();
@@ -64,7 +65,7 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   const [moveSaving, setMoveSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
-  const [renameTarget, setRenameTarget] = useState<{ id: string; filename: string; title: string } | null>(null);
+  const [renameTarget, setRenameTarget] = useState<{ id: string | null; filename: string; title: string; folder: string } | null>(null);
   const [renameTitle, setRenameTitle] = useState("");
 
   const documentByFilename = useMemo(() => {
@@ -78,9 +79,9 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   // the original Beacon folder so "Reset to original folder" can call the backend
   // to put it back, not just clear a display-only override.
   const overrideMap = useMemo(() => {
-    const m = new Map<string, { display_folder: string; hidden: boolean; notes: string | null }>();
+    const m = new Map<string, { display_folder: string; display_title: string | null; hidden: boolean; notes: string | null }>();
     for (const o of overrides) {
-      m.set(o.source_file, { display_folder: o.display_folder, hidden: o.hidden_from_original, notes: o.notes });
+      m.set(o.source_file, { display_folder: o.display_folder, display_title: o.display_title ?? null, hidden: o.hidden_from_original, notes: o.notes });
     }
     return m;
   }, [overrides]);
@@ -272,8 +273,17 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   const handleConfirmRename = async () => {
     if (!renameTarget || !renameTitle.trim()) return;
     try {
-      await updateDocumentTitle.mutateAsync({ id: renameTarget.id, title: renameTitle });
-      toast({ title: "Title updated" });
+      if (renameTarget.id) {
+        await updateDocumentTitle.mutateAsync({ id: renameTarget.id, title: renameTitle });
+        toast({ title: "Title updated" });
+      } else {
+        await setKbTitle.mutateAsync({
+          source_file: renameTarget.filename,
+          display_title: renameTitle.trim(),
+          current_folder: renameTarget.folder,
+          hidden_from_original: overrideMap.get(renameTarget.filename)?.hidden ?? false,
+        });
+      }
       setRenameTarget(null);
       setRenameTitle("");
     } catch (err: any) {
@@ -359,7 +369,7 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                         {files.sort().map((filename) => {
                           const ov = overrideMap.get(filename);
                           const universalDocument = documentByFilename.get(filename);
-                          const displayTitle = universalDocument?.title || filename;
+                          const displayTitle = universalDocument?.title || ov?.display_title || filename;
                           return (
                             <div
                               key={filename}
@@ -373,7 +383,7 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                               >
                                 {displayTitle}
                               </button>
-                              {ov && (
+                              {ov?.hidden && (
                                 <Badge variant="outline" className="text-[10px] opacity-70">moved</Badge>
                               )}
                               <DropdownMenu>
@@ -389,10 +399,15 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-52">
-                                  {isAdmin && universalDocument && (
+                                  {isAdmin && (
                                     <DropdownMenuItem
                                       onClick={() => {
-                                        setRenameTarget({ id: universalDocument.id, filename, title: displayTitle });
+                                        setRenameTarget({
+                                          id: universalDocument?.id ?? null,
+                                          filename,
+                                          title: displayTitle,
+                                          folder: folderName,
+                                        });
                                         setRenameTitle(displayTitle);
                                       }}
                                     >
@@ -513,9 +528,9 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
             <Button variant="outline" onClick={() => setRenameTarget(null)}>Cancel</Button>
             <Button
               onClick={handleConfirmRename}
-              disabled={!renameTitle.trim() || updateDocumentTitle.isPending}
+              disabled={!renameTitle.trim() || updateDocumentTitle.isPending || setKbTitle.isPending}
             >
-              {updateDocumentTitle.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {(updateDocumentTitle.isPending || setKbTitle.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Save
             </Button>
           </DialogFooter>

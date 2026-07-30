@@ -8,6 +8,7 @@ export interface BeaconKbOverride {
   company_id: string;
   source_file: string;
   display_folder: string;
+  display_title: string | null;
   hidden_from_original: boolean;
   notes: string | null;
   created_by: string | null;
@@ -65,6 +66,48 @@ export function useUpsertBeaconKbOverride() {
     },
     onError: (err: any) => {
       toast({ title: "Move failed", description: err.message, variant: "destructive" });
+    },
+  });
+}
+
+/**
+ * Sets a display-only title for a Beacon KB file that has no
+ * `universal_documents` row. Never touches the Beacon filename or its chunks.
+ */
+export function useSetBeaconKbTitle() {
+  const { profile } = useAuth();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: {
+      source_file: string;
+      display_title: string;
+      current_folder: string;
+      hidden_from_original?: boolean;
+    }) => {
+      if (!profile?.company_id) throw new Error("No company");
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await (supabase as any)
+        .from("beacon_kb_folder_overrides")
+        .upsert(
+          {
+            company_id: profile.company_id,
+            source_file: params.source_file,
+            display_folder: params.current_folder,
+            display_title: params.display_title,
+            hidden_from_original: params.hidden_from_original ?? false,
+            created_by: user?.id ?? null,
+          },
+          { onConflict: "company_id,source_file" }
+        );
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["beacon-kb-overrides"] });
+      toast({ title: "Title updated" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Rename failed", description: err.message, variant: "destructive" });
     },
   });
 }
