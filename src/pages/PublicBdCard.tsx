@@ -82,10 +82,7 @@ export default function PublicBdCard() {
     (async () => {
       setLoading(true);
       const { data, error } = await (supabase as any)
-        .from("bd_cards")
-        .select("fields, photo_url, cover_url, logo_cfg, published")
-        .eq("slug", slug)
-        .eq("published", true)
+        .rpc("get_public_bd_card", { _slug: slug })
         .maybeSingle();
       if (cancelled) return;
       if (error || !data) {
