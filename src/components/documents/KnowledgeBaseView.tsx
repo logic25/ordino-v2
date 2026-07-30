@@ -20,7 +20,7 @@ import {
   FileText, FolderOpen, Upload, Loader2, AlertCircle, File, MoreVertical, FolderInput, RotateCcw, Trash2, Pencil,
 } from "lucide-react";
 import { useBeaconKnowledge, useUploadToBeaconKB } from "@/hooks/useBeaconKnowledge";
-import { useBeaconKbOverrides, useUpsertBeaconKbOverride, useClearBeaconKbOverride } from "@/hooks/useBeaconKbOverrides";
+import { useBeaconKbOverrides, useUpsertBeaconKbOverride, useClearBeaconKbOverride, useSetBeaconKbTitle } from "@/hooks/useBeaconKbOverrides";
 import { useUniversalDocuments, useUpdateDocumentTitle } from "@/hooks/useUniversalDocuments";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { FOLDER_TO_SOURCE_TYPE, assignBeaconFolders, deleteBeaconDoc } from "@/services/beaconApi";
