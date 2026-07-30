@@ -703,6 +703,34 @@ export default function Documents() {
         }}
       />
 
+      {/* Rename Document Dialog — title only, never filename/storage path */}
+      <Dialog open={!!renameDocTarget} onOpenChange={() => setRenameDocTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Document</DialogTitle>
+          </DialogHeader>
+          <div>
+            <Label>Title</Label>
+            <Input
+              value={renameDocTitle}
+              onChange={(e) => setRenameDocTitle(e.target.value)}
+              className="mt-1"
+              onKeyDown={(e) => { if (e.key === "Enter") handleRenameDoc(); if (e.key === "Escape") setRenameDocTarget(null); }}
+              autoFocus
+            />
+            <p className="text-xs text-muted-foreground mt-2">
+              File name stays {renameDocTarget?.filename} — only the display title changes.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameDocTarget(null)}>Cancel</Button>
+            <Button onClick={handleRenameDoc} disabled={!renameDocTitle.trim() || updateDocTitle.isPending}>
+              {updateDocTitle.isPending ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Rename Folder Dialog */}
       <Dialog open={!!renameTarget} onOpenChange={() => setRenameTarget(null)}>
         <DialogContent>
