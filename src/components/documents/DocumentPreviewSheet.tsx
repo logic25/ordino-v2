@@ -255,20 +255,20 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
                       className="h-8 text-base"
                       autoFocus
                     />
-                    <Button size="sm" onClick={handleRename} disabled={updateTitle.isPending || !titleDraft.trim() || titleDraft.trim() === doc.title}>
+                    <Button size="sm" onClick={handleRename} disabled={updateTitle.isPending || !titleDraft.trim() || titleDraft.trim() === displayTitle}>
                       {updateTitle.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => setRenaming(false)}>Cancel</Button>
                   </div>
                 ) : (
-                  <SheetTitle className="text-lg">{doc.title}</SheetTitle>
+                  <SheetTitle className="text-lg">{displayTitle}</SheetTitle>
                 )}
                 <div className="flex items-center gap-1.5 shrink-0">
                   {canRename && !renaming && panel === "doc" && (
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => { setTitleDraft(doc.title); setRenaming(true); }}
+                      onClick={() => { setTitleDraft(displayTitle); setRenaming(true); }}
                     >
                       <Pencil className="h-3.5 w-3.5 mr-1" /> Rename
                     </Button>
@@ -380,7 +380,7 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
               ) : previewType === "html" && signedUrl ? (
                 <iframe src={signedUrl} className="w-full h-[70vh] rounded border bg-white" sandbox="allow-same-origin" />
               ) : previewType === "image" && signedUrl ? (
-                <img src={signedUrl} alt={doc.title} className="max-w-full rounded border" />
+                <img src={signedUrl} alt={displayTitle} className="max-w-full rounded border" />
               ) : previewType === "markdown" ? (
                 <div className="prose prose-sm max-w-none">
                   <ReactMarkdown>{content}</ReactMarkdown>
