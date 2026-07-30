@@ -216,8 +216,36 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
           <>
             <SheetHeader className="p-4 pb-3 pr-14 border-b space-y-2">
               <div className="flex items-start justify-between gap-2">
-                <SheetTitle className="text-lg">{doc.title}</SheetTitle>
+                {renaming ? (
+                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                    <Input
+                      value={titleDraft}
+                      onChange={(e) => setTitleDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") { e.preventDefault(); handleRename(); }
+                        if (e.key === "Escape") setRenaming(false);
+                      }}
+                      className="h-8 text-base"
+                      autoFocus
+                    />
+                    <Button size="sm" onClick={handleRename} disabled={updateTitle.isPending || !titleDraft.trim() || titleDraft.trim() === doc.title}>
+                      {updateTitle.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setRenaming(false)}>Cancel</Button>
+                  </div>
+                ) : (
+                  <SheetTitle className="text-lg">{doc.title}</SheetTitle>
+                )}
                 <div className="flex items-center gap-1.5 shrink-0">
+                  {canRename && !renaming && panel === "doc" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => { setTitleDraft(doc.title); setRenaming(true); }}
+                    >
+                      <Pencil className="h-3.5 w-3.5 mr-1" /> Rename
+                    </Button>
+                  )}
                   {isEditable && (!isBeaconFolder || isAdmin) && mode === "preview" && panel === "doc" && (
                     <Button variant="outline" size="sm" onClick={() => setMode("edit")}>
                       <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
