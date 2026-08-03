@@ -11,6 +11,8 @@ import { format } from "date-fns";
 import ReactMarkdown from "react-markdown";
 import { Input } from "@/components/ui/input";
 import { useUpdateDocumentTitle, type UniversalDocument } from "@/hooks/useUniversalDocuments";
+import { isRlsError } from "@/lib/rlsError";
+
 import { useDocumentVersions, versionChangerName, type DocumentVersion } from "@/hooks/useDocumentVersions";
 import { useAuth } from "@/hooks/useAuth";
 import { syncDocumentToBeacon } from "@/services/beaconApi";
