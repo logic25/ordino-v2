@@ -202,26 +202,24 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     const projectNumber = Deno.env.get("GOOGLE_CLOUD_PROJECT_NUMBER");
 
-    if (projectNumber && authHeader?.startsWith("Bearer ")) {
-      const token = authHeader.replace("Bearer ", "");
-      const payload = await verifyGoogleChatToken(token, projectNumber);
-      if (!payload) {
-        console.error("gchat-interaction: JWT verification FAILED — rejecting request");
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    } else if (projectNumber && !authHeader) {
-      console.error("gchat-interaction: No Authorization header — rejecting request");
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    } else if (!projectNumber) {
+    // Fail CLOSED: every request must present a validly-signed Google Bearer token.
+    if (!projectNumber) {
       console.error("gchat-interaction: GOOGLE_CLOUD_PROJECT_NUMBER not configured — refusing request");
       return new Response(JSON.stringify({ error: "Webhook not configured" }), {
         status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // A present-but-non-Bearer Authorization header previously matched none of the
+    // branches and fell through UNVERIFIED. Now anything without a valid payload is 401.
+    const token = authHeader?.startsWith("Bearer ")
+      ? authHeader.slice("Bearer ".length)
+      : null;
+    const payload = token ? await verifyGoogleChatToken(token, projectNumber) : null;
+    if (!payload) {
+      console.error("gchat-interaction: request not authenticated (missing/invalid Bearer token) — rejecting");
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
