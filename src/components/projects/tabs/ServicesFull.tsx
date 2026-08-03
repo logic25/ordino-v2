@@ -785,6 +785,13 @@ export function ServicesFull({ services: initialServices, project, contacts, all
           </TableRow>
         </TableHeader>
         <TableBody>
+          {services.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={12} className="h-24 text-center text-sm text-muted-foreground">
+                No services have been added to this project.
+              </TableCell>
+            </TableRow>
+          )}
           {(() => {
             const childMap = new Map<string, MockService[]>();
             services.forEach((svc) => {
