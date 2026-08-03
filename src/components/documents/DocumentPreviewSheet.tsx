@@ -77,8 +77,13 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
       setRenaming(false);
       toast({ title: "Title updated" });
     } catch (err: any) {
-      toast({ title: "Rename failed", description: err.message, variant: "destructive" });
+      toast({
+        title: isRlsError(err) || /security policy/i.test(err?.message || "") ? "Rename blocked — permission denied" : "Rename failed",
+        description: err.message,
+        variant: "destructive",
+      });
     }
+
   };
 
   const previewType = doc ? getPreviewType(doc.mime_type, doc.filename) : "unsupported";
