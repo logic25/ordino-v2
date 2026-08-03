@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
+import { describeWriteError, noRowsUpdatedMessage } from "@/lib/rlsError";
+
 
 export interface UniversalDocument {
   id: string;
