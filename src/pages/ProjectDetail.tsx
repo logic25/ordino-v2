@@ -101,6 +101,7 @@ import { JobCostingFull } from "@/components/projects/tabs/JobCostingFull";
 import { ReadinessChecklist } from "@/components/projects/tabs/ReadinessChecklist";
 import { ServicesFull } from "@/components/projects/tabs/ServicesFull";
 import { TimeLogsFull } from "@/components/projects/tabs/TimeLogsFull";
+import { useProjectEmails } from "@/hooks/useEmails";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   open: { label: "Open", variant: "default" },
@@ -109,19 +110,11 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   paid: { label: "Paid", variant: "default" },
 };
 
-// High-complexity project types (multi-discipline, regulatory-heavy)
-const COMPLEX_PROJECT_TYPES = ["new building", "major alteration", "enlargement", "full gut renovation", "demolition"];
-const MODERATE_PROJECT_TYPES = ["alteration type 1", "alteration type 2", "alt-1", "alt-2", "facade repair", "sidewalk shed"];
-
-function calculateComplexityTier(projectType: string | null | undefined, serviceCount: number): { label: string; color: string } {
-  const type = (projectType || "").toLowerCase().trim();
-  const isComplex = COMPLEX_PROJECT_TYPES.some(t => type.includes(t));
-  const isModerate = MODERATE_PROJECT_TYPES.some(t => type.includes(t));
-
-  if (isComplex || serviceCount >= 8) return { label: "Complex", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" };
-  if (isModerate || serviceCount >= 4) return { label: "Standard", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" };
-  return { label: "Simple", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" };
-}
+const complexityConfig: Record<string, { label: string; color: string }> = {
+  simple: { label: "Simple", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" },
+  standard: { label: "Standard", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
+  complex: { label: "Complex", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
+};
 
 const formatName = (profile: { first_name: string | null; last_name: string | null } | null | undefined) => {
   if (!profile) return "—";
@@ -161,6 +154,7 @@ export default function ProjectDetail() {
   const { data: realTimeline = [] } = useProjectTimeline(project?.id, (project as any)?.proposal_id);
   const { data: realPISStatus } = useProjectPISStatus(project?.id);
   const { data: realDocuments = [] } = useProjectDocuments(project?.id, (project as any)?.proposal_id);
+  const { data: projectEmailTags = [] } = useProjectEmails(project?.id);
 
   // DOB applications for QuickReferenceBar
   const { data: dobApplications = [] } = useQuery({
@@ -326,7 +320,18 @@ export default function ProjectDetail() {
   const contacts = realContacts;
   const milestones = realTimeline;
   const changeOrders = realChangeOrders;
-  const emails: MockEmail[] = [];
+  const emails: MockEmail[] = projectEmailTags.flatMap((tag: any) => {
+    const email = tag.emails;
+    if (!email) return [];
+    return [{
+      id: email.id,
+      date: email.date ? format(new Date(email.date), "MM/dd/yyyy") : "—",
+      from: email.from_name || email.from_email || "Unknown sender",
+      subject: email.subject || "(no subject)",
+      snippet: email.snippet || "",
+      direction: Array.isArray(email.labels) && email.labels.includes("SENT") ? "outbound" as const : "inbound" as const,
+    }];
+  });
   const documents: MockDocument[] = realDocuments;
   const timeEntries: MockTimeEntry[] = realTimeEntries;
   const pisStatus: MockPISStatus = realPISStatus || { sentDate: null, totalFields: 0, completedFields: 0, missingFields: [] };
@@ -357,8 +362,12 @@ export default function ProjectDetail() {
                 </h1>
                 <div className="flex items-center gap-1.5 shrink-0 mt-1">
                   <Badge variant={status.variant}>{status.label}</Badge>
-                  {(() => {
-                    const tier = calculateComplexityTier(project.project_type, realServices.length);
+                  {project.project_complexity_tier && (() => {
+                    const key = project.project_complexity_tier.toLowerCase();
+                    const tier = complexityConfig[key] || {
+                      label: project.project_complexity_tier,
+                      color: "bg-muted text-muted-foreground",
+                    };
                     return (
                       <Badge variant="outline" className={cn("border-none text-[10px] font-medium", tier.color)}>
                         {tier.label}
@@ -444,12 +453,12 @@ export default function ProjectDetail() {
         {/* Financial Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
-            { label: "Contract", value: servicesLoading ? "..." : formatCurrency(contractTotal) },
-            { label: "Change Orders", value: approvedCOs > 0 ? `+${formatCurrency(approvedCOs)}` : "--" },
-            { label: "Total Value", value: servicesLoading ? "..." : formatCurrency(adjustedTotal) },
-            { label: "Billed", value: servicesLoading ? "..." : formatCurrency(billed), color: "text-emerald-600 dark:text-emerald-400" },
-            { label: "Remaining", value: servicesLoading ? "..." : formatCurrency(adjustedTotal - billed) },
-            { label: "Internal Cost", value: formatCurrency(cost) },
+            { label: "Contract", value: servicesLoading ? "..." : servicesForCalc.length ? formatCurrency(contractTotal) : "—" },
+            { label: "Change Orders", value: changeOrders.length ? formatCurrency(approvedCOs) : "—" },
+            { label: "Total Value", value: servicesLoading ? "..." : servicesForCalc.length || changeOrders.length ? formatCurrency(adjustedTotal) : "—" },
+            { label: "Billed", value: servicesLoading ? "..." : servicesForCalc.length ? formatCurrency(billed) : "—", color: "text-emerald-600 dark:text-emerald-400" },
+            { label: "Remaining", value: servicesLoading ? "..." : servicesForCalc.length ? formatCurrency(adjustedTotal - billed) : "—" },
+            { label: "Internal Cost", value: cost > 0 ? formatCurrency(cost) : "—" },
           ].map((stat) => (
             <Card key={stat.label}>
               <CardContent className="p-4">
@@ -538,7 +547,7 @@ export default function ProjectDetail() {
                 <NotesTab projectId={project.id} />
               </TabsContent>
               <TabsContent value="emails" className="mt-0">
-                <EmailsFullLive projectId={project.id} projectName={project.name} mockEmails={emails} />
+                <EmailsFullLive projectId={project.id} />
               </TabsContent>
               <TabsContent value="contacts" className="mt-0">
                 <ContactsFull contacts={contacts} pisStatus={pisStatus} projectId={project.id} clientId={project.client_id} />

@@ -26,8 +26,7 @@ import { pdf } from "@react-pdf/renderer";
 import type { COApplication, COViolation, COSignOff, ReportSnapshot } from "./coMockData";
 import {
   WORK_TYPE_LABELS, WORK_TYPE_COLORS, STATUS_COLORS,
-  MOCK_SIGN_OFFS, MOCK_WORK_TYPE_BREAKDOWN, TCO_REQUIREMENTS,
-  MOCK_PREVIOUS_REPORT,
+  TCO_REQUIREMENTS,
 } from "./coMockData";
 import type { RequiredItem } from "./requiredItemsData";
 import { COReportPDF } from "./COReportPDF";
@@ -47,7 +46,7 @@ interface COSummaryViewProps {
   companyId?: string | null;
   profileId?: string | null;
   propertyId?: string;
-  /** Real sign-offs from DB — when provided, overrides mock data */
+  /** Real sign-offs from the database */
   dbSignOffs?: DbCoSignOff[];
 }
 
@@ -65,14 +64,14 @@ export function COSummaryView({
   const [reportOpen, setReportOpen] = useState(false);
   const [reportType, setReportType] = useState<"CO" | "TCO">("CO");
   const [generatingPdf, setGeneratingPdf] = useState(false);
-  const [lastReportDate, setLastReportDate] = useState<string | null>(MOCK_PREVIOUS_REPORT.ranAt);
-  const [previousSnapshot, setPreviousSnapshot] = useState<ReportSnapshot | null>(MOCK_PREVIOUS_REPORT);
+  const [lastReportDate, setLastReportDate] = useState<string | null>(null);
+  const [previousSnapshot, setPreviousSnapshot] = useState<ReportSnapshot | null>(null);
   const [nextSteps, setNextSteps] = useState<NextStep[]>([]);
   const [newStepText, setNewStepText] = useState("");
   // Report metadata
-  const [reportReceivedFrom, setReportReceivedFrom] = useState(MOCK_PREVIOUS_REPORT.receivedFrom);
-  const [reportReceivedDate, setReportReceivedDate] = useState(MOCK_PREVIOUS_REPORT.receivedDate);
-  const [reportNotes, setReportNotes] = useState(MOCK_PREVIOUS_REPORT.notes);
+  const [reportReceivedFrom, setReportReceivedFrom] = useState("");
+  const [reportReceivedDate, setReportReceivedDate] = useState("");
+  const [reportNotes, setReportNotes] = useState("");
 
   const totalApps = applications.length;
   const closedApps = applications.filter(a => a.status === "Signed Off").length;
@@ -84,17 +83,15 @@ export function COSummaryView({
   const activeViols = totalViols - resolvedViols;
   const violPct = totalViols > 0 ? Math.round((resolvedViols / totalViols) * 100) : 0;
 
-  // Convert DB sign-offs to COSignOff format, falling back to mock
-  const signOffs: COSignOff[] = dbSignOffs && dbSignOffs.length > 0
-    ? dbSignOffs.map(db => ({
+  // Convert persisted sign-offs to the report format.
+  const signOffs: COSignOff[] = (dbSignOffs ?? []).map(db => ({
         name: db.name,
         status: db.status as COSignOff["status"],
         date: db.sign_off_date,
         expirationDate: db.expiration_date,
         jobNum: db.job_num,
         tcoRequired: db.tco_required,
-      }))
-    : MOCK_SIGN_OFFS;
+      }));
 
   // Editable sign-off state
   const [editingSignOff, setEditingSignOff] = useState<DbCoSignOff | null>(null);
@@ -146,9 +143,21 @@ export function COSummaryView({
     [violations]
   );
 
-  // Work type totals
-  const totalWorkItems = MOCK_WORK_TYPE_BREAKDOWN.reduce((s, r) => s + r.total, 0);
-  const totalClosed = MOCK_WORK_TYPE_BREAKDOWN.reduce((s, r) => s + r.closed, 0);
+  // Work type totals derived only from imported applications.
+  const workTypeBreakdown = useMemo(() => {
+    const grouped = new Map<string, { workType: string; open: number; closed: number; total: number }>();
+    applications.forEach((application) => {
+      const workType = application.workType || "Unknown";
+      const row = grouped.get(workType) ?? { workType, open: 0, closed: 0, total: 0 };
+      row.total += 1;
+      if (application.status === "Signed Off") row.closed += 1;
+      else row.open += 1;
+      grouped.set(workType, row);
+    });
+    return Array.from(grouped.values()).sort((a, b) => b.total - a.total || a.workType.localeCompare(b.workType));
+  }, [applications]);
+  const totalWorkItems = workTypeBreakdown.reduce((s, r) => s + r.total, 0);
+  const totalClosed = workTypeBreakdown.reduce((s, r) => s + r.closed, 0);
   const totalOpen = totalWorkItems - totalClosed;
   const overallPct = totalWorkItems > 0 ? Math.round((totalClosed / totalWorkItems) * 100) : 0;
   const estMonths = Math.ceil(totalOpen / 40);
@@ -393,6 +402,9 @@ export function COSummaryView({
         )}
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          {signOffs.length === 0 && (
+            <p className="text-sm text-muted-foreground">No sign-off data yet.</p>
+          )}
           {signOffs.map((so, idx) => {
             const isComplete = so.status === "Signed Off";
             const isPending = so.status === "Pending";
@@ -449,7 +461,10 @@ export function COSummaryView({
             <BarChart3 className="h-3.5 w-3.5" /> Work Type Breakdown
           </h4>
           <div className="grid sm:grid-cols-2 gap-2">
-            {MOCK_WORK_TYPE_BREAKDOWN.map((row) => {
+            {workTypeBreakdown.length === 0 && (
+              <p className="text-sm text-muted-foreground">No application data yet.</p>
+            )}
+            {workTypeBreakdown.map((row) => {
               const pct = Math.round((row.closed / row.total) * 100);
               return (
                 <div
@@ -816,7 +831,14 @@ export function COSummaryView({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {MOCK_WORK_TYPE_BREAKDOWN.map((row) => {
+                    {workTypeBreakdown.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="h-20 text-center text-sm text-muted-foreground">
+                          No application data yet.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {workTypeBreakdown.map((row) => {
                       const pct = Math.round((row.closed / row.total) * 100);
                       return (
                         <TableRow key={row.workType}>
@@ -1029,7 +1051,7 @@ export function COSummaryView({
                     applications={applications}
                     violations={violations}
                     signOffs={displaySignOffs}
-                    workTypeBreakdown={MOCK_WORK_TYPE_BREAKDOWN}
+                    workTypeBreakdown={workTypeBreakdown}
                     previousSnapshot={previousSnapshot}
                     nextSteps={nextSteps}
                     reportReceivedFrom={reportReceivedFrom}

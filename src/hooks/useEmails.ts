@@ -324,7 +324,7 @@ export function useProjectEmails(projectId: string | undefined) {
           id, category, notes, tagged_at,
           emails (
             id, gmail_message_id, thread_id, subject, from_email, from_name,
-            date, snippet, has_attachments, is_read,
+            date, snippet, has_attachments, is_read, labels,
             email_attachments (id, filename, mime_type, size_bytes)
           )
         `)

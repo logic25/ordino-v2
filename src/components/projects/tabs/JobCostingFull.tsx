@@ -7,6 +7,14 @@ import { formatCurrency } from "@/lib/utils";
 import type { MockService, MockTimeEntry } from "@/components/projects/projectMockData";
 
 export function JobCostingFull({ services, timeEntries }: { services: MockService[]; timeEntries: MockTimeEntry[] }) {
+  if (services.length === 0 && timeEntries.length === 0) {
+    return (
+      <div className="p-6 text-sm text-muted-foreground italic">
+        No job-costing data yet. Add services or log project time to populate this view.
+      </div>
+    );
+  }
+
   const costByService: Record<string, number> = {};
   const hoursByService: Record<string, number> = {};
   timeEntries.forEach(te => {
@@ -20,12 +28,15 @@ export function JobCostingFull({ services, timeEntries }: { services: MockServic
   const totalHours = timeEntries.reduce((s, t) => s + t.hours, 0);
   const margin = contractTotal > 0 ? ((contractTotal - costTotal) / contractTotal * 100) : 0;
 
+  const hasContractData = services.length > 0;
+  const hasTimeData = timeEntries.length > 0;
+  const hasCostData = costTotal > 0;
   const stats: { label: string; value: string; tip: string }[] = [
-    { label: "Contract Price", value: formatCurrency(contractTotal), tip: "Sum of every service's Price on this project (the agreed contract amount with the client). Updates when services are added, edited, or dropped." },
-    { label: "Total Cost", value: formatCurrency(costTotal), tip: "Labor cost computed from logged time entries: Σ(hours × team member's hourly rate). Pulled live from the Time tab — does not include expenses or filing fees." },
-    { label: "Gross Profit", value: formatCurrency(contractTotal - costTotal), tip: "Contract Price − Total Cost. Negative means logged labor exceeds the contract amount (often a missing rate, mis-tagged time, or under-priced service)." },
-    { label: "Margin", value: `${Math.round(margin)}%`, tip: "Gross Profit ÷ Contract Price. Industry healthy zone for expediting is ~40–60%. <20% = red, >50% = green." },
-    { label: "Total Hours", value: `${totalHours.toFixed(1)} hrs`, tip: "All hours logged against any service on this project (from the Time tab). Includes billable and non-billable." },
+    { label: "Contract Price", value: hasContractData ? formatCurrency(contractTotal) : "—", tip: "Sum of every service's Price on this project (the agreed contract amount with the client). Updates when services are added, edited, or dropped." },
+    { label: "Total Cost", value: hasCostData ? formatCurrency(costTotal) : "—", tip: "Labor cost computed from logged time entries: Σ(hours × team member's hourly rate). Pulled live from the Time tab — does not include expenses or filing fees." },
+    { label: "Gross Profit", value: hasContractData && hasCostData ? formatCurrency(contractTotal - costTotal) : "—", tip: "Contract Price − Total Cost. Negative means logged labor exceeds the contract amount (often a missing rate, mis-tagged time, or under-priced service)." },
+    { label: "Margin", value: hasContractData && hasCostData ? `${Math.round(margin)}%` : "—", tip: "Gross Profit ÷ Contract Price. Industry healthy zone for expediting is ~40–60%. <20% = red, >50% = green." },
+    { label: "Total Hours", value: hasTimeData ? `${totalHours.toFixed(1)} hrs` : "—", tip: "All hours logged against any service on this project (from the Time tab). Includes billable and non-billable." },
   ];
 
   return (
