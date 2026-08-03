@@ -329,7 +329,7 @@ export default function ProjectDetail() {
       from: email.from_name || email.from_email || "Unknown sender",
       subject: email.subject || "(no subject)",
       snippet: email.snippet || "",
-      direction: "inbound" as const,
+      direction: Array.isArray(email.labels) && email.labels.includes("SENT") ? "outbound" as const : "inbound" as const,
     }];
   });
   const documents: MockDocument[] = realDocuments;
@@ -458,7 +458,7 @@ export default function ProjectDetail() {
             { label: "Total Value", value: servicesLoading ? "..." : servicesForCalc.length || changeOrders.length ? formatCurrency(adjustedTotal) : "—" },
             { label: "Billed", value: servicesLoading ? "..." : servicesForCalc.length ? formatCurrency(billed) : "—", color: "text-emerald-600 dark:text-emerald-400" },
             { label: "Remaining", value: servicesLoading ? "..." : servicesForCalc.length ? formatCurrency(adjustedTotal - billed) : "—" },
-            { label: "Internal Cost", value: timeEntries.length ? formatCurrency(cost) : "—" },
+            { label: "Internal Cost", value: cost > 0 ? formatCurrency(cost) : "—" },
           ].map((stat) => (
             <Card key={stat.label}>
               <CardContent className="p-4">
