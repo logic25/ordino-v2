@@ -102,7 +102,15 @@ export function useSetBeaconKbTitle() {
           },
           { onConflict: "company_id,source_file" }
         );
-      if (error) throw error;
+      if (error) {
+        throw new Error(
+          describeWriteError(error, {
+            table: "beacon_kb_folder_overrides",
+            action: "rename this knowledge-base file",
+            roleCheck: "the admin role in your company (has_role check on beacon_kb_folder_overrides)",
+          })
+        );
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["beacon-kb-overrides"] });
@@ -111,6 +119,7 @@ export function useSetBeaconKbTitle() {
     onError: (err: any) => {
       toast({ title: "Rename failed", description: err.message, variant: "destructive" });
     },
+
   });
 }
 
