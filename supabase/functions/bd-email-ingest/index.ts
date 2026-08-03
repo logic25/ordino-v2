@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { timingSafeEqual } from "../_shared/timingSafeEqual.ts";
+import { notifyStaff } from "../_shared/notify.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -93,6 +94,12 @@ Deno.serve(async (req) => {
         .select("id")
         .single();
       if (error) throw error;
+      await notifyStaff(sb, {
+        type: "beacon_bd_signal",
+        title: `New BD event: ${title}`,
+        body: summary,
+        link: "/bd/events",
+      });
       return json({ ok: true, routed: "bd_events", id: data.id });
     }
 
@@ -130,6 +137,12 @@ Deno.serve(async (req) => {
       .select("id")
       .single();
     if (error) throw error;
+    await notifyStaff(sb, {
+      type: "beacon_bd_signal",
+      title: `New BD market signal: ${title}`,
+      body: summary,
+      link: "/bd/market-signals",
+    });
     return json({ ok: true, routed: "bd_market_signals", id: data.id });
   } catch (e: any) {
     return json({ ok: false, error: e?.message ?? "Insert failed" }, 500);

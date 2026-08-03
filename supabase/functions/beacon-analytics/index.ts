@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { timingSafeEqual } from "../_shared/timingSafeEqual.ts";
+import { notifyStaff } from "../_shared/notify.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -74,6 +75,8 @@ Deno.serve(async (req) => {
         return jsonResponse([]);
       case "save_content_candidate":
         return await saveContentCandidate(supabase, data);
+      case "notify_ingest":
+        return await notifyIngest(supabase, data);
       case "get_content_candidates":
         return await getContentCandidates(supabase, data);
       case "update_content_candidate":
@@ -102,7 +105,7 @@ Deno.serve(async (req) => {
     }
   } catch (err) {
     console.error("beacon-analytics error:", err);
-    return jsonResponse({ error: err.message }, 500);
+    return jsonResponse({ error: err instanceof Error ? err.message : String(err) }, 500);
   }
 });
 
@@ -574,6 +577,14 @@ async function saveContentCandidate(sb: any, d: any) {
     return jsonResponse({ error: "No company_id available for content candidate" }, 400);
   }
 
+  // Was this candidate already in the table? (upsert can't tell us insert-vs-update, and
+  // we only want to notify on a genuinely NEW candidate — never on a re-seed/update.)
+  const { data: existing } = await sb
+    .from("content_candidates")
+    .select("id")
+    .eq("id", d.id)
+    .maybeSingle();
+
   const { data, error } = await sb
     .from("content_candidates")
     .upsert({
@@ -606,7 +617,30 @@ async function saveContentCandidate(sb: any, d: any) {
     .select()
     .single();
   if (error) throw error;
+  if (!existing) {
+    await notifyStaff(sb, {
+      type: "beacon_content",
+      title: `New content draft ready: ${d.title}`,
+      body: d.review_question ?? d.content_angle ?? null,
+      link: "/content",
+    });
+  }
   return jsonResponse(data);
+}
+
+// KB ingest notification. Beacon (Railway) calls this once per net-new ingest
+// operation (a manual upload or a newsletter it processed) — NOT per chunk — so the
+// bell stays low-noise. Payload: { title, body?, link? }.
+async function notifyIngest(sb: any, d: any) {
+  const title = String(d?.title ?? "").trim();
+  if (!title) return jsonResponse({ error: "title required" }, 400);
+  await notifyStaff(sb, {
+    type: "beacon_kb",
+    title,
+    body: d?.body ?? null,
+    link: d?.link ?? "/documents",
+  });
+  return jsonResponse({ ok: true });
 }
 
 async function getContentCandidates(sb: any, d: any) {
