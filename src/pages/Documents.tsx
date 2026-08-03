@@ -111,8 +111,13 @@ export default function Documents() {
       setRenameDocTarget(null);
       toast({ title: "Title updated" });
     } catch (err: any) {
-      toast({ title: "Rename failed", description: err.message, variant: "destructive" });
+      toast({
+        title: /security policy|permission/i.test(err?.message || "") ? "Rename blocked — permission denied" : "Rename failed",
+        description: err.message,
+        variant: "destructive",
+      });
     }
+
   };
 
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
