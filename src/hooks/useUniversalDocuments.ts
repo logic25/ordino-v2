@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
+import { describeWriteError, noRowsUpdatedMessage } from "@/lib/rlsError";
+
 
 export interface UniversalDocument {
   id: string;
@@ -102,15 +104,34 @@ export function useUpdateDocumentTitle() {
     mutationFn: async (input: { id: string; title: string }) => {
       const title = input.title.trim();
       if (!title) throw new Error("Title can't be empty");
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("universal_documents")
         .update({ title } as any)
-        .eq("id", input.id);
-      if (error) throw error;
+        .eq("id", input.id)
+        .select("id");
+      if (error) {
+        throw new Error(
+          describeWriteError(error, {
+            table: "universal_documents",
+            action: "rename this document",
+            roleCheck: "membership in the document's company (admin for Beacon knowledge-base folders)",
+          })
+        );
+      }
+      if (!data || data.length === 0) {
+        throw new Error(
+          noRowsUpdatedMessage({
+            table: "universal_documents",
+            action: "rename this document",
+            roleCheck: "membership in the document's company (admin for Beacon knowledge-base folders)",
+          })
+        );
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["universal-documents"] }),
   });
 }
+
 
 export function useDeleteDocument() {
   const qc = useQueryClient();

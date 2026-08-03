@@ -287,7 +287,12 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
       setRenameTarget(null);
       setRenameTitle("");
     } catch (err: any) {
-      toast({ title: "Rename failed", description: err.message, variant: "destructive" });
+      toast({
+        title: /security policy|permission/i.test(err?.message || "") ? "Rename blocked — permission denied" : "Rename failed",
+        description: err.message,
+        variant: "destructive",
+      });
+
     }
   };
 

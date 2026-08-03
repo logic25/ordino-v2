@@ -11,6 +11,8 @@ import { format } from "date-fns";
 import ReactMarkdown from "react-markdown";
 import { Input } from "@/components/ui/input";
 import { useUpdateDocumentTitle, type UniversalDocument } from "@/hooks/useUniversalDocuments";
+import { isRlsError } from "@/lib/rlsError";
+
 import { useDocumentVersions, versionChangerName, type DocumentVersion } from "@/hooks/useDocumentVersions";
 import { useAuth } from "@/hooks/useAuth";
 import { syncDocumentToBeacon } from "@/services/beaconApi";
@@ -77,8 +79,13 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
       setRenaming(false);
       toast({ title: "Title updated" });
     } catch (err: any) {
-      toast({ title: "Rename failed", description: err.message, variant: "destructive" });
+      toast({
+        title: isRlsError(err) || /security policy/i.test(err?.message || "") ? "Rename blocked — permission denied" : "Rename failed",
+        description: err.message,
+        variant: "destructive",
+      });
     }
+
   };
 
   const previewType = doc ? getPreviewType(doc.mime_type, doc.filename) : "unsupported";
