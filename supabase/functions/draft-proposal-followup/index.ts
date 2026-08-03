@@ -25,6 +25,14 @@ serve(async (req) => {
     if (userError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+    // Caller's company (own profile, under RLS) — used to confine the proposal below.
+    const { data: callerProfile } = await supabaseAuth
+      .from("profiles")
+      .select("company_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const callerCompanyId = callerProfile?.company_id ?? null;
+
     const { proposal_id } = await req.json();
     if (!proposal_id) {
       return new Response(JSON.stringify({ error: "proposal_id required" }), {
@@ -52,6 +60,15 @@ serve(async (req) => {
     if (pErr || !proposal) {
       return new Response(JSON.stringify({ error: "Proposal not found" }), {
         status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Cross-tenant guard: this reads client PII + pricing and writes a draft under the
+    // proposal's company — the caller may only touch their own company's proposals.
+    if (!callerCompanyId || proposal.company_id !== callerCompanyId) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

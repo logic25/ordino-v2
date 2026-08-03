@@ -24,6 +24,10 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+    // Set only for the browser-JWT path; stays null for trusted service-role/agent
+    // callers. Used below to confine a browser user to their own company's runs.
+    let callerCompanyId: string | null = null;
+
     // Authenticate: service role key in Authorization header or shared agent secret
     const authHeader = req.headers.get("authorization") ?? "";
     const agentSecret = req.headers.get("x-agent-secret") ?? "";
@@ -50,6 +54,13 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      // Derive the caller's company (own profile, under RLS) to scope the run below.
+      const { data: profile } = await userClient
+        .from("profiles")
+        .select("company_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      callerCompanyId = profile?.company_id ?? null;
     }
 
     // Use service role to write updates
@@ -81,13 +92,22 @@ Deno.serve(async (req) => {
     // Fetch current run
     const { data: run, error: fetchError } = await supabase
       .from("filing_runs")
-      .select("id, progress_log, status")
+      .select("id, company_id, progress_log, status")
       .eq("id", effectiveRunId)
       .maybeSingle();
 
     if (fetchError || !run) {
       return new Response(JSON.stringify({ error: "Filing run not found" }), {
         status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Cross-tenant guard: a browser user may only read/update runs in their own
+    // company. Trusted service-role / agent callers (callerCompanyId null) are exempt.
+    if (callerCompanyId && run.company_id !== callerCompanyId) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
