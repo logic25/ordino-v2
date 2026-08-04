@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { secureEqual } from "../_shared/secureCompare.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,7 +33,7 @@ Deno.serve(async (req) => {
       "";
 
     const isServiceRole = authHeader === `Bearer ${serviceRoleKey}`;
-    const isAgentAuth = expectedAgentSecret && agentSecret === expectedAgentSecret;
+    const isAgentAuth = secureEqual(agentSecret, expectedAgentSecret);
 
     if (!isServiceRole && !isAgentAuth) {
       // Also allow JWT auth for browser-side status checks

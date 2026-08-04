@@ -3,6 +3,7 @@
 // deduplicated via notifications(event_id, user_id, type).
 // Auth: x-cron-secret header. Schedule: 0 10 * * * (10 AM UTC daily).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { secureEqual } from "../_shared/secureCompare.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,7 +39,7 @@ Deno.serve(async (req) => {
   } catch (e) {
     console.error("get cron secret failed:", (e as Error).message);
   }
-  if (!expected || caller !== expected) return json({ error: "Unauthorized" }, 401);
+  if (!secureEqual(caller, expected)) return json({ error: "Unauthorized" }, 401);
 
   const today = new Date();
   const d7 = addDays(today, 7);

@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { secureEqual } from "../_shared/secureCompare.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -46,7 +47,7 @@ Deno.serve(async (req) => {
     // ─── action: callback (server-to-server, no JWT) ───
     if (action === "callback") {
       const agentSecret = req.headers.get("x-agent-secret") ?? "";
-      if (!agentSecret || agentSecret !== FILING_AGENT_SECRET) {
+      if (!secureEqual(agentSecret, FILING_AGENT_SECRET)) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },

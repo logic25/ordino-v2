@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { secureEqual } from "../_shared/secureCompare.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -47,7 +48,7 @@ serve(async (req) => {
   // Shared secret check — MANDATORY
   const webhookSecret = Deno.env.get("LEAD_WEBHOOK_SECRET");
   const providedSecret = req.headers.get("x-webhook-secret");
-  if (!webhookSecret || !providedSecret || providedSecret !== webhookSecret) {
+  if (!secureEqual(providedSecret, webhookSecret)) {
     return new Response(JSON.stringify({ error: "Forbidden" }), {
       status: 403,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

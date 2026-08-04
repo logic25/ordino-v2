@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { secureEqual } from "../_shared/secureCompare.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,7 +23,7 @@ Deno.serve(async (req) => {
     const expectedCronSecret = Deno.env.get("CRON_SECRET");
     const authHeader = req.headers.get("Authorization");
 
-    if (cronSecret && expectedCronSecret && cronSecret === expectedCronSecret) {
+    if (secureEqual(cronSecret, expectedCronSecret)) {
       // Cron caller — process all companies (no body needed)
       try {
         const body = await req.json();

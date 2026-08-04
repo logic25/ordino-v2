@@ -4,6 +4,7 @@
 // fetch URL, ask Lovable AI to extract structured events, dedupe against
 // bd_events (name+date or source_url match), insert net-new as PENDING_APPROVAL.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { secureEqual } from "../_shared/secureCompare.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -138,7 +139,7 @@ Deno.serve(async (req) => {
   } catch (e) {
     console.error("get cron secret failed:", (e as Error).message);
   }
-  if (!expected || caller !== expected) {
+  if (!secureEqual(caller, expected)) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

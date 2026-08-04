@@ -3,6 +3,7 @@
 //   - Event mode ({projectId, companyId}): debounced regen for a single project after high-signal events.
 // Auth: x-cron-secret header. Invoked by pg_cron (nightly) and by DB triggers via pg_net.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { secureEqual } from "../_shared/secureCompare.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -34,7 +35,7 @@ Deno.serve(async (req) => {
     }
 
     const callerSecret = req.headers.get("x-cron-secret");
-    if (!resolvedCronSecret || callerSecret !== resolvedCronSecret) {
+    if (!secureEqual(callerSecret, resolvedCronSecret)) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
