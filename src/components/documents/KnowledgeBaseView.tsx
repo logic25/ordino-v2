@@ -71,7 +71,23 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   const [renameTarget, setRenameTarget] = useState<{ id: string | null; filename: string; title: string; folder: string } | null>(null);
   const [renameTitle, setRenameTitle] = useState("");
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<"name_asc" | "name_desc" | "date_desc" | "date_asc">("name_asc");
+  const [sortBy, setSortBy] = useState<
+    | "name_asc" | "name_desc"
+    | "date_desc" | "date_asc"
+    | "uploader_asc" | "uploader_desc"
+    | "chunks_desc" | "chunks_asc"
+  >("name_asc");
+
+  const toggleSort = (col: "name" | "date" | "uploader" | "chunks") => {
+    setSortBy((prev) => {
+      if (col === "name") return prev === "name_asc" ? "name_desc" : "name_asc";
+      if (col === "date") return prev === "date_desc" ? "date_asc" : "date_desc";
+      if (col === "uploader") return prev === "uploader_asc" ? "uploader_desc" : "uploader_asc";
+      return prev === "chunks_desc" ? "chunks_asc" : "chunks_desc";
+    });
+  };
+  const sortIndicator = (col: "name" | "date" | "uploader" | "chunks") =>
+    sortBy.startsWith(col) ? (sortBy.endsWith("_asc") ? " ↑" : " ↓") : "";
 
   const documentByFilename = useMemo(() => {
     const map = new Map<string, (typeof universalDocuments)[number]>();
