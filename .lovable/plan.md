@@ -1,28 +1,40 @@
-# Fix Knowledge Base document preview formatting
+# KB Gaps: include Google Chat questions, not just the web widget
 
-## What's actually happening
+## What's happening today
 
-The preview you're looking at is not the document. It is a reconstruction stitched together from the search index:
+The KB Gaps tab reads `beacon_interactions` directly and does not filter by channel — so Google Chat rows are already in the query. They almost never qualify as gaps because of how a gap is detected:
 
-- `BeaconDocumentModal` loads content from Beacon's `file-content` endpoint, which glues the indexed chunks of the file back together. Chunks overlap at their edges and drop the original line breaks, so you get repeated half-sentences, run-on paragraphs, and text that stops mid-word ("w hat you shoul d know", "w hat el se").
-- To compensate, the modal runs `normalizeMarkdown()` — a set of regex guesses that re-inserts headings, bullets, and table rows. When the guesses miss, ordinary sentences get promoted to big bold headings (the "An AHV permit is required…" block in your screenshot) and real headings stay inline. That's the inconsistency.
-- The real fix — keeping the uploaded source file — exists but is new: only 3 of 184 knowledge-base documents currently have an original stored, so nearly every preview falls back to the lossy reconstruction.
+- A row only counts when `confidence < 0.5` **and** the answer contains one of six phrases ("don't have", "not in my documents", ...).
+- Chat answers score higher. Example from a Google Chat space: *"Hey guys! In your experience, does the job # need to be listed on the ACP-5?"* — Beacon replied *"The knowledge base doesn't have specific guidance on…"* at confidence **0.73**. A real, self-declared miss, silently dropped by the 0.5 threshold.
+- Everything currently listed comes from the web widget (questions prefixed `[Page: …]`), which is why the tab looks like a widget-only report.
+
+There are 195 web interactions and ~20 chat/space interactions in the window, so chat volume is small but the misses are the high-value ones.
 
 ## Plan
 
-### 1. Show the original file whenever we have it
-When a stored original exists, render that instead of the reconstruction: PDFs in an inline viewer, text/markdown as their true source. Reconstruction becomes fallback only.
+### 1. Detect a gap by signal, not by threshold alone
+A question counts as a gap when either:
+- Beacon's answer explicitly says the knowledge base lacks it (expanded phrase list: "doesn't have specific guidance", "not in the knowledge base", "documents don't contain", "no guidance on", plus the existing six), regardless of confidence; **or**
+- confidence is below 0.5 and the answer isn't a clean, sourced response.
 
-### 2. Make the fallback honest instead of guessing
-- Drop the aggressive heading/list/table regexes that invent structure. Keep only safe, unambiguous fixes (line-break normalization, de-duplicating overlapping chunk seams, repairing split words like "w hat" → "what").
-- Render the fallback as clean plain text with preserved paragraph breaks, not styled markdown, so nothing gets randomly bolded.
-- Add a small banner: "Reconstructed from the search index — formatting may differ from the source file", plus a note at the end when the text ends mid-chunk so an abrupt stop is explained rather than looking like a bug.
+Keep the existing noise filters (slash commands, greetings, very short questions, test pings).
 
-### 3. Close the gap for the other 181 documents
-Add a "Attach original file" action on documents that have no stored original, so re-uploading the source upgrades the preview permanently without re-ingesting a duplicate into the index. Flag documents lacking an original with a subtle marker in the Knowledge Base grid.
+### 2. Label and filter by where the question was asked
+Derive a source from `space_name`:
+- `ordino-web` → **Web widget**
+- `spaces/…` → **Google Chat**
+- `ordino-chat` → **Ordino chat panel**
+- anything else / test spaces → **Other**, and drop obvious test spaces (`test`, `spaces/TEST123`, `DIAGNOSTIC_FAKE`, etc.) from the list.
+
+Show the source as a badge on each gap line and add a source filter (All / Web widget / Google Chat / Ordino chat) at the top of the tab, plus a per-topic count of how many gaps came from chat.
+
+### 3. Clean up how questions read
+Strip the `[Page: Documents]` prefix into a small muted context chip instead of leaving it inline in the quoted question, so widget and chat gaps look consistent side by side.
+
+Marking addressed, Teach, and Docs actions stay exactly as they are.
 
 ## Technical notes
 
-- `src/components/documents/BeaconDocumentModal.tsx`: branch on `useKbOriginal(sourceFile)`; PDF originals via signed URL in an iframe, text originals rendered directly; `normalizeMarkdown` trimmed to seam de-duplication + whitespace repair and moved to plain-text rendering.
-- No backend or schema change required for steps 1-2; step 3 reuses the existing `kb-originals` bucket, `beacon_kb_originals` table, and `beacon-proxy` upload path.
-- Changelog entry added for the preview fidelity change.
+- All changes are in `src/components/beacon/BeaconKbGaps.tsx`: widen `GAP_PHRASES`, rework `isGap` into a two-branch rule, add a `sourceOf(space_name)` helper, select `space_name` in the existing query, and add badges/filter to the render.
+- No backend, schema, or edge-function change — `beacon_interactions` already carries `space_name` and every channel writes to the same table.
+- Changelog entry added for the widened gap detection.
