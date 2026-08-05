@@ -523,7 +523,7 @@ export function BeaconDocumentModal({
               onChange={(e) => setEditContent(e.target.value)}
             />
           ) : (
-            <div className="prose prose-sm max-w-none dark:prose-invert overflow-y-auto max-h-[60vh] px-1">
+            <div className="prose prose-sm max-w-none dark:prose-invert overflow-y-auto max-h-[65vh] px-1">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>
             </div>
           )}
