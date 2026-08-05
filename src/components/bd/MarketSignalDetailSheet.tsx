@@ -90,6 +90,33 @@ function FullStory({ story }: { story: string }) {
   );
 }
 
+function ArticleLinks({ urls }: { urls: string[] }) {
+  if (!urls || urls.length === 0) return null;
+  return (
+    <div className="mt-4 border rounded-md">
+      <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/30">
+        <Newspaper className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium">Read the article</span>
+      </div>
+      <ul className="divide-y">
+        {urls.map((url, i) => (
+          <li key={`${url}-${i}`}>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors"
+            >
+              <span className="truncate text-primary">{domainFromUrl(url)}</span>
+              <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function OpportunityCard({ lead, onPromote }: { lead: SignalLead; onPromote: () => void }) {
   const incumbent = incumbentOf(lead);
   const gap = gleGapOf(lead);
@@ -145,6 +172,7 @@ export function MarketSignalDetailSheet({
   const qc = useQueryClient();
   const [leads, setLeads] = useState<SignalLead[] | null>(null);
   const [story, setStory] = useState<string>("");
+  const [articleUrls, setArticleUrls] = useState<string[]>([]);
 
   const analyze = useMutation({
     mutationFn: async (s: MarketSignal) => {
@@ -159,6 +187,7 @@ export function MarketSignalDetailSheet({
     onSuccess: (result) => {
       setLeads(result.leads);
       setStory(result.story ?? "");
+      setArticleUrls(result.article_urls ?? []);
       qc.invalidateQueries({ queryKey: ["bd-market-signals"] });
     },
     onError: (e: any) =>
@@ -176,9 +205,11 @@ export function MarketSignalDetailSheet({
     if (cached) {
       setLeads(cached);
       setStory(cachedStory(signal));
+      setArticleUrls(cachedArticleUrls(signal));
     } else {
       setLeads(null);
       setStory("");
+      setArticleUrls([]);
       analyze.mutate(signal);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
