@@ -140,6 +140,7 @@ export default function Documents() {
 
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("newest");
   const [jurisdictionFilter, setJurisdictionFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 15;
@@ -197,9 +198,24 @@ export default function Documents() {
     return false;
   }, [selectedFolderId, folders]);
 
+  // Category options = known catalog + any category actually present on documents
+  const categoryOptions = useMemo(() => {
+    const options = new Map(CATEGORIES.map((c) => [c.value, c.label] as const));
+    documents.forEach((doc) => {
+      const value = doc.category?.trim();
+      if (value && !options.has(value)) {
+        options.set(
+          value,
+          value.replace(/[_-]+/g, " ").replace(/\b\w/g, (m) => m.toUpperCase())
+        );
+      }
+    });
+    return Array.from(options, ([value, label]) => ({ value, label }));
+  }, [documents]);
+
   const filteredDocs = useMemo(() => {
     const folderIds = selectedFolderId ? getDescendantIds(selectedFolderId) : null;
-    return documents.filter((doc) => {
+    const list = documents.filter((doc) => {
       const matchSearch = !searchQuery ||
         doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         doc.filename.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -209,10 +225,26 @@ export default function Documents() {
       const matchFolder = folderIds === null || folderIds.includes((doc as any).folder_id);
       return matchSearch && matchCategory && matchJurisdiction && matchFolder;
     });
-  }, [documents, searchQuery, categoryFilter, jurisdictionFilter, selectedFolderId, folders]);
+
+    if (sortBy === "size_desc") {
+      return [...list].sort((a, b) => (b.size_bytes || 0) - (a.size_bytes || 0));
+    }
+    if (sortBy === "size_asc") {
+      return [...list].sort((a, b) => (a.size_bytes || 0) - (b.size_bytes || 0));
+    }
+    if (sortBy === "name") {
+      return [...list].sort((a, b) => a.title.localeCompare(b.title));
+    }
+    return list;
+  }, [documents, searchQuery, categoryFilter, jurisdictionFilter, selectedFolderId, folders, sortBy]);
+
+  const totalFilteredBytes = useMemo(
+    () => filteredDocs.reduce((sum, d) => sum + (d.size_bytes || 0), 0),
+    [filteredDocs]
+  );
 
   // Reset page when filters change
-  useEffect(() => { setCurrentPage(1); }, [searchQuery, categoryFilter, jurisdictionFilter, selectedFolderId]);
+  useEffect(() => { setCurrentPage(1); }, [searchQuery, categoryFilter, jurisdictionFilter, selectedFolderId, sortBy]);
 
   const totalPages = Math.max(1, Math.ceil(filteredDocs.length / PAGE_SIZE));
   const paginatedDocs = filteredDocs.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -480,7 +512,7 @@ export default function Documents() {
                     <SelectTrigger className="w-[180px]"><SelectValue placeholder="All categories" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Categories</SelectItem>
-                      {CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                      {categoryOptions.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   <Select value={jurisdictionFilter} onValueChange={setJurisdictionFilter}>
@@ -488,6 +520,15 @@ export default function Documents() {
                     <SelectContent>
                       <SelectItem value="all">All Jurisdictions</SelectItem>
                       {jurisdictionOptions.map((j) => <SelectItem key={j.value} value={j.value}>{j.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-[170px]"><SelectValue placeholder="Sort" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="newest">Newest first</SelectItem>
+                      <SelectItem value="size_desc">Largest first</SelectItem>
+                      <SelectItem value="size_asc">Smallest first</SelectItem>
+                      <SelectItem value="name">Name (A–Z)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -509,7 +550,9 @@ export default function Documents() {
                     <CardTitle className="flex items-center gap-2 text-base">
                       <FileText className="h-4 w-4" />
                       {selectedFolder?.name || "All Documents"}
-                      <span className="text-muted-foreground font-normal text-sm">({filteredDocs.length})</span>
+                      <span className="text-muted-foreground font-normal text-sm">
+                        ({filteredDocs.length}{totalFilteredBytes > 0 ? ` · ${formatFileSize(totalFilteredBytes)}` : ""})
+                      </span>
                     </CardTitle>
                     {selectedFolder?.description && (
                       <p className="text-xs text-muted-foreground">{selectedFolder.description}</p>
