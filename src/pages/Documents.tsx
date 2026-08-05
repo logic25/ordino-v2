@@ -197,9 +197,24 @@ export default function Documents() {
     return false;
   }, [selectedFolderId, folders]);
 
+  // Category options = known catalog + any category actually present on documents
+  const categoryOptions = useMemo(() => {
+    const options = new Map(CATEGORIES.map((c) => [c.value, c.label] as const));
+    documents.forEach((doc) => {
+      const value = doc.category?.trim();
+      if (value && !options.has(value)) {
+        options.set(
+          value,
+          value.replace(/[_-]+/g, " ").replace(/\b\w/g, (m) => m.toUpperCase())
+        );
+      }
+    });
+    return Array.from(options, ([value, label]) => ({ value, label }));
+  }, [documents]);
+
   const filteredDocs = useMemo(() => {
     const folderIds = selectedFolderId ? getDescendantIds(selectedFolderId) : null;
-    return documents.filter((doc) => {
+    const list = documents.filter((doc) => {
       const matchSearch = !searchQuery ||
         doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         doc.filename.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -209,10 +224,26 @@ export default function Documents() {
       const matchFolder = folderIds === null || folderIds.includes((doc as any).folder_id);
       return matchSearch && matchCategory && matchJurisdiction && matchFolder;
     });
-  }, [documents, searchQuery, categoryFilter, jurisdictionFilter, selectedFolderId, folders]);
+
+    if (sortBy === "size_desc") {
+      return [...list].sort((a, b) => (b.size_bytes || 0) - (a.size_bytes || 0));
+    }
+    if (sortBy === "size_asc") {
+      return [...list].sort((a, b) => (a.size_bytes || 0) - (b.size_bytes || 0));
+    }
+    if (sortBy === "name") {
+      return [...list].sort((a, b) => a.title.localeCompare(b.title));
+    }
+    return list;
+  }, [documents, searchQuery, categoryFilter, jurisdictionFilter, selectedFolderId, folders, sortBy]);
+
+  const totalFilteredBytes = useMemo(
+    () => filteredDocs.reduce((sum, d) => sum + (d.size_bytes || 0), 0),
+    [filteredDocs]
+  );
 
   // Reset page when filters change
-  useEffect(() => { setCurrentPage(1); }, [searchQuery, categoryFilter, jurisdictionFilter, selectedFolderId]);
+  useEffect(() => { setCurrentPage(1); }, [searchQuery, categoryFilter, jurisdictionFilter, selectedFolderId, sortBy]);
 
   const totalPages = Math.max(1, Math.ceil(filteredDocs.length / PAGE_SIZE));
   const paginatedDocs = filteredDocs.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
