@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, Loader2, RefreshCw, Sparkles, UserPlus, AlertTriangle } from "lucide-react";
+import { ExternalLink, Loader2, RefreshCw, Sparkles, UserPlus, AlertTriangle, ChevronDown, ChevronRight, Lightbulb } from "lucide-react";
 import {
   Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
