@@ -342,6 +342,9 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
     setDeleteSaving(true);
     try {
       await deleteBeaconDoc(deleteTarget);
+      // Beacon's index can keep returning a stale (phantom) entry after the
+      // chunks are gone — hide it locally so it stops reappearing in the list.
+      await hideKbFile.mutateAsync(deleteTarget).catch(() => {});
       qc.invalidateQueries({ queryKey: ["beacon-knowledge"] });
       qc.invalidateQueries({ queryKey: ["kb-deleted-documents"] });
       toast({ title: "Deleted", description: "Backed up — restorable from Recently Deleted." });
