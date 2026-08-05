@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, Loader2, RefreshCw, Sparkles, UserPlus, AlertTriangle, ChevronDown, ChevronRight, Lightbulb } from "lucide-react";
+import { ExternalLink, Loader2, RefreshCw, Sparkles, UserPlus, AlertTriangle, ChevronDown, ChevronRight, Lightbulb, Newspaper } from "lucide-react";
 import {
   Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
@@ -40,6 +40,21 @@ function cachedLeads(signal: MarketSignal): SignalLead[] | null {
 function cachedStory(signal: MarketSignal): string {
   const raw: any = signal.enrichment;
   return typeof raw?.story === "string" ? raw.story : "";
+}
+
+function cachedArticleUrls(signal: MarketSignal): string[] {
+  const raw: any = signal.enrichment;
+  return Array.isArray(raw?.article_urls)
+    ? raw.article_urls.filter((u: unknown) => typeof u === "string" && u.trim())
+    : [];
+}
+
+function domainFromUrl(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
 }
 
 function Field({ label, value }: { label: string; value: string }) {
