@@ -2153,6 +2153,48 @@ export type Database = {
           },
         ]
       }
+      beacon_kb_originals: {
+        Row: {
+          company_id: string
+          content_type: string | null
+          created_at: string
+          folder: string | null
+          id: string
+          size_bytes: number | null
+          source_file: string
+          storage_path: string
+          updated_at: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          company_id: string
+          content_type?: string | null
+          created_at?: string
+          folder?: string | null
+          id?: string
+          size_bytes?: number | null
+          source_file: string
+          storage_path: string
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          content_type?: string | null
+          created_at?: string
+          folder?: string | null
+          id?: string
+          size_bytes?: number | null
+          source_file?: string
+          storage_path?: string
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
       beacon_research_feedback: {
         Row: {
           comment: string | null
