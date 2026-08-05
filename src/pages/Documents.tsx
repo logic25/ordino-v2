@@ -576,11 +576,23 @@ export default function Documents() {
                                       </div>
                                     </div>
                                   </TableCell>
-                                  <TableCell>
-                                    <Badge variant="outline" className="text-xs">{CATEGORIES.find((c) => c.value === doc.category)?.label || doc.category}</Badge>
+                                  <TableCell className="min-w-0 overflow-hidden">
+                                    <Badge
+                                      variant="outline"
+                                      className="block max-w-full truncate text-xs"
+                                      title={CATEGORIES.find((c) => c.value === doc.category)?.label || doc.category}
+                                    >
+                                      {CATEGORIES.find((c) => c.value === doc.category)?.label || doc.category}
+                                    </Badge>
                                   </TableCell>
-                                  <TableCell>
-                                    <Badge variant="secondary" className="text-[10px]">{doc.jurisdiction || "NYC"}</Badge>
+                                  <TableCell className="min-w-0 overflow-hidden">
+                                    <Badge
+                                      variant="secondary"
+                                      className="block max-w-full truncate text-[10px]"
+                                      title={doc.jurisdiction || "NYC"}
+                                    >
+                                      {doc.jurisdiction || "NYC"}
+                                    </Badge>
                                   </TableCell>
                                   <TableCell className="text-muted-foreground text-sm tabular-nums">{formatFileSize(doc.size_bytes)}</TableCell>
                                   <TableCell className="text-muted-foreground text-sm">{uploaderName}</TableCell>
