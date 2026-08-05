@@ -105,7 +105,7 @@ export function useInvoiceCounts() {
     queryKey: ["invoice-counts"],
     queryFn: async () => {
       const data = await fetchAllRows<{ status: InvoiceStatus; due_date: string | null }>((from, to) =>
-        supabase.from("invoices").select("status, due_date").order("id").range(from, to)
+        supabase.from("invoices").select("status, due_date").order("id").range(from, to) as any
       );
 
       const counts: InvoiceCounts = {
@@ -138,7 +138,7 @@ export function useInvoiceTotals() {
     queryKey: ["invoice-totals"],
     queryFn: async () => {
       const data = await fetchAllRows<{ status: InvoiceStatus; total_due: number; due_date: string | null }>((from, to) =>
-        supabase.from("invoices").select("status, total_due, due_date").order("id").range(from, to)
+        supabase.from("invoices").select("status, total_due, due_date").order("id").range(from, to) as any
       );
       const totals: Record<InvoiceStatus, number> = {
         draft: 0, ready_to_send: 0, needs_review: 0, sent: 0, overdue: 0, paid: 0, legal_hold: 0,
