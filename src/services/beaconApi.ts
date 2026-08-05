@@ -210,6 +210,7 @@ export async function fetchBeaconKnowledgeList(): Promise<BeaconKnowledgeData> {
         if (typeof detail.chunks_count === "number" || typeof detail.chunks_created === "number") {
           fileChunks[filename] = detail.chunks_count ?? detail.chunks_created;
         }
+        recordMeta(filename, detail);
 
         const explicitFolder = detail.folder?.trim();
         if (explicitFolder) {
@@ -231,6 +232,7 @@ export async function fetchBeaconKnowledgeList(): Promise<BeaconKnowledgeData> {
       if (typeof detail.chunks_count === "number" || typeof detail.chunks_created === "number") {
         fileChunks[filename] = detail.chunks_count ?? detail.chunks_created;
       }
+      recordMeta(filename, detail);
 
       const explicitFolder = detail.folder?.trim();
       const folder = explicitFolder || SOURCE_TYPE_TO_FOLDER[detail.source_type || ""] || "_root";
@@ -258,6 +260,7 @@ export async function fetchBeaconKnowledgeList(): Promise<BeaconKnowledgeData> {
     total_files: data.count ?? Object.values(folders).reduce((s: number, f: string[]) => s + f.length, 0),
     folder_count: Object.keys(folders).length,
     fileChunks,
+    docMeta,
   };
 }
 
