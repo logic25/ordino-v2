@@ -233,7 +233,7 @@ export default function Clients() {
         </div>
 
         {/* Metrics */}
-        <Card className="min-w-0 overflow-hidden">
+        <Card>
           <CardContent className="py-3 px-4">
             <div className="flex items-center justify-around gap-4 text-center flex-wrap">
               <div>
@@ -267,7 +267,7 @@ export default function Clients() {
           />
         </div>
 
-        <Card>
+        <Card className="min-w-0 overflow-hidden">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Building2 className="h-5 w-5" />
