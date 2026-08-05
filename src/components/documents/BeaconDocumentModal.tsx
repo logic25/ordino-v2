@@ -571,8 +571,25 @@ export function BeaconDocumentModal({
                     >
                       <Settings2 className="h-4 w-4 mr-1" /> Properties
                     </Button>
+                    {original.data && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDownloadOriginal}
+                        disabled={downloadingOriginal}
+                        title="Download the file exactly as it was uploaded"
+                      >
+                        {downloadingOriginal ? (
+                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        ) : (
+                          <Download className="h-4 w-4 mr-1" />
+                        )}
+                        Download original
+                      </Button>
+                    )}
                   </>
                 )}
+
                 <Button
                   variant="outline"
                   size="sm"
