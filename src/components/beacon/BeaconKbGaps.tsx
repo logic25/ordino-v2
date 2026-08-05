@@ -19,14 +19,62 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
+// Phrases where Beacon explicitly says the knowledge base is missing something.
+// These count as a gap regardless of confidence — Google Chat answers often
+// score high while still admitting the KB has no guidance.
 const GAP_PHRASES = [
   "don't have",
   "do not have",
+  "doesn't have",
+  "does not have",
   "don't have relevant documents",
   "not in my documents",
+  "not in the knowledge base",
+  "knowledge base doesn't",
+  "knowledge base does not",
+  "documents don't contain",
+  "documents do not contain",
   "don't cover",
+  "no guidance on",
+  "no specific guidance",
   "outside my reference",
 ];
+
+type GapSource = "web" | "gchat" | "ordino-chat" | "other";
+
+const SOURCE_LABEL: Record<GapSource, string> = {
+  web: "Web widget",
+  gchat: "Google Chat",
+  "ordino-chat": "Ordino chat",
+  other: "Other",
+};
+
+/** Test/diagnostic spaces that should never surface as real gaps. */
+const TEST_SPACES = new Set([
+  "test",
+  "test-session",
+  "spaces/x",
+  "spaces/test123",
+  "spaces/TEST123",
+  "spaces/AAAA1234",
+  "spaces/DIAGNOSTIC_FAKE",
+]);
+
+function sourceOf(space: string | null): GapSource {
+  const s = (space ?? "").trim();
+  if (s === "ordino-web") return "web";
+  if (s === "ordino-chat") return "ordino-chat";
+  if (s.startsWith("spaces/")) return "gchat";
+  return "other";
+}
+
+/** Widget questions arrive as "[Page: Documents] when are TR2s required". */
+function splitPageContext(q: string): { page: string | null; text: string } {
+  const m = q.match(/^\[Page:\s*([^\]]+)\]\s*(.*)$/);
+  if (!m) return { page: null, text: q };
+  const page = m[1].trim();
+  return { page: page && page.toLowerCase() !== "unknown" ? page : null, text: m[2].trim() };
+}
 
 type Row = {
   id: number;
@@ -36,26 +84,38 @@ type Row = {
   answered: boolean | null;
   command: string | null;
   topic: string | null;
+  space_name: string | null;
 };
 
 function isGap(r: Row): boolean {
+  if (TEST_SPACES.has((r.space_name ?? "").trim())) return false;
   if (r.command === "passive_gap") return true;
-  const q = (r.question ?? "").trim();
-  if (!q || q.startsWith("/") || q.length <= 15) return false;
-  const ql = q.toLowerCase();
-  if (/^(hi|hello|hey|test|ping)\b/.test(ql)) return false;
+
+  const { text } = splitPageContext((r.question ?? "").trim());
+  if (!text || text.startsWith("/") || text.length <= 15) return false;
+  const ql = text.toLowerCase();
+  if (/^(hi|hello|hey|test|ping|diagnostic)\b/.test(ql)) return false;
   if (r.answered !== true) return false;
-  if (r.confidence == null || Number(r.confidence) >= 0.5) return false;
+
   const resp = (r.response ?? "").toLowerCase();
-  return GAP_PHRASES.some((p) => resp.includes(p));
+  const admitsMiss = GAP_PHRASES.some((p) => resp.includes(p));
+
+  // Branch 1: Beacon said the KB lacks it — a gap at any confidence.
+  if (admitsMiss) return true;
+  // Branch 2: low confidence, no clean sourced answer.
+  return r.confidence != null && Number(r.confidence) < 0.5;
 }
+
+type GapExample = { question: string; page: string | null; source: GapSource };
 
 type Group = {
   topic: string;
   count: number;
   avgConfidence: number;
-  examples: string[];
+  examples: GapExample[];
   ids: number[];
+  sources: GapSource[];
+  gchatCount: number;
 };
 
 export function BeaconKbGaps() {
@@ -63,13 +123,14 @@ export function BeaconKbGaps() {
   const [pending, setPending] = useState<Group | null>(null);
   const [note, setNote] = useState("");
   const [method, setMethod] = useState<string>("teach");
+  const [sourceFilter, setSourceFilter] = useState<"all" | GapSource>("all");
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["beacon-kb-gaps"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("beacon_interactions")
-        .select("id, question, response, confidence, answered, command, topic")
+        .select("id, question, response, confidence, answered, command, topic, space_name")
         .is("addressed_at" as any, null)
         .order("id", { ascending: false })
         .limit(5000);
@@ -78,9 +139,17 @@ export function BeaconKbGaps() {
     },
   });
 
+  const sourceCounts = useMemo(() => {
+    const counts: Record<GapSource, number> = { web: 0, gchat: 0, "ordino-chat": 0, other: 0 };
+    for (const r of (data ?? []).filter(isGap)) counts[sourceOf(r.space_name)]++;
+    return counts;
+  }, [data]);
+
   const groups = useMemo<Group[]>(() => {
     if (!data) return [];
-    const gaps = data.filter(isGap);
+    const gaps = data
+      .filter(isGap)
+      .filter((r) => sourceFilter === "all" || sourceOf(r.space_name) === sourceFilter);
     const map = new Map<string, { topic: string; rows: Row[] }>();
     for (const r of gaps) {
       const topic = (r.topic ?? "uncategorized").trim() || "uncategorized";
@@ -93,11 +162,16 @@ export function BeaconKbGaps() {
         count: g.rows.length,
         avgConfidence:
           g.rows.reduce((s, r) => s + Number(r.confidence ?? 0), 0) / g.rows.length,
-        examples: g.rows.slice(0, 3).map((r) => r.question ?? ""),
+        examples: g.rows.slice(0, 3).map((r) => {
+          const { page, text } = splitPageContext(r.question ?? "");
+          return { question: text, page, source: sourceOf(r.space_name) };
+        }),
         ids: g.rows.map((r) => r.id),
+        sources: [...new Set(g.rows.map((r) => sourceOf(r.space_name)))],
+        gchatCount: g.rows.filter((r) => sourceOf(r.space_name) === "gchat").length,
       }))
       .sort((a, b) => b.count - a.count);
-  }, [data]);
+  }, [data, sourceFilter]);
 
   const markAddressed = useMutation({
     mutationFn: async ({ ids, note, method }: { ids: number[]; note: string; method: string }) => {
