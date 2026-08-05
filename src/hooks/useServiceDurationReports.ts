@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { differenceInDays, startOfMonth, subMonths, format } from "date-fns";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 
 function percentile(sorted: number[], p: number): number {
   if (sorted.length === 0) return 0;
@@ -53,21 +54,15 @@ export function useServiceDurationReports() {
     queryKey: ["service-duration-reports", session?.user?.id],
     enabled: !!session?.user?.id,
     queryFn: async () => {
-      const { data: services } = await supabase
-        .from("services")
-        .select("id, name, status, created_at, completed_date, project_id");
+      const [services, projects, profiles] = await Promise.all([
+        fetchAllRows<any>((from, to) => supabase.from("services").select("id, name, status, created_at, completed_date, project_id").order("id").range(from, to)),
+        fetchAllRows<any>((from, to) => supabase.from("projects").select("id, assigned_pm_id").order("id").range(from, to)),
+        fetchAllRows<any>((from, to) => supabase.from("profiles").select("id, display_name").order("id").range(from, to)),
+      ]);
 
-      const { data: projects } = await supabase
-        .from("projects")
-        .select("id, assigned_pm_id");
-
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, display_name");
-
-      const allServices = services || [];
-      const projectMap = new Map((projects || []).map((p: any) => [p.id, p]));
-      const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+      const allServices = services;
+      const projectMap = new Map(projects.map((p: any) => [p.id, p]));
+      const profileMap = new Map(profiles.map((p: any) => [p.id, p]));
 
       const completedStatuses = ["billed", "paid"];
       const completed = allServices.filter(

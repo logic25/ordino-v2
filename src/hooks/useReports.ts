@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { startOfMonth, subMonths, format, differenceInDays } from "date-fns";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 
 export function useProjectReports() {
   const { session } = useAuth();
@@ -9,9 +10,11 @@ export function useProjectReports() {
     queryKey: ["reports-projects", session?.user?.id],
     enabled: !!session?.user?.id,
     queryFn: async () => {
-      const { data: projects } = await supabase.from("projects").select("id, status, created_at, updated_at");
-      const { data: checklist } = await supabase.from("project_checklist_items").select("id, project_id, status");
-      const { data: apps } = await supabase.from("dob_applications").select("id, project_id, status, created_at, approved_date");
+      const [projects, checklist, apps] = await Promise.all([
+        fetchAllRows<any>((from, to) => supabase.from("projects").select("id, status, created_at, updated_at").order("id").range(from, to)),
+        fetchAllRows<any>((from, to) => supabase.from("project_checklist_items").select("id, project_id, status").order("id").range(from, to)),
+        fetchAllRows<any>((from, to) => supabase.from("dob_applications").select("id, project_id, status, created_at, approved_date").order("id").range(from, to)),
+      ]);
 
       const statusCounts: Record<string, number> = {};
       (projects || []).forEach((p: any) => {
@@ -52,7 +55,7 @@ export function useBillingReports() {
     queryKey: ["reports-billing", session?.user?.id],
     enabled: !!session?.user?.id,
     queryFn: async () => {
-      const { data: invoices } = await supabase.from("invoices").select("id, status, total_due, payment_amount, due_date, paid_at, created_at");
+      const invoices = await fetchAllRows<any>((from, to) => supabase.from("invoices").select("id, status, total_due, payment_amount, due_date, paid_at, created_at").order("id").range(from, to));
       const now = new Date();
       const items = invoices || [];
 
@@ -105,8 +108,10 @@ export function useTimeReports() {
     queryKey: ["reports-time", session?.user?.id],
     enabled: !!session?.user?.id,
     queryFn: async () => {
-      const { data: entries } = await supabase.from("activities").select("id, user_id, duration_minutes, billable, activity_date, application_id");
-      const { data: profiles } = await supabase.from("profiles").select("id, display_name, user_id");
+      const [entries, profiles] = await Promise.all([
+        fetchAllRows<any>((from, to) => supabase.from("activities").select("id, user_id, duration_minutes, billable, activity_date, application_id").order("id").range(from, to)),
+        fetchAllRows<any>((from, to) => supabase.from("profiles").select("id, display_name, user_id").order("id").range(from, to)),
+      ]);
       const items = entries || [];
 
       // Utilization by team member
@@ -142,7 +147,7 @@ export function useProposalReports() {
     queryKey: ["reports-proposals", session?.user?.id],
     enabled: !!session?.user?.id,
     queryFn: async () => {
-      const { data: proposals } = await supabase.from("proposals").select("id, status, total_amount, follow_up_count, created_at");
+      const proposals = await fetchAllRows<any>((from, to) => supabase.from("proposals").select("id, status, total_amount, follow_up_count, created_at").order("id").range(from, to));
       const items = proposals || [];
 
       const statusCounts: Record<string, number> = {};
@@ -176,10 +181,8 @@ export function useProposalDetailedReports() {
     queryKey: ["reports-proposals-detailed", session?.user?.id],
     enabled: !!session?.user?.id,
     queryFn: async () => {
-      const { data: proposals } = await supabase
-        .from("proposals")
-        .select("id, status, total_amount, created_at, lead_source, sales_person_id");
-      return { allProposals: proposals || [] };
+      const proposals = await fetchAllRows<any>((from, to) => supabase.from("proposals").select("id, status, total_amount, created_at, lead_source, sales_person_id").order("id").range(from, to));
+      return { allProposals: proposals };
     },
   });
 }
@@ -190,11 +193,13 @@ export function useOperationsReports() {
     queryKey: ["reports-operations", session?.user?.id],
     enabled: !!session?.user?.id,
     queryFn: async () => {
-      const { data: projects } = await supabase.from("projects").select("id, client_id, assigned_pm_id, status, completion_date");
-      const { data: clients } = await supabase.from("clients").select("id, name");
-      const { data: invoices } = await supabase.from("invoices").select("id, client_id, total_due, payment_amount, status");
-      const { data: profiles } = await supabase.from("profiles").select("id, display_name");
-      const { data: services } = await supabase.from("services").select("id, name, project_id, status");
+      const [projects, clients, invoices, profiles, services] = await Promise.all([
+        fetchAllRows<any>((from, to) => supabase.from("projects").select("id, client_id, assigned_pm_id, status, completion_date").order("id").range(from, to)),
+        fetchAllRows<any>((from, to) => supabase.from("clients").select("id, name").order("id").range(from, to)),
+        fetchAllRows<any>((from, to) => supabase.from("invoices").select("id, client_id, total_due, payment_amount, status").order("id").range(from, to)),
+        fetchAllRows<any>((from, to) => supabase.from("profiles").select("id, display_name").order("id").range(from, to)),
+        fetchAllRows<any>((from, to) => supabase.from("services").select("id, name, project_id, status").order("id").range(from, to)),
+      ]);
 
       // Client activity
       const clientMap: Record<string, { name: string; projects: number; revenue: number }> = {};

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 
 export interface Email {
   id: string;
@@ -72,8 +73,7 @@ export function useEmails(filters: EmailFilters = {}) {
             id, filename, mime_type, size_bytes, gmail_attachment_id, saved_to_project
           )
         `)
-        .order("date", { ascending: false })
-        .limit(1000);
+        .order("date", { ascending: false });
 
       if (filters.search) {
         query = query.or(
@@ -98,10 +98,7 @@ export function useEmails(filters: EmailFilters = {}) {
         query = query.or("snoozed_until.is.null,snoozed_until.lte." + new Date().toISOString());
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
-
-      let results = data as unknown as EmailWithTags[];
+      let results = await fetchAllRows<EmailWithTags>((from, to) => query.range(from, to) as any);
 
       if (filters.untaggedOnly) {
         results = results.filter(
