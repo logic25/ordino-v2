@@ -614,6 +614,14 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                                   )}
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem
+                                    onClick={async () => {
+                                      await hideKbFile.mutateAsync(filename);
+                                      toast({ title: "Hidden", description: "Stale entry removed from this list." });
+                                    }}
+                                  >
+                                    <AlertTriangle className="h-3.5 w-3.5 mr-2" /> Hide stale entry
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
                                     className="text-destructive focus:text-destructive"
                                     onClick={() => setDeleteTarget(filename)}
                                   >
