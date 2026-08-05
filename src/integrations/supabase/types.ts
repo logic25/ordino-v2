@@ -12386,6 +12386,19 @@ export type Database = {
           weekly_goal: number
         }[]
       }
+      get_kb_gap_interactions: {
+        Args: { _limit?: number }
+        Returns: {
+          answered: boolean
+          command: string
+          confidence: number
+          id: number
+          question: string
+          response: string
+          space_name: string
+          topic: string
+        }[]
+      }
       get_lead_connections: { Args: { _lead_id: string }; Returns: Json }
       get_my_compensation: {
         Args: never
@@ -12521,6 +12534,10 @@ export type Database = {
           state: string
           summary: string
         }[]
+      }
+      mark_kb_gaps_addressed: {
+        Args: { _ids: number[]; _note: string }
+        Returns: number
       }
       merge_clients: {
         Args: { duplicate_ids: string[]; primary_id: string }
