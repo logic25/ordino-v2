@@ -200,6 +200,9 @@ export function MarketSignalDetailSheet({
               </p>
             )}
 
+            <FullStory story={story} />
+
+
             <Separator className="my-5" />
 
             <div className="flex items-center justify-between gap-3">
