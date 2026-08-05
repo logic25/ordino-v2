@@ -156,6 +156,22 @@ export function BeaconDocumentModal({
   const [propsDraft, setPropsDraft] = useState<Record<string, string>>({});
   const versions = useKbDocumentVersions(sourceFile);
   const versionCount = versions.data?.length || 0;
+  const original = useKbOriginal(open ? sourceFile : null);
+  const [downloadingOriginal, setDownloadingOriginal] = useState(false);
+
+  const handleDownloadOriginal = async () => {
+    if (!original.data) return;
+    setDownloadingOriginal(true);
+    try {
+      const url = await getKbOriginalUrl(original.data.storage_path);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err: any) {
+      toast({ title: "Download failed", description: err.message, variant: "destructive" });
+    } finally {
+      setDownloadingOriginal(false);
+    }
+  };
+
 
   useEffect(() => {
     if (!open || !sourceFile) return;
