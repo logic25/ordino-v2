@@ -291,6 +291,11 @@ export function BeaconKbGaps() {
                       </TooltipTrigger>
                       <TooltipContent>Beacon's average self-reported confidence on these answers. Lower = bigger gap.</TooltipContent>
                     </Tooltip>
+                    {g.gchatCount > 0 && (
+                      <Badge variant="outline" className="font-normal">
+                        {g.gchatCount} from Google Chat
+                      </Badge>
+                    )}
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
