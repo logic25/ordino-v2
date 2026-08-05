@@ -129,6 +129,7 @@ export function MarketSignalDetailSheet({
   const { toast } = useToast();
   const qc = useQueryClient();
   const [leads, setLeads] = useState<SignalLead[] | null>(null);
+  const [story, setStory] = useState<string>("");
 
   const analyze = useMutation({
     mutationFn: async (s: MarketSignal) => {
@@ -138,10 +139,11 @@ export function MarketSignalDetailSheet({
         .from("bd_market_signals" as any)
         .update({ enrichment: result as any, enriched_at: new Date().toISOString() })
         .eq("id", s.id);
-      return result.leads;
+      return result;
     },
     onSuccess: (result) => {
-      setLeads(result);
+      setLeads(result.leads);
+      setStory(result.story ?? "");
       qc.invalidateQueries({ queryKey: ["bd-market-signals"] });
     },
     onError: (e: any) =>
@@ -158,8 +160,10 @@ export function MarketSignalDetailSheet({
     const cached = cachedLeads(signal);
     if (cached) {
       setLeads(cached);
+      setStory(cachedStory(signal));
     } else {
       setLeads(null);
+      setStory("");
       analyze.mutate(signal);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
