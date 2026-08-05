@@ -244,7 +244,15 @@ export async function fetchBeaconFileContent(sourceFile: string): Promise<{
   const { data, error } = await supabase.functions.invoke(
     `beacon-proxy?action=file-content&source_file=${encodeURIComponent(sourceFile)}`
   );
-  if (error) throw new Error(`Failed to fetch document: ${error.message}`);
+  if (error) {
+    const msg = String(error.message || "");
+    if (msg.includes("404") || /not found/i.test(msg)) {
+      throw new Error(
+        "This entry no longer exists in the knowledge base (phantom entry) — it has no content and is safe to delete."
+      );
+    }
+    throw new Error(`Failed to fetch document: ${error.message}`);
+  }
   return data;
 }
 
