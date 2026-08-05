@@ -43,6 +43,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { KnowledgeBaseView } from "@/components/documents/KnowledgeBaseView";
 import { EntityLinkingFields } from "@/components/documents/EntityLinkingFields";
 import { MoveDocumentDialog } from "@/components/documents/MoveDocumentDialog";
+import { useMarkets } from "@/hooks/useMarkets";
 
 const CATEGORIES = [
   { value: "general", label: "General" },
@@ -56,10 +57,7 @@ const CATEGORIES = [
   { value: "other", label: "Other" },
 ];
 
-// Extensible jurisdiction list. Add new markets here (e.g. "Charleston, SC", "Nassau")
-// and they will automatically appear in selectors and filters.
-// 'universal' = cross-jurisdiction (Company SOPs, Platform SOPs, etc.)
-const JURISDICTIONS: { value: string; label: string }[] = [
+const DEFAULT_JURISDICTIONS: { value: string; label: string }[] = [
   { value: "NYC", label: "NYC" },
   { value: "universal", label: "Universal" },
 ];
@@ -93,6 +91,7 @@ export default function Documents() {
   const [searchParams] = useSearchParams();
   const { data: documents = [], isLoading } = useUniversalDocuments();
   const { data: folders = [], isLoading: foldersLoading } = useDocumentFolders();
+  const { data: markets = [] } = useMarkets();
   const seedFolders = useSeedFolders();
   const uploadDoc = useUploadDocument();
   const deleteDoc = useDeleteDocument();
@@ -101,6 +100,25 @@ export default function Documents() {
   const delFolder = useDeleteFolder();
   const renameFolder = useRenameFolder();
   const updateDocTitle = useUpdateDocumentTitle();
+
+  const jurisdictionOptions = useMemo(() => {
+    const options = new Map(DEFAULT_JURISDICTIONS.map((item) => [item.value, item.label]));
+
+    markets.forEach((market) => {
+      const value = [market.name?.trim(), market.state?.trim()].filter(Boolean).join(", ");
+      if (value) options.set(value, value);
+    });
+    folders.forEach((folder) => {
+      const value = folder.default_jurisdiction?.trim();
+      if (value && !options.has(value)) options.set(value, value === "universal" ? "Universal" : value);
+    });
+    documents.forEach((doc) => {
+      const value = doc.jurisdiction?.trim();
+      if (value && !options.has(value)) options.set(value, value === "universal" ? "Universal" : value);
+    });
+
+    return Array.from(options, ([value, label]) => ({ value, label }));
+  }, [documents, folders, markets]);
 
   const handleRenameDoc = async () => {
     if (!renameDocTarget) return;
@@ -469,7 +487,7 @@ export default function Documents() {
                     <SelectTrigger className="w-[160px]"><SelectValue placeholder="All jurisdictions" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Jurisdictions</SelectItem>
-                      {JURISDICTIONS.map((j) => <SelectItem key={j.value} value={j.value}>{j.label}</SelectItem>)}
+                      {jurisdictionOptions.map((j) => <SelectItem key={j.value} value={j.value}>{j.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -668,7 +686,7 @@ export default function Documents() {
               <Select value={uploadJurisdiction} onValueChange={setUploadJurisdiction}>
                 <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {JURISDICTIONS.map((j) => <SelectItem key={j.value} value={j.value}>{j.label}</SelectItem>)}
+                  {jurisdictionOptions.map((j) => <SelectItem key={j.value} value={j.value}>{j.label}</SelectItem>)}
                 </SelectContent>
               </Select>
               <p className="text-[10px] text-muted-foreground mt-1">Defaults to this folder's jurisdiction. Used by Beacon to scope answers.</p>
@@ -803,7 +821,7 @@ export default function Documents() {
             <Select value={bulkJurisdiction} onValueChange={setBulkJurisdiction}>
               <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {JURISDICTIONS.map((j) => <SelectItem key={j.value} value={j.value}>{j.label}</SelectItem>)}
+                {jurisdictionOptions.map((j) => <SelectItem key={j.value} value={j.value}>{j.label}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
