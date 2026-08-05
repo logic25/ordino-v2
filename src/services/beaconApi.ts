@@ -150,11 +150,19 @@ export const FOLDER_TO_SOURCE_TYPE: Record<string, string> = {
   objections: "reference",
 };
 
+export interface BeaconDocMeta {
+  uploaded_by?: string;
+  chunks_created?: number;
+  ingested_at?: string;
+}
+
 export interface BeaconKnowledgeData {
   folders: Record<string, string[]>;
   total_files: number;
   folder_count: number;
   fileChunks: Record<string, number | undefined>;
+  /** Per-document metadata straight from Beacon's manifest, keyed by filename. */
+  docMeta: Record<string, BeaconDocMeta>;
 }
 
 interface BeaconKnowledgeDetail {
@@ -163,7 +171,10 @@ interface BeaconKnowledgeDetail {
   source_type?: string;
   chunks_count?: number;
   chunks_created?: number;
+  uploaded_by?: string;
+  ingested_at?: string;
 }
+
 
 const SOURCE_TYPE_TO_FOLDER = Object.fromEntries(
   Object.entries(FOLDER_TO_SOURCE_TYPE).map(([folder, sourceType]) => [sourceType, folder]),
