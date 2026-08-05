@@ -512,7 +512,7 @@ export default function Documents() {
                     <SelectTrigger className="w-[180px]"><SelectValue placeholder="All categories" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Categories</SelectItem>
-                      {CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                      {categoryOptions.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   <Select value={jurisdictionFilter} onValueChange={setJurisdictionFilter}>
@@ -520,6 +520,15 @@ export default function Documents() {
                     <SelectContent>
                       <SelectItem value="all">All Jurisdictions</SelectItem>
                       {jurisdictionOptions.map((j) => <SelectItem key={j.value} value={j.value}>{j.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-[170px]"><SelectValue placeholder="Sort" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="newest">Newest first</SelectItem>
+                      <SelectItem value="size_desc">Largest first</SelectItem>
+                      <SelectItem value="size_asc">Smallest first</SelectItem>
+                      <SelectItem value="name">Name (A–Z)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
