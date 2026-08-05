@@ -130,12 +130,11 @@ export function BeaconKbGaps() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["beacon-kb-gaps"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("beacon_interactions")
-        .select("id, question, response, confidence, answered, command, topic, space_name")
-        .is("addressed_at" as any, null)
-        .order("id", { ascending: false })
-        .limit(5000);
+      // RPC (not a direct table read) so Google Chat / Ordino-chat interactions,
+      // whose user_id isn't a profile id, aren't filtered out by RLS.
+      const { data, error } = await supabase.rpc("get_kb_gap_interactions" as any, {
+        _limit: 5000,
+      });
       if (error) throw error;
       return (data ?? []) as unknown as Row[];
     },
