@@ -1527,6 +1527,8 @@ export type Database = {
         Row: {
           company_id: string
           created_at: string
+          enriched_at: string | null
+          enrichment: Json | null
           id: string
           sender: string | null
           signal_date: string | null
@@ -1539,6 +1541,8 @@ export type Database = {
         Insert: {
           company_id: string
           created_at?: string
+          enriched_at?: string | null
+          enrichment?: Json | null
           id?: string
           sender?: string | null
           signal_date?: string | null
@@ -1551,6 +1555,8 @@ export type Database = {
         Update: {
           company_id?: string
           created_at?: string
+          enriched_at?: string | null
+          enrichment?: Json | null
           id?: string
           sender?: string | null
           signal_date?: string | null
