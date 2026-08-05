@@ -225,9 +225,10 @@ export function BeaconKbGaps() {
               <div className="space-y-2">
                 <p className="font-medium">What is a KB gap?</p>
                 <p className="text-muted-foreground">
-                  These are questions users asked the Beacon chat widget where Beacon answered
-                  with low confidence and signalled it didn't have the documents to answer well.
-                  Grouped by topic so you can fix the underlying knowledge once and clear many at a time.
+                  These are questions users asked Beacon — in the web widget, in Google Chat, or
+                  in the Ordino chat panel — where Beacon answered with low confidence or said it
+                  didn't have the documents to answer well. Grouped by topic so you can fix the
+                  underlying knowledge once and clear many at a time.
                 </p>
                 <p className="text-muted-foreground">
                   <strong className="text-foreground">How to fix:</strong> open the{" "}
