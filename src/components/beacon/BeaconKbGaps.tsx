@@ -176,16 +176,11 @@ export function BeaconKbGaps() {
 
   const markAddressed = useMutation({
     mutationFn: async ({ ids, note, method }: { ids: number[]; note: string; method: string }) => {
-      const { data: userRes } = await supabase.auth.getUser();
       const composedNote = `[${method}] ${note}`.trim();
-      const { error } = await supabase
-        .from("beacon_interactions")
-        .update({
-          addressed_at: new Date().toISOString(),
-          addressed_note: composedNote,
-          addressed_by: userRes?.user?.id ?? null,
-        } as any)
-        .in("id", ids);
+      const { error } = await supabase.rpc("mark_kb_gaps_addressed" as any, {
+        _ids: ids,
+        _note: composedNote,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
