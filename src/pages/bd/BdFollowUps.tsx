@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
+import { AppLayout } from "@/components/layout/AppLayout";
 import { useFollowUps, useSetFollowUp, type FollowUpLead } from "@/hooks/useFollowUps";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,7 @@ export default function BdFollowUps() {
   const total = data.length;
 
   return (
+    <AppLayout>
     <div className="p-4 sm:p-6 max-w-3xl mx-auto space-y-4">
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -95,5 +97,6 @@ export default function BdFollowUps() {
         )
       )}
     </div>
+    </AppLayout>
   );
 }

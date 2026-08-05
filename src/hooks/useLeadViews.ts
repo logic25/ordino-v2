@@ -38,12 +38,14 @@ export interface LeadView {
 export function useLeadViews() {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ["lead-views"],
+    queryKey: ["lead-views", user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
+      if (!user?.id) return [];
       const { data, error } = await supabase
         .from("lead_views")
         .select("*")
+        .eq("user_id", user.id)
         .order("is_default", { ascending: false })
         .order("created_at", { ascending: true });
       if (error) throw error;
