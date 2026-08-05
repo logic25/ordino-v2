@@ -107,8 +107,8 @@ export default function Clients() {
     );
 
     return [...filtered].sort((a, b) => {
-      const left = String(a[sort.key] ?? "");
-      const right = String(b[sort.key] ?? "");
+      const left = String(a[sort.key] ?? "").trim();
+      const right = String(b[sort.key] ?? "").trim();
       const result = left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
       return sort.direction === "asc" ? result : -result;
     });
