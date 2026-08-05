@@ -365,7 +365,7 @@ export function BeaconDocumentModal({
       }}
     >
       <DialogContent
-        className="max-w-2xl max-h-[85vh] flex flex-col"
+        className="w-[95vw] sm:w-[92vw] max-w-[min(1100px,92vw)] lg:max-w-[1100px] max-h-[90vh] flex flex-col"
         onPointerDownOutside={(e) => {
           if (isEditing) e.preventDefault();
         }}
