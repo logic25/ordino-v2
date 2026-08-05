@@ -64,7 +64,10 @@ export interface CaptureLeadDefaults {
   source?: string;
   sourceType?: LeadSourceType;
   marketSignalId?: string;
+  subject?: string;
+  propertyAddress?: string;
 }
+
 
 interface CaptureLeadModalProps {
   open: boolean;
