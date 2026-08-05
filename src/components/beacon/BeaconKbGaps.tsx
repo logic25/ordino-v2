@@ -244,6 +244,27 @@ export function BeaconKbGaps() {
           </CardContent>
         </Card>
 
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground mr-1">Asked in:</span>
+          {([
+            ["all", `All (${sourceCounts.web + sourceCounts.gchat + sourceCounts["ordino-chat"] + sourceCounts.other})`],
+            ["web", `${SOURCE_LABEL.web} (${sourceCounts.web})`],
+            ["gchat", `${SOURCE_LABEL.gchat} (${sourceCounts.gchat})`],
+            ["ordino-chat", `${SOURCE_LABEL["ordino-chat"]} (${sourceCounts["ordino-chat"]})`],
+            ["other", `${SOURCE_LABEL.other} (${sourceCounts.other})`],
+          ] as const).map(([key, label]) => (
+            <Button
+              key={key}
+              size="sm"
+              variant={sourceFilter === key ? "default" : "outline"}
+              className="h-7 px-2.5 text-xs"
+              onClick={() => setSourceFilter(key as "all" | GapSource)}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+
         {groups.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
