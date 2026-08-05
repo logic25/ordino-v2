@@ -176,3 +176,39 @@ export function useRecordBeaconKbUpload() {
     },
   });
 }
+
+/** Sentinel stored in `notes` to hide a stale/phantom KB entry from the list. */
+export const KB_HIDDEN_MARKER = "__hidden__";
+
+/**
+ * Hides a Beacon KB entry from the Knowledge Base list. Used after a delete when
+ * the upstream index still returns a stale (phantom) entry with no chunks.
+ * Display-only — never touches Beacon chunks.
+ */
+export function useHideBeaconKbFile() {
+  const { profile } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (source_file: string) => {
+      if (!profile?.company_id) return;
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await (supabase as any)
+        .from("beacon_kb_folder_overrides")
+        .upsert(
+          {
+            company_id: profile.company_id,
+            source_file,
+            display_folder: KB_HIDDEN_MARKER,
+            hidden_from_original: true,
+            notes: KB_HIDDEN_MARKER,
+            created_by: user?.id ?? null,
+          },
+          { onConflict: "company_id,source_file" }
+        );
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["beacon-kb-overrides"] });
+    },
+  });
+}
