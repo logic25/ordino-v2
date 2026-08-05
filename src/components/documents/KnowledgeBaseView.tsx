@@ -524,7 +524,7 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                                   >
                                     <FolderInput className="h-3.5 w-3.5 mr-2" /> Move to folder…
                                   </DropdownMenuItem>
-                                  {ov && (
+                                  {ov && ov.notes !== "__uploaded__" && (
                                     <DropdownMenuItem
                                       onClick={() => handleResetToOriginal(filename)}
                                     >
