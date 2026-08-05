@@ -94,7 +94,9 @@ function isGap(r: Row): boolean {
   const { text } = splitPageContext((r.question ?? "").trim());
   if (!text || text.startsWith("/") || text.length <= 15) return false;
   const ql = text.toLowerCase();
-  if (/^(hi|hello|hey|test|ping|diagnostic)\b/.test(ql)) return false;
+  // Only drop greetings when the whole message is a greeting — chat questions
+  // often open with "Hey guys!" before a real question.
+  if (text.length < 45 && /^(hi|hello|hey|test|ping|diagnostic)\b/.test(ql)) return false;
   if (r.answered !== true) return false;
 
   const resp = (r.response ?? "").toLowerCase();
