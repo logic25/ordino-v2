@@ -24,6 +24,7 @@ import { useBeaconKbOverrides, useUpsertBeaconKbOverride, useClearBeaconKbOverri
 import { useUniversalDocuments, useUpdateDocumentTitle } from "@/hooks/useUniversalDocuments";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useIsAdmin } from "@/hooks/useUserRoles";
+import { useAuth } from "@/hooks/useAuth";
 import { FOLDER_TO_SOURCE_TYPE, assignBeaconFolders, deleteBeaconDoc } from "@/services/beaconApi";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -52,6 +53,10 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   const updateDocumentTitle = useUpdateDocumentTitle();
   const { data: overrides = [] } = useBeaconKbOverrides();
   const { data: companyProfiles = [] } = useCompanyProfiles();
+  const { profile } = useAuth();
+  const currentUserName = profile
+    ? profile.display_name || [profile.first_name, profile.last_name].filter(Boolean).join(" ")
+    : "";
   const setKbTitle = useSetBeaconKbTitle();
   const upsertOverride = useUpsertBeaconKbOverride();
   const clearOverride = useClearBeaconKbOverride();
@@ -130,17 +135,20 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   const fileMeta = (filename: string) => {
     const ov = overrideMap.get(filename);
     const doc = documentByFilename.get(filename);
-    const modified = doc?.updated_at || doc?.created_at || ov?.updated_at || ov?.created_at || null;
+    const beacon = data?.docMeta?.[filename];
+    const modified =
+      doc?.updated_at || doc?.created_at || ov?.updated_at || ov?.created_at || beacon?.ingested_at || null;
     const uploader = doc?.uploader
       ? (doc.uploader.display_name || [doc.uploader.first_name, doc.uploader.last_name].filter(Boolean).join(" "))
       : (ov?.created_by ? nameByUserId.get(ov.created_by) || null : null);
-    return { modified, uploader: uploader || null };
+    return { modified, uploader: uploader || beacon?.uploaded_by || null };
   };
 
   const formatDate = (iso: string | null) =>
     iso ? new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "—";
 
-  const chunkCount = (filename: string) => data?.fileChunks[filename];
+  const chunkCount = (filename: string) =>
+    data?.fileChunks[filename] ?? data?.docMeta?.[filename]?.chunks_created;
 
   const chunkStatus = (filename: string, count: number | undefined) => {
     if (count === undefined) {
@@ -243,7 +251,11 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
     let totalChunks = 0;
     for (const file of selectedFiles) {
       try {
-        const result = await upload.mutateAsync({ file, folder: targetFolder });
+        const result = await upload.mutateAsync({
+          file,
+          folder: targetFolder,
+          uploadedBy: currentUserName || undefined,
+        });
         totalChunks += result.chunks_created || 0;
         successCount++;
         // Stamp uploader + timestamp so the list can show "Uploaded by" / "Modified".

@@ -113,11 +113,14 @@ export async function syncDocumentToBeacon(
   filename: string,
   folderName: string,
   jurisdiction: string = "NYC",
+  uploadedBy?: string,
 ): Promise<{ success: boolean; chunks_created: number }> {
   const formData = new FormData();
   formData.append("file", file, filename);
   formData.append("folder", folderName);
   formData.append("jurisdiction", jurisdiction || "NYC");
+  if (uploadedBy?.trim()) formData.append("uploaded_by", uploadedBy.trim());
+
 
   // Use raw fetch for FormData since supabase.functions.invoke doesn't support it well
   const { data: { session } } = await supabase.auth.getSession();
@@ -147,11 +150,19 @@ export const FOLDER_TO_SOURCE_TYPE: Record<string, string> = {
   objections: "reference",
 };
 
+export interface BeaconDocMeta {
+  uploaded_by?: string;
+  chunks_created?: number;
+  ingested_at?: string;
+}
+
 export interface BeaconKnowledgeData {
   folders: Record<string, string[]>;
   total_files: number;
   folder_count: number;
   fileChunks: Record<string, number | undefined>;
+  /** Per-document metadata straight from Beacon's manifest, keyed by filename. */
+  docMeta: Record<string, BeaconDocMeta>;
 }
 
 interface BeaconKnowledgeDetail {
@@ -160,7 +171,10 @@ interface BeaconKnowledgeDetail {
   source_type?: string;
   chunks_count?: number;
   chunks_created?: number;
+  uploaded_by?: string;
+  ingested_at?: string;
 }
+
 
 const SOURCE_TYPE_TO_FOLDER = Object.fromEntries(
   Object.entries(FOLDER_TO_SOURCE_TYPE).map(([folder, sourceType]) => [sourceType, folder]),
@@ -172,6 +186,19 @@ export async function fetchBeaconKnowledgeList(): Promise<BeaconKnowledgeData> {
 
   let folders: Record<string, string[]> = {};
   const fileChunks: Record<string, number | undefined> = {};
+  const docMeta: Record<string, BeaconDocMeta> = {};
+
+  const recordMeta = (filename: string, detail: BeaconKnowledgeDetail) => {
+    const ingestedAt = detail.ingested_at?.trim();
+    const uploadedBy = detail.uploaded_by?.trim();
+    docMeta[filename] = {
+      ...(uploadedBy ? { uploaded_by: uploadedBy } : {}),
+      ...(typeof detail.chunks_created === "number" ? { chunks_created: detail.chunks_created } : {}),
+      // "pre-manifest" is Beacon's placeholder for docs ingested before it tracked timestamps.
+      ...(ingestedAt && ingestedAt !== "pre-manifest" ? { ingested_at: ingestedAt } : {}),
+    };
+  };
+
 
   if (data.folders && typeof data.folders === "object") {
     folders = data.folders;
@@ -183,6 +210,7 @@ export async function fetchBeaconKnowledgeList(): Promise<BeaconKnowledgeData> {
         if (typeof detail.chunks_count === "number" || typeof detail.chunks_created === "number") {
           fileChunks[filename] = detail.chunks_count ?? detail.chunks_created;
         }
+        recordMeta(filename, detail);
 
         const explicitFolder = detail.folder?.trim();
         if (explicitFolder) {
@@ -204,6 +232,7 @@ export async function fetchBeaconKnowledgeList(): Promise<BeaconKnowledgeData> {
       if (typeof detail.chunks_count === "number" || typeof detail.chunks_created === "number") {
         fileChunks[filename] = detail.chunks_count ?? detail.chunks_created;
       }
+      recordMeta(filename, detail);
 
       const explicitFolder = detail.folder?.trim();
       const folder = explicitFolder || SOURCE_TYPE_TO_FOLDER[detail.source_type || ""] || "_root";
@@ -231,6 +260,7 @@ export async function fetchBeaconKnowledgeList(): Promise<BeaconKnowledgeData> {
     total_files: data.count ?? Object.values(folders).reduce((s: number, f: string[]) => s + f.length, 0),
     folder_count: Object.keys(folders).length,
     fileChunks,
+    docMeta,
   };
 }
 
