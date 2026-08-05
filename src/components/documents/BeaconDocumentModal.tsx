@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Pencil, Save, History, RotateCcw, Settings2, Download } from "lucide-react";
+import { Loader2, Pencil, Save, History, RotateCcw, Settings2, Download, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchBeaconFileContent, FOLDER_TO_SOURCE_TYPE } from "@/services/beaconApi";
 import { useToast } from "@/hooks/use-toast";
@@ -151,6 +151,7 @@ export function BeaconDocumentModal({
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState("");
   const [originalContent, setOriginalContent] = useState("");
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [panel, setPanel] = useState<"doc" | "history" | "properties">("doc");
   const [propsDraft, setPropsDraft] = useState<Record<string, string>>({});
@@ -178,6 +179,10 @@ export function BeaconDocumentModal({
     setLoading(true);
     setIsEditing(false);
     setPanel("doc");
+    setLoadError(null);
+    setMetadata({});
+    setBody("");
+    setOriginalContent("");
 
     fetchBeaconFileContent(sourceFile)
       .then((data) => {
@@ -187,13 +192,7 @@ export function BeaconDocumentModal({
         setOriginalContent(data.content || "");
       })
       .catch((err) => {
-        toast({
-          title: "Failed to load document",
-          description: err.message,
-          variant: "destructive",
-        });
-        setMetadata({});
-        setBody(err.message || "Failed to load document content.");
+        setLoadError(err instanceof Error ? err.message : "Failed to load document content.");
       })
       .finally(() => setLoading(false));
   }, [open, sourceFile]);
@@ -424,6 +423,16 @@ export function BeaconDocumentModal({
             <div className="flex items-center justify-center py-20">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
+          ) : loadError && panel === "doc" ? (
+            <div className="mx-1 my-6 rounded-md border border-warning/40 bg-warning/5 p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Document content is unavailable</p>
+                  <p className="text-sm text-muted-foreground">{loadError}</p>
+                </div>
+              </div>
+            </div>
           ) : panel === "history" ? (
             <div className="space-y-2 px-1">
               <p className="text-xs text-muted-foreground mb-2">
@@ -553,7 +562,7 @@ export function BeaconDocumentModal({
               </>
             ) : (
               <>
-                {panel === "doc" && (
+                {panel === "doc" && !loadError && (
                   <>
                     <Button
                       variant="outline"

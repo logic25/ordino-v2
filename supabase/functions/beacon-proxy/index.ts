@@ -872,6 +872,19 @@ Deno.serve(async (req) => {
     const beaconRes = await fetch(beaconUrl!, beaconReqInit!);
     const responseBody = await beaconRes.text();
 
+    // A knowledge-list row can outlive its indexed chunks. Treat that expected
+    // stale-entry state as data rather than an Edge Function failure so clients
+    // can render an inline recovery message without triggering a runtime error.
+    if (action === "file-content" && beaconRes.status === 404) {
+      return new Response(
+        JSON.stringify({ found: false, error: "File not found in knowledge base" }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
     return new Response(responseBody, {
       status: beaconRes.status,
       headers: {

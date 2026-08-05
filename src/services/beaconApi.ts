@@ -253,6 +253,11 @@ export async function fetchBeaconFileContent(sourceFile: string): Promise<{
     }
     throw new Error(`Failed to fetch document: ${error.message}`);
   }
+  if (data?.found === false) {
+    throw new Error(
+      "This entry is listed in the knowledge base, but its content is missing. It is a stale entry and can be safely deleted or re-uploaded."
+    );
+  }
   return data;
 }
 
