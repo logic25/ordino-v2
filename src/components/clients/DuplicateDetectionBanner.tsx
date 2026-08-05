@@ -1,10 +1,13 @@
 import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Merge, ChevronDown, ChevronUp, X } from "lucide-react";
+import { AlertTriangle, Merge, ChevronDown, ChevronUp, X, Split } from "lucide-react";
 import type { Client } from "@/hooks/useClients";
 import { MergeClientsDialog } from "./MergeClientsDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface DuplicateGroup {
   key: string;
@@ -16,7 +19,11 @@ function normalize(s: string | null | undefined): string {
   return (s || "").toLowerCase().replace(/[^a-z0-9]/g, "").trim();
 }
 
-function findDuplicateGroups(clients: Client[]): DuplicateGroup[] {
+function pairKey(a: string, b: string) {
+  return [a, b].sort().join(":");
+}
+
+function findDuplicateGroups(clients: Client[], exclusions: Set<string>): DuplicateGroup[] {
   const groups: DuplicateGroup[] = [];
 
   // 1. Group by similar company name
@@ -37,11 +44,14 @@ function findDuplicateGroups(clients: Client[]): DuplicateGroup[] {
     }
   }
   for (const [, group] of nameMap) {
-    if (group.length >= 2) {
+    const reviewable = group.filter((client, index) =>
+      group.some((other, otherIndex) => index !== otherIndex && !exclusions.has(pairKey(client.id, other.id)))
+    );
+    if (reviewable.length >= 2) {
       groups.push({
         key: `name-${group[0].id}`,
         reason: `Similar company name`,
-        clients: group,
+        clients: reviewable,
       });
     }
   }
@@ -57,11 +67,14 @@ function findDuplicateGroups(clients: Client[]): DuplicateGroup[] {
     phoneMap.get(phone)!.push(c);
   }
   for (const [phone, group] of phoneMap) {
-    if (group.length >= 2) {
+    const reviewable = group.filter((client, index) =>
+      group.some((other, otherIndex) => index !== otherIndex && !exclusions.has(pairKey(client.id, other.id)))
+    );
+    if (reviewable.length >= 2) {
       groups.push({
         key: `phone-${phone}`,
         reason: `Same phone: ${group[0].phone}`,
-        clients: group,
+        clients: reviewable,
       });
     }
   }
@@ -77,8 +90,51 @@ export function DuplicateDetectionBanner({ clients }: DuplicateDetectionBannerPr
   const [dismissed, setDismissed] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [mergeGroup, setMergeGroup] = useState<DuplicateGroup | null>(null);
+  const [savingGroup, setSavingGroup] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
-  const groups = useMemo(() => findDuplicateGroups(clients), [clients]);
+  const { data: exclusions = [] } = useQuery({
+    queryKey: ["client-duplicate-exclusions"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("client_duplicate_exclusions")
+        .select("client_id_low, client_id_high");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const excludedPairs = useMemo(
+    () => new Set(exclusions.map((row) => pairKey(row.client_id_low, row.client_id_high))),
+    [exclusions],
+  );
+
+  const groups = useMemo(() => findDuplicateGroups(clients, excludedPairs), [clients, excludedPairs]);
+
+  const keepSeparate = async (group: DuplicateGroup) => {
+    const companyId = group.clients[0]?.company_id;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!companyId || !user) return;
+    setSavingGroup(group.key);
+    const rows = group.clients.flatMap((client, index) =>
+      group.clients.slice(index + 1).map((other) => {
+        const [client_id_low, client_id_high] = [client.id, other.id].sort();
+        return { company_id: companyId, client_id_low, client_id_high, created_by: user.id };
+      })
+    );
+    const { error } = await supabase.from("client_duplicate_exclusions").upsert(rows, {
+      onConflict: "company_id,client_id_low,client_id_high",
+      ignoreDuplicates: true,
+    });
+    setSavingGroup(null);
+    if (error) {
+      toast({ title: "Could not save review", description: error.message, variant: "destructive" });
+      return;
+    }
+    await queryClient.invalidateQueries({ queryKey: ["client-duplicate-exclusions"] });
+    toast({ title: "Companies kept separate", description: "This pair will not be suggested as a duplicate again." });
+  };
 
   if (groups.length === 0 || dismissed) return null;
 
@@ -110,15 +166,27 @@ export function DuplicateDetectionBanner({ clients }: DuplicateDetectionBannerPr
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">{group.reason}</p>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="shrink-0 text-xs h-7 border-yellow-500/50 hover:bg-yellow-500/10"
-                      onClick={() => setMergeGroup(group)}
-                    >
-                      <Merge className="h-3 w-3 mr-1" />
-                      Merge
-                    </Button>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-xs"
+                        disabled={savingGroup === group.key}
+                        onClick={() => keepSeparate(group)}
+                      >
+                        <Split className="mr-1 h-3 w-3" />
+                        Keep separate
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs border-yellow-500/50 hover:bg-yellow-500/10"
+                        onClick={() => setMergeGroup(group)}
+                      >
+                        <Merge className="h-3 w-3 mr-1" />
+                        Merge
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>

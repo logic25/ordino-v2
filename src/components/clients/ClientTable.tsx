@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Edit, Trash2, Loader2, Eye, ChevronRight, ChevronDown, User, Pencil, UserPlus } from "lucide-react";
+import { MoreHorizontal, Trash2, Loader2, Eye, ChevronRight, ChevronDown, User, Pencil, UserPlus, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -54,6 +54,27 @@ interface ClientTableProps {
   mergeMode?: boolean;
   selectedForMerge?: Set<string>;
   onToggleMerge?: (id: string) => void;
+  sort: { key: SortKey; direction: "asc" | "desc" };
+  onSort: (key: SortKey) => void;
+}
+
+type SortKey = "name" | "client_type" | "email" | "phone" | "address" | "created_at";
+
+function SortableHead({ label, sortKey, sort, onSort }: {
+  label: string;
+  sortKey: SortKey;
+  sort: ClientTableProps["sort"];
+  onSort: ClientTableProps["onSort"];
+}) {
+  const active = sort.key === sortKey;
+  const Icon = active ? (sort.direction === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
+  return (
+    <TableHead aria-sort={active ? (sort.direction === "asc" ? "ascending" : "descending") : "none"}>
+      <Button variant="ghost" size="sm" className="h-8 -ml-3 px-3 font-medium" onClick={() => onSort(sortKey)}>
+        {label}<Icon className="ml-1.5 h-3.5 w-3.5 text-muted-foreground" />
+      </Button>
+    </TableHead>
+  );
 }
 
 function ContactRows({ clientId }: { clientId: string }) {
@@ -139,6 +160,8 @@ export function ClientTable({
   mergeMode,
   selectedForMerge,
   onToggleMerge,
+  sort,
+  onSort,
 }: ClientTableProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -174,12 +197,12 @@ export function ClientTable({
         <TableHeader>
           <TableRow>
             {mergeMode && <TableHead className="w-[40px]" />}
-            <THWT tip="Client / company name. Click a row to expand and see contacts and project history.">Name</THWT>
-            <THWT tip="Client type — Owner, GC, Architect, Engineer, Property Manager, etc.">Type</THWT>
-            <THWT tip="Primary email on file for the client company (not individual contacts).">Email</THWT>
-            <THWT tip="Primary phone on file for the client company.">Phone</THWT>
-            <THWT tip="Mailing address for the client.">Address</THWT>
-            <THWT tip="Date this client was added to your workspace.">Added</THWT>
+            <SortableHead label="Name" sortKey="name" sort={sort} onSort={onSort} />
+            <SortableHead label="Type" sortKey="client_type" sort={sort} onSort={onSort} />
+            <SortableHead label="Email" sortKey="email" sort={sort} onSort={onSort} />
+            <SortableHead label="Phone" sortKey="phone" sort={sort} onSort={onSort} />
+            <SortableHead label="Address" sortKey="address" sort={sort} onSort={onSort} />
+            <SortableHead label="Added" sortKey="created_at" sort={sort} onSort={onSort} />
             <TableHead className="w-[60px]"></TableHead>
           </TableRow>
         </TableHeader>
