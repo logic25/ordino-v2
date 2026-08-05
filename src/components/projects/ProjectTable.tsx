@@ -80,7 +80,7 @@ export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, is
   return (
     <TooltipProvider>
     <div className="overflow-x-auto -mx-4 sm:mx-0">
-      <Table className="min-w-[800px]">
+      <Table className="min-w-[1040px]">
         <TableHeader>
           <TableRow>
             {selectable && (
@@ -150,8 +150,8 @@ export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, is
                     </SelectContent>
                   </Select>
                 </TableCell>
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center gap-1.5">
+                <TableCell onClick={(e) => e.stopPropagation()} className="whitespace-nowrap">
+                  <div className="flex items-center gap-1.5 whitespace-nowrap">
                     <Select
                       value={project.status || "open"}
                       onValueChange={(val) => handleStatusChange(project.id, val)}
@@ -176,7 +176,7 @@ export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, is
                       const days = Math.floor((Date.now() - new Date(last).getTime()) / 86400000);
                       if (days < threshold) return null;
                       return (
-                        <Badge variant="destructive" className="text-[10px]" title={`No activity in ${days} days`}>
+                        <Badge variant="destructive" className="shrink-0 whitespace-nowrap text-[10px]" title={`No activity in ${days} days`}>
                           Stale — {days}d
                         </Badge>
                       );
