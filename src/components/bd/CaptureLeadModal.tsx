@@ -64,7 +64,10 @@ export interface CaptureLeadDefaults {
   source?: string;
   sourceType?: LeadSourceType;
   marketSignalId?: string;
+  subject?: string;
+  propertyAddress?: string;
 }
+
 
 interface CaptureLeadModalProps {
   open: boolean;
@@ -208,7 +211,11 @@ export function CaptureLeadModal({ open, onOpenChange, onCreated, defaultValues 
     setFullName(defaultValues.fullName ?? "");
     setCompany(defaultValues.company ?? "");
     setNotes(defaultValues.notes ?? "");
-  }, [open, defaultValues?.sourceType, defaultValues?.fullName, defaultValues?.company, defaultValues?.notes]);
+    setSubject(defaultValues.subject ?? "");
+    setPropertyAddress(defaultValues.propertyAddress ?? "");
+  }, [open, defaultValues?.sourceType, defaultValues?.fullName, defaultValues?.company,
+      defaultValues?.notes, defaultValues?.subject, defaultValues?.propertyAddress]);
+
 
   // Event options: approved/registered/attended within the last 90 days.
   const ninetyDaysAgo = useMemo(() => {
