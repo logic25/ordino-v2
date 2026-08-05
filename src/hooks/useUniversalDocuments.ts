@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { describeWriteError, noRowsUpdatedMessage } from "@/lib/rlsError";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 
 
 export interface UniversalDocument {
@@ -33,12 +34,13 @@ export function useUniversalDocuments() {
     queryKey: ["universal-documents"],
     enabled: !!profile?.company_id,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("universal_documents")
-        .select("*, uploader:profiles!universal_documents_uploaded_by_fkey(display_name, first_name, last_name)")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data || []) as unknown as UniversalDocument[];
+      return fetchAllRows<UniversalDocument>((from, to) =>
+        supabase
+          .from("universal_documents")
+          .select("*, uploader:profiles!universal_documents_uploaded_by_fkey(display_name, first_name, last_name)")
+          .order("created_at", { ascending: false })
+          .range(from, to) as any
+      );
     },
   });
 }

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 
 // Type definitions matching the new projects table
 export interface Project {
@@ -79,9 +80,8 @@ export function useProjects() {
   return useQuery({
     queryKey: ["projects"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("projects")
-        .select(`
+      const data = await fetchAllRows<ProjectWithRelations>((from, to) =>
+        supabase.from("projects").select(`
           *,
           properties (id, address, borough, block, lot, bin),
           proposals!projects_proposal_id_fkey (id, proposal_number, title, total_amount, status, internal_signed_at, client_signed_at, sent_at, public_token, approval_method),
@@ -89,12 +89,10 @@ export function useProjects() {
           senior_pm:profiles!projects_senior_pm_id_fkey (id, first_name, last_name),
           clients!projects_client_id_fkey (id, name),
           building_owner:clients!projects_building_owner_id_fkey (id, name)
-        `)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
+        `).order("created_at", { ascending: false }).range(from, to) as any
+      );
       // Filter out projects whose linked proposal hasn't been client-signed yet
-      const filtered = (data as unknown as ProjectWithRelations[]).filter((p) => {
+      const filtered = data.filter((p) => {
         if (!p.proposals) return true; // No linked proposal — show it
         // If proposal exists and client hasn't signed, hide it
         if (p.proposals.client_signed_at) return true;
