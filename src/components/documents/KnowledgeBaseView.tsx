@@ -202,8 +202,11 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
       }
     }
     // 2. Apply overrides — add file into its override display_folder
+    // (rows marked hidden, e.g. stale/phantom entries left behind after a
+    // delete, are dropped entirely and never re-added)
     for (const [source_file, ov] of overrideMap.entries()) {
       const folder = ov.display_folder;
+      if (folder === KB_HIDDEN_MARKER || ov.notes === KB_HIDDEN_MARKER) continue;
       if (!out.has(folder)) out.set(folder, new Set());
       out.get(folder)!.add(source_file);
     }
