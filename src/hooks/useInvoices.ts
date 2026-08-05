@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { effectiveStatus } from "@/lib/invoiceStatus";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 
 export type InvoiceStatus = "draft" | "ready_to_send" | "needs_review" | "sent" | "overdue" | "paid" | "legal_hold";
 
@@ -94,9 +95,7 @@ export function useInvoices(statusFilter?: InvoiceStatus | "all") {
         query = query.eq("status", statusFilter);
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
-      return (data || []) as unknown as InvoiceWithRelations[];
+      return fetchAllRows<InvoiceWithRelations>((from, to) => query.range(from, to) as any);
     },
   });
 }
@@ -105,11 +104,9 @@ export function useInvoiceCounts() {
   return useQuery({
     queryKey: ["invoice-counts"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("invoices")
-        .select("status, due_date");
-
-      if (error) throw error;
+      const data = await fetchAllRows<{ status: InvoiceStatus; due_date: string | null }>((from, to) =>
+        supabase.from("invoices").select("status, due_date").order("id").range(from, to)
+      );
 
       const counts: InvoiceCounts = {
         draft: 0,
@@ -121,7 +118,7 @@ export function useInvoiceCounts() {
         total: 0,
       };
 
-      (data || []).forEach((inv: any) => {
+      data.forEach((inv: any) => {
         // Derive overdue on read — DB stores `sent` even after due_date passes.
         const s = effectiveStatus(inv);
         if (s in counts) {
@@ -140,14 +137,13 @@ export function useInvoiceTotals() {
   return useQuery({
     queryKey: ["invoice-totals"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("invoices")
-        .select("status, total_due, due_date");
-      if (error) throw error;
+      const data = await fetchAllRows<{ status: InvoiceStatus; total_due: number; due_date: string | null }>((from, to) =>
+        supabase.from("invoices").select("status, total_due, due_date").order("id").range(from, to)
+      );
       const totals: Record<InvoiceStatus, number> = {
         draft: 0, ready_to_send: 0, needs_review: 0, sent: 0, overdue: 0, paid: 0, legal_hold: 0,
       };
-      (data || []).forEach((inv: any) => {
+      data.forEach((inv: any) => {
         const s = effectiveStatus(inv);
         if (s in totals) totals[s] += Number(inv.total_due) || 0;
       });

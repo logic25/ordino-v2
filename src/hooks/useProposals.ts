@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { formatCurrency } from "@/lib/utils";
 import { buildProposalEmailHtml, resolveProposalEmailTemplate, resolveEmailStyle } from "@/components/proposals/buildProposalEmailHtml";
@@ -267,11 +268,13 @@ export function useProposalStats() {
   return useQuery({
     queryKey: ["proposal-stats"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("proposals")
-        .select("status, total_amount, created_at, next_follow_up_date, follow_up_dismissed_at");
-      if (error) throw error;
-      return data || [];
+      return fetchAllRows((from, to) =>
+        supabase
+          .from("proposals")
+          .select("status, total_amount, created_at, next_follow_up_date, follow_up_dismissed_at")
+          .order("id")
+          .range(from, to)
+      );
     },
   });
 }

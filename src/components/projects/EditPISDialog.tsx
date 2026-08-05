@@ -19,6 +19,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { MockPISStatus } from "./projectMockData";
 import { usePISContactOptions, getPriorSectionFields } from "@/hooks/usePISAutoFill";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 
 interface PisFieldDef {
   id: string;
@@ -626,10 +627,9 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
   const { data: allContacts = [] } = useQuery({
     queryKey: ["pis-crm-contacts"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("client_contacts")
-        .select("id, name, first_name, last_name, company_name");
-      return data || [];
+      return fetchAllRows<{ id: string; name: string; first_name: string | null; last_name: string | null; company_name: string | null }>((from, to) =>
+        supabase.from("client_contacts").select("id, name, first_name, last_name, company_name").order("id").range(from, to)
+      );
     },
     staleTime: 5 * 60 * 1000,
   });
