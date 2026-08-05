@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Input } from "@/components/ui/input";
 import { useUpdateDocumentTitle, type UniversalDocument } from "@/hooks/useUniversalDocuments";
 import { isRlsError } from "@/lib/rlsError";
@@ -43,6 +44,36 @@ function getBucketForPath(storagePath: string): string {
   // Proposals and some docs are stored in the "documents" bucket
   if (storagePath.startsWith("proposals/")) return "documents";
   return "universal-documents";
+}
+
+/**
+ * Some research notes were imported from table-like sources using `||` as a
+ * cell delimiter. That syntax is not valid Markdown, so render those rows as
+ * compact question/answer lists without changing the stored file.
+ */
+function formatMarkdownForPreview(value: string): string {
+  return value
+    .split("\n")
+    .flatMap((line) => {
+      if (!line.includes("||")) return [line];
+
+      const cells = line
+        .split(/\s*\|\|\s*/)
+        .map((cell) => cell.replace(/^\|\s*|\s*\|$/g, "").trim())
+        .filter(Boolean);
+
+      if (cells.length < 2) return [line];
+
+      const rows: string[] = [];
+      for (let index = 0; index < cells.length; index += 2) {
+        const label = cells[index];
+        const answer = cells[index + 1];
+        rows.push(answer ? `- **${label}:** ${answer}` : `- ${label}`);
+      }
+      return ["", ...rows, ""];
+    })
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n");
 }
 
 export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFolder, folderName, isAdmin }: Props) {
@@ -389,8 +420,8 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
               ) : previewType === "image" && signedUrl ? (
                 <img src={signedUrl} alt={displayTitle} className="max-w-full rounded border" />
               ) : previewType === "markdown" ? (
-                <div className="prose prose-sm max-w-none">
-                  <ReactMarkdown>{content}</ReactMarkdown>
+                <div className="prose prose-sm max-w-none break-words text-foreground prose-headings:tracking-normal prose-headings:text-foreground prose-h1:text-2xl prose-h1:leading-tight prose-h1:mb-6 prose-h2:text-base prose-h2:leading-snug prose-h2:mt-7 prose-h2:mb-3 prose-h3:text-sm prose-p:leading-7 prose-p:my-3 prose-li:leading-6 prose-li:my-1 prose-ul:my-3 prose-a:text-primary prose-a:break-all prose-strong:text-foreground">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{formatMarkdownForPreview(content)}</ReactMarkdown>
                 </div>
               ) : previewType === "text" ? (
                 <pre className="text-sm font-mono whitespace-pre-wrap bg-muted rounded p-4">{content}</pre>
