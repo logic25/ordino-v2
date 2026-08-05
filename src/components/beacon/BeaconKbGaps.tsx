@@ -326,11 +326,19 @@ export function BeaconKbGaps() {
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2 text-sm">
-                  {g.examples.map((q, i) => (
+                  {g.examples.map((ex, i) => (
                     <li key={i} className="text-muted-foreground border-l-2 border-muted pl-3 flex items-start justify-between gap-2">
-                      <span>"{q}"</span>
+                      <span className="min-w-0 flex flex-wrap items-center gap-1.5">
+                        <Badge variant="outline" className="font-normal text-[10px] px-1.5 py-0">
+                          {SOURCE_LABEL[ex.source]}
+                        </Badge>
+                        {ex.page && (
+                          <span className="text-[10px] text-muted-foreground/70">{ex.page}</span>
+                        )}
+                        <span>"{ex.question}"</span>
+                      </span>
                       <Button asChild size="sm" variant="ghost" className="shrink-0 h-7 px-2 text-xs">
-                        <Link to={`/beacon?tab=teach&teachQ=${encodeURIComponent(q)}&teachTopic=${encodeURIComponent(g.topic)}`}>
+                        <Link to={`/beacon?tab=teach&teachQ=${encodeURIComponent(ex.question)}&teachTopic=${encodeURIComponent(g.topic)}`}>
                           <GraduationCap className="h-3.5 w-3.5 mr-1" /> Teach
                         </Link>
                       </Button>
