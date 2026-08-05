@@ -233,7 +233,7 @@ export default function Clients() {
         </div>
 
         {/* Metrics */}
-        <Card>
+        <Card className="min-w-0 overflow-hidden">
           <CardContent className="py-3 px-4">
             <div className="flex items-center justify-around gap-4 text-center flex-wrap">
               <div>
@@ -282,7 +282,7 @@ export default function Clients() {
               Property owners, architects, contractors, and more
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="min-w-0 px-0 sm:px-6">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

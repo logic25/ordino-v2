@@ -192,7 +192,7 @@ export function ClientTable({
 
   return (
     <>
-      <Table>
+      <Table className="min-w-[1040px] table-fixed">
         <TableHeader>
           <TableRow>
             {mergeMode && <TableHead className="w-[40px]" />}
@@ -222,7 +222,7 @@ export function ClientTable({
                       />
                     </TableCell>
                   )}
-                  <TableCell className="font-medium">
+                  <TableCell className="w-[220px] font-medium">
                     <div className="flex items-center gap-2">
                       <button
                         onClick={(e) => {
@@ -238,7 +238,7 @@ export function ClientTable({
                         )}
                       </button>
                       <div className="flex flex-col gap-1">
-                        <span>{client.name}</span>
+                        <span className="break-words">{client.name}</span>
                         {(client as any).is_rfp_partner && ((client as any).specialty_tags?.length > 0) && (
                           <div className="flex flex-wrap gap-1">
                             {((client as any).specialty_tags as string[]).slice(0, 4).map((t) => (
@@ -249,15 +249,15 @@ export function ClientTable({
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="w-[130px] text-muted-foreground break-words">
                     {(client as any).client_type || "—"}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{client.email || "—"}</TableCell>
-                  <TableCell className="text-muted-foreground">{formatPhone(client.phone) || "—"}</TableCell>
-                  <TableCell className="text-muted-foreground max-w-[200px] truncate">
+                  <TableCell className="w-[190px] text-muted-foreground truncate">{client.email || "—"}</TableCell>
+                  <TableCell className="w-[150px] text-muted-foreground whitespace-nowrap">{formatPhone(client.phone) || "—"}</TableCell>
+                  <TableCell className="w-[200px] text-muted-foreground truncate">
                     {client.address || "—"}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="w-[130px] text-muted-foreground whitespace-nowrap">
                     {client.created_at
                       ? format(new Date(client.created_at), "MMM d, yyyy")
                       : "—"}
