@@ -442,6 +442,10 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
             <SelectItem value="name_desc">Name Z–A</SelectItem>
             <SelectItem value="date_desc">Newest modified</SelectItem>
             <SelectItem value="date_asc">Oldest modified</SelectItem>
+            <SelectItem value="uploader_asc">Uploaded by A–Z</SelectItem>
+            <SelectItem value="uploader_desc">Uploaded by Z–A</SelectItem>
+            <SelectItem value="chunks_desc">Most chunks</SelectItem>
+            <SelectItem value="chunks_asc">Fewest chunks</SelectItem>
           </SelectContent>
         </Select>
         <Button size="sm" onClick={() => setUploadOpen(true)}>
