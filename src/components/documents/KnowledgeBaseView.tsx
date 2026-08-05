@@ -17,11 +17,12 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
-  FileText, FolderOpen, Upload, Loader2, AlertCircle, File, MoreVertical, FolderInput, RotateCcw, Trash2, Pencil,
+  FileText, FolderOpen, Upload, Loader2, AlertCircle, File, MoreVertical, FolderInput, RotateCcw, Trash2, Pencil, Search, ArrowUpDown,
 } from "lucide-react";
 import { useBeaconKnowledge, useUploadToBeaconKB } from "@/hooks/useBeaconKnowledge";
-import { useBeaconKbOverrides, useUpsertBeaconKbOverride, useClearBeaconKbOverride, useSetBeaconKbTitle } from "@/hooks/useBeaconKbOverrides";
+import { useBeaconKbOverrides, useUpsertBeaconKbOverride, useClearBeaconKbOverride, useSetBeaconKbTitle, useRecordBeaconKbUpload } from "@/hooks/useBeaconKbOverrides";
 import { useUniversalDocuments, useUpdateDocumentTitle } from "@/hooks/useUniversalDocuments";
+import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { FOLDER_TO_SOURCE_TYPE, assignBeaconFolders, deleteBeaconDoc } from "@/services/beaconApi";
 import { useQueryClient } from "@tanstack/react-query";
@@ -50,9 +51,11 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   const isAdmin = useIsAdmin();
   const updateDocumentTitle = useUpdateDocumentTitle();
   const { data: overrides = [] } = useBeaconKbOverrides();
+  const { data: companyProfiles = [] } = useCompanyProfiles();
   const setKbTitle = useSetBeaconKbTitle();
   const upsertOverride = useUpsertBeaconKbOverride();
   const clearOverride = useClearBeaconKbOverride();
+  const recordUpload = useRecordBeaconKbUpload();
   const upload = useUploadToBeaconKB();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -67,6 +70,8 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   const [deleteSaving, setDeleteSaving] = useState(false);
   const [renameTarget, setRenameTarget] = useState<{ id: string | null; filename: string; title: string; folder: string } | null>(null);
   const [renameTitle, setRenameTitle] = useState("");
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<"name_asc" | "name_desc" | "date_desc" | "date_asc">("name_asc");
 
   const documentByFilename = useMemo(() => {
     const map = new Map<string, (typeof universalDocuments)[number]>();
@@ -74,17 +79,50 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
     return map;
   }, [universalDocuments]);
 
+  // auth user_id -> display name, for "Uploaded by" on Beacon-only files
+  const nameByUserId = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of companyProfiles as any[]) {
+      const name = p.display_name || [p.first_name, p.last_name].filter(Boolean).join(" ");
+      if (p.user_id && name) m.set(p.user_id, name);
+    }
+    return m;
+  }, [companyProfiles]);
+
   // Build override map: source_file -> { display_folder, hidden_from_original, notes }
   // notes prefixed with "__orig__:<slug>" means a real backend move; the slug is
   // the original Beacon folder so "Reset to original folder" can call the backend
   // to put it back, not just clear a display-only override.
   const overrideMap = useMemo(() => {
-    const m = new Map<string, { display_folder: string; display_title: string | null; hidden: boolean; notes: string | null }>();
+    const m = new Map<string, { display_folder: string; display_title: string | null; hidden: boolean; notes: string | null; created_by: string | null; updated_at: string | null; created_at: string | null }>();
     for (const o of overrides) {
-      m.set(o.source_file, { display_folder: o.display_folder, display_title: o.display_title ?? null, hidden: o.hidden_from_original, notes: o.notes });
+      m.set(o.source_file, {
+        display_folder: o.display_folder,
+        display_title: o.display_title ?? null,
+        hidden: o.hidden_from_original,
+        notes: o.notes,
+        created_by: o.created_by ?? null,
+        updated_at: o.updated_at ?? null,
+        created_at: o.created_at ?? null,
+      });
     }
     return m;
   }, [overrides]);
+
+  // Per-file display metadata used by the Modified / Uploaded by columns and sorting.
+  const fileMeta = (filename: string) => {
+    const ov = overrideMap.get(filename);
+    const doc = documentByFilename.get(filename);
+    const modified = doc?.updated_at || doc?.created_at || ov?.updated_at || ov?.created_at || null;
+    const uploader = doc?.uploader
+      ? (doc.uploader.display_name || [doc.uploader.first_name, doc.uploader.last_name].filter(Boolean).join(" "))
+      : (ov?.created_by ? nameByUserId.get(ov.created_by) || null : null);
+    return { modified, uploader: uploader || null };
+  };
+
+  const formatDate = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "—";
+
 
   // Folders coming from the Beacon API (slug form)
   const apiFolderNames = useMemo(() => {
@@ -164,6 +202,10 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
         const result = await upload.mutateAsync({ file, folder: targetFolder });
         totalChunks += result.chunks_created || 0;
         successCount++;
+        // Stamp uploader + timestamp so the list can show "Uploaded by" / "Modified".
+        try {
+          await recordUpload.mutateAsync({ source_file: file.name, display_folder: humanize(targetFolder) });
+        } catch { /* metadata stamp is best-effort (requires admin/manager) */ }
         setUploadProgress({ done: successCount, total: selectedFiles.length });
       } catch (err: any) {
         toast({ title: `Failed: ${file.name}`, description: err.message, variant: "destructive" });
@@ -342,8 +384,29 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
         </Card>
       </div>
 
-      {/* Upload button */}
-      <div className="flex justify-end">
+      {/* Search / sort / upload */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search documents by name..."
+            className="pl-8"
+          />
+        </div>
+        <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+          <SelectTrigger className="w-full sm:w-[190px]">
+            <ArrowUpDown className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="name_asc">Name A–Z</SelectItem>
+            <SelectItem value="name_desc">Name Z–A</SelectItem>
+            <SelectItem value="date_desc">Newest modified</SelectItem>
+            <SelectItem value="date_asc">Oldest modified</SelectItem>
+          </SelectContent>
+        </Select>
         <Button size="sm" onClick={() => setUploadOpen(true)}>
           <Upload className="h-4 w-4 mr-2" /> Upload to Knowledge Base
         </Button>
@@ -359,7 +422,26 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
           ) : (
             <Accordion type="multiple" defaultValue={visibleFolderNames} className="w-full">
               {visibleFolderNames.map((folderName) => {
-                const files = Array.from(effectiveFolders.get(folderName) || []);
+                const q = search.trim().toLowerCase();
+                const files = Array.from(effectiveFolders.get(folderName) || [])
+                  .filter((filename) => {
+                    if (!q) return true;
+                    const ov = overrideMap.get(filename);
+                    const title = documentByFilename.get(filename)?.title || ov?.display_title || filename;
+                    return filename.toLowerCase().includes(q) || title.toLowerCase().includes(q);
+                  })
+                  .sort((a, b) => {
+                    if (sortBy === "name_asc" || sortBy === "name_desc") {
+                      const ta = documentByFilename.get(a)?.title || overrideMap.get(a)?.display_title || a;
+                      const tb = documentByFilename.get(b)?.title || overrideMap.get(b)?.display_title || b;
+                      const cmp = ta.trim().localeCompare(tb.trim(), undefined, { sensitivity: "base" });
+                      return sortBy === "name_asc" ? cmp : -cmp;
+                    }
+                    const da = fileMeta(a).modified ? new Date(fileMeta(a).modified!).getTime() : 0;
+                    const db = fileMeta(b).modified ? new Date(fileMeta(b).modified!).getTime() : 0;
+                    return sortBy === "date_desc" ? db - da : da - db;
+                  });
+                if (q && files.length === 0) return null;
                 return (
                   <AccordionItem key={folderName} value={folderName}>
                     <AccordionTrigger className="py-3 hover:no-underline">
@@ -371,10 +453,17 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                     </AccordionTrigger>
                     <AccordionContent>
                       <div className="grid gap-1 pl-6">
-                        {files.sort().map((filename) => {
+                        <div className="hidden md:flex items-center gap-2 px-2 pb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                          <span className="flex-1">Name</span>
+                          <span className="w-28 shrink-0">Modified</span>
+                          <span className="w-36 shrink-0">Uploaded by</span>
+                          <span className="w-7 shrink-0" />
+                        </div>
+                        {files.map((filename) => {
                           const ov = overrideMap.get(filename);
                           const universalDocument = documentByFilename.get(filename);
                           const displayTitle = universalDocument?.title || ov?.display_title || filename;
+                          const meta = fileMeta(filename);
                           return (
                             <div
                               key={filename}
@@ -385,12 +474,20 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                                 type="button"
                                 className="truncate flex-1 text-left cursor-pointer"
                                 onClick={() => setViewingFile(filename)}
+                                title={filename}
                               >
                                 {displayTitle}
                               </button>
                               {ov?.hidden && (
                                 <Badge variant="outline" className="text-[10px] opacity-70">moved</Badge>
                               )}
+                              <span className="hidden md:block w-28 shrink-0 text-xs text-muted-foreground truncate">
+                                {formatDate(meta.modified)}
+                              </span>
+                              <span className="hidden md:block w-36 shrink-0 text-xs text-muted-foreground truncate" title={meta.uploader || undefined}>
+                                {meta.uploader || "—"}
+                              </span>
+
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button
@@ -427,7 +524,7 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                                   >
                                     <FolderInput className="h-3.5 w-3.5 mr-2" /> Move to folder…
                                   </DropdownMenuItem>
-                                  {ov && (
+                                  {ov && ov.notes !== "__uploaded__" && (
                                     <DropdownMenuItem
                                       onClick={() => handleResetToOriginal(filename)}
                                     >
