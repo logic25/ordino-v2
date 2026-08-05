@@ -13,6 +13,7 @@ export interface SignalLead {
   address?: string | null;
   deal_type?: string | null;
   angle?: string | null;
+  why?: string | null;
   property?: SignalLeadProperty | null;
   who_we_know?: string[] | Record<string, unknown> | string | null;
 }
@@ -20,6 +21,7 @@ export interface SignalLead {
 export interface EnrichSignalResponse {
   lead_count: number;
   leads: SignalLead[];
+  story?: string;
 }
 
 /** Extract structured leads from a market-signal blurb via Beacon (key stays server-side). */
@@ -29,7 +31,11 @@ export async function enrichSignal(text: string): Promise<EnrichSignalResponse> 
   });
   if (error) throw new Error(`Signal enrichment error: ${error.message}`);
   const leads = Array.isArray((data as any)?.leads) ? ((data as any).leads as SignalLead[]) : [];
-  return { lead_count: (data as any)?.lead_count ?? leads.length, leads };
+  return {
+    lead_count: (data as any)?.lead_count ?? leads.length,
+    leads,
+    story: typeof (data as any)?.story === "string" ? (data as any).story : "",
+  };
 }
 
 /** Normalize the varied shapes Beacon returns for who_we_know into display lines. */
