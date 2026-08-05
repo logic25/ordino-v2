@@ -473,11 +473,11 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                       </div>
                     </AccordionTrigger>
                     <AccordionContent>
-                      <div className="grid gap-1 pl-6">
-                        <div className="flex items-center gap-2 px-2 pb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-                          <span className="flex-1">Name</span>
+                      <div className="grid gap-1 pl-6 min-w-0">
+                        <div className="flex items-center gap-2 px-2 pb-1 text-[11px] uppercase tracking-wide text-muted-foreground min-w-0">
+                          <span className="flex-1 min-w-0">Name</span>
                           <span className="hidden md:block w-28 shrink-0">Modified</span>
-                          <span className="hidden md:block w-36 shrink-0">Uploaded by</span>
+                          <span className="hidden lg:block w-36 shrink-0">Uploaded by</span>
                           <span className="w-20 shrink-0 text-right">Chunks</span>
                           <span className="w-7 shrink-0" />
                         </div>
@@ -489,17 +489,18 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                           return (
                             <div
                               key={filename}
-                              className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50 text-sm group"
+                              className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50 text-sm group min-w-0"
                             >
                               <File className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                               <button
                                 type="button"
-                                className="truncate flex-1 text-left cursor-pointer"
+                                className="truncate flex-1 min-w-0 text-left cursor-pointer"
                                 onClick={() => setViewingFile(filename)}
                                 title={filename}
                               >
                                 {displayTitle}
                               </button>
+
                               {ov?.hidden && (
                                 <Badge variant="outline" className="text-[10px] opacity-70">moved</Badge>
                               )}
