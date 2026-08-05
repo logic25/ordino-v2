@@ -56,6 +56,7 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   const upsertOverride = useUpsertBeaconKbOverride();
   const clearOverride = useClearBeaconKbOverride();
   const recordUpload = useRecordBeaconKbUpload();
+  const hideKbFile = useHideBeaconKbFile();
   const upload = useUploadToBeaconKB();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
