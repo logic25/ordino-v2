@@ -17,7 +17,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
-  FileText, FolderOpen, Upload, Loader2, AlertCircle, File, MoreVertical, FolderInput, RotateCcw, Trash2, Pencil, Search, ArrowUpDown,
+  FileText, FolderOpen, Upload, Loader2, AlertCircle, File, MoreVertical, FolderInput, RotateCcw, Trash2, Pencil, Search, ArrowUpDown, AlertTriangle,
 } from "lucide-react";
 import { useBeaconKnowledge, useUploadToBeaconKB } from "@/hooks/useBeaconKnowledge";
 import { useBeaconKbOverrides, useUpsertBeaconKbOverride, useClearBeaconKbOverride, useSetBeaconKbTitle, useRecordBeaconKbUpload } from "@/hooks/useBeaconKbOverrides";
@@ -122,6 +122,27 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
 
   const formatDate = (iso: string | null) =>
     iso ? new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "—";
+
+  const chunkCount = (filename: string) => data?.fileChunks[filename];
+
+  const chunkStatus = (filename: string, count: number | undefined) => {
+    if (count === undefined) {
+      return { text: "—", title: "Chunk count unavailable", isEmpty: false, isWarning: false };
+    }
+    if (count === 0) {
+      return { text: "0", title: "0 chunks — empty phantom entry, safe to delete", isEmpty: true, isWarning: false };
+    }
+    const isPdf = filename.toLowerCase().endsWith(".pdf");
+    if (count <= 1 && isPdf) {
+      return {
+        text: String(count),
+        title: `Only ${count} chunk${count === 1 ? "" : "s"} for a PDF — possible extraction failure`,
+        isEmpty: false,
+        isWarning: true,
+      };
+    }
+    return { text: String(count), title: `${count} chunk${count === 1 ? "" : "s"}`, isEmpty: false, isWarning: false };
+  };
 
 
   // Folders coming from the Beacon API (slug form)
@@ -457,6 +478,7 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                           <span className="flex-1">Name</span>
                           <span className="w-28 shrink-0">Modified</span>
                           <span className="w-36 shrink-0">Uploaded by</span>
+                          <span className="w-20 shrink-0 text-right">Chunks</span>
                           <span className="w-7 shrink-0" />
                         </div>
                         {files.map((filename) => {
@@ -487,6 +509,21 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                               <span className="hidden md:block w-36 shrink-0 text-xs text-muted-foreground truncate" title={meta.uploader || undefined}>
                                 {meta.uploader || "—"}
                               </span>
+                              {(() => {
+                                const count = chunkCount(filename);
+                                const status = chunkStatus(filename, count);
+                                return (
+                                  <span
+                                    className={`hidden md:block w-20 shrink-0 text-xs text-right ${
+                                      status.isEmpty ? "text-muted-foreground italic" : status.isWarning ? "text-destructive" : ""
+                                    }`}
+                                    title={status.title}
+                                  >
+                                    {status.isWarning && <AlertTriangle className="inline h-3 w-3 mr-1" />}
+                                    {status.text}
+                                  </span>
+                                );
+                              })()}
 
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>

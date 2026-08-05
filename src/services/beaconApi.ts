@@ -151,12 +151,15 @@ export interface BeaconKnowledgeData {
   folders: Record<string, string[]>;
   total_files: number;
   folder_count: number;
+  fileChunks: Record<string, number | undefined>;
 }
 
 interface BeaconKnowledgeDetail {
   filename?: string;
   folder?: string;
   source_type?: string;
+  chunks_count?: number;
+  chunks_created?: number;
 }
 
 const SOURCE_TYPE_TO_FOLDER = Object.fromEntries(
@@ -168,6 +171,7 @@ export async function fetchBeaconKnowledgeList(): Promise<BeaconKnowledgeData> {
   if (error) throw new Error(`Beacon API error: ${error.message}`);
 
   let folders: Record<string, string[]> = {};
+  const fileChunks: Record<string, number | undefined> = {};
 
   if (data.folders && typeof data.folders === "object") {
     folders = data.folders;
@@ -175,6 +179,10 @@ export async function fetchBeaconKnowledgeList(): Promise<BeaconKnowledgeData> {
       for (const detail of data.details as BeaconKnowledgeDetail[]) {
         const filename = detail.filename?.trim();
         if (!filename) continue;
+
+        if (typeof detail.chunks_count === "number" || typeof detail.chunks_created === "number") {
+          fileChunks[filename] = detail.chunks_count ?? detail.chunks_created;
+        }
 
         const explicitFolder = detail.folder?.trim();
         if (explicitFolder) {
@@ -192,6 +200,10 @@ export async function fetchBeaconKnowledgeList(): Promise<BeaconKnowledgeData> {
     for (const detail of data.details as BeaconKnowledgeDetail[]) {
       const filename = detail.filename?.trim();
       if (!filename) continue;
+
+      if (typeof detail.chunks_count === "number" || typeof detail.chunks_created === "number") {
+        fileChunks[filename] = detail.chunks_count ?? detail.chunks_created;
+      }
 
       const explicitFolder = detail.folder?.trim();
       const folder = explicitFolder || SOURCE_TYPE_TO_FOLDER[detail.source_type || ""] || "_root";
@@ -218,6 +230,7 @@ export async function fetchBeaconKnowledgeList(): Promise<BeaconKnowledgeData> {
     folders,
     total_files: data.count ?? Object.values(folders).reduce((s: number, f: string[]) => s + f.length, 0),
     folder_count: Object.keys(folders).length,
+    fileChunks,
   };
 }
 
