@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert } from "@/integrations/supabase/types";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 
 export type Application = Tables<"dob_applications">;
 export type ApplicationInsert = TablesInsert<"dob_applications">;
@@ -53,17 +54,13 @@ export function useApplications() {
   return useQuery({
     queryKey: ["applications"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("dob_applications")
-        .select(`
+      return fetchAllRows<ApplicationWithProperty>((from, to) =>
+        supabase.from("dob_applications").select(`
           *,
           properties!inner(address, borough),
           profiles(first_name, last_name)
-        `)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      return data as ApplicationWithProperty[];
+        `).order("created_at", { ascending: false }).range(from, to) as any
+      );
     },
   });
 }

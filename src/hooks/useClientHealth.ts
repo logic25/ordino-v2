@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 
 export interface ClientHealthRow {
   client_id: string;
@@ -38,12 +39,9 @@ export function useClientHealth() {
     queryKey: ["client-health", session?.user?.id],
     enabled: !!session?.user?.id,
     queryFn: async (): Promise<ClientHealthRow[]> => {
-      const { data, error } = await supabase
-        .from("client_health")
-        .select("*")
-        .order("ytd_proposed_value", { ascending: false });
-      if (error) throw error;
-      return (data || []) as unknown as ClientHealthRow[];
+      return fetchAllRows<ClientHealthRow>((from, to) =>
+        supabase.from("client_health").select("*").order("ytd_proposed_value", { ascending: false }).range(from, to) as any
+      );
     },
   });
 }
@@ -64,11 +62,9 @@ export function useClientHealthDataQuality() {
     queryKey: ["client-health-data-quality", session?.user?.id],
     enabled: !!session?.user?.id,
     queryFn: async (): Promise<ClientHealthDataQuality> => {
-      const { data, error } = await supabase
-        .from("proposals")
-        .select("id, sent_at, converted_at, sales_person_id");
-      if (error) throw error;
-      const rows = data || [];
+      const rows = await fetchAllRows<any>((from, to) =>
+        supabase.from("proposals").select("id, sent_at, converted_at, sales_person_id").order("id").range(from, to)
+      );
       const withSentAt = rows.filter((r: any) => r.sent_at).length;
       const withSalesPerson = rows.filter((r: any) => r.sales_person_id).length;
       return {
@@ -90,14 +86,14 @@ export function useClientHealthFilterOptions() {
     queryKey: ["client-health-filter-options", session?.user?.id],
     enabled: !!session?.user?.id,
     queryFn: async () => {
-      const [{ data: proposals }, { data: profiles }] = await Promise.all([
-        supabase.from("proposals").select("sales_person_id, created_by, lead_source"),
-        supabase.from("profiles").select("id, display_name"),
+      const [proposals, profiles] = await Promise.all([
+        fetchAllRows<any>((from, to) => supabase.from("proposals").select("sales_person_id, created_by, lead_source").order("id").range(from, to)),
+        fetchAllRows<any>((from, to) => supabase.from("profiles").select("id, display_name").order("id").range(from, to)),
       ]);
-      const nameById = new Map((profiles || []).map((p: any) => [p.id, p.display_name || "Unknown"]));
+      const nameById = new Map(profiles.map((p: any) => [p.id, p.display_name || "Unknown"]));
       const ownerIds = new Set<string>();
       const sources = new Set<string>();
-      (proposals || []).forEach((p: any) => {
+      proposals.forEach((p: any) => {
         const owner = p.sales_person_id || p.created_by;
         if (owner) ownerIds.add(owner);
         if (p.lead_source) sources.add(p.lead_source);

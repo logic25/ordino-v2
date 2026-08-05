@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 
 export type Client = Tables<"clients">;
 export type ClientContact = Tables<"client_contacts">;
@@ -54,13 +55,13 @@ export function useClients() {
   return useQuery({
     queryKey: ["clients"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("clients")
-        .select("*")
-        .order("name");
-
-      if (error) throw error;
-      return data as Client[];
+      return fetchAllRows<Client>((from, to) =>
+        supabase
+          .from("clients")
+          .select("*")
+          .order("name")
+          .range(from, to)
+      );
     },
   });
 }

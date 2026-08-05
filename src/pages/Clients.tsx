@@ -22,6 +22,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { subDays, format } from "date-fns";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 
 function useClientMetrics(clients: Client[]) {
   const contactsQuery = useQuery({
@@ -44,12 +45,10 @@ function useClientMetrics(clients: Client[]) {
   const companiesQuery = useQuery({
     queryKey: ["contact-companies-count"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("client_contacts")
-        .select("company_name")
-        .not("company_name", "is", null);
-      if (error) throw error;
-      const unique = new Set(data?.map((c) => c.company_name?.toLowerCase().trim()).filter(Boolean));
+      const data = await fetchAllRows<{ company_name: string | null }>((from, to) =>
+        supabase.from("client_contacts").select("company_name").not("company_name", "is", null).order("id").range(from, to)
+      );
+      const unique = new Set(data.map((c) => c.company_name?.toLowerCase().trim()).filter(Boolean));
       return unique.size;
     },
   });

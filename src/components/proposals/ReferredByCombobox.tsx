@@ -5,6 +5,7 @@ import { Building2, User, Plus, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 
 interface ReferredByComboboxProps {
   value: string;
@@ -48,11 +49,9 @@ export function ReferredByCombobox({
     queryKey: ["referral-companies"],
     enabled: !!profile?.company_id,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("clients")
-        .select("id, name")
-        .order("name");
-      return data || [];
+      return fetchAllRows<{ id: string; name: string }>((from, to) =>
+        supabase.from("clients").select("id, name").order("name").range(from, to)
+      );
     },
   });
 
@@ -60,11 +59,9 @@ export function ReferredByCombobox({
     queryKey: ["referral-contacts"],
     enabled: !!profile?.company_id,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("client_contacts")
-        .select("id, name, company_name, email")
-        .order("name");
-      return data || [];
+      return fetchAllRows<{ id: string; name: string; company_name: string | null; email: string | null }>((from, to) =>
+        supabase.from("client_contacts").select("id, name, company_name, email").order("name").range(from, to)
+      );
     },
   });
 
