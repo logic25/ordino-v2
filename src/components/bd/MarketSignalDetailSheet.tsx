@@ -37,11 +37,40 @@ function cachedLeads(signal: MarketSignal): SignalLead[] | null {
   return leads as SignalLead[] | null;
 }
 
+function cachedStory(signal: MarketSignal): string {
+  const raw: any = signal.enrichment;
+  return typeof raw?.story === "string" ? raw.story : "";
+}
+
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex gap-2 text-sm">
       <span className="text-muted-foreground shrink-0 w-40">{label}</span>
       <span className="min-w-0">{value}</span>
+    </div>
+  );
+}
+
+function FullStory({ story }: { story: string }) {
+  const [open, setOpen] = useState(false);
+  if (!story.trim()) return null;
+  return (
+    <div className="mt-4 border rounded-md">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium hover:bg-muted/50 transition-colors"
+      >
+        {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        Full story
+      </button>
+      {open && (
+        <div className="px-3 pb-3 pt-1 border-t max-h-[45vh] overflow-y-auto">
+          <p className="text-sm whitespace-pre-wrap leading-relaxed text-muted-foreground">
+            {story}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -56,9 +85,7 @@ function OpportunityCard({ lead, onPromote }: { lead: SignalLead; onPromote: () 
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="font-semibold leading-tight">{lead.party}</div>
-            {lead.address && (
-              <div className="text-sm text-muted-foreground mt-0.5">{lead.address}</div>
-            )}
+            <div className="text-sm text-muted-foreground mt-0.5">{lead.address || "—"}</div>
           </div>
           <Button size="sm" variant="outline" className="shrink-0" onClick={onPromote}>
             <UserPlus className="h-3.5 w-3.5 mr-1.5" />
@@ -69,6 +96,15 @@ function OpportunityCard({ lead, onPromote }: { lead: SignalLead; onPromote: () 
           <Badge variant="secondary" className="font-normal">{lead.deal_type}</Badge>
         )}
         {lead.angle && <p className="text-sm whitespace-pre-wrap">{lead.angle}</p>}
+        {lead.why && (
+          <div className="flex gap-2 rounded-md border-l-2 border-primary bg-muted/40 px-3 py-2">
+            <Lightbulb className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+            <p className="text-sm whitespace-pre-wrap">
+              <span className="font-medium">Why: </span>
+              {lead.why}
+            </p>
+          </div>
+        )}
         {(lead.property?.owner || incumbent || gap || who.length > 0) && (
           <div className="space-y-1 pt-1 border-t">
             {lead.property?.owner && <Field label="Owner" value={lead.property.owner} />}
