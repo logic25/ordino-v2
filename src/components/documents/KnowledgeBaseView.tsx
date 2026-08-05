@@ -17,11 +17,12 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
-  FileText, FolderOpen, Upload, Loader2, AlertCircle, File, MoreVertical, FolderInput, RotateCcw, Trash2, Pencil,
+  FileText, FolderOpen, Upload, Loader2, AlertCircle, File, MoreVertical, FolderInput, RotateCcw, Trash2, Pencil, Search, ArrowUpDown,
 } from "lucide-react";
 import { useBeaconKnowledge, useUploadToBeaconKB } from "@/hooks/useBeaconKnowledge";
-import { useBeaconKbOverrides, useUpsertBeaconKbOverride, useClearBeaconKbOverride, useSetBeaconKbTitle } from "@/hooks/useBeaconKbOverrides";
+import { useBeaconKbOverrides, useUpsertBeaconKbOverride, useClearBeaconKbOverride, useSetBeaconKbTitle, useRecordBeaconKbUpload } from "@/hooks/useBeaconKbOverrides";
 import { useUniversalDocuments, useUpdateDocumentTitle } from "@/hooks/useUniversalDocuments";
+import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { FOLDER_TO_SOURCE_TYPE, assignBeaconFolders, deleteBeaconDoc } from "@/services/beaconApi";
 import { useQueryClient } from "@tanstack/react-query";
