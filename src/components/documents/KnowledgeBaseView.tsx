@@ -71,7 +71,23 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   const [renameTarget, setRenameTarget] = useState<{ id: string | null; filename: string; title: string; folder: string } | null>(null);
   const [renameTitle, setRenameTitle] = useState("");
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<"name_asc" | "name_desc" | "date_desc" | "date_asc">("name_asc");
+  const [sortBy, setSortBy] = useState<
+    | "name_asc" | "name_desc"
+    | "date_desc" | "date_asc"
+    | "uploader_asc" | "uploader_desc"
+    | "chunks_desc" | "chunks_asc"
+  >("name_asc");
+
+  const toggleSort = (col: "name" | "date" | "uploader" | "chunks") => {
+    setSortBy((prev) => {
+      if (col === "name") return prev === "name_asc" ? "name_desc" : "name_asc";
+      if (col === "date") return prev === "date_desc" ? "date_asc" : "date_desc";
+      if (col === "uploader") return prev === "uploader_asc" ? "uploader_desc" : "uploader_asc";
+      return prev === "chunks_desc" ? "chunks_asc" : "chunks_desc";
+    });
+  };
+  const sortIndicator = (col: "name" | "date" | "uploader" | "chunks") =>
+    sortBy.startsWith(col) ? (sortBy.endsWith("_asc") ? " ↑" : " ↓") : "";
 
   const documentByFilename = useMemo(() => {
     const map = new Map<string, (typeof universalDocuments)[number]>();
@@ -426,6 +442,10 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
             <SelectItem value="name_desc">Name Z–A</SelectItem>
             <SelectItem value="date_desc">Newest modified</SelectItem>
             <SelectItem value="date_asc">Oldest modified</SelectItem>
+            <SelectItem value="uploader_asc">Uploaded by A–Z</SelectItem>
+            <SelectItem value="uploader_desc">Uploaded by Z–A</SelectItem>
+            <SelectItem value="chunks_desc">Most chunks</SelectItem>
+            <SelectItem value="chunks_asc">Fewest chunks</SelectItem>
           </SelectContent>
         </Select>
         <Button size="sm" onClick={() => setUploadOpen(true)}>
@@ -458,6 +478,19 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                       const cmp = ta.trim().localeCompare(tb.trim(), undefined, { sensitivity: "base" });
                       return sortBy === "name_asc" ? cmp : -cmp;
                     }
+                    if (sortBy === "uploader_asc" || sortBy === "uploader_desc") {
+                      const ua = fileMeta(a).uploader || "";
+                      const ub = fileMeta(b).uploader || "";
+                      if (!ua && ub) return 1;
+                      if (ua && !ub) return -1;
+                      const cmp = ua.localeCompare(ub, undefined, { sensitivity: "base" });
+                      return sortBy === "uploader_asc" ? cmp : -cmp;
+                    }
+                    if (sortBy === "chunks_desc" || sortBy === "chunks_asc") {
+                      const ca = chunkCount(a) ?? -1;
+                      const cb = chunkCount(b) ?? -1;
+                      return sortBy === "chunks_desc" ? cb - ca : ca - cb;
+                    }
                     const da = fileMeta(a).modified ? new Date(fileMeta(a).modified!).getTime() : 0;
                     const db = fileMeta(b).modified ? new Date(fileMeta(b).modified!).getTime() : 0;
                     return sortBy === "date_desc" ? db - da : da - db;
@@ -475,10 +508,10 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                     <AccordionContent>
                       <div className="grid gap-1 pl-6 min-w-0">
                         <div className="flex items-center gap-2 px-2 pb-1 text-[11px] uppercase tracking-wide text-muted-foreground min-w-0">
-                          <span className="flex-1 min-w-0">Name</span>
-                          <span className="hidden md:block w-28 shrink-0">Modified</span>
-                          <span className="hidden lg:block w-36 shrink-0">Uploaded by</span>
-                          <span className="w-20 shrink-0 text-right">Chunks</span>
+                          <button type="button" onClick={() => toggleSort("name")} className="flex-1 min-w-0 text-left uppercase hover:text-foreground transition-colors">Name{sortIndicator("name")}</button>
+                          <button type="button" onClick={() => toggleSort("date")} className="hidden md:block w-28 shrink-0 text-left uppercase hover:text-foreground transition-colors">Modified{sortIndicator("date")}</button>
+                          <button type="button" onClick={() => toggleSort("uploader")} className="hidden lg:block w-36 shrink-0 text-left uppercase hover:text-foreground transition-colors">Uploaded by{sortIndicator("uploader")}</button>
+                          <button type="button" onClick={() => toggleSort("chunks")} className="w-20 shrink-0 text-right uppercase hover:text-foreground transition-colors">Chunks{sortIndicator("chunks")}</button>
                           <span className="w-7 shrink-0" />
                         </div>
                         {files.map((filename) => {
