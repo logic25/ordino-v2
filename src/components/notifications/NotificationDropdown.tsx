@@ -51,6 +51,7 @@ export function NotificationDropdown() {
   const dismiss = useDismissNotification();
   const dismissAll = useDismissAllNotifications();
   const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
 
   // Re-trigger the wiggle animation each time the unread count INCREASES
   // (i.e. a new realtime insert arrived). The keyed remount restarts the CSS animation.
@@ -67,14 +68,18 @@ export function NotificationDropdown() {
 
   const handleClick = (n: typeof notifications[0]) => {
     if (!n.read_at) markRead.mutate(n.id);
-    if (n.link) navigate(n.link);
+    const storedLink = n.link?.trim();
+    if (storedLink) {
+      setOpen(false);
+      navigate(storedLink);
+    }
   };
 
   const hasUnread = unreadCount > 0;
   const badgeLabel = unreadCount > 99 ? "99+" : String(unreadCount);
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative h-10 w-10">
           {/* Soft persistent pulse ring while there are unread notifications */}
