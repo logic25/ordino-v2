@@ -478,6 +478,7 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                           <span className="flex-1">Name</span>
                           <span className="w-28 shrink-0">Modified</span>
                           <span className="w-36 shrink-0">Uploaded by</span>
+                          <span className="w-20 shrink-0 text-right">Chunks</span>
                           <span className="w-7 shrink-0" />
                         </div>
                         {files.map((filename) => {
