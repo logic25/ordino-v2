@@ -507,7 +507,7 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                               <span className="hidden md:block w-28 shrink-0 text-xs text-muted-foreground truncate">
                                 {formatDate(meta.modified)}
                               </span>
-                              <span className="hidden md:block w-36 shrink-0 text-xs text-muted-foreground truncate" title={meta.uploader || undefined}>
+                              <span className="hidden lg:block w-36 shrink-0 text-xs text-muted-foreground truncate" title={meta.uploader || undefined}>
                                 {meta.uploader || "—"}
                               </span>
                               {(() => {
