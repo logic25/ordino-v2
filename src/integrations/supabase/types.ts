@@ -3747,6 +3747,69 @@ export type Database = {
           },
         ]
       }
+      client_duplicate_exclusions: {
+        Row: {
+          client_id_high: string
+          client_id_low: string
+          company_id: string
+          created_at: string
+          created_by: string
+          id: string
+        }
+        Insert: {
+          client_id_high: string
+          client_id_low: string
+          company_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+        }
+        Update: {
+          client_id_high?: string
+          client_id_low?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_duplicate_exclusions_client_id_high_fkey"
+            columns: ["client_id_high"]
+            isOneToOne: false
+            referencedRelation: "client_health"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "client_duplicate_exclusions_client_id_high_fkey"
+            columns: ["client_id_high"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_duplicate_exclusions_client_id_low_fkey"
+            columns: ["client_id_low"]
+            isOneToOne: false
+            referencedRelation: "client_health"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "client_duplicate_exclusions_client_id_low_fkey"
+            columns: ["client_id_low"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_duplicate_exclusions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_health_settings: {
         Row: {
           company_id: string

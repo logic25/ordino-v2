@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -73,6 +73,7 @@ export default function Clients() {
   const [mergeMode, setMergeMode] = useState(false);
   const [selectedForMerge, setSelectedForMerge] = useState<Set<string>>(new Set());
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
+  const [sort, setSort] = useState<{ key: "name" | "client_type" | "email" | "phone" | "address" | "created_at"; direction: "asc" | "desc" }>({ key: "name", direction: "asc" });
   const { toast } = useToast();
 
   // Quick Create deep-link from TopBar
@@ -93,18 +94,31 @@ export default function Clients() {
   const deleteClient = useDeleteClient();
   const metrics = useClientMetrics(clients);
 
-  const filteredClients = clients.filter((c) => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      c.name?.toLowerCase().includes(query) ||
-      c.email?.toLowerCase().includes(query) ||
-      c.phone?.toLowerCase().includes(query) ||
-      c.address?.toLowerCase().includes(query) ||
-      (c as any).client_type?.toLowerCase().includes(query) ||
-      (c as any).tax_id?.toLowerCase().includes(query)
+  const filteredClients = useMemo(() => {
+    const query = searchQuery.toLocaleLowerCase();
+    const filtered = clients.filter((c) =>
+      !query ||
+      c.name?.toLocaleLowerCase().includes(query) ||
+      c.email?.toLocaleLowerCase().includes(query) ||
+      c.phone?.toLocaleLowerCase().includes(query) ||
+      c.address?.toLocaleLowerCase().includes(query) ||
+      c.client_type?.toLocaleLowerCase().includes(query) ||
+      c.tax_id?.toLocaleLowerCase().includes(query)
     );
-  });
+
+    return [...filtered].sort((a, b) => {
+      const left = String(a[sort.key] ?? "").trim();
+      const right = String(b[sort.key] ?? "").trim();
+      const result = left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
+      return sort.direction === "asc" ? result : -result;
+    });
+  }, [clients, searchQuery, sort]);
+
+  const handleSort = (key: typeof sort.key) => {
+    setSort((current) => current.key === key
+      ? { key, direction: current.direction === "asc" ? "desc" : "asc" }
+      : { key, direction: "asc" });
+  };
 
   const handleOpenCreate = () => {
     setEditingClient(null);
@@ -297,6 +311,8 @@ export default function Clients() {
                 isDeleting={deleteClient.isPending}
                 mergeMode={mergeMode}
                 selectedForMerge={selectedForMerge}
+                sort={sort}
+                onSort={handleSort}
                 onToggleMerge={(id) => {
                   setSelectedForMerge((prev) => {
                     const next = new Set(prev);
