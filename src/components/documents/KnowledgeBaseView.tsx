@@ -202,6 +202,10 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
         const result = await upload.mutateAsync({ file, folder: targetFolder });
         totalChunks += result.chunks_created || 0;
         successCount++;
+        // Stamp uploader + timestamp so the list can show "Uploaded by" / "Modified".
+        try {
+          await recordUpload.mutateAsync({ source_file: file.name, display_folder: humanize(targetFolder) });
+        } catch { /* metadata stamp is best-effort (requires admin/manager) */ }
         setUploadProgress({ done: successCount, total: selectedFiles.length });
       } catch (err: any) {
         toast({ title: `Failed: ${file.name}`, description: err.message, variant: "destructive" });
