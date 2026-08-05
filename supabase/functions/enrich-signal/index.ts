@@ -70,10 +70,14 @@ Deno.serve(async (req) => {
       return json({ error: "Invalid response from Beacon", warning: raw.slice(0, 200) }, 502);
     }
     const leads = Array.isArray(parsed?.leads) ? parsed.leads : [];
+    const articleUrls = Array.isArray(parsed?.article_urls)
+      ? parsed.article_urls.filter((u: unknown) => typeof u === "string" && u.trim())
+      : [];
     return json({
       lead_count: parsed?.lead_count ?? leads.length,
       leads,
       story: typeof parsed?.story === "string" ? parsed.story : "",
+      article_urls: articleUrls,
     });
   } catch (e: any) {
     console.error("enrich-signal failed", e);

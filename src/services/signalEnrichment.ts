@@ -22,6 +22,7 @@ export interface EnrichSignalResponse {
   lead_count: number;
   leads: SignalLead[];
   story?: string;
+  article_urls?: string[];
 }
 
 /** Extract structured leads from a market-signal blurb via Beacon (key stays server-side). */
@@ -31,10 +32,14 @@ export async function enrichSignal(text: string): Promise<EnrichSignalResponse> 
   });
   if (error) throw new Error(`Signal enrichment error: ${error.message}`);
   const leads = Array.isArray((data as any)?.leads) ? ((data as any).leads as SignalLead[]) : [];
+  const articleUrls = Array.isArray((data as any)?.article_urls)
+    ? ((data as any).article_urls as string[]).filter((u) => typeof u === "string" && u.trim())
+    : [];
   return {
     lead_count: (data as any)?.lead_count ?? leads.length,
     leads,
     story: typeof (data as any)?.story === "string" ? (data as any).story : "",
+    article_urls: articleUrls,
   };
 }
 
