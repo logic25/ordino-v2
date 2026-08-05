@@ -229,7 +229,10 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   const moveFolderChoices = useMemo(() => {
     const set = new Set<string>();
     for (const slug of apiFolderNames) set.add(humanize(slug));
-    for (const ov of overrides) set.add(ov.display_folder);
+    for (const ov of overrides) {
+      if (ov.display_folder === KB_HIDDEN_MARKER) continue;
+      set.add(ov.display_folder);
+    }
     return Array.from(set).sort();
   }, [apiFolderNames, overrides]);
 
