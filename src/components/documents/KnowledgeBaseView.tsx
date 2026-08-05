@@ -384,8 +384,29 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
         </Card>
       </div>
 
-      {/* Upload button */}
-      <div className="flex justify-end">
+      {/* Search / sort / upload */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search documents by name..."
+            className="pl-8"
+          />
+        </div>
+        <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+          <SelectTrigger className="w-full sm:w-[190px]">
+            <ArrowUpDown className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="name_asc">Name A–Z</SelectItem>
+            <SelectItem value="name_desc">Name Z–A</SelectItem>
+            <SelectItem value="date_desc">Newest modified</SelectItem>
+            <SelectItem value="date_asc">Oldest modified</SelectItem>
+          </SelectContent>
+        </Select>
         <Button size="sm" onClick={() => setUploadOpen(true)}>
           <Upload className="h-4 w-4 mr-2" /> Upload to Knowledge Base
         </Button>
@@ -401,7 +422,26 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
           ) : (
             <Accordion type="multiple" defaultValue={visibleFolderNames} className="w-full">
               {visibleFolderNames.map((folderName) => {
-                const files = Array.from(effectiveFolders.get(folderName) || []);
+                const q = search.trim().toLowerCase();
+                const files = Array.from(effectiveFolders.get(folderName) || [])
+                  .filter((filename) => {
+                    if (!q) return true;
+                    const ov = overrideMap.get(filename);
+                    const title = documentByFilename.get(filename)?.title || ov?.display_title || filename;
+                    return filename.toLowerCase().includes(q) || title.toLowerCase().includes(q);
+                  })
+                  .sort((a, b) => {
+                    if (sortBy === "name_asc" || sortBy === "name_desc") {
+                      const ta = documentByFilename.get(a)?.title || overrideMap.get(a)?.display_title || a;
+                      const tb = documentByFilename.get(b)?.title || overrideMap.get(b)?.display_title || b;
+                      const cmp = ta.trim().localeCompare(tb.trim(), undefined, { sensitivity: "base" });
+                      return sortBy === "name_asc" ? cmp : -cmp;
+                    }
+                    const da = fileMeta(a).modified ? new Date(fileMeta(a).modified!).getTime() : 0;
+                    const db = fileMeta(b).modified ? new Date(fileMeta(b).modified!).getTime() : 0;
+                    return sortBy === "date_desc" ? db - da : da - db;
+                  });
+                if (q && files.length === 0) return null;
                 return (
                   <AccordionItem key={folderName} value={folderName}>
                     <AccordionTrigger className="py-3 hover:no-underline">
@@ -413,10 +453,17 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                     </AccordionTrigger>
                     <AccordionContent>
                       <div className="grid gap-1 pl-6">
-                        {files.sort().map((filename) => {
+                        <div className="hidden md:flex items-center gap-2 px-2 pb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                          <span className="flex-1">Name</span>
+                          <span className="w-28 shrink-0">Modified</span>
+                          <span className="w-36 shrink-0">Uploaded by</span>
+                          <span className="w-7 shrink-0" />
+                        </div>
+                        {files.map((filename) => {
                           const ov = overrideMap.get(filename);
                           const universalDocument = documentByFilename.get(filename);
                           const displayTitle = universalDocument?.title || ov?.display_title || filename;
+                          const meta = fileMeta(filename);
                           return (
                             <div
                               key={filename}
@@ -427,12 +474,20 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                                 type="button"
                                 className="truncate flex-1 text-left cursor-pointer"
                                 onClick={() => setViewingFile(filename)}
+                                title={filename}
                               >
                                 {displayTitle}
                               </button>
                               {ov?.hidden && (
                                 <Badge variant="outline" className="text-[10px] opacity-70">moved</Badge>
                               )}
+                              <span className="hidden md:block w-28 shrink-0 text-xs text-muted-foreground truncate">
+                                {formatDate(meta.modified)}
+                              </span>
+                              <span className="hidden md:block w-36 shrink-0 text-xs text-muted-foreground truncate" title={meta.uploader || undefined}>
+                                {meta.uploader || "—"}
+                              </span>
+
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button
