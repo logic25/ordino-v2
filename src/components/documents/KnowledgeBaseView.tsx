@@ -474,6 +474,19 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                       const cmp = ta.trim().localeCompare(tb.trim(), undefined, { sensitivity: "base" });
                       return sortBy === "name_asc" ? cmp : -cmp;
                     }
+                    if (sortBy === "uploader_asc" || sortBy === "uploader_desc") {
+                      const ua = fileMeta(a).uploader || "";
+                      const ub = fileMeta(b).uploader || "";
+                      if (!ua && ub) return 1;
+                      if (ua && !ub) return -1;
+                      const cmp = ua.localeCompare(ub, undefined, { sensitivity: "base" });
+                      return sortBy === "uploader_asc" ? cmp : -cmp;
+                    }
+                    if (sortBy === "chunks_desc" || sortBy === "chunks_asc") {
+                      const ca = chunkCount(a) ?? -1;
+                      const cb = chunkCount(b) ?? -1;
+                      return sortBy === "chunks_desc" ? cb - ca : ca - cb;
+                    }
                     const da = fileMeta(a).modified ? new Date(fileMeta(a).modified!).getTime() : 0;
                     const db = fileMeta(b).modified ? new Date(fileMeta(b).modified!).getTime() : 0;
                     return sortBy === "date_desc" ? db - da : da - db;
