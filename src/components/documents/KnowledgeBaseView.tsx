@@ -20,7 +20,7 @@ import {
   FileText, FolderOpen, Upload, Loader2, AlertCircle, File, MoreVertical, FolderInput, RotateCcw, Trash2, Pencil, Search, ArrowUpDown, AlertTriangle,
 } from "lucide-react";
 import { useBeaconKnowledge, useUploadToBeaconKB } from "@/hooks/useBeaconKnowledge";
-import { useBeaconKbOverrides, useUpsertBeaconKbOverride, useClearBeaconKbOverride, useSetBeaconKbTitle, useRecordBeaconKbUpload } from "@/hooks/useBeaconKbOverrides";
+import { useBeaconKbOverrides, useUpsertBeaconKbOverride, useClearBeaconKbOverride, useSetBeaconKbTitle, useRecordBeaconKbUpload, useHideBeaconKbFile, KB_HIDDEN_MARKER } from "@/hooks/useBeaconKbOverrides";
 import { useUniversalDocuments, useUpdateDocumentTitle } from "@/hooks/useUniversalDocuments";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useIsAdmin } from "@/hooks/useUserRoles";
@@ -56,6 +56,7 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   const upsertOverride = useUpsertBeaconKbOverride();
   const clearOverride = useClearBeaconKbOverride();
   const recordUpload = useRecordBeaconKbUpload();
+  const hideKbFile = useHideBeaconKbFile();
   const upload = useUploadToBeaconKB();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -201,8 +202,11 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
       }
     }
     // 2. Apply overrides — add file into its override display_folder
+    // (rows marked hidden, e.g. stale/phantom entries left behind after a
+    // delete, are dropped entirely and never re-added)
     for (const [source_file, ov] of overrideMap.entries()) {
       const folder = ov.display_folder;
+      if (folder === KB_HIDDEN_MARKER || ov.notes === KB_HIDDEN_MARKER) continue;
       if (!out.has(folder)) out.set(folder, new Set());
       out.get(folder)!.add(source_file);
     }
@@ -225,7 +229,10 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   const moveFolderChoices = useMemo(() => {
     const set = new Set<string>();
     for (const slug of apiFolderNames) set.add(humanize(slug));
-    for (const ov of overrides) set.add(ov.display_folder);
+    for (const ov of overrides) {
+      if (ov.display_folder === KB_HIDDEN_MARKER) continue;
+      set.add(ov.display_folder);
+    }
     return Array.from(set).sort();
   }, [apiFolderNames, overrides]);
 
@@ -338,6 +345,9 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
     setDeleteSaving(true);
     try {
       await deleteBeaconDoc(deleteTarget);
+      // Beacon's index can keep returning a stale (phantom) entry after the
+      // chunks are gone — hide it locally so it stops reappearing in the list.
+      await hideKbFile.mutateAsync(deleteTarget).catch(() => {});
       qc.invalidateQueries({ queryKey: ["beacon-knowledge"] });
       qc.invalidateQueries({ queryKey: ["kb-deleted-documents"] });
       toast({ title: "Deleted", description: "Backed up — restorable from Recently Deleted." });
@@ -603,6 +613,14 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                                     </DropdownMenuItem>
                                   )}
                                   <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={async () => {
+                                      await hideKbFile.mutateAsync(filename);
+                                      toast({ title: "Hidden", description: "Stale entry removed from this list." });
+                                    }}
+                                  >
+                                    <AlertTriangle className="h-3.5 w-3.5 mr-2" /> Hide stale entry
+                                  </DropdownMenuItem>
                                   <DropdownMenuItem
                                     className="text-destructive focus:text-destructive"
                                     onClick={() => setDeleteTarget(filename)}
