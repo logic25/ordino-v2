@@ -237,7 +237,15 @@ export function BeaconDocumentModal({
 
       // Use the Beacon proxy edge function for ingestion
       const { syncDocumentToBeacon } = await import("@/services/beaconApi");
-      await syncDocumentToBeacon(file, file.name, metadata.category || "filing_guides");
+      await syncDocumentToBeacon(
+        file,
+        file.name,
+        metadata.category || "filing_guides",
+        "NYC",
+        profile
+          ? profile.display_name || [profile.first_name, profile.last_name].filter(Boolean).join(" ")
+          : undefined,
+      );
 
       setBody(editContent);
       setOriginalContent(fullContent);

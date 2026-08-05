@@ -14,8 +14,8 @@ export function useUploadToBeaconKB() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ file, folder }: { file: File; folder: string }) => {
-      return syncDocumentToBeacon(file, file.name, folder);
+    mutationFn: async ({ file, folder, uploadedBy }: { file: File; folder: string; uploadedBy?: string }) => {
+      return syncDocumentToBeacon(file, file.name, folder, "NYC", uploadedBy);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["beacon-knowledge"] });
