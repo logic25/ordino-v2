@@ -7,7 +7,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { THWT } from "@/components/ui/table-head-with-tip";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
