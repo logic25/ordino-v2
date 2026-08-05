@@ -113,11 +113,14 @@ export async function syncDocumentToBeacon(
   filename: string,
   folderName: string,
   jurisdiction: string = "NYC",
+  uploadedBy?: string,
 ): Promise<{ success: boolean; chunks_created: number }> {
   const formData = new FormData();
   formData.append("file", file, filename);
   formData.append("folder", folderName);
   formData.append("jurisdiction", jurisdiction || "NYC");
+  if (uploadedBy?.trim()) formData.append("uploaded_by", uploadedBy.trim());
+
 
   // Use raw fetch for FormData since supabase.functions.invoke doesn't support it well
   const { data: { session } } = await supabase.auth.getSession();
