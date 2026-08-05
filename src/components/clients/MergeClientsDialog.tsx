@@ -131,7 +131,7 @@ export function MergeClientsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[560px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Merge className="h-5 w-5" />
@@ -155,23 +155,23 @@ export function MergeClientsDialog({
             {clients.map((c) => (
               <div
                 key={c.id}
-                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                   primaryId === c.id ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground/30"
                 }`}
                 onClick={() => setPrimaryId(c.id)}
               >
-                <RadioGroupItem value={c.id} id={c.id} />
+                <RadioGroupItem value={c.id} id={c.id} className="mt-0.5 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">{c.name}</span>
+                  <div className="flex min-w-0 items-start gap-2">
+                    <span className="min-w-0 flex-1 break-words text-sm font-medium leading-5">{c.name}</span>
                     {primaryId === c.id && (
-                      <Badge variant="secondary" className="text-[10px]">Primary</Badge>
+                      <Badge variant="secondary" className="shrink-0 text-[10px]">Primary</Badge>
                     )}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
+                  <div className="mt-0.5 break-words text-xs leading-4 text-muted-foreground">
                     {[c.email, c.phone, (c as any).client_type].filter(Boolean).join(" · ") || "—"}
                   </div>
-                  <div className="text-xs mt-0.5">
+                  <div className="mt-0.5 break-words text-xs leading-4">
                     {renderStats(c.id)}
                   </div>
                 </div>
@@ -180,11 +180,16 @@ export function MergeClientsDialog({
           </RadioGroup>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={merging}>
+        <DialogFooter className="gap-2 sm:grid sm:grid-cols-[auto_minmax(0,1fr)]">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={merging} className="sm:mt-0">
             Cancel
           </Button>
-          <Button onClick={handleMerge} disabled={merging || duplicates.length === 0} variant="destructive">
+          <Button
+            onClick={handleMerge}
+            disabled={merging || duplicates.length === 0}
+            variant="destructive"
+            className="h-auto min-h-10 min-w-0 whitespace-normal py-2 text-center leading-5"
+          >
             {merging ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
