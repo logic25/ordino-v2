@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Pencil, Save, History, RotateCcw, Settings2 } from "lucide-react";
+import { Loader2, Pencil, Save, History, RotateCcw, Settings2, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchBeaconFileContent, FOLDER_TO_SOURCE_TYPE } from "@/services/beaconApi";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +18,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useAuth } from "@/hooks/useAuth";
 import { useKbDocumentVersions, kbVersionChangerName, type KbDocumentVersion } from "@/hooks/useKbDocumentVersions";
+import { useKbOriginal, getKbOriginalUrl } from "@/hooks/useKbOriginal";
+
 
 /**
  * Parse YAML frontmatter from document content.
@@ -154,6 +156,22 @@ export function BeaconDocumentModal({
   const [propsDraft, setPropsDraft] = useState<Record<string, string>>({});
   const versions = useKbDocumentVersions(sourceFile);
   const versionCount = versions.data?.length || 0;
+  const original = useKbOriginal(open ? sourceFile : null);
+  const [downloadingOriginal, setDownloadingOriginal] = useState(false);
+
+  const handleDownloadOriginal = async () => {
+    if (!original.data) return;
+    setDownloadingOriginal(true);
+    try {
+      const url = await getKbOriginalUrl(original.data.storage_path);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err: any) {
+      toast({ title: "Download failed", description: err.message, variant: "destructive" });
+    } finally {
+      setDownloadingOriginal(false);
+    }
+  };
+
 
   useEffect(() => {
     if (!open || !sourceFile) return;
@@ -553,8 +571,25 @@ export function BeaconDocumentModal({
                     >
                       <Settings2 className="h-4 w-4 mr-1" /> Properties
                     </Button>
+                    {original.data && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDownloadOriginal}
+                        disabled={downloadingOriginal}
+                        title="Download the file exactly as it was uploaded"
+                      >
+                        {downloadingOriginal ? (
+                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        ) : (
+                          <Download className="h-4 w-4 mr-1" />
+                        )}
+                        Download original
+                      </Button>
+                    )}
                   </>
                 )}
+
                 <Button
                   variant="outline"
                   size="sm"

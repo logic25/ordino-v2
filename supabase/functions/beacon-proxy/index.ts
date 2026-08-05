@@ -771,6 +771,60 @@ Deno.serve(async (req) => {
     } else if (action === "ingest") {
       beaconUrl = `${BEACON_API_URL}/api/ingest`;
       const formData = await req.formData();
+
+      // ── Keep the original file ──
+      // Store the raw upload in the private `kb-originals` bucket and record it in
+      // beacon_kb_originals so the KB viewer can offer a signed download later.
+      // Best-effort: a storage failure must never block Beacon ingestion.
+      try {
+        const rawFile = formData.get("file");
+        const folderField = String(formData.get("folder") || "").trim();
+        if (rawFile instanceof File) {
+          const sbSvc = createClient(
+            Deno.env.get("SUPABASE_URL")!,
+            Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+          );
+          const { data: prof } = await sbSvc
+            .from("profiles")
+            .select("company_id")
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+          if (prof?.company_id) {
+            const storagePath = `${folderField || "_root"}/${rawFile.name}`;
+            const bytes = new Uint8Array(await rawFile.arrayBuffer());
+            const { error: upErr } = await sbSvc.storage
+              .from("kb-originals")
+              .upload(storagePath, bytes, {
+                contentType: rawFile.type || "application/octet-stream",
+                upsert: true,
+              });
+            if (upErr) {
+              console.error("kb-originals upload failed:", upErr.message);
+            } else {
+              const { error: rowErr } = await sbSvc
+                .from("beacon_kb_originals")
+                .upsert(
+                  {
+                    company_id: prof.company_id,
+                    source_file: rawFile.name,
+                    folder: folderField || null,
+                    storage_path: storagePath,
+                    content_type: rawFile.type || null,
+                    size_bytes: rawFile.size,
+                    uploaded_by: user.id,
+                    uploaded_at: new Date().toISOString(),
+                  },
+                  { onConflict: "company_id,source_file" },
+                );
+              if (rowErr) console.error("beacon_kb_originals upsert failed:", rowErr.message);
+            }
+          }
+        }
+      } catch (e) {
+        console.error("kb-originals retention error:", e);
+      }
+
       beaconReqInit = {
         method: "POST",
         headers: {
@@ -778,6 +832,7 @@ Deno.serve(async (req) => {
         },
         body: formData,
       };
+
     } else if (action === "knowledge-list") {
       beaconUrl = `${BEACON_API_URL}/api/knowledge/list`;
       beaconReqInit = {
