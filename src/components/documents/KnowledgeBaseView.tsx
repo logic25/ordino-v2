@@ -509,6 +509,21 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                               <span className="hidden md:block w-36 shrink-0 text-xs text-muted-foreground truncate" title={meta.uploader || undefined}>
                                 {meta.uploader || "—"}
                               </span>
+                              {(() => {
+                                const count = chunkCount(filename);
+                                const status = chunkStatus(filename, count);
+                                return (
+                                  <span
+                                    className={`hidden md:block w-20 shrink-0 text-xs text-right ${
+                                      status.isEmpty ? "text-muted-foreground italic" : status.isWarning ? "text-destructive" : ""
+                                    }`}
+                                    title={status.title}
+                                  >
+                                    {status.isWarning && <AlertTriangle className="inline h-3 w-3 mr-1" />}
+                                    {status.text}
+                                  </span>
+                                );
+                              })()}
 
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
