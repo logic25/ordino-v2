@@ -1,29 +1,27 @@
-# KB preview: fix run-on / over-bolded document rendering
+# Fix stray text fragments in Knowledge Base document preview
 
-## Why it looks like this
+## What you're seeing
 
-The preview for `ca-elecover.pdf` renders text that Beacon extracted from the PDF at ingest time and reassembled from Pinecone chunks. Two separate causes:
+Lines like `ral Filing and Permit Requirements` and `ing BB 2025-011 online, ensure you have Rev1 (Oct 28, 2025) version ---` are chunk-boundary leftovers.
 
-1. **The stored text is already damaged.** Words are split mid-token (`w hat you shoul d know`) and whole paragraphs arrive as a single line with no breaks. That comes from PDF text extraction upstream — Ordino only displays it.
-2. **The preview's normalizer over-promotes headings.** In `BeaconDocumentModal.tsx`, `normalizeMarkdown` turns any `#`-`######` marker into a heading wherever it appears (`/\s*(#{1,6})\s+/`). When the source is one long line, three sentences get swallowed into one `##` heading — which is exactly the giant bold block at the top of the screenshot. There is also no rule that re-breaks run-on prose into paragraphs.
+When a document is ingested, Beacon splits it into overlapping chunks. The preview reassembles those chunks by concatenating them, so the overlapping tail/head of adjacent chunks reappears as an orphan fragment — often starting mid-word (`...Structu` + `ral Filing and Permit Requirements`). The source document is fine; the reassembly is what's wrong.
 
-## Plan — preview-side rendering fixes
+Note: this is a reading of the symptom pattern, not yet confirmed against the raw chunk payload. Step 1 confirms it before any fix ships.
 
-All changes in `src/components/documents/BeaconDocumentModal.tsx` (`normalizeMarkdown`), display-only, no re-ingest, no change to stored content:
+## Plan
 
-- **Cap heading length.** A `#`-marked segment becomes a real heading only when it is short (roughly under 90 characters) and has no sentence-ending punctuation mid-way. Longer segments render as a bold lead-in followed by normal paragraph text, so a full paragraph can never render as an H2.
-- **Terminate headings at the sentence boundary.** When a heading line runs on, cut it at the first `. ` / `: ` followed by a capital and push the remainder into a paragraph.
-- **Re-break run-on prose.** Split single-line blobs into paragraphs at sentence boundaries when a line exceeds a length threshold, so body copy stops rendering as one wall of text.
-- **Repair split words conservatively.** Rejoin only clearly broken tokens — a single-letter fragment adjacent to a word fragment (`w hat` → `what`, `shoul d` → `should`) — using a strict pattern that leaves legitimate single-letter words (`a`, `I`) alone. Anything ambiguous is left exactly as stored.
-- **Raw view escape hatch.** Add a "Raw text" toggle next to the existing Edit/Properties/History controls so you can always see the unformatted stored content and judge whether the source itself needs a re-ingest.
+1. **Confirm the cause.** Fetch the raw `file-content` payload for BB 2025-011 and inspect whether the returned text contains duplicated/overlapping chunk boundaries (vs. the fragments being present in the stored source itself).
 
-## Note on the real fix
+2. **Prefer the original file when we have it.** We already keep source files in `kb-originals` (`beacon_kb_originals`). If an original exists for the document, render the preview from that instead of the reassembled chunk text — no boundary artifacts at all.
 
-Cosmetic cleanup makes the preview readable, but the damaged text is also what Beacon retrieves from and cites. Documents like this one ideally get re-ingested with a better PDF text extractor on the Railway side. The Raw text toggle makes it easy to spot which documents need that.
+3. **Clean up reassembled text as fallback** (for documents ingested before originals were kept): in the preview render path, de-duplicate overlapping chunk seams — drop a leading fragment when it repeats the tail of the preceding block, and drop orphan lines that begin mid-word and duplicate text already shown.
+
+4. **Do not touch what's in the knowledge base.** This is display-only; nothing is re-ingested and no chunks change, so Beacon's answers are unaffected.
+
+5. **Changelog entry** for the fix.
 
 ## Technical notes
 
-- Single file touched: `src/components/documents/BeaconDocumentModal.tsx`.
-- `normalizeMarkdown` becomes a small pipeline of named steps so each heuristic is testable in isolation.
-- Add unit tests under `src/components/documents/__tests__/` covering: long `##` line does not become a heading, short one does, run-on paragraph splits, `w hat` rejoins, `a permit` / `I filed` untouched.
-- Changelog entry inserted per project convention.
+- Preview data comes from `fetchBeaconFileContent` in `src/services/beaconApi.ts`, rendered in `src/components/documents/BeaconDocumentModal.tsx`.
+- Original-file lookup and signed URL already exist in `src/hooks/useKbOriginal.ts`.
+- Seam cleanup belongs in a small pure helper (easy to unit-test) rather than inline in the modal.
