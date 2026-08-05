@@ -201,7 +201,7 @@ export function BeaconKbGaps() {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button asChild size="sm" variant="outline">
-                        <Link to="/beacon?tab=teach">
+                        <Link to={`/beacon?tab=teach&teachQ=${encodeURIComponent(g.examples[0] ?? "")}&teachTopic=${encodeURIComponent(g.topic)}`}>
                           <GraduationCap className="h-3.5 w-3.5 mr-1" /> Teach
                         </Link>
                       </Button>
