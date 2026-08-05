@@ -267,7 +267,7 @@ export default function Clients() {
           />
         </div>
 
-        <Card>
+        <Card className="min-w-0 overflow-hidden">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Building2 className="h-5 w-5" />
@@ -282,7 +282,7 @@ export default function Clients() {
               Property owners, architects, contractors, and more
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="min-w-0 px-0 sm:px-6">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
