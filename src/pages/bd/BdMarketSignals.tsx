@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { safeFormatDate } from "@/lib/dateUtils";
+import { CaptureLeadModal } from "@/components/bd/CaptureLeadModal";
 
 type MarketSignal = {
   id: string;
@@ -33,6 +34,7 @@ export default function BdMarketSignals({ embedded = false }: { embedded?: boole
   const { toast } = useToast();
   const companyId = profile?.company_id;
   const [tab, setTab] = useState<"NEW" | "ARCHIVED">("NEW");
+  const [selectedSignal, setSelectedSignal] = useState<MarketSignal | null>(null);
 
   const { data: signals, isLoading } = useQuery({
     queryKey: ["bd-market-signals", companyId, tab],
@@ -62,36 +64,6 @@ export default function BdMarketSignals({ embedded = false }: { embedded?: boole
       qc.invalidateQueries({ queryKey: ["bd-market-signals"] });
       toast({ title: "Archived" });
     },
-  });
-
-  const createLead = useMutation({
-    mutationFn: async (s: MarketSignal) => {
-      const { data, error } = await supabase
-        .from("leads")
-        .insert({
-          company_id: s.company_id,
-          full_name: s.sender || s.title,
-          source: "email",
-          status: "new",
-          notes: [s.title, s.summary, s.source_url].filter(Boolean).join("\n\n"),
-        } as any)
-        .select("id")
-        .single();
-      if (error) throw error;
-      // mark signal archived once it becomes a lead
-      await supabase
-        .from("bd_market_signals" as any)
-        .update({ status: "ARCHIVED" })
-        .eq("id", s.id);
-      return data.id as string;
-    },
-    onSuccess: (id) => {
-      qc.invalidateQueries({ queryKey: ["bd-market-signals"] });
-      qc.invalidateQueries({ queryKey: ["leads"] });
-      navigate(`/bd/leads/${id}`);
-    },
-    onError: (e: any) =>
-      toast({ title: "Could not create lead", description: e.message, variant: "destructive" }),
   });
 
   const Shell = embedded ? Fragment : AppLayout;
@@ -168,8 +140,7 @@ export default function BdMarketSignals({ embedded = false }: { embedded?: boole
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => createLead.mutate(s)}
-                          disabled={createLead.isPending}
+                          onClick={() => setSelectedSignal(s)}
                         >
                           <UserPlus className="h-3.5 w-3.5 mr-1.5" />
                           Create lead
@@ -192,6 +163,29 @@ export default function BdMarketSignals({ embedded = false }: { embedded?: boole
           </div>
         )}
       </div>
+      <CaptureLeadModal
+        open={!!selectedSignal}
+        onOpenChange={(open) => { if (!open) setSelectedSignal(null); }}
+        defaultValues={selectedSignal ? {
+          fullName: selectedSignal.title,
+          company: selectedSignal.title,
+          notes: selectedSignal.summary ?? "",
+          source: "Market Signal",
+          sourceType: "OTHER",
+          marketSignalId: selectedSignal.id,
+        } : undefined}
+        onCreated={async (leadId) => {
+          if (selectedSignal) {
+            await supabase
+              .from("bd_market_signals" as any)
+              .update({ status: "ARCHIVED" })
+              .eq("id", selectedSignal.id);
+            await qc.invalidateQueries({ queryKey: ["bd-market-signals"] });
+          }
+          setSelectedSignal(null);
+          navigate(`/bd/leads/${leadId}`);
+        }}
+      />
     </Shell>
   );
 }
