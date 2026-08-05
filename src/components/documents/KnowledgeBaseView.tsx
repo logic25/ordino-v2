@@ -514,7 +514,7 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                                 const status = chunkStatus(filename, count);
                                 return (
                                   <span
-                                    className={`hidden md:block w-20 shrink-0 text-xs text-right ${
+                                    className={`block w-20 shrink-0 text-xs text-right ${
                                       status.isEmpty ? "text-muted-foreground italic" : status.isWarning ? "text-destructive" : ""
                                     }`}
                                     title={status.title}
