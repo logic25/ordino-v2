@@ -1,27 +1,34 @@
-# Fix stray text fragments in Knowledge Base document preview
+# Surface Uploaded By / Modified in the Beacon Knowledge Base grid
 
-## What you're seeing
+## What I verified first
 
-Lines like `ral Filing and Permit Requirements` and `ing BB 2025-011 online, ensure you have Rev1 (Oct 28, 2025) version ---` are chunk-boundary leftovers.
+I called the live knowledge-list endpoint. Beacon does return per-document metadata, but the current values matter for expectations:
 
-When a document is ingested, Beacon splits it into overlapping chunks. The preview reassembles those chunks by concatenating them, so the overlapping tail/head of adjacent chunks reappears as an orphan fragment — often starting mid-word (`...Structu` + `ral Filing and Permit Requirements`). The source document is fine; the reassembly is what's wrong.
+- Every item includes `filename`, `folder`, `source_type`, `chunks_created`, `ingested_at`, `uploaded_by`, `is_current`, `version`.
+- `uploaded_by` is currently an **empty string on the documents I sampled** — Beacon has the field, but nothing has been writing it.
+- `ingested_at` is the literal string `"pre-manifest"` for older documents and a real ISO timestamp for recently ingested ones (e.g. `1_RCNY_101-14.pdf` → `2026-08-05T17:17:21`).
 
-Note: this is a reading of the symptom pattern, not yet confirmed against the raw chunk payload. Step 1 confirms it before any fix ships.
+So: wiring the metadata through will light up **Modified** for recently ingested files, and **Uploaded By** will start filling in only for uploads made after change 3 ships. Historical rows will honestly keep showing "—" (Beacon has no uploader recorded for them). The grid already falls back to our local override/document records for uploader, so rows we stamped locally keep working.
 
-## Plan
+## Changes
 
-1. **Confirm the cause.** Fetch the raw `file-content` payload for BB 2025-011 and inspect whether the returned text contains duplicated/overlapping chunk boundaries (vs. the fragments being present in the stored source itself).
+**1. Carry metadata through the service layer** (`src/services/beaconApi.ts`)
+- Extend `BeaconKnowledgeDetail` with `uploaded_by?: string` and `ingested_at?: string` (`chunks_created` is already there).
+- In `fetchBeaconKnowledgeList()`, alongside the existing folder-building logic (unchanged), build `docMeta: Record<string, { uploaded_by?: string; chunks_created?: number; ingested_at?: string }>` keyed by filename, and add `docMeta` to `BeaconKnowledgeData`.
 
-2. **Prefer the original file when we have it.** We already keep source files in `kb-originals` (`beacon_kb_originals`). If an original exists for the document, render the preview from that instead of the reassembled chunk text — no boundary artifacts at all.
+**2. Render it in the grid** (`src/components/documents/KnowledgeBaseView.tsx`)
+- Extend the existing `fileMeta(filename)` helper so it falls back to `docMeta[filename]`:
+  - Uploader: local document/override uploader first, then `docMeta.uploaded_by` (ignore empty string), else `—`.
+  - Modified: local `updated_at`/`created_at` first, then `docMeta.ingested_at` — treated as missing when empty or `"pre-manifest"`.
+- Chunk count: fall back to `docMeta[filename]?.chunks_created` when `fileChunks` has no entry.
+- Because sorting already routes through `fileMeta()` and `chunkCount()`, the Uploaded By / Modified / Chunks column sorts pick up the new values with no extra work.
 
-3. **Clean up reassembled text as fallback** (for documents ingested before originals were kept): in the preview render path, de-duplicate overlapping chunk seams — drop a leading fragment when it repeats the tail of the preceding block, and drop orphan lines that begin mid-word and duplicate text already shown.
+**3. Record the uploader on future uploads**
+- `syncDocumentToBeacon()` gains an optional `uploadedBy` argument appended to the multipart form as `uploaded_by` (the ingest proxy forwards the form data through untouched, so no edge-function change is needed).
+- Pass the current user's display name (`profile.display_name`, else `first_name last_name`) from the Knowledge Base upload flow (`useUploadToBeaconKB` / `handleUpload`) and from `BeaconDocumentModal`'s save/re-ingest path.
 
-4. **Do not touch what's in the knowledge base.** This is display-only; nothing is re-ingested and no chunks change, so Beacon's answers are unaffected.
+**4. Changelog** entry for the improvement.
 
-5. **Changelog entry** for the fix.
+## Note on caching
 
-## Technical notes
-
-- Preview data comes from `fetchBeaconFileContent` in `src/services/beaconApi.ts`, rendered in `src/components/documents/BeaconDocumentModal.tsx`.
-- Original-file lookup and signed URL already exist in `src/hooks/useKbOriginal.ts`.
-- Seam cleanup belongs in a small pure helper (easy to unit-test) rather than inline in the modal.
+The KB list is cached for ~5 minutes by React Query, so after this ships a hard refresh (Cmd+Shift+R) shows the new values immediately.
