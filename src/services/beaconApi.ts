@@ -186,6 +186,19 @@ export async function fetchBeaconKnowledgeList(): Promise<BeaconKnowledgeData> {
 
   let folders: Record<string, string[]> = {};
   const fileChunks: Record<string, number | undefined> = {};
+  const docMeta: Record<string, BeaconDocMeta> = {};
+
+  const recordMeta = (filename: string, detail: BeaconKnowledgeDetail) => {
+    const ingestedAt = detail.ingested_at?.trim();
+    const uploadedBy = detail.uploaded_by?.trim();
+    docMeta[filename] = {
+      ...(uploadedBy ? { uploaded_by: uploadedBy } : {}),
+      ...(typeof detail.chunks_created === "number" ? { chunks_created: detail.chunks_created } : {}),
+      // "pre-manifest" is Beacon's placeholder for docs ingested before it tracked timestamps.
+      ...(ingestedAt && ingestedAt !== "pre-manifest" ? { ingested_at: ingestedAt } : {}),
+    };
+  };
+
 
   if (data.folders && typeof data.folders === "object") {
     folders = data.folders;
