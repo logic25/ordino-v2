@@ -51,9 +51,11 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   const isAdmin = useIsAdmin();
   const updateDocumentTitle = useUpdateDocumentTitle();
   const { data: overrides = [] } = useBeaconKbOverrides();
+  const { data: companyProfiles = [] } = useCompanyProfiles();
   const setKbTitle = useSetBeaconKbTitle();
   const upsertOverride = useUpsertBeaconKbOverride();
   const clearOverride = useClearBeaconKbOverride();
+  const recordUpload = useRecordBeaconKbUpload();
   const upload = useUploadToBeaconKB();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -68,6 +70,8 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   const [deleteSaving, setDeleteSaving] = useState(false);
   const [renameTarget, setRenameTarget] = useState<{ id: string | null; filename: string; title: string; folder: string } | null>(null);
   const [renameTitle, setRenameTitle] = useState("");
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<"name_asc" | "name_desc" | "date_desc" | "date_asc">("name_asc");
 
   const documentByFilename = useMemo(() => {
     const map = new Map<string, (typeof universalDocuments)[number]>();
@@ -75,17 +79,50 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
     return map;
   }, [universalDocuments]);
 
+  // auth user_id -> display name, for "Uploaded by" on Beacon-only files
+  const nameByUserId = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of companyProfiles as any[]) {
+      const name = p.display_name || [p.first_name, p.last_name].filter(Boolean).join(" ");
+      if (p.user_id && name) m.set(p.user_id, name);
+    }
+    return m;
+  }, [companyProfiles]);
+
   // Build override map: source_file -> { display_folder, hidden_from_original, notes }
   // notes prefixed with "__orig__:<slug>" means a real backend move; the slug is
   // the original Beacon folder so "Reset to original folder" can call the backend
   // to put it back, not just clear a display-only override.
   const overrideMap = useMemo(() => {
-    const m = new Map<string, { display_folder: string; display_title: string | null; hidden: boolean; notes: string | null }>();
+    const m = new Map<string, { display_folder: string; display_title: string | null; hidden: boolean; notes: string | null; created_by: string | null; updated_at: string | null; created_at: string | null }>();
     for (const o of overrides) {
-      m.set(o.source_file, { display_folder: o.display_folder, display_title: o.display_title ?? null, hidden: o.hidden_from_original, notes: o.notes });
+      m.set(o.source_file, {
+        display_folder: o.display_folder,
+        display_title: o.display_title ?? null,
+        hidden: o.hidden_from_original,
+        notes: o.notes,
+        created_by: o.created_by ?? null,
+        updated_at: o.updated_at ?? null,
+        created_at: o.created_at ?? null,
+      });
     }
     return m;
   }, [overrides]);
+
+  // Per-file display metadata used by the Modified / Uploaded by columns and sorting.
+  const fileMeta = (filename: string) => {
+    const ov = overrideMap.get(filename);
+    const doc = documentByFilename.get(filename);
+    const modified = doc?.updated_at || doc?.created_at || ov?.updated_at || ov?.created_at || null;
+    const uploader = doc?.uploader
+      ? (doc.uploader.display_name || [doc.uploader.first_name, doc.uploader.last_name].filter(Boolean).join(" "))
+      : (ov?.created_by ? nameByUserId.get(ov.created_by) || null : null);
+    return { modified, uploader: uploader || null };
+  };
+
+  const formatDate = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "—";
+
 
   // Folders coming from the Beacon API (slug form)
   const apiFolderNames = useMemo(() => {
