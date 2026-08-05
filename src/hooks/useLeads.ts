@@ -136,6 +136,7 @@ export interface CreateLeadInput {
   hot_opportunity?: boolean;
   expected_value?: number | null;
   project_timeline?: LeadTimeline | null;
+  market_signal_id?: string | null;
   // Party blocks
   architect_name?: string | null;
   architect_company?: string | null;

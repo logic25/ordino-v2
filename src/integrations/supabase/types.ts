@@ -7230,6 +7230,7 @@ export type Database = {
           intro_sent_at: string | null
           lead_kind: Database["public"]["Enums"]["lead_kind"]
           lost_reason: string | null
+          market_signal_id: string | null
           next_follow_up_at: string | null
           notes: string | null
           project_timeline:
@@ -7291,6 +7292,7 @@ export type Database = {
           intro_sent_at?: string | null
           lead_kind?: Database["public"]["Enums"]["lead_kind"]
           lost_reason?: string | null
+          market_signal_id?: string | null
           next_follow_up_at?: string | null
           notes?: string | null
           project_timeline?:
@@ -7354,6 +7356,7 @@ export type Database = {
           intro_sent_at?: string | null
           lead_kind?: Database["public"]["Enums"]["lead_kind"]
           lost_reason?: string | null
+          market_signal_id?: string | null
           next_follow_up_at?: string | null
           notes?: string | null
           project_timeline?:
@@ -7436,6 +7439,13 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "bd_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_market_signal_id_fkey"
+            columns: ["market_signal_id"]
+            isOneToOne: false
+            referencedRelation: "bd_market_signals"
             referencedColumns: ["id"]
           },
           {

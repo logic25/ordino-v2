@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/collapsible";
 import {
   Loader2, UserPlus, ChevronDown, ChevronRight, Upload,
-  CalendarDays, Users, Phone, Mail, Globe, Search, Snowflake, MoreHorizontal, User, X,
+  CalendarDays, Users, Phone, Mail, Globe, Search, Snowflake, MoreHorizontal, User, X, Radio,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -57,10 +57,20 @@ const CLIENT_TYPES = [
   { value: "other", label: "Other" },
 ];
 
+export interface CaptureLeadDefaults {
+  fullName?: string;
+  company?: string;
+  notes?: string;
+  source?: string;
+  sourceType?: LeadSourceType;
+  marketSignalId?: string;
+}
+
 interface CaptureLeadModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated?: (leadId: string) => void;
+  defaultValues?: CaptureLeadDefaults;
 }
 
 /** Searchable client_contacts picker for the Referral source. Returns id + name. */
@@ -162,7 +172,7 @@ const blankParty = {
   tpp_name: "", tpp_email: "",
 };
 
-export function CaptureLeadModal({ open, onOpenChange, onCreated }: CaptureLeadModalProps) {
+export function CaptureLeadModal({ open, onOpenChange, onCreated, defaultValues }: CaptureLeadModalProps) {
   const { toast } = useToast();
   const createLead = useCreateLead();
   const { data: pmProfiles = [] } = useAssignableProfiles();
@@ -191,6 +201,14 @@ export function CaptureLeadModal({ open, onOpenChange, onCreated }: CaptureLeadM
 
   const [assignedTo, setAssignedTo] = useState("");
   const [notes, setNotes] = useState("");
+
+  useEffect(() => {
+    if (!open || !defaultValues) return;
+    setSourceType(defaultValues.sourceType ?? "OTHER");
+    setFullName(defaultValues.fullName ?? "");
+    setCompany(defaultValues.company ?? "");
+    setNotes(defaultValues.notes ?? "");
+  }, [open, defaultValues?.sourceType, defaultValues?.fullName, defaultValues?.company, defaultValues?.notes]);
 
   // Event options: approved/registered/attended within the last 90 days.
   const ninetyDaysAgo = useMemo(() => {
@@ -232,6 +250,8 @@ export function CaptureLeadModal({ open, onOpenChange, onCreated }: CaptureLeadM
       const leadId = await createLead.mutateAsync({
         full_name: fullName.trim(),
         source_type: sourceType,
+        source: defaultValues?.source,
+        market_signal_id: defaultValues?.marketSignalId ?? null,
         company: company.trim() || null,
         role: role.trim() || null,
         contact_email: email.trim() || null,
@@ -276,7 +296,11 @@ export function CaptureLeadModal({ open, onOpenChange, onCreated }: CaptureLeadM
           {/* a) Source */}
           <div className="space-y-2">
             <Label>Lead Source</Label>
-            <div className="flex flex-wrap gap-2">
+            {defaultValues?.source === "Market Signal" ? (
+              <Badge className="px-3 py-1.5 text-xs gap-1.5">
+                <Radio className="h-3.5 w-3.5" />Market Signal
+              </Badge>
+            ) : <div className="flex flex-wrap gap-2">
               {SOURCES.map((s) => {
                 const Icon = s.icon;
                 return (
@@ -288,7 +312,7 @@ export function CaptureLeadModal({ open, onOpenChange, onCreated }: CaptureLeadM
                   </Badge>
                 );
               })}
-            </div>
+            </div>}
           </div>
 
           {/* b) Conditional */}
