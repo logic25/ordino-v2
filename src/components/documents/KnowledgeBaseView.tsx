@@ -123,6 +123,27 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
   const formatDate = (iso: string | null) =>
     iso ? new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "—";
 
+  const chunkCount = (filename: string) => data?.fileChunks[filename];
+
+  const chunkStatus = (filename: string, count: number | undefined) => {
+    if (count === undefined) {
+      return { text: "—", title: "Chunk count unavailable", isEmpty: false, isWarning: false };
+    }
+    if (count === 0) {
+      return { text: "0", title: "0 chunks — empty phantom entry, safe to delete", isEmpty: true, isWarning: false };
+    }
+    const isPdf = filename.toLowerCase().endsWith(".pdf");
+    if (count <= 1 && isPdf) {
+      return {
+        text: String(count),
+        title: `Only ${count} chunk${count === 1 ? "" : "s"} for a PDF — possible extraction failure`,
+        isEmpty: false,
+        isWarning: true,
+      };
+    }
+    return { text: String(count), title: `${count} chunk${count === 1 ? "" : "s"}`, isEmpty: false, isWarning: false };
+  };
+
 
   // Folders coming from the Beacon API (slug form)
   const apiFolderNames = useMemo(() => {
