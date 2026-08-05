@@ -247,7 +247,7 @@ export function MarketSignalDetailSheet({
             )}
 
             <FullStory story={story} />
-
+            <ArticleLinks urls={articleUrls} />
 
             <Separator className="my-5" />
 
