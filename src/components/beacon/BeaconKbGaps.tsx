@@ -241,7 +241,6 @@ export function BeaconKbGaps() {
                     </li>
                   ))}
                 </ul>
-                </ul>
               </CardContent>
             </Card>
           ))
