@@ -184,7 +184,7 @@ function AppRoutes() {
       <Route path="/bd/sequences" element={<ProtectedRoute><BdSequences /></ProtectedRoute>} />
       <Route path="/bd/market-signals" element={<ProtectedRoute><MarketsHub defaultTab="signals" /></ProtectedRoute>} />
       <Route path="/markets" element={<ProtectedRoute><MarketsHub defaultTab="markets" /></ProtectedRoute>} />
-      <Route path="/bd/follow-ups" element={<Navigate to="/bd/leads?view=followups" replace />} />
+      <Route path="/bd/follow-ups" element={<ProtectedRoute><BdFollowUps /></ProtectedRoute>} />
       <Route path="/markets/:marketId/playbooks/:id" element={<ProtectedRoute><PlaybookEditor /></ProtectedRoute>} />
       <Route path="/bd/event-card" element={<ProtectedRoute><BdEventCard /></ProtectedRoute>} />
       <Route path="/bd/scorecard" element={<ProtectedRoute><BdScorecard /></ProtectedRoute>} />
