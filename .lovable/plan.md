@@ -1,5 +1,5 @@
 ## Goal
-Clean up the Leads page navigation so each user sees exactly one set of saved-view controls, and resolve the redundant Follow-ups sidebar item.
+Clean up the Leads page navigation so each user sees exactly one set of saved-view controls, and make the Follow-ups sidebar item point to its own focused view instead of duplicating the Leads page.
 
 ## Verified cause
 - The database contains one `All leads`, `My open leads`, and `Hot opportunities` set per user; there are no duplicate rows for the same user.
@@ -9,12 +9,13 @@ Clean up the Leads page navigation so each user sees exactly one set of saved-vi
 ## Plan
 1. Scope `useLeadViews()` to the signed-in user's `user_id` so the page loads only that user's default and custom views.
 2. Keep the existing database policies and teammates' saved views unchanged; this is a UI query-scope fix, not data deletion.
-3. Decide the Follow-ups sidebar item fate:
-   - **Option A — Remove it**: Follow-ups are reachable from the Leads page, so the sidebar shortcut is redundant.
-   - **Option B — Keep it as standalone**: Make `/bd/follow-ups` render the existing `BdFollowUps.tsx` view instead of redirecting into Leads.
-   - **Option C — Merge into Leads**: Redirect `/bd/follow-ups` to Leads with a pre-selected follow-up filter, and remove the sidebar item.
-4. Verify that the Leads page shows one set of default views and that creating/deleting a personal saved view still works.
-5. Add the required changelog entry describing the duplicate-control fix.
+3. Make `/bd/follow-ups` render the existing `BdFollowUps.tsx` view (currently built but not routed) so the sidebar item has a distinct purpose: a focused "who do I owe a touch" list with overdue/today/week/later buckets.
+4. Remove the redirect that currently sends `/bd/follow-ups` into the Leads page with a query parameter.
+5. Verify that:
+   - The Leads page shows one set of default views (`All leads`, `My open leads`, `Hot opportunities`).
+   - Creating/deleting a personal saved view still works.
+   - The Follow-ups sidebar item opens the standalone follow-ups page.
+6. Add the required changelog entry describing the duplicate-control fix.
 
 ## Technical note
 The query will add `.eq("user_id", user.id)` before ordering. This aligns the read path with the existing create/update/delete ownership model.
