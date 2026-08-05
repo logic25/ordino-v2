@@ -201,7 +201,7 @@ export function BeaconKbGaps() {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button asChild size="sm" variant="outline">
-                        <Link to="/beacon?tab=teach">
+                        <Link to={`/beacon?tab=teach&teachQ=${encodeURIComponent(g.examples[0] ?? "")}&teachTopic=${encodeURIComponent(g.topic)}`}>
                           <GraduationCap className="h-3.5 w-3.5 mr-1" /> Teach
                         </Link>
                       </Button>
@@ -231,8 +231,13 @@ export function BeaconKbGaps() {
               <CardContent>
                 <ul className="space-y-2 text-sm">
                   {g.examples.map((q, i) => (
-                    <li key={i} className="text-muted-foreground border-l-2 border-muted pl-3">
-                      "{q}"
+                    <li key={i} className="text-muted-foreground border-l-2 border-muted pl-3 flex items-start justify-between gap-2">
+                      <span>"{q}"</span>
+                      <Button asChild size="sm" variant="ghost" className="shrink-0 h-7 px-2 text-xs">
+                        <Link to={`/beacon?tab=teach&teachQ=${encodeURIComponent(q)}&teachTopic=${encodeURIComponent(g.topic)}`}>
+                          <GraduationCap className="h-3.5 w-3.5 mr-1" /> Teach
+                        </Link>
+                      </Button>
                     </li>
                   ))}
                 </ul>
