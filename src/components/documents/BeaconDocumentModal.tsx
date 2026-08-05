@@ -192,7 +192,8 @@ export function BeaconDocumentModal({
           description: err.message,
           variant: "destructive",
         });
-        setBody("Failed to load document content.");
+        setMetadata({});
+        setBody(err.message || "Failed to load document content.");
       })
       .finally(() => setLoading(false));
   }, [open, sourceFile]);
