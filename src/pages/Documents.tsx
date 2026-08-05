@@ -550,7 +550,9 @@ export default function Documents() {
                     <CardTitle className="flex items-center gap-2 text-base">
                       <FileText className="h-4 w-4" />
                       {selectedFolder?.name || "All Documents"}
-                      <span className="text-muted-foreground font-normal text-sm">({filteredDocs.length})</span>
+                      <span className="text-muted-foreground font-normal text-sm">
+                        ({filteredDocs.length}{totalFilteredBytes > 0 ? ` · ${formatFileSize(totalFilteredBytes)}` : ""})
+                      </span>
                     </CardTitle>
                     {selectedFolder?.description && (
                       <p className="text-xs text-muted-foreground">{selectedFolder.description}</p>
