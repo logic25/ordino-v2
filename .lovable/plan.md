@@ -1,28 +1,16 @@
 ## Goal
-Let users rename a document's `title` (never `filename` / `storage_path`) from both the preview sheet and the document row actions.
+Remove the repeated saved-view controls on the Leads page while preserving each user's personal views.
 
-## What I verified first
-- `universal_documents.title` exists; `useUniversalDocuments.ts` has upload/delete/move mutations but no title update.
-- `DocumentPreviewSheet.tsx` already receives `isBeaconFolder` and `isAdmin` props and gates content editing with `isEditable && (!isBeaconFolder || isAdmin)`.
-- **Correction to step 3:** `KnowledgeBaseView.tsx` does **not** list `universal_documents` rows — it lists filenames returned by the external Beacon (Railway) knowledge API, with no document id or title. A "Rename" there would have nothing to write to. The row-level context menu for real documents lives in `src/pages/Documents.tsx` (~line 561, alongside "Move" and "Delete"), which already has the `UniversalDocument` object, `isBeaconFolder`, and `isAdmin`. I'll add Rename there instead.
+## Verified cause
+- The database contains one `All leads`, `My open leads`, and `Hot opportunities` set per user; there are no duplicate rows for the same user.
+- Company admins are allowed to read teammates' `lead_views` rows.
+- `useLeadViews()` currently fetches every row visible under those policies, and `BdLeads.tsx` renders all returned views without filtering by owner. An admin therefore sees the same three labels once for every teammate.
 
 ## Plan
+1. Scope `useLeadViews()` to the signed-in user's `user_id` so the page loads only that user's default and custom views.
+2. Keep the existing database policies and teammates' saved views unchanged; this is a UI query-scope fix, not data deletion.
+3. Verify that the Leads page shows one set of default views and that creating/deleting a personal saved view still works.
+4. Add the required changelog entry describing the duplicate-control fix.
 
-**1. `src/hooks/useUniversalDocuments.ts`**
-Add `useUpdateDocumentTitle()`: `{ id, title }` → `update({ title: title.trim() })` on `universal_documents`, invalidating `["universal-documents"]` on success. Rejects empty titles.
-
-**2. `src/components/documents/DocumentPreviewSheet.tsx`**
-- Local `renaming` / `titleDraft` state.
-- Pencil "Rename" button next to `<SheetTitle>`; when active the heading becomes an `Input` with Save / Cancel (Enter saves, Esc cancels).
-- Save calls the mutation, toasts "Title updated", exits rename mode.
-- Gate: `(!isBeaconFolder || isAdmin)` — same Beacon-admin rule as content editing, but **without** the `isEditable` (text/markdown-only) part, so PDFs and images can still be renamed. Titles are metadata, not file content; if you'd rather keep the exact `isEditable && …` gate, say so and I'll match it literally.
-
-**3. `src/pages/Documents.tsx`**
-- Add a "Rename…" item to the existing document row dropdown, gated the same way.
-- It opens a small rename dialog (same mutation + toast). A dialog rather than in-row inline editing keeps the table layout stable and reuses the existing Move/Delete dialog pattern on that page.
-
-**4. Changelog**
-Insert a `changelog_entries` row for the rename capability.
-
-## Out of scope
-No schema change, no `filename` / `storage_path` change, no Beacon re-ingest (Pinecone chunks are keyed off filename and stay untouched).
+## Technical note
+The query will add `.eq("user_id", user.id)` before ordering. This aligns the read path with the existing create/update/delete ownership model.
