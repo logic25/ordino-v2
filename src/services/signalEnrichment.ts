@@ -70,6 +70,7 @@ export function buildSignalLeadNotes(lead: SignalLead, signalSummary?: string | 
   const lines: string[] = [];
   if (lead.deal_type) lines.push(`Deal type: ${lead.deal_type}`);
   if (lead.angle) lines.push(`Angle: ${lead.angle}`);
+  if (lead.why) lines.push(`Why: ${lead.why}`);
   if (lead.property?.owner) lines.push(`Owner: ${lead.property.owner}`);
   const incumbent = incumbentOf(lead);
   if (incumbent) lines.push(`Incumbent expediter: ${incumbent}`);
