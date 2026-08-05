@@ -49,6 +49,15 @@ function cachedArticleUrls(signal: MarketSignal): string[] {
     : [];
 }
 
+// Fallback: if Beacon returned no article links, use the signal's own source URL
+// plus any http(s) links found in the title/summary text.
+function fallbackArticleUrls(signal: MarketSignal | null): string[] {
+  if (!signal) return [];
+  const found = `${signal.title ?? ""}\n${signal.summary ?? ""}`.match(/https?:\/\/[^\s<>")\]]+/g) ?? [];
+  const all = [signal.source_url ?? "", ...found].map((u) => u.trim()).filter(Boolean);
+  return Array.from(new Set(all));
+}
+
 function domainFromUrl(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, "");
@@ -247,7 +256,7 @@ export function MarketSignalDetailSheet({
             )}
 
             <FullStory story={story} />
-            <ArticleLinks urls={articleUrls} />
+            <ArticleLinks urls={articleUrls.length ? articleUrls : fallbackArticleUrls(signal)} />
 
             <Separator className="my-5" />
 
