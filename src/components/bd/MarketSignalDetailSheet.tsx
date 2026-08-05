@@ -256,7 +256,7 @@ export function MarketSignalDetailSheet({
             )}
 
             <FullStory story={story} />
-            <ArticleLinks urls={articleUrls} />
+            <ArticleLinks urls={articleUrls.length ? articleUrls : fallbackArticleUrls(signal)} />
 
             <Separator className="my-5" />
 
