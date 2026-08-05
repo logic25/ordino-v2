@@ -12,7 +12,7 @@ import {
   Receipt,
   Mail,
   CalendarDays,
-  
+  Radio,
   LogOut,
   FileArchive,
   ScrollText,
@@ -58,6 +58,7 @@ const mainNav: NavEntry[] = [
       { title: "Referrals", icon: Handshake, href: "/bd/referrals", resource: "proposals" as ResourceKey },
       { title: "Events", icon: CalendarDays, href: "/bd/events", resource: "proposals" as ResourceKey },
       { title: "Sequences", icon: ClipboardList, href: "/bd/sequences", resource: "proposals" as ResourceKey },
+      { title: "Signals", icon: Radio, href: "/bd/market-signals", resource: "proposals" as ResourceKey },
       { title: "Scorecard", icon: Trophy, href: "/bd/scorecard", resource: "proposals" as ResourceKey },
       { title: "Follow-ups", icon: Clock, href: "/bd/follow-ups", resource: "proposals" as ResourceKey },
       { title: "Event Card", icon: QrCode, href: "/bd/event-card", resource: "proposals" as ResourceKey },
