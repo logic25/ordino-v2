@@ -504,10 +504,10 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
                     <AccordionContent>
                       <div className="grid gap-1 pl-6 min-w-0">
                         <div className="flex items-center gap-2 px-2 pb-1 text-[11px] uppercase tracking-wide text-muted-foreground min-w-0">
-                          <span className="flex-1 min-w-0">Name</span>
-                          <span className="hidden md:block w-28 shrink-0">Modified</span>
-                          <span className="hidden lg:block w-36 shrink-0">Uploaded by</span>
-                          <span className="w-20 shrink-0 text-right">Chunks</span>
+                          <button type="button" onClick={() => toggleSort("name")} className="flex-1 min-w-0 text-left uppercase hover:text-foreground transition-colors">Name{sortIndicator("name")}</button>
+                          <button type="button" onClick={() => toggleSort("date")} className="hidden md:block w-28 shrink-0 text-left uppercase hover:text-foreground transition-colors">Modified{sortIndicator("date")}</button>
+                          <button type="button" onClick={() => toggleSort("uploader")} className="hidden lg:block w-36 shrink-0 text-left uppercase hover:text-foreground transition-colors">Uploaded by{sortIndicator("uploader")}</button>
+                          <button type="button" onClick={() => toggleSort("chunks")} className="w-20 shrink-0 text-right uppercase hover:text-foreground transition-colors">Chunks{sortIndicator("chunks")}</button>
                           <span className="w-7 shrink-0" />
                         </div>
                         {files.map((filename) => {
