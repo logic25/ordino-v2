@@ -143,3 +143,36 @@ export function useClearBeaconKbOverride() {
     },
   });
 }
+
+/**
+ * Stamps who uploaded a file into the Beacon KB (and when) so the Knowledge Base
+ * list can show "Uploaded by" / "Modified" for files that have no
+ * `universal_documents` row. Display-only: the file stays in its Beacon folder.
+ */
+export function useRecordBeaconKbUpload() {
+  const { profile } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: { source_file: string; display_folder: string }) => {
+      if (!profile?.company_id) return;
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await (supabase as any)
+        .from("beacon_kb_folder_overrides")
+        .upsert(
+          {
+            company_id: profile.company_id,
+            source_file: params.source_file,
+            display_folder: params.display_folder,
+            hidden_from_original: false,
+            notes: "__uploaded__",
+            created_by: user?.id ?? null,
+          },
+          { onConflict: "company_id,source_file" }
+        );
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["beacon-kb-overrides"] });
+    },
+  });
+}
