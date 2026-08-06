@@ -355,15 +355,16 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
 
   const handleImportDemo = async () => {
     const demoItems = [
-      { project_id: projectId, item_number: 1, objection_text: "Provide a complete scope of work including all construction operations", code_reference: "AC 28-104.7", status: "pending" },
-      { project_id: projectId, item_number: 2, objection_text: "Applicant of record does not match the BIS record for this filing", code_reference: "AC 28-112.3", status: "pending" },
-      { project_id: projectId, item_number: 3, objection_text: "Rear yard setback does not comply with the applicable zoning district requirements", code_reference: "ZR 33-42", status: "in_progress" },
-      { project_id: projectId, item_number: 4, objection_text: "Provide occupant load calculations for all floors affected by the proposed work", code_reference: "BC 1003.6", status: "pending" },
-      { project_id: projectId, item_number: 5, objection_text: "Energy code compliance path not indicated on the drawings", code_reference: "AC 28-105.4.1", status: "resolved" },
+      { project_id: projectId, item_number: 1, objection_text: "Provide a complete scope of work including all construction operations", code_reference: "AC 28-104.7", status: "pending", source: "demo" },
+      { project_id: projectId, item_number: 2, objection_text: "Applicant of record does not match the BIS record for this filing", code_reference: "AC 28-112.3", status: "pending", source: "demo" },
+      { project_id: projectId, item_number: 3, objection_text: "Rear yard setback does not comply with the applicable zoning district requirements", code_reference: "ZR 33-42", status: "in_progress", source: "demo" },
+      { project_id: projectId, item_number: 4, objection_text: "Provide occupant load calculations for all floors affected by the proposed work", code_reference: "BC 1003.6", status: "pending", source: "demo" },
+      { project_id: projectId, item_number: 5, objection_text: "Energy code compliance path not indicated on the drawings", code_reference: "AC 28-105.4.1", status: "resolved", source: "demo" },
     ];
     try {
       await bulkInsert(demoItems as any);
-      toast({ title: "Demo objections imported", description: `${demoItems.length} objections loaded.` });
+      toast({ title: "Demo objections loaded", description: `${demoItems.length} training objections loaded.` });
+
     } catch (err: any) {
       toast({ title: "Import failed", description: err.message, variant: "destructive" });
     }
