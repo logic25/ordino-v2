@@ -71,12 +71,21 @@ export function BeaconHubContent({ defaultTabOverride }: { defaultTabOverride?: 
               tip="Questions users asked that Beacon couldn't confidently answer. Add documents or teach snippets to fill the gap, then mark addressed with a note describing what you did."
             />
           )}
+          {isAdmin && (
+            <TabWithTip
+              value="vs-llm"
+              label="Beacon vs LLM"
+              tip="Run the same question through Beacon (knowledge-base grounded) and a strong frontier model with no GLE knowledge, side by side. Includes a scoreboard across benchmark questions."
+            />
+          )}
         </TabsList>
         <TabsContent value="teach"><BeaconTeachPanel /></TabsContent>
         {isAdmin && <TabsContent value="usage"><AIUsageDashboard /></TabsContent>}
         {isAdmin && <TabsContent value="config"><BeaconConfigPanel /></TabsContent>}
         {isAdmin && <TabsContent value="gaps"><BeaconKbGaps /></TabsContent>}
+        {isAdmin && <TabsContent value="vs-llm"><BeaconVsLlmPanel /></TabsContent>}
       </Tabs>
+
     </TooltipProvider>
   );
 }
