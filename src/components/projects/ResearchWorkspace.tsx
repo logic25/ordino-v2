@@ -1043,7 +1043,7 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-semibold flex items-center gap-1.5">
                           <Sparkles className="h-3 w-3 text-primary" />
-                          Beacon's Version
+                          Polished Version
                         </span>
                         <div className="flex items-center gap-1.5">
                           <Button
