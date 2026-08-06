@@ -1027,7 +1027,7 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
                       ) : (
                         <Sparkles className="h-3 w-3" />
                       )}
-                      Clean Up with Beacon
+                      Clean Up (AI polish)
                     </Button>
                   </div>
 
