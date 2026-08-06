@@ -598,6 +598,27 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
       await update({ id, status });
       toast({ title: `Objection marked as ${statusConfig[status].label}` });
       if (status === "resolved") {
+        // Capture the decision (what we recommended + why) into the searchable decision log
+        const obj = objections.find((o) => o.id === id);
+        const ws = workStates[id];
+        const reasoning = (ws?.pmNotes ?? obj?.resolution_notes ?? "").trim();
+        const recommendation = (ws?.responseDraft || ws?.cleanedVersion || obj?.response_draft || "").trim();
+        if (obj && (reasoning || recommendation)) {
+          try {
+            await createDecisionRecord({
+              project_id: projectId,
+              objection_id: obj.id,
+              objection_text: obj.objection_text,
+              code_reference: obj.code_reference,
+              filing_type: filingType || null,
+              recommendation: recommendation || null,
+              reasoning: reasoning || null,
+            });
+            toast({ title: "Decision recorded", description: "Saved to the Decision Log for future reference." });
+          } catch (err: any) {
+            toast({ title: "Decision not recorded", description: err.message, variant: "destructive" });
+          }
+        }
         const next = objections.find((o) => o.id !== id && o.status !== "resolved");
         if (next) setSelectedId(next.id);
       }
@@ -605,6 +626,7 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
       toast({ title: "Update failed", variant: "destructive" });
     }
   };
+
   const handleDraftResponse = async () => {
     if (!selected) return;
     // Capture selected objection at call time to avoid stale closure
