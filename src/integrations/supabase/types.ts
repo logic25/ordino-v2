@@ -4820,6 +4820,89 @@ export type Database = {
           },
         ]
       }
+      decision_records: {
+        Row: {
+          code_reference: string | null
+          company_id: string
+          created_at: string
+          filing_type: string | null
+          id: string
+          objection_id: string | null
+          objection_text: string
+          project_id: string | null
+          reasoning: string | null
+          recommendation: string | null
+          resolved_at: string
+          resolved_by: string | null
+          source: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          code_reference?: string | null
+          company_id: string
+          created_at?: string
+          filing_type?: string | null
+          id?: string
+          objection_id?: string | null
+          objection_text: string
+          project_id?: string | null
+          reasoning?: string | null
+          recommendation?: string | null
+          resolved_at?: string
+          resolved_by?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          code_reference?: string | null
+          company_id?: string
+          created_at?: string
+          filing_type?: string | null
+          id?: string
+          objection_id?: string | null
+          objection_text?: string
+          project_id?: string | null
+          reasoning?: string | null
+          recommendation?: string | null
+          resolved_at?: string
+          resolved_by?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "decision_records_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "decision_records_objection_id_fkey"
+            columns: ["objection_id"]
+            isOneToOne: false
+            referencedRelation: "objection_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "decision_records_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "decision_records_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       discovered_rfps: {
         Row: {
           assigned_to: string | null
@@ -7826,6 +7909,7 @@ export type Database = {
           project_id: string
           resolution_notes: string | null
           response_draft: string | null
+          source: string
           status: string | null
           updated_at: string | null
         }
@@ -7842,6 +7926,7 @@ export type Database = {
           project_id: string
           resolution_notes?: string | null
           response_draft?: string | null
+          source?: string
           status?: string | null
           updated_at?: string | null
         }
@@ -7858,6 +7943,7 @@ export type Database = {
           project_id?: string
           resolution_notes?: string | null
           response_draft?: string | null
+          source?: string
           status?: string | null
           updated_at?: string | null
         }
