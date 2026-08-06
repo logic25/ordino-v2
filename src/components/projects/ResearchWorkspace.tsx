@@ -1033,7 +1033,7 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
 
                   <Textarea
                     className="min-h-[80px] text-sm"
-                    placeholder="Write your notes here — interpretation, how it applies, what to tell the architect..."
+                    placeholder="Why did we make this call? (the thinking a future teammate will need)"
                     value={currentWorkState?.pmNotes || ""}
                     onChange={(e) => updateWorkState(selected.id, { pmNotes: e.target.value })}
                   />
