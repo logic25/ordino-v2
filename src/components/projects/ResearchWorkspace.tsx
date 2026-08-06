@@ -28,6 +28,8 @@ import { useUploadDocument } from "@/hooks/useUniversalDocuments";
 import { askBeacon, type BeaconChatResponse, type BeaconSource } from "@/services/beaconApi";
 import { useAuth } from "@/hooks/useAuth";
 import { ObjectionSummaryView } from "./ObjectionSummaryView";
+import { useCreateDecisionRecord, fetchDecisionsForCode } from "@/hooks/useDecisionRecords";
+
 import { UploadObjectionDialog } from "./UploadObjectionDialog";
 
 // --- Types ---
@@ -66,6 +68,7 @@ function ObjectionListItem({ objection, isSelected, onClick }: { objection: Obje
   const status = (objection.status || "pending") as ObjectionStatus;
   const cfg = statusConfig[status] || statusConfig.pending;
   const hasNotes = !!(objection.resolution_notes || objection.response_draft);
+  const isDemo = !objection.objection_letter_id && (objection as any).source === "demo";
   return (
     <button
       onClick={onClick}
@@ -81,12 +84,16 @@ function ObjectionListItem({ objection, isSelected, onClick }: { objection: Obje
             {objection.code_reference && (
               <Badge variant="outline" className="text-xs font-mono px-1.5 py-0">{objection.code_reference}</Badge>
             )}
+            {isDemo && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 text-muted-foreground">Demo</Badge>
+            )}
             {hasNotes && (
               <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">
                 <FileText className="h-3 w-3" /> Notes
               </span>
             )}
           </div>
+
           <p className="text-sm text-foreground line-clamp-2">{objection.objection_text}</p>
         </div>
         <span className={cn("shrink-0 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold", cfg.className)}>
@@ -287,6 +294,8 @@ interface ResearchWorkspaceProps {
 }
 
 export function ResearchWorkspace({ projectId, projectAddress, architectEmail, filingType, scopeOfWork }: ResearchWorkspaceProps) {
+  const { mutateAsync: createDecisionRecord } = useCreateDecisionRecord();
+
   const { toast } = useToast();
   const { user, profile } = useAuth();
   const { items: objections, isLoading, update, bulkInsert, removeAll } = useObjectionItems(projectId);
@@ -350,15 +359,16 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
 
   const handleImportDemo = async () => {
     const demoItems = [
-      { project_id: projectId, item_number: 1, objection_text: "Provide a complete scope of work including all construction operations", code_reference: "AC 28-104.7", status: "pending" },
-      { project_id: projectId, item_number: 2, objection_text: "Applicant of record does not match the BIS record for this filing", code_reference: "AC 28-112.3", status: "pending" },
-      { project_id: projectId, item_number: 3, objection_text: "Rear yard setback does not comply with the applicable zoning district requirements", code_reference: "ZR 33-42", status: "in_progress" },
-      { project_id: projectId, item_number: 4, objection_text: "Provide occupant load calculations for all floors affected by the proposed work", code_reference: "BC 1003.6", status: "pending" },
-      { project_id: projectId, item_number: 5, objection_text: "Energy code compliance path not indicated on the drawings", code_reference: "AC 28-105.4.1", status: "resolved" },
+      { project_id: projectId, item_number: 1, objection_text: "Provide a complete scope of work including all construction operations", code_reference: "AC 28-104.7", status: "pending", source: "demo" },
+      { project_id: projectId, item_number: 2, objection_text: "Applicant of record does not match the BIS record for this filing", code_reference: "AC 28-112.3", status: "pending", source: "demo" },
+      { project_id: projectId, item_number: 3, objection_text: "Rear yard setback does not comply with the applicable zoning district requirements", code_reference: "ZR 33-42", status: "in_progress", source: "demo" },
+      { project_id: projectId, item_number: 4, objection_text: "Provide occupant load calculations for all floors affected by the proposed work", code_reference: "BC 1003.6", status: "pending", source: "demo" },
+      { project_id: projectId, item_number: 5, objection_text: "Energy code compliance path not indicated on the drawings", code_reference: "AC 28-105.4.1", status: "resolved", source: "demo" },
     ];
     try {
       await bulkInsert(demoItems as any);
-      toast({ title: "Demo objections imported", description: `${demoItems.length} objections loaded.` });
+      toast({ title: "Demo objections loaded", description: `${demoItems.length} training objections loaded.` });
+
     } catch (err: any) {
       toast({ title: "Import failed", description: err.message, variant: "destructive" });
     }
@@ -592,6 +602,27 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
       await update({ id, status });
       toast({ title: `Objection marked as ${statusConfig[status].label}` });
       if (status === "resolved") {
+        // Capture the decision (what we recommended + why) into the searchable decision log
+        const obj = objections.find((o) => o.id === id);
+        const ws = workStates[id];
+        const reasoning = (ws?.pmNotes ?? obj?.resolution_notes ?? "").trim();
+        const recommendation = (ws?.responseDraft || ws?.cleanedVersion || obj?.response_draft || "").trim();
+        if (obj && (reasoning || recommendation)) {
+          try {
+            await createDecisionRecord({
+              project_id: projectId,
+              objection_id: obj.id,
+              objection_text: obj.objection_text,
+              code_reference: obj.code_reference,
+              filing_type: filingType || null,
+              recommendation: recommendation || null,
+              reasoning: reasoning || null,
+            });
+            toast({ title: "Decision recorded", description: "Saved to the Decision Log for future reference." });
+          } catch (err: any) {
+            toast({ title: "Decision not recorded", description: err.message, variant: "destructive" });
+          }
+        }
         const next = objections.find((o) => o.id !== id && o.status !== "resolved");
         if (next) setSelectedId(next.id);
       }
@@ -599,6 +630,7 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
       toast({ title: "Update failed", variant: "destructive" });
     }
   };
+
   const handleDraftResponse = async () => {
     if (!selected) return;
     // Capture selected objection at call time to avoid stale closure
@@ -606,13 +638,35 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
     const targetId = targetObj.id;
     updateWorkState(targetId, { draftLoading: true });
 
+    const ws = getWorkState(targetId);
+    const pmNotes = (ws.pmNotes || "").trim();
+    const priorAnswers = (ws.beaconResponses || [])
+      .slice(-3)
+      .map((r, i) => `${i + 1}. Q: ${r.query}\n   A: ${r.text}`)
+      .join("\n");
+
+    let priorDecisions = "";
+    try {
+      if (profile?.company_id && targetObj.code_reference) {
+        const records = await fetchDecisionsForCode(profile.company_id, targetObj.code_reference, 5);
+        priorDecisions = records
+          .map(
+            (d, i) =>
+              `${i + 1}. Recommendation: ${d.recommendation || "n/a"}\n   Why: ${d.reasoning || "n/a"}`
+          )
+          .join("\n");
+      }
+    } catch {
+      priorDecisions = "";
+    }
+
     const prompt = `IMPORTANT: Respond with ONLY 2-4 plain sentences. No markdown, no headers, no titles, no emojis, no bold, no lists, no bullet points, no architect instructions, no action items, no preliminary notes. Just answer the objection directly.
 
 Objection: "${targetObj.objection_text}"
 Code Reference: ${targetObj.code_reference || "N/A"}
 Filing Type: ${filingType || "N/A"}
-
-Give a direct, professional response to this DOB examiner objection in 2-4 plain sentences:`;
+${pmNotes ? `\nPM's notes and reasoning on this objection:\n${pmNotes}\n` : ""}${priorAnswers ? `\nPrior Beacon research in this session:\n${priorAnswers}\n` : ""}${priorDecisions ? `\nHere's how we've resolved this code section before (Green Light decision log):\n${priorDecisions}\n` : ""}
+Give a direct, professional response to this DOB examiner objection in 2-4 plain sentences, consistent with the PM's notes and our prior decisions:`;
 
     try {
       const res = await askBeacon(prompt, userId, userName, {
@@ -621,6 +675,7 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
         codeSection: targetObj.code_reference || undefined,
         filingType,
       });
+
 
       // Strip any residual markdown formatting
       const responseText = (res.response || "")
@@ -698,7 +753,7 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
               </Button>
               {objections.length === 0 && (
                 <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={handleImportDemo}>
-                  <Upload className="h-3 w-3" /> Import Demo
+                  <Upload className="h-3 w-3" /> Load Demo Objections (training)
                 </Button>
               )}
               {objections.length > 0 && (
@@ -752,7 +807,7 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
                     <Upload className="h-3.5 w-3.5" /> Upload Objection Letter
                   </Button>
                   <Button variant="outline" size="sm" className="gap-1.5" onClick={handleImportDemo}>
-                    <Upload className="h-3.5 w-3.5" /> Import Demo
+                    <Upload className="h-3.5 w-3.5" /> Load Demo Objections (training)
                   </Button>
                 </div>
               </div>
@@ -972,13 +1027,13 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
                       ) : (
                         <Sparkles className="h-3 w-3" />
                       )}
-                      Clean Up with Beacon
+                      Clean Up (AI polish)
                     </Button>
                   </div>
 
                   <Textarea
                     className="min-h-[80px] text-sm"
-                    placeholder="Write your notes here — interpretation, how it applies, what to tell the architect..."
+                    placeholder="Why did we make this call? (the thinking a future teammate will need)"
                     value={currentWorkState?.pmNotes || ""}
                     onChange={(e) => updateWorkState(selected.id, { pmNotes: e.target.value })}
                   />
@@ -988,7 +1043,7 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-semibold flex items-center gap-1.5">
                           <Sparkles className="h-3 w-3 text-primary" />
-                          Beacon's Version
+                          Polished Version
                         </span>
                         <div className="flex items-center gap-1.5">
                           <Button

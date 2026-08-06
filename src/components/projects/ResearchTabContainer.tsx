@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, BookOpen } from "lucide-react";
+import { AlertCircle, BookOpen, BookMarked } from "lucide-react";
 import { ResearchWorkspace } from "./ResearchWorkspace";
+import { DecisionLogPanel } from "./DecisionLogPanel";
+
 import { CodeResearchPanel } from "./CodeResearchPanel";
 
 interface ResearchTabContainerProps {
@@ -34,7 +36,12 @@ export function ResearchTabContainer({
               <BookOpen className="h-3.5 w-3.5" />
               Code Research
             </TabsTrigger>
+            <TabsTrigger value="decision-log" className="text-xs gap-1.5 h-7">
+              <BookMarked className="h-3.5 w-3.5" />
+              Decision Log
+            </TabsTrigger>
           </TabsList>
+
         </div>
         <TabsContent value="objections" className="mt-0">
           <ResearchWorkspace
@@ -54,6 +61,10 @@ export function ResearchTabContainer({
             />
           </div>
         </TabsContent>
+        <TabsContent value="decision-log" className="mt-0">
+          <DecisionLogPanel />
+        </TabsContent>
+
       </Tabs>
     </div>
   );
