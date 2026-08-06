@@ -61,6 +61,10 @@ export function ResearchTabContainer({
             />
           </div>
         </TabsContent>
+        <TabsContent value="decision-log" className="mt-0">
+          <DecisionLogPanel />
+        </TabsContent>
+
       </Tabs>
     </div>
   );
