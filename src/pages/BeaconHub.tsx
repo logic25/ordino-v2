@@ -8,6 +8,8 @@ import { useHasRole } from "@/hooks/useUserRoles";
 import { BeaconConfigPanel } from "@/components/beacon/BeaconConfigPanel";
 import { BeaconKbGaps } from "@/components/beacon/BeaconKbGaps";
 import { BeaconTeachPanel } from "@/components/beacon/BeaconTeachPanel";
+import { BeaconVsLlmPanel } from "@/components/beacon/BeaconVsLlmPanel";
+
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 function TabWithTip({ value, label, tip }: { value: string; label: string; tip: string }) {
