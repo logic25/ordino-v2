@@ -66,6 +66,7 @@ function ObjectionListItem({ objection, isSelected, onClick }: { objection: Obje
   const status = (objection.status || "pending") as ObjectionStatus;
   const cfg = statusConfig[status] || statusConfig.pending;
   const hasNotes = !!(objection.resolution_notes || objection.response_draft);
+  const isDemo = !objection.objection_letter_id && (objection as any).source === "demo";
   return (
     <button
       onClick={onClick}
@@ -81,12 +82,16 @@ function ObjectionListItem({ objection, isSelected, onClick }: { objection: Obje
             {objection.code_reference && (
               <Badge variant="outline" className="text-xs font-mono px-1.5 py-0">{objection.code_reference}</Badge>
             )}
+            {isDemo && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 text-muted-foreground">Demo</Badge>
+            )}
             {hasNotes && (
               <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">
                 <FileText className="h-3 w-3" /> Notes
               </span>
             )}
           </div>
+
           <p className="text-sm text-foreground line-clamp-2">{objection.objection_text}</p>
         </div>
         <span className={cn("shrink-0 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold", cfg.className)}>
