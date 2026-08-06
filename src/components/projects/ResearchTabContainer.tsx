@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, BookOpen } from "lucide-react";
+import { AlertCircle, BookOpen, BookMarked } from "lucide-react";
 import { ResearchWorkspace } from "./ResearchWorkspace";
+import { DecisionLogPanel } from "./DecisionLogPanel";
+
 import { CodeResearchPanel } from "./CodeResearchPanel";
 
 interface ResearchTabContainerProps {
