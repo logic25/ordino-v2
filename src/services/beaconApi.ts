@@ -108,6 +108,61 @@ export async function askBeaconProjectQA(
   return data as BeaconProjectQAResponse;
 }
 
+export type CompareGenericModel = "openai/gpt-5.5" | "google/gemini-2.5-pro";
+
+export interface CompareAnswersResult {
+  question: string;
+  beacon: {
+    answer: string;
+    sources: BeaconSource[];
+    confidence: number | null;
+    response_time_ms: number | null;
+    error: string | null;
+  };
+  generic: {
+    answer: string;
+    model: string;
+    response_time_ms: number | null;
+    error: string | null;
+  };
+  delta: {
+    beaconSources: number;
+    genericSources: number;
+    beaconSpecifics: string[];
+    genericSpecifics: string[];
+    onlyBeaconSpecifics: string[];
+  };
+}
+
+/**
+ * Run one question through Beacon (KB-grounded) and a frontier model with no GLE
+ * knowledge, in parallel. Read-only — nothing is persisted.
+ */
+export async function compareAnswers(
+  question: string,
+  genericModel: CompareGenericModel,
+): Promise<CompareAnswersResult> {
+  const { data, error } = await supabase.functions.invoke("compare-answers", {
+    body: { question, genericModel },
+  });
+  if (error) {
+    let detail = error.message;
+    const ctx = (error as { context?: Response }).context;
+    if (ctx && typeof ctx.text === "function") {
+      const raw = await ctx.text().catch(() => "");
+      try {
+        detail = JSON.parse(raw).error ?? raw ?? detail;
+      } catch {
+        detail = raw || detail;
+      }
+    }
+    throw new Error(detail);
+  }
+  return data as CompareAnswersResult;
+}
+
+
+
 export async function syncDocumentToBeacon(
   file: File | Blob,
   filename: string,
