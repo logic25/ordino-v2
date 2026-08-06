@@ -753,7 +753,7 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
               </Button>
               {objections.length === 0 && (
                 <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={handleImportDemo}>
-                  <Upload className="h-3 w-3" /> Import Demo
+                  <Upload className="h-3 w-3" /> Load Demo Objections (training)
                 </Button>
               )}
               {objections.length > 0 && (
