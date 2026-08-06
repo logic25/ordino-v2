@@ -638,13 +638,35 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
     const targetId = targetObj.id;
     updateWorkState(targetId, { draftLoading: true });
 
+    const ws = getWorkState(targetId);
+    const pmNotes = (ws.pmNotes || "").trim();
+    const priorAnswers = (ws.beaconResponses || [])
+      .slice(-3)
+      .map((r, i) => `${i + 1}. Q: ${r.query}\n   A: ${r.text}`)
+      .join("\n");
+
+    let priorDecisions = "";
+    try {
+      if (profile?.company_id && targetObj.code_reference) {
+        const records = await fetchDecisionsForCode(profile.company_id, targetObj.code_reference, 5);
+        priorDecisions = records
+          .map(
+            (d, i) =>
+              `${i + 1}. Recommendation: ${d.recommendation || "n/a"}\n   Why: ${d.reasoning || "n/a"}`
+          )
+          .join("\n");
+      }
+    } catch {
+      priorDecisions = "";
+    }
+
     const prompt = `IMPORTANT: Respond with ONLY 2-4 plain sentences. No markdown, no headers, no titles, no emojis, no bold, no lists, no bullet points, no architect instructions, no action items, no preliminary notes. Just answer the objection directly.
 
 Objection: "${targetObj.objection_text}"
 Code Reference: ${targetObj.code_reference || "N/A"}
 Filing Type: ${filingType || "N/A"}
-
-Give a direct, professional response to this DOB examiner objection in 2-4 plain sentences:`;
+${pmNotes ? `\nPM's notes and reasoning on this objection:\n${pmNotes}\n` : ""}${priorAnswers ? `\nPrior Beacon research in this session:\n${priorAnswers}\n` : ""}${priorDecisions ? `\nHere's how we've resolved this code section before (Green Light decision log):\n${priorDecisions}\n` : ""}
+Give a direct, professional response to this DOB examiner objection in 2-4 plain sentences, consistent with the PM's notes and our prior decisions:`;
 
     try {
       const res = await askBeacon(prompt, userId, userName, {
@@ -653,6 +675,7 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
         codeSection: targetObj.code_reference || undefined,
         filingType,
       });
+
 
       // Strip any residual markdown formatting
       const responseText = (res.response || "")
