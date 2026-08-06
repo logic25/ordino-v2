@@ -5368,35 +5368,51 @@ export type Database = {
       email_project_tags: {
         Row: {
           category: string
+          change_order_id: string | null
           company_id: string
           email_id: string
           id: string
+          invoice_id: string | null
           notes: string | null
-          project_id: string
+          project_id: string | null
+          proposal_id: string | null
           tagged_at: string
           tagged_by_id: string
         }
         Insert: {
           category?: string
+          change_order_id?: string | null
           company_id: string
           email_id: string
           id?: string
+          invoice_id?: string | null
           notes?: string | null
-          project_id: string
+          project_id?: string | null
+          proposal_id?: string | null
           tagged_at?: string
           tagged_by_id: string
         }
         Update: {
           category?: string
+          change_order_id?: string | null
           company_id?: string
           email_id?: string
           id?: string
+          invoice_id?: string | null
           notes?: string | null
-          project_id?: string
+          project_id?: string | null
+          proposal_id?: string | null
           tagged_at?: string
           tagged_by_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "email_project_tags_change_order_id_fkey"
+            columns: ["change_order_id"]
+            isOneToOne: false
+            referencedRelation: "change_orders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "email_project_tags_company_id_fkey"
             columns: ["company_id"]
@@ -5412,10 +5428,31 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "email_project_tags_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_balances_with_interest"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "email_project_tags_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "email_project_tags_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_project_tags_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
             referencedColumns: ["id"]
           },
           {
