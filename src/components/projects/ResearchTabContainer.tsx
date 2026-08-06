@@ -36,7 +36,12 @@ export function ResearchTabContainer({
               <BookOpen className="h-3.5 w-3.5" />
               Code Research
             </TabsTrigger>
+            <TabsTrigger value="decision-log" className="text-xs gap-1.5 h-7">
+              <BookMarked className="h-3.5 w-3.5" />
+              Decision Log
+            </TabsTrigger>
           </TabsList>
+
         </div>
         <TabsContent value="objections" className="mt-0">
           <ResearchWorkspace
