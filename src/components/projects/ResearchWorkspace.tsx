@@ -358,6 +358,38 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
     }));
   }, []);
 
+  // Sheet pinning is not built yet — with no pinned sheets, every evidence claim
+  // is flagged. That is the correct behaviour, not a limitation.
+  const pinnedSheets: string[] = [];
+
+  /**
+   * Deterministic gate. Re-scans the draft (including text typed or pasted by
+   * hand) and blocks the action while any [VERIFY: ...] marker remains.
+   * Returns true when the action may proceed.
+   */
+  const guardUnverifiedClaims = useCallback((id: string, actionLabel: string): boolean => {
+    const ws = workStates[id] || defaultWorkState;
+    const draft = ws.responseDraft || ws.cleanedVersion || "";
+    if (!draft.trim()) return true;
+
+    const scan = scanForUnsupportedClaims(draft, pinnedSheets);
+    if (scan.markers.length > 0) {
+      updateWorkState(id, ws.responseDraft ? { responseDraft: scan.text } : { cleanedVersion: scan.text });
+    }
+    const total = countVerifyMarkers(scan.text);
+    if (total > 0) {
+      toast({
+        title: `${actionLabel} blocked — ${total} unverified claim${total !== 1 ? "s" : ""}`,
+        description: "Fill in or delete each [VERIFY: ...] placeholder first. Nothing is sent to DOB that we can't back up.",
+        variant: "destructive",
+      });
+      return false;
+    }
+    return true;
+  }, [workStates, updateWorkState, toast]);
+
+
+
   const handleImportDemo = async () => {
     const demoItems = [
       { project_id: projectId, item_number: 1, objection_text: "Provide a complete scope of work including all construction operations", code_reference: "AC 28-104.7", status: "pending", source: "demo" },
