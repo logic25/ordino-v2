@@ -593,6 +593,14 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
       toast({ title: "Nothing to save", description: "Address at least one objection first.", variant: "destructive" });
       return;
     }
+    if (addressed.some((o) => hasVerifyMarkers(getResponse(o)))) {
+      toast({
+        title: "Save blocked — unverified claims",
+        description: "One or more responses still contain a [VERIFY: ...] placeholder.",
+        variant: "destructive",
+      });
+      return;
+    }
     setSavingPackage(true);
     try {
       // Build HTML document
