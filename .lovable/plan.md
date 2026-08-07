@@ -66,7 +66,8 @@ Note on scope: this puts the drawing **in front of you** and lets you cite it de
 - **New table `code_sections`** — company-scoped: `code_reference` (unique per company), `title`, `full_text`, `plain_summary`, `related_sections[]`, `official_url`, `jurisdiction`, `verified_by`, `verified_at`, `source` (`manual` / `imported`). Standard company RLS + grants.
 - **New table `objection_sheet_refs`** — links an objection to a `universal_documents` row plus a `sheet_number` and optional note.
 - **New table `objection_rebuttals`** — objection-scoped thread: `role` (`pm` / `ai`), `content`, `cited_sections[]`.
-- **`handleDraftResponse` in `ResearchWorkspace.tsx`** — prompt rewritten with an explicit anti-fabrication clause and a `[VERIFY: ...]` protocol; context extended with the code section text, pinned sheets, and the rebuttal thread. Post-processing extracts `[VERIFY: ...]` markers into state that gates Save / Send / Mark Resolved.
+- **New `src/lib/verifyClaims.ts`** — the deterministic scanner: a phrase/verb pattern list plus a sheet-reference pattern, returning `{ text, markers[] }`. Pure and unit-testable, so the claim list can be tuned without touching the UI. Runs on AI output and on the draft textarea's own content.
+- **`handleDraftResponse` in `ResearchWorkspace.tsx`** — prompt rewritten with an explicit anti-fabrication clause and a `[VERIFY: ...]` protocol; context extended with the code section text, pinned sheets, and the rebuttal thread. Output passes through `verifyClaims` before hitting state; unresolved markers gate Save / Send / Mark Resolved.
 - **New `CodeSectionPanel.tsx`** — pill click target: library view, add-section form, rebuttal thread, sheet pinning.
 - **`ObjectionCard` and the objection header** — code pill becomes a button; a small dot marks sections not yet in the library.
 - **Decision capture** — records already written on resolve gain the cited section and pinned sheet references, so the Decision Log shows what the call was actually based on.
@@ -74,7 +75,8 @@ Note on scope: this puts the drawing **in front of you** and lets you cite it de
 
 ## Build order
 
-1. `code_sections` table + code pill panel + add/verify flow (unblocks everything else).
-2. Anti-fabrication draft prompt + `[VERIFY: ...]` gating.
-3. Sheet listing and pinning.
+1. **Anti-fabrication prompt + deterministic `[VERIFY: ...]` scanner + gating.** This is the bleeding wound — it stops fabricated claims from shipping today, and it needs nothing else to work. Until sheet pinning exists, the scanner has no pinned sheets to check against, so every such claim is flagged; that is the correct behaviour, not a limitation.
+2. Sheet listing and pinning — gives the scanner its "is this claim backed?" input and puts the drawing in front of you.
+3. `code_sections` table + code pill panel + add/verify flow.
 4. Rebuttal thread + "Use in draft".
+
