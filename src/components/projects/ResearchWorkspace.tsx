@@ -561,6 +561,14 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
 
   const handleSendAllAsEmail = async () => {
     const body = buildConsolidatedBody();
+    if (hasVerifyMarkers(body)) {
+      toast({
+        title: "Send blocked — unverified claims",
+        description: "One or more responses still contain a [VERIFY: ...] placeholder.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (!body) {
       toast({ title: "No responses to send", description: "Address at least one objection first.", variant: "destructive" });
       return;
