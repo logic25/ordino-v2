@@ -494,8 +494,19 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
 
   const handleSendAsEmail = () => {
     if (!selected) return;
+    if (!guardUnverifiedClaims(selected.id, "Send as Email")) return;
     const ws = getWorkState(selected.id);
-    const body = ws.cleanedVersion || ws.pmNotes || "";
+    const rawBody = ws.responseDraft || ws.cleanedVersion || ws.pmNotes || "";
+    const bodyScan = scanForUnsupportedClaims(rawBody, pinnedSheets);
+    if (hasVerifyMarkers(bodyScan.text)) {
+      toast({
+        title: "Send as Email blocked — unverified claims",
+        description: "Fill in or delete each [VERIFY: ...] placeholder first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const body = bodyScan.text;
     setComposeDefaults({
       to: architectEmail || "",
       subject: `RE: ${projectAddress || "Project"} — Response to DOB Objection #${selected.item_number}`,
