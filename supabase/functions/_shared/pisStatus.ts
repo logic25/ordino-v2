@@ -1,5 +1,5 @@
 // Shared PIS-gap computation. Mirrors src/hooks/useProjectDetail.ts useProjectPISStatus
-// so beacon-qa / summarize-project don't depend on the dead pis_tracking table.
+// so summarize-project doesn't depend on the dead pis_tracking table.
 //
 // Source of truth: the latest rfi_requests row for a project. Its `sections` jsonb
 // describes the PIS schema; `responses` jsonb has the answers.
