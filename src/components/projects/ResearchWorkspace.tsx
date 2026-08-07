@@ -29,6 +29,7 @@ import { askBeacon, type BeaconChatResponse, type BeaconSource } from "@/service
 import { useAuth } from "@/hooks/useAuth";
 import { ObjectionSummaryView } from "./ObjectionSummaryView";
 import { useCreateDecisionRecord, fetchDecisionsForCode } from "@/hooks/useDecisionRecords";
+import { scanForUnsupportedClaims, hasVerifyMarkers, countVerifyMarkers } from "@/lib/verifyClaims";
 
 import { UploadObjectionDialog } from "./UploadObjectionDialog";
 
