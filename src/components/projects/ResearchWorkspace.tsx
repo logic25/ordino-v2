@@ -1200,6 +1200,7 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
                       size="sm"
                       className="h-8 text-xs gap-1.5 border-emerald-400/50 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
                       onClick={() => handleStatusChange(selected.id, "resolved")}
+                      disabled={draftVerifyCount > 0}
                     >
                       <CheckCircle2 className="h-3.5 w-3.5" /> Mark Resolved
                     </Button>
