@@ -775,6 +775,7 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
 
   const handleSaveResponseDraft = async () => {
     if (!selected) return;
+    if (!guardUnverifiedClaims(selected.id, "Save")) return;
     const ws = getWorkState(selected.id);
     try {
       await update({
