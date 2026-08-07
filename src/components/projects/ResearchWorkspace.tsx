@@ -799,6 +799,13 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
   }, [workStates, selectedId]);
 
   const currentWorkState = selected ? getWorkState(selected.id) : null;
+  const draftVerifyCount = countVerifyMarkers(currentWorkState?.responseDraft || "");
+  const groundedIn = [
+    selected?.code_reference ? `code ${selected.code_reference}` : null,
+    pinnedSheets.length > 0 ? `${pinnedSheets.length} pinned sheet(s)` : null,
+    currentWorkState?.pmNotes?.trim() ? "your notes" : null,
+    (currentWorkState?.beaconResponses?.length || 0) > 0 ? "Beacon research in this session" : null,
+  ].filter(Boolean) as string[];
 
   return (
     <div className="flex h-[calc(100vh-280px)] min-h-[500px]">
