@@ -1172,12 +1172,17 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
 
                 {/* Section C: Actions */}
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handleSaveToDocs}>
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handleSaveToDocs} disabled={draftVerifyCount > 0}>
                     <Save className="h-3.5 w-3.5" /> Save Notes
                   </Button>
-                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handleSendAsEmail}>
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handleSendAsEmail} disabled={draftVerifyCount > 0}>
                     <Mail className="h-3.5 w-3.5" /> Send as Email
                   </Button>
+                  {draftVerifyCount > 0 && (
+                    <span className="text-[10px] text-amber-700 dark:text-amber-400">
+                      Blocked: {draftVerifyCount} unverified claim{draftVerifyCount !== 1 ? "s" : ""} in the draft
+                    </span>
+                  )}
                   <div className="flex-1" />
                   {selected.status !== "in_progress" && (
                     <Button
