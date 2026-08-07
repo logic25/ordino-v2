@@ -1,0 +1,72 @@
+name: CI
+
+# First CI for Ordino. Goal: catch regressions before they reach `main`
+# (which is two-way synced with Lovable), starting with a hard TypeScript gate.
+#
+# Gate policy — deliberately staged against the current baseline:
+#   * typecheck (tsc --noEmit) — BLOCKING. Clean on main today, so it can fail
+#     the build honestly and catch the next type/schema regression.
+#   * lint (eslint) and test (vitest) — reported but NON-blocking for now. The
+#     repo currently carries ~3.2k pre-existing eslint errors and a handful of
+#     failing tests inherited from Lovable; making them blocking on day one
+#     would paint every PR red and train reviewers to ignore CI. They run on
+#     every PR so new breakage is visible, and should be flipped to blocking
+#     (remove `continue-on-error`) once the baseline is cleaned up.
+#
+# Install note: the committed package-lock.json is stale (Lovable uses bun as
+# its lockfile of record), so `npm ci` fails. We use `npm install` here.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel superseded runs on the same ref to save minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck:
+    name: Typecheck (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: tsc --noEmit
+        run: npx tsc --noEmit -p tsconfig.app.json
+
+  lint:
+    name: Lint (non-blocking baseline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: eslint
+        continue-on-error: true
+        run: npm run lint
+
+  test:
+    name: Test (non-blocking baseline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: vitest
+        continue-on-error: true
+        run: npm run test
