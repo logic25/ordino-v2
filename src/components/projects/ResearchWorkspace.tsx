@@ -662,11 +662,18 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
 
     const prompt = `IMPORTANT: Respond with ONLY 2-4 plain sentences. No markdown, no headers, no titles, no emojis, no bold, no lists, no bullet points, no architect instructions, no action items, no preliminary notes. Just answer the objection directly.
 
+ANTI-FABRICATION RULES (mandatory):
+- You have NOT seen any drawing, plan, survey, or filing document. No drawings are attached to this request.
+- Never state or imply that anything was verified, confirmed, dimensioned, provided, shown, indicated, or complies — you cannot know any of that.
+- Do not name or cite a drawing sheet number.
+- If the response needs a fact you cannot know (a dimension, a sheet reference, a field condition), write it as a placeholder in this exact form: [VERIFY: what needs to be checked]. Never invent the value.
+- State the compliance position and the reasoning; leave the evidence to the placeholder.
+
 Objection: "${targetObj.objection_text}"
 Code Reference: ${targetObj.code_reference || "N/A"}
 Filing Type: ${filingType || "N/A"}
 ${pmNotes ? `\nPM's notes and reasoning on this objection:\n${pmNotes}\n` : ""}${priorAnswers ? `\nPrior Beacon research in this session:\n${priorAnswers}\n` : ""}${priorDecisions ? `\nHere's how we've resolved this code section before (Green Light decision log):\n${priorDecisions}\n` : ""}
-Give a direct, professional response to this DOB examiner objection in 2-4 plain sentences, consistent with the PM's notes and our prior decisions:`;
+Give a direct, professional response to this DOB examiner objection in 2-4 plain sentences, consistent with the PM's notes and our prior decisions, and obeying the anti-fabrication rules above:`;
 
     try {
       const res = await askBeacon(prompt, userId, userName, {
@@ -678,7 +685,7 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
 
 
       // Strip any residual markdown formatting
-      const responseText = (res.response || "")
+      const cleaned = (res.response || "")
         .replace(/#{1,6}\s*/g, "")
         .replace(/\*{1,3}([^*]+)\*{1,3}/g, "$1")
         .replace(/^[-*>]\s+/gm, "")
@@ -687,6 +694,10 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
         .replace(/⚠️|✅|❌|📌|🔹|🔸|➡️|📧/g, "")
         .replace(/\n{3,}/g, "\n\n")
         .trim();
+
+      // Deterministic backstop — the model is not trusted to flag itself.
+      const scan = scanForUnsupportedClaims(cleaned, pinnedSheets);
+      const responseText = scan.text;
 
       updateWorkState(targetId, {
         responseDraft: responseText,
@@ -701,7 +712,15 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
         status: targetObj.status === "pending" ? "in_progress" : targetObj.status,
       });
 
-      toast({ title: "Draft response generated", description: "Review and edit before sending." });
+      if (scan.markers.length > 0) {
+        toast({
+          title: `${scan.markers.length} unverified claim${scan.markers.length !== 1 ? "s" : ""} flagged`,
+          description: "Fill in or delete each [VERIFY: ...] before saving or sending.",
+        });
+      } else {
+        toast({ title: "Draft response generated", description: "Review and edit before sending." });
+      }
+
     } catch {
       updateWorkState(targetId, { draftLoading: false });
       toast({ title: "Draft failed", description: "Could not generate response. Try again.", variant: "destructive" });
