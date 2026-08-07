@@ -643,6 +643,7 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
   };
 
   const handleStatusChange = async (id: string, status: ObjectionStatus) => {
+    if (status === "resolved" && !guardUnverifiedClaims(id, "Mark Resolved")) return;
     try {
       await update({ id, status });
       toast({ title: `Objection marked as ${statusConfig[status].label}` });
