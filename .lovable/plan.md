@@ -13,11 +13,13 @@ Three fixes, in the order they matter.
 Any statement of verified fact that isn't backed by something in the workspace becomes a placeholder you must fill in.
 
 - The instruction changes to: state the compliance position and the reasoning, but **never assert that anything was verified, dimensioned, shown, or confirmed on a drawing** unless a drawing is attached and cited.
-- Unsupported claims come back as inline `[VERIFY: rear yard dimension on sheet ___]` markers, highlighted in the draft box.
-- **Save, Send as Email, and Mark Resolved are blocked while any `[VERIFY: ...]` marker remains**, with a message naming what's outstanding. You either fill it in or delete the claim.
+- **A deterministic backstop does the real enforcement — the model is not trusted to police itself.** After every draft returns, the text is scanned in code for assertion verbs and compliance claims (`verified`, `confirmed`, `dimensioned`, `provided`, `shown`, `indicated`, `complies` / `compliant` / `in compliance`, `meets the requirement`, and sheet-name patterns like `sheet Z-1`). When **no sheet is pinned to the objection**, every match is rewritten into an inline `[VERIFY: ...]` marker carrying the original phrase. When a sheet *is* pinned, claims naming a sheet other than a pinned one are still flagged.
+- The same scan runs on text you type or paste into the draft box, not just on AI output — so a claim can't slip through by being edited in.
+- Markers are highlighted in the draft box, and **Save, Send as Email, and Mark Resolved are blocked while any `[VERIFY: ...]` marker remains**, with a message naming what's outstanding. You either fill it in or delete the claim.
 - A short "grounded in" line under the draft lists exactly what the response was built from: cited code section, attached sheets, your notes, prior decisions. If that list is empty, it says so.
 
-Result: the draft becomes an argument you finish, not a finished-looking claim you have to catch.
+Result: the draft becomes an argument you finish, not a finished-looking claim you have to catch. The prompt change reduces how often claims appear; the scanner guarantees none get through unflagged.
+
 
 ---
 
