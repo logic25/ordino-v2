@@ -31,6 +31,16 @@ function fail(message: string, status = 400) {
 
 // Tables in the allowlist that carry a company_id column. ALL allowed tables
 // currently have company_id, so we scope every query_ordino call by company.
+// Machine actions the shared secret alone may invoke, without a forwarded
+// end-user JWT. This is a deliberate, narrow carve-out for the unattended
+// check-bug-reports task (it has no user session to forward). Everything
+// else stays behind strict JWT mode. Keep this set tiny: each action here
+// touches ONLY feature_requests rows with category='bug_report'.
+const SHARED_SECRET_ACTIONS = new Set([
+  "list_bug_reports",
+  "update_bug_report_status",
+]);
+
 const COMPANY_SCOPED_TABLES = new Set([
   "projects", "properties", "proposals", "invoices", "services",
   "clients", "client_contacts", "project_action_items",
@@ -89,6 +99,9 @@ Deno.serve(async (req) => {
     // (PR #2 merged + deployed 2026-06-12), so strict JWT mode is the standard.
     // Flip BEACON_PROXY_ALLOW_SHARED_SECRET_ONLY=1 only to temporarily unblock
     // a legacy caller that cannot forward a JWT yet.
+    // Exception: actions in SHARED_SECRET_ACTIONS (bug-bot reads/status
+    // updates on feature_requests bug_reports) accept the shared secret
+    // alone — see that set's comment before adding anything to it.
     const expectedKey = Deno.env.get("BEACON_ANALYTICS_KEY") ?? "";
     const beaconKey = req.headers.get("x-beacon-key") ?? "";
     const sharedSecretOk = !!expectedKey && !!beaconKey && timingSafeEqual(beaconKey, expectedKey);
@@ -99,6 +112,10 @@ Deno.serve(async (req) => {
     if (!sharedSecretOk) {
       return fail("Unauthorized", 401);
     }
+
+    // Parse the body before the JWT gate so we know which action is being
+    // requested — a small set of machine actions is exempt from strict JWT.
+    const { action, params = {} } = await req.json();
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -136,7 +153,7 @@ Deno.serve(async (req) => {
       userId = prof.id;
       companyId = prof.company_id;
       authMode = "jwt";
-    } else if (!allowSharedOnly) {
+    } else if (!allowSharedOnly && !SHARED_SECRET_ACTIONS.has(action)) {
       return fail(
         "JWT required (set BEACON_PROXY_ALLOW_SHARED_SECRET_ONLY=1 only for legacy callers)",
         401,
@@ -144,8 +161,6 @@ Deno.serve(async (req) => {
     }
 
     const ctx: Ctx = { sb: supabase, companyId, userId, authMode };
-
-    const { action, params = {} } = await req.json();
 
     let response: Response;
     let rowCount: number | null = null;
@@ -183,6 +198,12 @@ Deno.serve(async (req) => {
           break;
         case "create_bug_from_conversation":
           response = await createBugFromConversation(ctx, params);
+          break;
+        case "list_bug_reports":
+          response = await listBugReports(ctx, params);
+          break;
+        case "update_bug_report_status":
+          response = await updateBugReportStatus(ctx, params);
           break;
         case "vendor_lookup":
           response = await vendorLookup(ctx, params);
@@ -708,6 +729,73 @@ async function queryBugPatterns(ctx: Ctx, params: any) {
     count: results.length,
     total_occurrences: results.reduce((s: number, p: any) => s + (p.occurrences || 0), 0),
   });
+}
+
+// ── Bug-bot machine actions (shared-secret allowed) ──────
+// Used by the unattended check-bug-reports task. Both actions are in
+// SHARED_SECRET_ACTIONS, so they run without a JWT (companyId is null in
+// that mode) — which is why each one hard-scopes to category='bug_report'
+// and nothing else. Do NOT widen these to other categories or tables.
+
+const BUG_STATUS_VALUES = new Set([
+  "new", "open", "in_progress", "ready_for_review", "resolved", "closed",
+]);
+
+async function listBugReports(ctx: Ctx, params: any) {
+  const { status, limit } = params || {};
+  const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 200);
+
+  let q = ctx.sb
+    .from("feature_requests")
+    .select("*")
+    .eq("category", "bug_report")
+    .order("created_at", { ascending: false })
+    .limit(safeLimit);
+
+  // JWT callers stay company-scoped; the shared-secret bug bot sees all
+  // companies' bug reports (internal GLE tooling — single real tenant).
+  if (ctx.companyId) q = q.eq("company_id", ctx.companyId);
+
+  if (status && typeof status === "string") {
+    if (!BUG_STATUS_VALUES.has(status)) {
+      return fail(`Invalid status filter '${status}'`);
+    }
+    q = q.eq("status", status);
+  }
+
+  const { data, error } = await q;
+  if (error) {
+    console.error("list_bug_reports error:", error.message);
+    return fail("Internal server error", 500);
+  }
+  return ok({ rows: data ?? [], count: data?.length ?? 0 });
+}
+
+async function updateBugReportStatus(ctx: Ctx, params: any) {
+  const { id, status } = params || {};
+  if (!id || typeof id !== "string") {
+    return fail("Missing or invalid 'id' param");
+  }
+  if (!status || !BUG_STATUS_VALUES.has(status)) {
+    return fail(
+      `Invalid 'status' — must be one of: ${[...BUG_STATUS_VALUES].join(", ")}`,
+    );
+  }
+
+  let q = ctx.sb
+    .from("feature_requests")
+    .update({ status })
+    .eq("id", id)
+    .eq("category", "bug_report");
+  if (ctx.companyId) q = q.eq("company_id", ctx.companyId);
+
+  const { data, error } = await q.select("id, title, status").maybeSingle();
+  if (error) {
+    console.error("update_bug_report_status error:", error.message);
+    return fail("Internal server error", 500);
+  }
+  if (!data) return fail("bug_not_found", 404);
+  return ok(data);
 }
 
 // ── Conversational bug creation ──────────────────────────
