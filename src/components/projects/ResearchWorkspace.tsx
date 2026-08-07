@@ -1234,6 +1234,7 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
                   size="sm"
                   className="h-7 text-xs gap-1.5 shrink-0"
                   onClick={() => { handleSaveResponseDraft(); setDraftModalOpen(false); }}
+                  disabled={draftVerifyCount > 0}
                 >
                   <Save className="h-3 w-3" /> Save & Close
                 </Button>
