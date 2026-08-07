@@ -89,25 +89,6 @@ export async function askBeacon(
   return data as BeaconChatResponse;
 }
 
-
-export interface BeaconProjectQAResponse {
-  answer: string;
-  question_id: string;
-  duration_ms: number;
-  truncated: boolean;
-}
-
-export async function askBeaconProjectQA(
-  question: string,
-  projectId?: string,
-): Promise<BeaconProjectQAResponse> {
-  const { data, error } = await supabase.functions.invoke("beacon-qa", {
-    body: { question, project_id: projectId },
-  });
-  if (error) throw new Error(`Beacon Q&A error: ${error.message}`);
-  return data as BeaconProjectQAResponse;
-}
-
 export type CompareGenericModel = "openai/gpt-5.5" | "google/gemini-2.5-pro";
 
 export interface CompareAnswersResult {
