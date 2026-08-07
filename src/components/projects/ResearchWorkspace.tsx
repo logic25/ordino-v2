@@ -477,6 +477,7 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
 
   const handleSaveToDocs = async () => {
     if (!selected) return;
+    if (!guardUnverifiedClaims(selected.id, "Save")) return;
     const ws = getWorkState(selected.id);
     try {
       await update({
