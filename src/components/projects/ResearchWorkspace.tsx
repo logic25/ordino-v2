@@ -29,6 +29,7 @@ import { askBeacon, type BeaconChatResponse, type BeaconSource } from "@/service
 import { useAuth } from "@/hooks/useAuth";
 import { ObjectionSummaryView } from "./ObjectionSummaryView";
 import { useCreateDecisionRecord, fetchDecisionsForCode } from "@/hooks/useDecisionRecords";
+import { scanForUnsupportedClaims, hasVerifyMarkers, countVerifyMarkers } from "@/lib/verifyClaims";
 
 import { UploadObjectionDialog } from "./UploadObjectionDialog";
 
@@ -357,6 +358,38 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
     }));
   }, []);
 
+  // Sheet pinning is not built yet — with no pinned sheets, every evidence claim
+  // is flagged. That is the correct behaviour, not a limitation.
+  const pinnedSheets: string[] = [];
+
+  /**
+   * Deterministic gate. Re-scans the draft (including text typed or pasted by
+   * hand) and blocks the action while any [VERIFY: ...] marker remains.
+   * Returns true when the action may proceed.
+   */
+  const guardUnverifiedClaims = useCallback((id: string, actionLabel: string): boolean => {
+    const ws = workStates[id] || defaultWorkState;
+    const draft = ws.responseDraft || ws.cleanedVersion || "";
+    if (!draft.trim()) return true;
+
+    const scan = scanForUnsupportedClaims(draft, pinnedSheets);
+    if (scan.markers.length > 0) {
+      updateWorkState(id, ws.responseDraft ? { responseDraft: scan.text } : { cleanedVersion: scan.text });
+    }
+    const total = countVerifyMarkers(scan.text);
+    if (total > 0) {
+      toast({
+        title: `${actionLabel} blocked — ${total} unverified claim${total !== 1 ? "s" : ""}`,
+        description: "Fill in or delete each [VERIFY: ...] placeholder first. Nothing is sent to DOB that we can't back up.",
+        variant: "destructive",
+      });
+      return false;
+    }
+    return true;
+  }, [workStates, updateWorkState, toast]);
+
+
+
   const handleImportDemo = async () => {
     const demoItems = [
       { project_id: projectId, item_number: 1, objection_text: "Provide a complete scope of work including all construction operations", code_reference: "AC 28-104.7", status: "pending", source: "demo" },
@@ -444,6 +477,7 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
 
   const handleSaveToDocs = async () => {
     if (!selected) return;
+    if (!guardUnverifiedClaims(selected.id, "Save")) return;
     const ws = getWorkState(selected.id);
     try {
       await update({
@@ -460,8 +494,19 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
 
   const handleSendAsEmail = () => {
     if (!selected) return;
+    if (!guardUnverifiedClaims(selected.id, "Send as Email")) return;
     const ws = getWorkState(selected.id);
-    const body = ws.cleanedVersion || ws.pmNotes || "";
+    const rawBody = ws.responseDraft || ws.cleanedVersion || ws.pmNotes || "";
+    const bodyScan = scanForUnsupportedClaims(rawBody, pinnedSheets);
+    if (hasVerifyMarkers(bodyScan.text)) {
+      toast({
+        title: "Send as Email blocked — unverified claims",
+        description: "Fill in or delete each [VERIFY: ...] placeholder first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const body = bodyScan.text;
     setComposeDefaults({
       to: architectEmail || "",
       subject: `RE: ${projectAddress || "Project"} — Response to DOB Objection #${selected.item_number}`,
@@ -516,6 +561,14 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
 
   const handleSendAllAsEmail = async () => {
     const body = buildConsolidatedBody();
+    if (hasVerifyMarkers(body)) {
+      toast({
+        title: "Send blocked — unverified claims",
+        description: "One or more responses still contain a [VERIFY: ...] placeholder.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (!body) {
       toast({ title: "No responses to send", description: "Address at least one objection first.", variant: "destructive" });
       return;
@@ -538,6 +591,14 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
     const addressed = objections.filter((o) => getResponse(o).trim().length > 0);
     if (addressed.length === 0) {
       toast({ title: "Nothing to save", description: "Address at least one objection first.", variant: "destructive" });
+      return;
+    }
+    if (addressed.some((o) => hasVerifyMarkers(getResponse(o)))) {
+      toast({
+        title: "Save blocked — unverified claims",
+        description: "One or more responses still contain a [VERIFY: ...] placeholder.",
+        variant: "destructive",
+      });
       return;
     }
     setSavingPackage(true);
@@ -598,6 +659,7 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
   };
 
   const handleStatusChange = async (id: string, status: ObjectionStatus) => {
+    if (status === "resolved" && !guardUnverifiedClaims(id, "Mark Resolved")) return;
     try {
       await update({ id, status });
       toast({ title: `Objection marked as ${statusConfig[status].label}` });
@@ -662,11 +724,18 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
 
     const prompt = `IMPORTANT: Respond with ONLY 2-4 plain sentences. No markdown, no headers, no titles, no emojis, no bold, no lists, no bullet points, no architect instructions, no action items, no preliminary notes. Just answer the objection directly.
 
+ANTI-FABRICATION RULES (mandatory):
+- You have NOT seen any drawing, plan, survey, or filing document. No drawings are attached to this request.
+- Never state or imply that anything was verified, confirmed, dimensioned, provided, shown, indicated, or complies — you cannot know any of that.
+- Do not name or cite a drawing sheet number.
+- If the response needs a fact you cannot know (a dimension, a sheet reference, a field condition), write it as a placeholder in this exact form: [VERIFY: what needs to be checked]. Never invent the value.
+- State the compliance position and the reasoning; leave the evidence to the placeholder.
+
 Objection: "${targetObj.objection_text}"
 Code Reference: ${targetObj.code_reference || "N/A"}
 Filing Type: ${filingType || "N/A"}
 ${pmNotes ? `\nPM's notes and reasoning on this objection:\n${pmNotes}\n` : ""}${priorAnswers ? `\nPrior Beacon research in this session:\n${priorAnswers}\n` : ""}${priorDecisions ? `\nHere's how we've resolved this code section before (Green Light decision log):\n${priorDecisions}\n` : ""}
-Give a direct, professional response to this DOB examiner objection in 2-4 plain sentences, consistent with the PM's notes and our prior decisions:`;
+Give a direct, professional response to this DOB examiner objection in 2-4 plain sentences, consistent with the PM's notes and our prior decisions, and obeying the anti-fabrication rules above:`;
 
     try {
       const res = await askBeacon(prompt, userId, userName, {
@@ -678,7 +747,7 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
 
 
       // Strip any residual markdown formatting
-      const responseText = (res.response || "")
+      const cleaned = (res.response || "")
         .replace(/#{1,6}\s*/g, "")
         .replace(/\*{1,3}([^*]+)\*{1,3}/g, "$1")
         .replace(/^[-*>]\s+/gm, "")
@@ -687,6 +756,10 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
         .replace(/⚠️|✅|❌|📌|🔹|🔸|➡️|📧/g, "")
         .replace(/\n{3,}/g, "\n\n")
         .trim();
+
+      // Deterministic backstop — the model is not trusted to flag itself.
+      const scan = scanForUnsupportedClaims(cleaned, pinnedSheets);
+      const responseText = scan.text;
 
       updateWorkState(targetId, {
         responseDraft: responseText,
@@ -701,7 +774,15 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
         status: targetObj.status === "pending" ? "in_progress" : targetObj.status,
       });
 
-      toast({ title: "Draft response generated", description: "Review and edit before sending." });
+      if (scan.markers.length > 0) {
+        toast({
+          title: `${scan.markers.length} unverified claim${scan.markers.length !== 1 ? "s" : ""} flagged`,
+          description: "Fill in or delete each [VERIFY: ...] before saving or sending.",
+        });
+      } else {
+        toast({ title: "Draft response generated", description: "Review and edit before sending." });
+      }
+
     } catch {
       updateWorkState(targetId, { draftLoading: false });
       toast({ title: "Draft failed", description: "Could not generate response. Try again.", variant: "destructive" });
@@ -710,6 +791,7 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
 
   const handleSaveResponseDraft = async () => {
     if (!selected) return;
+    if (!guardUnverifiedClaims(selected.id, "Save")) return;
     const ws = getWorkState(selected.id);
     try {
       await update({
@@ -733,6 +815,13 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
   }, [workStates, selectedId]);
 
   const currentWorkState = selected ? getWorkState(selected.id) : null;
+  const draftVerifyCount = countVerifyMarkers(currentWorkState?.responseDraft || "");
+  const groundedIn = [
+    selected?.code_reference ? `code ${selected.code_reference}` : null,
+    pinnedSheets.length > 0 ? `${pinnedSheets.length} pinned sheet(s)` : null,
+    currentWorkState?.pmNotes?.trim() ? "your notes" : null,
+    (currentWorkState?.beaconResponses?.length || 0) > 0 ? "Beacon research in this session" : null,
+  ].filter(Boolean) as string[];
 
   return (
     <div className="flex h-[calc(100vh-280px)] min-h-[500px]">
@@ -992,18 +1081,37 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
                             size="sm"
                             className="h-7 text-xs gap-1.5"
                             onClick={handleSaveResponseDraft}
+                            disabled={draftVerifyCount > 0}
                           >
                             <Save className="h-3 w-3" /> Save
                           </Button>
                         </div>
                       </div>
+                      {draftVerifyCount > 0 && (
+                        <div className="mb-2 rounded-md border border-amber-400/50 bg-amber-50 dark:bg-amber-950/30 p-2.5 text-xs text-amber-800 dark:text-amber-300">
+                          <div className="font-semibold flex items-center gap-1.5">
+                            <AlertCircle className="h-3.5 w-3.5" />
+                            {draftVerifyCount} unverified claim{draftVerifyCount !== 1 ? "s" : ""} must be resolved
+                          </div>
+                          <p className="mt-1 text-[11px] leading-relaxed">
+                            Nothing below can be saved, emailed, or marked resolved while a{" "}
+                            <code className="font-mono">[VERIFY: ...]</code> placeholder remains. Confirm the fact and
+                            replace the placeholder, or delete the claim.
+                            {pinnedSheets.length === 0 && " No drawing sheet is pinned to this objection, so every evidence claim is flagged."}
+                          </p>
+                        </div>
+                      )}
                       <Textarea
                         className="min-h-[120px] text-sm font-mono"
                         value={currentWorkState.responseDraft}
                         onChange={(e) => updateWorkState(selected.id, { responseDraft: e.target.value })}
                         placeholder="AI-generated response will appear here..."
                       />
+                      <p className="mt-1.5 text-[10px] text-muted-foreground">
+                        Grounded in: {groundedIn.length > 0 ? groundedIn.join(" · ") : "nothing yet — no code text, sheets, or notes attached"}
+                      </p>
                     </div>
+
                   </>
                 )}
 
@@ -1080,12 +1188,17 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
 
                 {/* Section C: Actions */}
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handleSaveToDocs}>
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handleSaveToDocs} disabled={draftVerifyCount > 0}>
                     <Save className="h-3.5 w-3.5" /> Save Notes
                   </Button>
-                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handleSendAsEmail}>
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handleSendAsEmail} disabled={draftVerifyCount > 0}>
                     <Mail className="h-3.5 w-3.5" /> Send as Email
                   </Button>
+                  {draftVerifyCount > 0 && (
+                    <span className="text-[10px] text-amber-700 dark:text-amber-400">
+                      Blocked: {draftVerifyCount} unverified claim{draftVerifyCount !== 1 ? "s" : ""} in the draft
+                    </span>
+                  )}
                   <div className="flex-1" />
                   {selected.status !== "in_progress" && (
                     <Button
@@ -1103,6 +1216,7 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
                       size="sm"
                       className="h-8 text-xs gap-1.5 border-emerald-400/50 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
                       onClick={() => handleStatusChange(selected.id, "resolved")}
+                      disabled={draftVerifyCount > 0}
                     >
                       <CheckCircle2 className="h-3.5 w-3.5" /> Mark Resolved
                     </Button>
@@ -1136,6 +1250,7 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
                   size="sm"
                   className="h-7 text-xs gap-1.5 shrink-0"
                   onClick={() => { handleSaveResponseDraft(); setDraftModalOpen(false); }}
+                  disabled={draftVerifyCount > 0}
                 >
                   <Save className="h-3 w-3" /> Save & Close
                 </Button>
