@@ -1065,18 +1065,37 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
                             size="sm"
                             className="h-7 text-xs gap-1.5"
                             onClick={handleSaveResponseDraft}
+                            disabled={draftVerifyCount > 0}
                           >
                             <Save className="h-3 w-3" /> Save
                           </Button>
                         </div>
                       </div>
+                      {draftVerifyCount > 0 && (
+                        <div className="mb-2 rounded-md border border-amber-400/50 bg-amber-50 dark:bg-amber-950/30 p-2.5 text-xs text-amber-800 dark:text-amber-300">
+                          <div className="font-semibold flex items-center gap-1.5">
+                            <AlertCircle className="h-3.5 w-3.5" />
+                            {draftVerifyCount} unverified claim{draftVerifyCount !== 1 ? "s" : ""} must be resolved
+                          </div>
+                          <p className="mt-1 text-[11px] leading-relaxed">
+                            Nothing below can be saved, emailed, or marked resolved while a{" "}
+                            <code className="font-mono">[VERIFY: ...]</code> placeholder remains. Confirm the fact and
+                            replace the placeholder, or delete the claim.
+                            {pinnedSheets.length === 0 && " No drawing sheet is pinned to this objection, so every evidence claim is flagged."}
+                          </p>
+                        </div>
+                      )}
                       <Textarea
                         className="min-h-[120px] text-sm font-mono"
                         value={currentWorkState.responseDraft}
                         onChange={(e) => updateWorkState(selected.id, { responseDraft: e.target.value })}
                         placeholder="AI-generated response will appear here..."
                       />
+                      <p className="mt-1.5 text-[10px] text-muted-foreground">
+                        Grounded in: {groundedIn.length > 0 ? groundedIn.join(" · ") : "nothing yet — no code text, sheets, or notes attached"}
+                      </p>
                     </div>
+
                   </>
                 )}
 
