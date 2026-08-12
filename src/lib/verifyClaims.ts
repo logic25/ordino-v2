@@ -19,22 +19,43 @@ export interface VerifyMarker {
 export interface VerifyScanResult {
   /** The text with unsupported claims rewritten as `[VERIFY: ...]`. */
   text: string;
-  /** One entry per rewritten claim. */
+  /** One entry per rewritten claim (high-confidence compliance assertions). */
   markers: VerifyMarker[];
+  /**
+   * Soft flags: weak words like "provided" / "shown" that are usually harmless
+   * ("the applicant provided a response"). Surfaced for review, never rewritten
+   * and never gating — so the scanner doesn't cry wolf.
+   */
+  advisories: VerifyMarker[];
 }
 
-/** Assertion verbs / compliance claims that imply evidence we may not have. */
+/** Evidence context that turns a weak verb into a real drawing claim. */
+const DRAWING_CONTEXT = /\b(?:drawing|drawings|sheet|plan|plans|dwg|site plan|elevation|section)\b/i;
+
+/**
+ * High confidence: real compliance assertions. These are always rewritten into
+ * `[VERIFY: ...]` unless they cite a pinned sheet.
+ */
 const CLAIM_PATTERNS: { re: RegExp; reason: string }[] = [
   { re: /\b(?:has been|have been|was|were|is|are)\s+(?:hereby\s+)?verified\b[^.;]*/gi, reason: "asserts something was verified" },
   { re: /\b(?:has been|have been|was|were|is|are)\s+(?:hereby\s+)?confirmed\b[^.;]*/gi, reason: "asserts something was confirmed" },
   { re: /\bwe\s+(?:have\s+)?(?:verified|confirmed)\b[^.;]*/gi, reason: "asserts we verified something" },
   { re: /\b(?:is|are|has been|have been|was|were)\s+dimensioned\b[^.;]*/gi, reason: "asserts a dimension is shown on a drawing" },
-  { re: /\b(?:is|are|has been|have been|was|were)\s+(?:clearly\s+|properly\s+)?(?:shown|indicated|depicted|noted|reflected)\s+on\b[^.;]*/gi, reason: "asserts something appears on a drawing" },
-  { re: /\b(?:is|are|has been|have been|was|were)\s+(?:fully\s+)?provided\b[^.;]*/gi, reason: "asserts something was provided" },
   { re: /\b(?:complies|comply|complied|is compliant|are compliant|is in compliance|are in compliance)\b[^.;]*/gi, reason: "asserts a compliance conclusion" },
   { re: /\b(?:meets|meet|satisfies|satisfy)\s+(?:the\s+)?(?:requirement|requirements|minimum|criteria|standard|standards)\b[^.;]*/gi, reason: "asserts a requirement is met" },
-  { re: /\bas\s+(?:shown|dimensioned|indicated)\s+on\s+(?:the\s+)?[^.;,]*/gi, reason: "cites a drawing as evidence" },
+  { re: /\bas\s+(?:shown|dimensioned|indicated)\s+on\s+(?:the\s+)?(?:sheet|drawing|dwg\.?|plan)[^.;,]*/gi, reason: "cites a drawing as evidence" },
 ];
+
+/**
+ * Low confidence: bare "provided" / "shown" / "indicated" / "depicted" / "noted".
+ * Only escalated to a hard marker when the sentence fragment also references a
+ * drawing, sheet or plan — otherwise it's an advisory only.
+ */
+const WEAK_PATTERNS: { re: RegExp; reason: string }[] = [
+  { re: /\b(?:is|are|has been|have been|was|were)\s+(?:clearly\s+|properly\s+)?(?:shown|indicated|depicted|noted|reflected)\b[^.;]*/gi, reason: "says something is shown/indicated — confirm the source" },
+  { re: /\b(?:is|are|has been|have been|was|were)\s+(?:fully\s+)?provided\b[^.;]*/gi, reason: "says something was provided — confirm it actually was" },
+];
+
 
 /** Sheet references like "sheet Z-1", "on A-101", "drawing G-002". */
 const SHEET_PATTERN = /\b(?:sheet|drawing|dwg\.?|plan)\s+([A-Z]{1,3}[- ]?\d{1,3}(?:\.\d+)?)\b/gi;
