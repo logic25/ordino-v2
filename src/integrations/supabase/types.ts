@@ -4425,6 +4425,7 @@ export type Database = {
         Row: {
           address: string | null
           created_at: string | null
+          default_jurisdiction: string | null
           ein: string | null
           email: string | null
           id: string
@@ -4442,6 +4443,7 @@ export type Database = {
         Insert: {
           address?: string | null
           created_at?: string | null
+          default_jurisdiction?: string | null
           ein?: string | null
           email?: string | null
           id?: string
@@ -4459,6 +4461,7 @@ export type Database = {
         Update: {
           address?: string | null
           created_at?: string | null
+          default_jurisdiction?: string | null
           ein?: string | null
           email?: string | null
           id?: string
@@ -9476,6 +9479,7 @@ export type Database = {
           gle_contact_id: string | null
           id: string
           is_external: boolean
+          jurisdiction: string | null
           last_activity_at: string | null
           last_editor_id: string | null
           metadata: Json | null
@@ -9550,6 +9554,7 @@ export type Database = {
           gle_contact_id?: string | null
           id?: string
           is_external?: boolean
+          jurisdiction?: string | null
           last_activity_at?: string | null
           last_editor_id?: string | null
           metadata?: Json | null
@@ -9624,6 +9629,7 @@ export type Database = {
           gle_contact_id?: string | null
           id?: string
           is_external?: boolean
+          jurisdiction?: string | null
           last_activity_at?: string | null
           last_editor_id?: string | null
           metadata?: Json | null
@@ -9772,6 +9778,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           id: string
+          jurisdiction: string | null
           lot: string | null
           metadata: Json | null
           notes: string | null
@@ -9796,6 +9803,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           id?: string
+          jurisdiction?: string | null
           lot?: string | null
           metadata?: Json | null
           notes?: string | null
@@ -9820,6 +9828,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           id?: string
+          jurisdiction?: string | null
           lot?: string | null
           metadata?: Json | null
           notes?: string | null
