@@ -44,3 +44,18 @@ describe("verifyClaims", () => {
     expect(countVerifyMarkers(second.text)).toBe(1);
   });
 });
+
+describe("verifyClaims — weak verbs", () => {
+  it("does not flag bare 'provided' or 'shown' outside a drawing context", () => {
+    const text = "The applicant provided a response, and the fee was provided; the note is shown in your file.";
+    const res = scanForUnsupportedClaims(text);
+    expect(res.markers).toHaveLength(0);
+    expect(res.text).toBe(text);
+    expect(res.advisories.length).toBeGreaterThan(0);
+  });
+
+  it("escalates a weak verb when it points at a drawing", () => {
+    const res = scanForUnsupportedClaims("The egress path is shown on the site plan.");
+    expect(res.markers).toHaveLength(1);
+  });
+});
