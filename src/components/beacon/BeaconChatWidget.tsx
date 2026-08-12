@@ -662,12 +662,10 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
           content: m.text,
         }));
 
-        // Jurisdiction: default "NYC". If a project/property context is present, prefer its city-derived jurisdiction.
-        // Today the only city we operate in is NYC (borough presence implies NYC), so this resolves to "NYC".
-        const ctxJurisdiction = activeContext?.borough ? "NYC" : null;
+        // Jurisdiction resolves inside askBeacon: project/property jurisdiction (on the context)
+        // ?? company default ?? NYC, mapped to an exact Beacon tag via the JURISDICTIONS registry.
         const res = await askBeacon(enrichedQuery, userId, userName, contextWithPage, conversationHistory, {
           companyId: profile?.company_id ?? null,
-          jurisdiction: ctxJurisdiction ?? "NYC",
         });
         setMessages((prev) => [
           ...prev,

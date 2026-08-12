@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { getJurisdictionTag, isJurisdictionKey, DEFAULT_JURISDICTION_KEY, type JurisdictionKey } from "@/lib/jurisdictions";
 
 export interface BeaconSource {
   title: string;
@@ -35,6 +36,9 @@ export interface BeaconProjectContext {
   dobApplications?: string[];
   clientName?: string;
   projectNumber?: string;
+  // Jurisdiction key (from projects.jurisdiction / properties.jurisdiction). Resolves the
+  // exact Beacon retrieval tag; falls back to the company default, then NYC. See askBeacon.
+  jurisdiction?: JurisdictionKey;
   // Operational context
   lastActivity?: {
     userName: string;
@@ -68,11 +72,19 @@ export async function askBeacon(
   userName: string,
   projectContext?: BeaconProjectContext,
   conversationHistory?: { role: string; content: string }[],
-  opts?: { companyId?: string | null; jurisdiction?: string | null },
+  opts?: { companyId?: string | null; companyDefaultJurisdiction?: JurisdictionKey | null },
 ): Promise<BeaconChatResponse> {
-  // jurisdiction: explicitly null until Pinecone KB docs are tagged + Railway jurisdiction change ships.
-  // Sending "NYC" before that would zero out KB retrieval.
-  const jurisdiction = opts && "jurisdiction" in opts ? opts.jurisdiction : null;
+  // Jurisdiction filter is enforced by Beacon (exact $eq match). Must resolve to an exact tag
+  // from the JURISDICTIONS registry — corpus is 100% tagged as of 2026-08-12.
+  // Resolution order: project/property jurisdiction ?? company default ?? NYC. A missing or
+  // unrecognized key degrades to NYC via the registry, never to an invalid string that would
+  // silently zero out KB retrieval.
+  const resolvedKey: JurisdictionKey = isJurisdictionKey(projectContext?.jurisdiction)
+    ? projectContext.jurisdiction
+    : isJurisdictionKey(opts?.companyDefaultJurisdiction)
+      ? opts.companyDefaultJurisdiction
+      : DEFAULT_JURISDICTION_KEY;
+  const jurisdiction = getJurisdictionTag(resolvedKey);
   const { data, error } = await supabase.functions.invoke("beacon-proxy?action=chat", {
     body: {
       message,

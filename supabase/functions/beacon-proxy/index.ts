@@ -569,8 +569,10 @@ Deno.serve(async (req) => {
       // Forward the end-user's Supabase JWT + company_id + jurisdiction to Railway /api/chat
       // so Railway can (eventually) forward the JWT to beacon-data-proxy for per-user company scoping.
       // company_id and user_id are JWT-derived server-side above (anti-spoof); any client-supplied
-      // values were overwritten. jurisdiction stays client-supplied (intentionally null until KB
-      // docs are tagged in Pinecone AND Railway's jurisdiction handling ships).
+      // values were overwritten. jurisdiction is client-supplied and passed through unchanged in
+      // `body`: Ordino resolves it to an exact corpus tag via the JURISDICTIONS registry
+      // (src/lib/jurisdictions.ts) before it reaches here. Beacon enforces an exact $eq match on
+      // it — the corpus is 100% jurisdiction-tagged as of 2026-08-12.
       beaconReqInit = {
         method: "POST",
         headers: {
