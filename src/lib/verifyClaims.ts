@@ -117,11 +117,12 @@ export function scanForUnsupportedClaims(
   text: string,
   pinnedSheets: string[] = []
 ): VerifyScanResult {
-  if (!text) return { text: "", markers: [] };
+  if (!text) return { text: "", markers: [], advisories: [] };
 
   const pinned = new Set(pinnedSheets.filter(Boolean).map(normalizeSheet));
   const hasPinned = pinned.size > 0;
   const markers: VerifyMarker[] = [];
+  const advisories: VerifyMarker[] = [];
 
   // Don't re-scan text already inside an existing marker.
   const protectedRanges: [number, number][] = [];
@@ -133,9 +134,19 @@ export function scanForUnsupportedClaims(
   const isProtected = (start: number, end: number) =>
     protectedRanges.some(([s, e]) => start < e && end > s);
 
-  const matches = collectMatches(text, CLAIM_PATTERNS).filter((m) => !isProtected(m.start, m.end));
+  const strong = collectMatches(text, CLAIM_PATTERNS).filter((m) => !isProtected(m.start, m.end));
+  const weakAll = collectMatches(text, WEAK_PATTERNS).filter(
+    (m) => !isProtected(m.start, m.end) && !strong.some((s) => m.start < s.end && m.end > s.start)
+  );
+  // A weak verb only becomes a hard claim when it points at a drawing.
+  const weakStrong = weakAll.filter((m) => DRAWING_CONTEXT.test(m.phrase));
+  for (const w of weakAll) {
+    if (!DRAWING_CONTEXT.test(w.phrase)) advisories.push({ phrase: w.phrase, reason: w.reason });
+  }
 
-  const flagged = matches.filter((m) => {
+  const candidates = [...strong, ...weakStrong].sort((a, b) => a.start - b.start);
+
+  const flagged = candidates.filter((m) => {
     if (!hasPinned) return true;
     // A sheet IS pinned — allow the claim only when it cites a pinned sheet.
     SHEET_PATTERN.lastIndex = 0;
@@ -146,7 +157,7 @@ export function scanForUnsupportedClaims(
     return !cited.every((c) => pinned.has(c));
   });
 
-  if (flagged.length === 0) return { text, markers: [] };
+  if (flagged.length === 0) return { text, markers: [], advisories };
 
   let out = "";
   let last = 0;
@@ -158,5 +169,5 @@ export function scanForUnsupportedClaims(
   }
   out += text.slice(last);
 
-  return { text: out, markers };
+  return { text: out, markers, advisories };
 }
