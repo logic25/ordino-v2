@@ -285,9 +285,36 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // Tenant isolation + privilege gate: this function reads and destructively
+    // overwrites property rows, so restrict it to GLE staff and scope every
+    // read/write to the caller's own company_id.
+    const { data: staffCheck, error: staffErr } = await supabase.rpc("is_gle_staff", {
+      _uid: user.id,
+    });
+    if (staffErr || staffCheck !== true) {
+      return new Response(JSON.stringify({ error: "Forbidden: staff only" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: callerProfile, error: profileErr } = await supabase
+      .from("profiles")
+      .select("company_id")
+      .eq("user_id", user.id)
+      .single();
+    if (profileErr || !callerProfile?.company_id) {
+      return new Response(JSON.stringify({ error: "Forbidden: no company" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const callerCompanyId = callerProfile.company_id;
+
     const { data: properties, error } = await supabase
       .from("properties")
-      .select("id, address, borough, block, lot, bin, zip_code, owner_name");
+      .select("id, address, borough, block, lot, bin, zip_code, owner_name")
+      .eq("company_id", callerCompanyId);
 
     if (error) throw error;
 
@@ -320,11 +347,11 @@ Deno.serve(async (req) => {
           const akas = await fetchAkaAddresses(resolvedBin);
           if (akas.length > 0) updates.aka_addresses = akas;
 
-          await supabase.from("properties").update(updates).eq("id", prop.id);
+          await supabase.from("properties").update(updates).eq("id", prop.id).eq("company_id", callerCompanyId);
           results.push({ id: prop.id, address: prop.address, status: "updated", details: JSON.stringify(updates) });
         } else {
           // Mark as unverified so UI can flag it
-          await supabase.from("properties").update({ bbl_verified: false }).eq("id", prop.id);
+          await supabase.from("properties").update({ bbl_verified: false }).eq("id", prop.id).eq("company_id", callerCompanyId);
           results.push({ id: prop.id, address: prop.address, status: "not_found" });
         }
         await new Promise((r) => setTimeout(r, 300));
