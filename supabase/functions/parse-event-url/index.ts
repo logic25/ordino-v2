@@ -15,10 +15,13 @@ function json(body: unknown, status = 200) {
   });
 }
 
-function isBlockedHost(hostname: string): boolean {
-  const h = hostname.toLowerCase();
-  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local") || h.endsWith(".internal")) return true;
-  // IPv6 loopback / link-local / unique-local
+// Is a literal IP address in a private / loopback / link-local / metadata range?
+function isBlockedIp(ip: string): boolean {
+  const h = ip.toLowerCase().trim().replace(/^\[|\]$/g, "");
+  // IPv4-mapped IPv6 (e.g. ::ffff:127.0.0.1) → evaluate the embedded IPv4.
+  const mapped = h.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+  if (mapped) return isBlockedIp(mapped[1]);
+  // IPv6 loopback / link-local / unique-local (fc00::/7)
   if (h === "::1" || h.startsWith("fe80:") || h.startsWith("fc") || h.startsWith("fd")) return true;
   // IPv4 private / loopback / link-local / metadata
   const m = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
@@ -33,11 +36,38 @@ function isBlockedHost(hostname: string): boolean {
   return false;
 }
 
+function isBlockedHost(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local") || h.endsWith(".internal")) return true;
+  return isBlockedIp(h);
+}
+
+// Anti-DNS-rebinding: resolve the hostname and re-check every A/AAAA record
+// against the private-range blocklist. A hostname string check alone is bypassed
+// by a name that resolves to an internal IP (e.g. 169.254.169.254). Called
+// immediately before fetch to minimize the TOCTOU window.
+async function resolvedHostIsBlocked(hostname: string): Promise<boolean> {
+  // IP literals are already covered by isBlockedHost; resolveDns would throw on them.
+  if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) || hostname.includes(":")) {
+    return isBlockedIp(hostname);
+  }
+  const addrs: string[] = [];
+  for (const kind of ["A", "AAAA"] as const) {
+    try {
+      const recs = await Deno.resolveDns(hostname, kind);
+      addrs.push(...recs);
+    } catch { /* no records of this type / resolver error */ }
+  }
+  // If nothing resolved, there is no internal target to reach; fetch will fail on its own.
+  return addrs.some(isBlockedIp);
+}
+
 async function fetchPage(url: string): Promise<string> {
   let parsed: URL;
   try { parsed = new URL(url); } catch { throw new Error("invalid url"); }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw new Error("unsupported protocol");
   if (isBlockedHost(parsed.hostname)) throw new Error("blocked host");
+  if (await resolvedHostIsBlocked(parsed.hostname)) throw new Error("blocked host (resolves to private IP)");
 
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 10_000);

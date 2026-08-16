@@ -427,6 +427,11 @@ Deno.serve(async (req) => {
                 headers: {
                   "Content-Type": "application/json",
                   "x-beacon-key": BEACON_API_KEY,
+                  // Forward the end-user JWT so beacon-data-proxy derives + enforces
+                  // the caller's company_id. Without it the proxy has no verified
+                  // company and (post-hardening) refuses the query rather than
+                  // returning unscoped all-tenant rows.
+                  ...(authHeader ? { Authorization: authHeader } : {}),
                 },
                 body: JSON.stringify({ action: dq.action, params: dq.params }),
               });
@@ -542,6 +547,9 @@ Deno.serve(async (req) => {
             headers: {
               "Content-Type": "application/json",
               "x-beacon-key": BEACON_API_KEY,
+              // Forward the end-user JWT so beacon-data-proxy scopes bug patterns
+              // to the caller's company (see data-query prefetch above).
+              ...(authHeader ? { Authorization: authHeader } : {}),
             },
             body: JSON.stringify({
               action: "query_bug_patterns",
