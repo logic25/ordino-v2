@@ -29,6 +29,38 @@ function fail(message: string, status = 400) {
   });
 }
 
+// Actions that do NOT return tenant-scoped data and are therefore safe to run
+// without a verified company (schema introspection only). Every other action
+// returns or writes tenant rows and MUST have a companyId (fail closed).
+const COMPANY_OPTIONAL_ACTIONS = new Set(["list_schema", "describe_table"]);
+
+// ── Best-effort per-identity rate limit ──────────────────
+// In-memory, per-isolate (NOT distributed across regions/isolates). This throttles
+// a single hot caller / injected-tool loop and caps the error-path schema-hint
+// amplification. A shared/durable store (e.g. Postgres or KV) is the follow-up for
+// hard multi-instance guarantees — documented in the PR, not hacked in here.
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX = 120; // requests per identity per window
+const rateBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(identity: string): boolean {
+  const now = Date.now();
+  // Opportunistic prune so the map can't grow unbounded.
+  if (rateBuckets.size > 5000) {
+    for (const [k, v] of rateBuckets) {
+      if (now >= v.resetAt) rateBuckets.delete(k);
+    }
+  }
+  const b = rateBuckets.get(identity);
+  if (!b || now >= b.resetAt) {
+    rateBuckets.set(identity, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  if (b.count >= RATE_LIMIT_MAX) return false;
+  b.count++;
+  return true;
+}
+
 // Tables in the allowlist that carry a company_id column. ALL allowed tables
 // currently have company_id, so we scope every query_ordino call by company.
 const COMPANY_SCOPED_TABLES = new Set([
@@ -145,7 +177,25 @@ Deno.serve(async (req) => {
 
     const ctx: Ctx = { sb: supabase, companyId, userId, authMode };
 
+    // Per-identity throttle. Prefer the verified user/company; fall back to a
+    // per-source bucket for shared-secret-only callers.
+    const rlIdentity =
+      userId ??
+      companyId ??
+      `shared:${req.headers.get("x-forwarded-for") ?? "unknown"}`;
+    if (!checkRateLimit(rlIdentity)) {
+      return fail("Rate limit exceeded", 429);
+    }
+
     const { action, params = {} } = await req.json();
+
+    // Fail closed: when there is no verified company (shared-secret-only mode),
+    // company scoping is a no-op, so refuse any tenant-data action. This prevents
+    // an accidental/future BEACON_PROXY_ALLOW_SHARED_SECRET_ONLY=1 flip from
+    // leaking all-tenant rows. Schema-introspection actions are exempt.
+    if (!companyId && !COMPANY_OPTIONAL_ACTIONS.has(action)) {
+      return fail("Company scope required (no verified company on this request)", 403);
+    }
 
     let response: Response;
     let rowCount: number | null = null;
@@ -463,8 +513,12 @@ async function queryProposals(ctx: Ctx, params: any) {
   ).order("created_at", { ascending: false }).limit(200);
 
   if (params.status) q = q.eq("status", params.status);
-  if (params.search)
-    q = q.or(`client_name.ilike.%${params.search}%,title.ilike.%${params.search}%`);
+  if (params.search) {
+    // Strip PostgREST logic-tree reserved chars so a caller-supplied search term
+    // can't break out of the value and inject additional .or() conditions.
+    const esc = String(params.search).replace(/[,()*%:]/g, "");
+    q = q.or(`client_name.ilike.%${esc}%,title.ilike.%${esc}%`);
+  }
 
   const { data, error } = await q;
   if (error) {
@@ -591,6 +645,15 @@ async function queryOrdino(ctx: Ctx, params: any) {
 
   if (isTableBlocked(table)) {
     return fail(`Access to table '${table}' is not allowed`, 403);
+  }
+
+  // Reject caller-supplied embedded relations. A '(' in the select string is a
+  // PostgREST FK-embed (e.g. `companies(*)`, `profiles(*)`) which would traverse
+  // into related tables and bypass the table allowlist, column blocklist, and the
+  // company-scope filter (that only applies to the base table). Only flat columns
+  // are allowed here; the purpose-built actions above use vetted server-side embeds.
+  if (typeof select === "string" && select.includes("(")) {
+    return fail("Embedded relations are not allowed in 'select'", 400);
   }
 
   const safeSelect = resolveSelectAliases(table, select || "*");
