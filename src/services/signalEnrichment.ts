@@ -8,6 +8,17 @@ export interface SignalLeadProperty {
   gle_filings_here?: number | string | null;
 }
 
+/** A past project behind a "who we know" match — linkable to /projects/:id in the UI.
+ * Signals enriched before this field existed simply won't include it. */
+export interface WhoWeKnowProject {
+  id?: string | null;
+  project?: string | null;
+  role?: string | null;
+  firm?: string | null;
+  contact?: string | null;
+  about?: string | null;
+}
+
 export interface SignalLead {
   party: string;
   address?: string | null;
@@ -16,6 +27,7 @@ export interface SignalLead {
   why?: string | null;
   property?: SignalLeadProperty | null;
   who_we_know?: string[] | Record<string, unknown> | string | null;
+  who_we_know_projects?: WhoWeKnowProject[] | null;
 }
 
 export interface EnrichSignalResponse {
@@ -55,6 +67,14 @@ export function whoWeKnowLines(value: SignalLead["who_we_know"]): string[] {
   return Object.entries(value)
     .filter(([, v]) => v != null && v !== "")
     .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`);
+}
+
+/** Structured projects behind "who we know", each linkable to /projects/:id. Older signals
+ * (enriched before Beacon returned this) yield [] so the UI just shows the text summary. */
+export function whoWeKnowProjects(lead: SignalLead): WhoWeKnowProject[] {
+  const v = lead.who_we_know_projects;
+  if (!Array.isArray(v)) return [];
+  return v.filter((p): p is WhoWeKnowProject => !!p && typeof p === "object");
 }
 
 export function incumbentOf(lead: SignalLead): string | null {

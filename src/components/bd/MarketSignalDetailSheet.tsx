@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, Loader2, RefreshCw, Sparkles, UserPlus, AlertTriangle, ChevronDown, ChevronRight, Lightbulb, Newspaper } from "lucide-react";
 import {
@@ -13,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { safeFormatDate } from "@/lib/dateUtils";
 import {
-  enrichSignal, gleGapOf, incumbentOf, whoWeKnowLines, type SignalLead,
+  enrichSignal, gleGapOf, incumbentOf, whoWeKnowLines, whoWeKnowProjects, type SignalLead,
 } from "@/services/signalEnrichment";
 
 export type MarketSignal = {
@@ -130,6 +131,7 @@ function OpportunityCard({ lead, onPromote }: { lead: SignalLead; onPromote: () 
   const incumbent = incumbentOf(lead);
   const gap = gleGapOf(lead);
   const who = whoWeKnowLines(lead.who_we_know);
+  const whoProjects = whoWeKnowProjects(lead);
   return (
     <Card>
       <CardContent className="p-4 space-y-3">
@@ -156,12 +158,36 @@ function OpportunityCard({ lead, onPromote }: { lead: SignalLead; onPromote: () 
             </p>
           </div>
         )}
-        {(lead.property?.owner || incumbent || gap || who.length > 0) && (
+        {(lead.property?.owner || incumbent || gap || who.length > 0 || whoProjects.length > 0) && (
           <div className="space-y-1 pt-1 border-t">
             {lead.property?.owner && <Field label="Owner" value={lead.property.owner} />}
             {incumbent && <Field label="Incumbent expediter" value={incumbent} />}
             {gap && <Field label="GLE gap" value={gap} />}
             {who.length > 0 && <Field label="Who we know" value={who.join("; ")} />}
+            {whoProjects.length > 0 && (
+              <div className="flex gap-2 text-sm">
+                <span className="text-muted-foreground shrink-0 w-40">Related projects</span>
+                <div className="min-w-0 space-y-0.5">
+                  {whoProjects.map((p, i) =>
+                    p.id ? (
+                      <Link
+                        key={`${p.id}-${p.role ?? ""}-${i}`}
+                        to={`/projects/${p.id}`}
+                        className="block truncate text-primary hover:underline"
+                      >
+                        {p.project || "Untitled project"}
+                        {p.role ? ` (${p.role})` : ""}
+                      </Link>
+                    ) : (
+                      <div key={`noid-${i}`} className="truncate text-muted-foreground">
+                        {p.project || "Untitled project"}
+                        {p.role ? ` (${p.role})` : ""}
+                      </div>
+                    ),
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </CardContent>
