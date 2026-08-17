@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
       title: string;
       body: string;
       link: string;
-      metadata: Record<string, unknown>;
+      project_id: string;
     }> = [];
 
     const updates: Array<{ id: string; fields: Record<string, boolean> }> = [];
@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
             title: "Project Completion Approaching",
             body: `${label} is due in ~2 weeks (${completionDate}). Review status and plan for closeout.`,
             link: `/projects/${project.id}`,
-            metadata: { project_id: project.id, reminder: "2_weeks_before" },
+            project_id: project.id,
           });
         }
         updates.push({ id: project.id, fields: { completion_reminder_2w_sent: true } });
@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
             title: "Project Completion Date Reached",
             body: `${label} expected completion is today (${completionDate}). Is this project ready to close?`,
             link: `/projects/${project.id}`,
-            metadata: { project_id: project.id, reminder: "on_date" },
+            project_id: project.id,
           });
         }
         updates.push({ id: project.id, fields: { completion_reminder_due_sent: true } });
@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
             title: "Project Overdue",
             body: `${label} is 1+ week past its expected completion (${completionDate}). Please update status or extend the date.`,
             link: `/projects/${project.id}`,
-            metadata: { project_id: project.id, reminder: "1_week_overdue" },
+            project_id: project.id,
           });
         }
         updates.push({ id: project.id, fields: { completion_reminder_overdue_sent: true } });

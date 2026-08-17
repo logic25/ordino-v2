@@ -77,9 +77,8 @@ Deno.serve(async (req) => {
       user_id: pmId,
       type: "project_stale",
       title: `${count} stale project${count > 1 ? "s" : ""} need${count > 1 ? "" : "s"} attention`,
-      message: `${sample}${more}`,
+      body: `${sample}${more}`,
       link: `/projects?filter=stale`,
-      metadata: { project_ids: payload.projects.map((p: any) => p.id) },
     });
     if (insErr) {
       console.error("notification insert failed", insErr);
