@@ -103,9 +103,16 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: `Unknown action: ${action}` }, 400);
 
     }
-  } catch (err) {
+  } catch (err: any) {
+    // PostgREST errors are plain objects, so String(err) is "[object Object]" —
+    // which masked real DB failures. Surface the actual PostgREST error fields
+    // (message/error/details/hint/code). Safe for the internal Beacon caller.
+    const msg = err instanceof Error ? err.message
+      : (err && typeof err === "object")
+        ? (err.message ?? err.error ?? err.details ?? err.hint ?? JSON.stringify(err))
+        : String(err);
     console.error("beacon-analytics error:", err);
-    return jsonResponse({ error: err instanceof Error ? err.message : String(err) }, 500);
+    return jsonResponse({ error: msg, code: err?.code ?? null, details: err?.details ?? null }, 500);
   }
 });
 
@@ -564,6 +571,22 @@ async function updateFeedbackRoadmap(sb: any, d: any) {
 
 // ─── Content Pipeline Actions ───────────────────────────────────────
 
+// content_candidates.{relevance,demand,expertise}_score, estimated_minutes and
+// team_questions_count are INTEGER columns, but callers (the Beacon seeder) may
+// send floats, numeric strings, or booleans — which makes the upsert 500 at the
+// DB boundary. Coerce to an integer (or null) before writing.
+function toIntOrNull(v: any): number | null {
+  if (v == null) return null;
+  if (typeof v === "boolean") return v ? 1 : 0;
+  const n = Number(v);
+  if (Number.isFinite(n)) return Math.round(n);
+  if (typeof v === "string") {
+    const m = v.match(/-?\d+/);
+    return m ? parseInt(m[0], 10) : null;
+  }
+  return null;
+}
+
 async function saveContentCandidate(sb: any, d: any) {
   // Resolve company_id: prefer payload, else first company in DB (same fallback
   // pattern as logFeedback). content_candidates.company_id is NOT NULL — without
@@ -594,16 +617,16 @@ async function saveContentCandidate(sb: any, d: any) {
       content_type: d.content_type ?? "blog_post",
       priority: d.priority ?? "medium",
       status: d.status ?? "pending",
-      relevance_score: d.relevance_score ?? 50,
-      demand_score: d.demand_score ?? null,
-      expertise_score: d.expertise_score ?? null,
+      relevance_score: toIntOrNull(d.relevance_score) ?? 50,
+      demand_score: toIntOrNull(d.demand_score),
+      expertise_score: toIntOrNull(d.expertise_score),
       search_interest: d.search_interest ?? "unknown",
       affects_services: d.affects_services ?? [],
       key_topics: d.key_topics ?? [],
       reasoning: d.reasoning ?? "",
       review_question: d.review_question ?? null,
       content_angle: d.content_angle ?? null,
-      team_questions_count: d.team_questions_count ?? 0,
+      team_questions_count: toIntOrNull(d.team_questions_count) ?? 0,
       team_questions: d.team_questions ?? [],
       most_common_angle: d.most_common_angle ?? null,
       source_type: d.source_type ?? "question_cluster",
@@ -611,7 +634,7 @@ async function saveContentCandidate(sb: any, d: any) {
       source_email_id: d.source_email_id ?? null,
       content_preview: d.content_preview ?? null,
       recommended_format: d.recommended_format ?? null,
-      estimated_minutes: d.estimated_minutes ?? null,
+      estimated_minutes: toIntOrNull(d.estimated_minutes),
       updated_at: new Date().toISOString(),
     }, { onConflict: "id" })
     .select()
