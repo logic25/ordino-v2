@@ -227,6 +227,7 @@ Context: Invoice ${invoice_number || "unknown"} for client ${client_name || "unk
         .from("invoices")
         .select("client_id")
         .eq("id", invoice_id)
+        .eq("company_id", profile.company_id)
         .single();
 
       const promiseRows = promises

@@ -31,10 +31,12 @@ Deno.serve(async (req) => {
 
     let supabase: any;
     let companyId: string | null = null;
+    let isServiceRole = false;
 
     // Check if using service role key (for agent service)
     if (authHeader === `Bearer ${serviceRoleKey}`) {
       supabase = createClient(supabaseUrl, serviceRoleKey);
+      isServiceRole = true;
     } else {
       // JWT auth for browser calls
       supabase = createClient(supabaseUrl, anonKey, {
@@ -82,8 +84,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Company scope check for JWT users
-    if (companyId && project.company_id !== companyId) {
+    // Company scope check for JWT users. Fail closed: a JWT caller with no
+    // resolvable company_id must never fall through to a full payload read.
+    // Service-role (agent) callers are trusted internal and exempt by design.
+    if (!isServiceRole && (!companyId || project.company_id !== companyId)) {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -71,9 +71,17 @@ Deno.serve(async (req) => {
     // Look up property to get citisignal_property_id or use BIN
     const { data: property } = await supabase
       .from("properties")
-      .select("citisignal_property_id, bin")
+      .select("citisignal_property_id, bin, company_id")
       .eq("id", property_id)
       .maybeSingle();
+
+    // Tenant isolation: the property must belong to the caller's company.
+    if (!property || property.company_id !== profile.company_id) {
+      return new Response(JSON.stringify({ error: "Property not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const lookupBin = bin || property?.bin;
     let citisignalPropertyId = property?.citisignal_property_id;
@@ -109,7 +117,7 @@ Deno.serve(async (req) => {
         if (matched?.id) {
           citisignalPropertyId = matched.id;
           console.log(`Resolved CitiSignal property: ${matched.id} for BIN ${lookupBin} (page ${page})`);
-          await supabase.from("properties").update({ citisignal_property_id: matched.id }).eq("id", property_id);
+          await supabase.from("properties").update({ citisignal_property_id: matched.id }).eq("id", property_id).eq("company_id", profile.company_id);
           found = true;
         } else if (list.length < perPage) {
           // Last page — no more results
@@ -253,7 +261,8 @@ Deno.serve(async (req) => {
       const { error: propErr } = await supabase
         .from("properties")
         .update(propertyUpdates)
-        .eq("id", property_id);
+        .eq("id", property_id)
+        .eq("company_id", profile.company_id);
 
       if (propErr) console.error("Error updating property:", propErr);
     }

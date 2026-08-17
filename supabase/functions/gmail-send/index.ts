@@ -172,18 +172,32 @@ async function fetchOriginalMessageContent({
   supabaseAdmin,
   accessToken,
   emailId,
+  callerCompanyId,
 }: {
   supabaseAdmin: ReturnType<typeof createClient>;
   accessToken: string;
   emailId: string;
+  callerCompanyId: string | null;
 }) {
   const { data: originalEmail } = await supabaseAdmin
     .from("emails")
-    .select("id, gmail_message_id, thread_id, body_html, body_text, subject, from_name, from_email, date")
+    .select("id, company_id, gmail_message_id, thread_id, body_html, body_text, subject, from_name, from_email, date")
     .eq("id", emailId)
     .single();
 
   if (!originalEmail) return null;
+
+  // Tenant isolation: a JWT caller may only forward emails belonging to their
+  // own company. Service-role callers (callerCompanyId === null) are trusted
+  // internal automation and are exempt by design.
+  if (callerCompanyId !== null && originalEmail.company_id !== callerCompanyId) {
+    console.warn("gmail-send forward blocked: cross-company email access", {
+      email_id: emailId,
+      email_company_id: originalEmail.company_id,
+      caller_company_id: callerCompanyId,
+    });
+    return null;
+  }
 
   console.log("gmail-send forward source email", {
     email_id: emailId,
@@ -411,6 +425,9 @@ Deno.serve(async (req) => {
     const isServiceRole = token === supabaseServiceKey;
 
     let profileId: string;
+    // null = service-role/trusted internal caller; a UUID = JWT caller scoped
+    // to that company. Used to gate cross-tenant email forwarding below.
+    let callerCompanyId: string | null = null;
 
     if (isServiceRole) {
       const reqBody = await req.json();
@@ -458,6 +475,7 @@ Deno.serve(async (req) => {
       }
 
       profileId = profile.id;
+      callerCompanyId = profile.company_id;
     }
 
     const reqBody = isServiceRole ? (req as any)._parsedBody : await req.json();
@@ -545,6 +563,7 @@ Deno.serve(async (req) => {
         supabaseAdmin,
         accessToken,
         emailId: forward_from_email_id,
+        callerCompanyId,
       });
 
       if (originalForwardEmail) {

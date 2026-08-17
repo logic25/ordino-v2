@@ -104,8 +104,10 @@ Deno.serve(async (req) => {
     }
 
     // Cross-tenant guard: a browser user may only read/update runs in their own
-    // company. Trusted service-role / agent callers (callerCompanyId null) are exempt.
-    if (callerCompanyId && run.company_id !== callerCompanyId) {
+    // company. Trusted service-role / agent callers are exempt by design. Fail
+    // closed for a JWT caller with no resolvable company_id — never let a null
+    // company short-circuit into an unscoped write.
+    if (!isServiceRole && !isAgentAuth && (!callerCompanyId || run.company_id !== callerCompanyId)) {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
