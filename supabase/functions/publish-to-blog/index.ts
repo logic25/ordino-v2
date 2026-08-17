@@ -103,12 +103,46 @@ serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   const marketingSiteUrl = Deno.env.get("MARKETING_SITE_URL")?.replace(/\/$/, "");
   const publishSecret = Deno.env.get("CONTENT_PUBLISH_SECRET");
 
   try {
+    // Authz: pushing generated_content live to the public marketing blog is a
+    // staff-only action. The gateway verifies the JWT (verify_jwt defaults true),
+    // but that only proves the caller is *some* authenticated principal — it does
+    // not prove they are GLE staff. Confirm staff role here so an ordinary
+    // authenticated user can't publish to the blog. Mirrors send-portal-invite.
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const token = authHeader.replace("Bearer ", "");
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: claims, error: claimsErr } = await userClient.auth.getClaims(token);
+    if (claimsErr || !claims?.claims?.sub) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: staffCheck, error: staffErr } = await supabase.rpc("is_gle_staff", {
+      _uid: claims.claims.sub,
+    });
+    if (staffErr || staffCheck !== true) {
+      return new Response(JSON.stringify({ error: "Forbidden: staff only" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { draft_id, candidate_id } = await req.json();
     if (!draft_id || !candidate_id) {
       return new Response(JSON.stringify({ error: "draft_id and candidate_id are required" }), {

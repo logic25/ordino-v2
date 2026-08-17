@@ -1,9 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { timingSafeEqual } from "../_shared/timingSafeEqual.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "authorization, x-client-info, apikey, content-type, x-cron-secret, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 async function refreshAccessToken(
@@ -93,29 +94,84 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Auth: verify JWT
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user }, error: userError } = await authClient.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Authorization: this is a privileged send worker. Accept EITHER
+    //   (a) a valid cron secret — the scheduler flushing every company's due
+    //       queue (server-to-server, no user), OR
+    //   (b) an authenticated GLE-staff caller — flushing only their own company.
+    // Anything else (including an ordinary authenticated non-staff user) is
+    // rejected, so a logged-in user cannot trigger the worker. Previously the
+    // only gate was a valid user JWT, letting any authenticated principal fire
+    // the send loop.
+    //
+    // scopedCompanyId === null  → cron caller, process all companies
+    // scopedCompanyId === <uuid> → staff caller, restrict to their company
+    let scopedCompanyId: string | null = null;
+
+    const cronSecretHeader = req.headers.get("x-cron-secret");
+    if (cronSecretHeader) {
+      let expected = "";
+      try {
+        const { data } = await supabaseAdmin.rpc("internal_get_cron_secret");
+        expected = (data as string) || "";
+      } catch (e) {
+        console.error("get cron secret failed:", (e as Error).message);
+      }
+      if (!expected || !timingSafeEqual(cronSecretHeader, expected)) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // Authorized cron: scopedCompanyId stays null → all companies.
+    } else {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader?.startsWith("Bearer ")) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
       });
+      const { data: { user }, error: userError } = await authClient.auth.getUser();
+      if (userError || !user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: isStaff, error: staffErr } = await supabaseAdmin.rpc("is_gle_staff", {
+        _uid: user.id,
+      });
+      if (staffErr || isStaff !== true) {
+        return new Response(JSON.stringify({ error: "Forbidden: staff only" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Staff caller: still scope the flush to their own company.
+      const { data: callerProfile, error: profileError } = await supabaseAdmin
+        .from("profiles")
+        .select("company_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (profileError || !callerProfile?.company_id) {
+        return new Response(JSON.stringify({ error: "Profile/company not found" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      scopedCompanyId = callerProfile.company_id;
     }
 
-    // Internal worker — uses service-role client for all DB ops
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const gmailClientId = Deno.env.get("GMAIL_CLIENT_ID");
     const gmailClientSecret = Deno.env.get("GMAIL_CLIENT_SECRET");
 
@@ -126,31 +182,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Tenant scoping: only process emails belonging to the caller's company
-    const { data: callerProfile, error: profileError } = await supabaseAdmin
-      .from("profiles")
-      .select("company_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (profileError || !callerProfile?.company_id) {
-      return new Response(JSON.stringify({ error: "Profile/company not found" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Find all due scheduled emails for this company only
+    // Find all due scheduled emails (all companies for cron; one company for staff)
     const now = new Date().toISOString();
-    const { data: dueEmails, error: fetchError } = await supabaseAdmin
+    let dueQuery = supabaseAdmin
       .from("scheduled_emails")
       .select("*")
       .eq("status", "scheduled")
-      .eq("company_id", callerProfile.company_id)
       .lte("scheduled_send_time", now)
       .limit(50);
+    if (scopedCompanyId) dueQuery = dueQuery.eq("company_id", scopedCompanyId);
+    const { data: dueEmails, error: fetchError } = await dueQuery;
 
     if (fetchError) throw fetchError;
 
