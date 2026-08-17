@@ -10939,6 +10939,7 @@ export type Database = {
           responded_at: string | null
           response_status: string
           response_token: string
+          token_expires_at: string
           updated_at: string
         }
         Insert: {
@@ -10954,6 +10955,7 @@ export type Database = {
           responded_at?: string | null
           response_status?: string
           response_token?: string
+          token_expires_at?: string
           updated_at?: string
         }
         Update: {
@@ -10969,6 +10971,7 @@ export type Database = {
           responded_at?: string | null
           response_status?: string
           response_token?: string
+          token_expires_at?: string
           updated_at?: string
         }
         Relationships: [
