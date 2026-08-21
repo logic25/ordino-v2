@@ -73,6 +73,38 @@ interface SessionPreview {
   message_count: number;
 }
 
+// The live conversation lives in component state. A remount (see below) would
+// otherwise wipe it, so we mirror it into sessionStorage — scoped to the tab,
+// cleared when the tab closes — and rehydrate on mount.
+//
+// Why a remount happens: when the tab regains focus, Supabase refreshes the
+// auth token and fires TOKEN_REFRESHED. useAuth's onAuthStateChange flips
+// `profileLoading` true (useAuth.tsx), which makes ProtectedRoute render a
+// LoadingScreen (RouteGuards.tsx) — briefly unmounting AppLayout and this
+// widget. On the way back the widget remounts with empty `messages` and a
+// fresh sessionId. Persisting here makes the conversation survive that.
+const ACTIVE_CHAT_KEY = "beacon:active-chat";
+
+interface PersistedChat {
+  sessionId: string;
+  messages: ChatMessage[];
+  historyCount: number;
+}
+
+function loadPersistedChat(): PersistedChat | null {
+  try {
+    const raw = sessionStorage.getItem(ACTIVE_CHAT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PersistedChat;
+    if (!parsed || typeof parsed.sessionId !== "string" || !Array.isArray(parsed.messages)) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 function ConfidenceBadge({ confidence }: { confidence: number }) {
   const pct = Math.round(confidence * 100);
   const color = pct >= 85 ? "bg-[hsl(142,71%,45%)]" : pct >= 60 ? "bg-yellow-500" : "bg-destructive";
@@ -291,7 +323,9 @@ interface BeaconChatWidgetProps {
 
 export function BeaconChatWidget({ projectContext: externalContext }: BeaconChatWidgetProps = {}) {
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // Lazy-init from sessionStorage so a remount (auth token-refresh on tab
+  // refocus — see loadPersistedChat) doesn't lose the live conversation.
+  const [messages, setMessages] = useState<ChatMessage[]>(() => loadPersistedChat()?.messages ?? []);
   const [input, setInput] = useState("");
   // User-pasted screenshot (base64 data URL stripped to b64-only) — sent as evidence with the next bug report.
   const [pastedScreenshot, setPastedScreenshot] = useState<string | null>(null);
@@ -301,7 +335,7 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
   const [contextCleared, setContextCleared] = useState(false);
 
   // Session management
-  const [sessionId, setSessionId] = useState<string>(() => crypto.randomUUID());
+  const [sessionId, setSessionId] = useState<string>(() => loadPersistedChat()?.sessionId ?? crypto.randomUUID());
   const [showHistory, setShowHistory] = useState(false);
   const [historySessions, setHistorySessions] = useState<SessionPreview[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -310,11 +344,29 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
   const activeContext = contextCleared ? undefined : externalContext;
   useEffect(() => { setContextCleared(false); }, [externalContext?.projectId]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
-  const [historyCount, setHistoryCount] = useState(0);
+  const [historyCount, setHistoryCount] = useState(() => loadPersistedChat()?.historyCount ?? 0);
   const lastBotRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevCountRef = useRef(0);
   const { user, profile } = useAuth();
+
+  // Mirror the live conversation into sessionStorage so it survives a remount
+  // (auth token-refresh on tab refocus → LoadingScreen flash → widget unmount).
+  // Cleared when empty (e.g. after New Chat) so a fresh chat stays fresh.
+  useEffect(() => {
+    try {
+      if (messages.length === 0) {
+        sessionStorage.removeItem(ACTIVE_CHAT_KEY);
+      } else {
+        sessionStorage.setItem(
+          ACTIVE_CHAT_KEY,
+          JSON.stringify({ sessionId, messages, historyCount } as PersistedChat)
+        );
+      }
+    } catch {
+      // sessionStorage unavailable or over quota — non-fatal, chat still works.
+    }
+  }, [messages, sessionId, historyCount]);
   const [beaconOnline, setBeaconOnline] = useState(true);
   const [viewingFile, setViewingFile] = useState<string | null>(null);
   // Per-message feedback state: "up" | "down" | "done" (logged, locked).
@@ -1208,7 +1260,17 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onPaste={(e) => {
-                  const items = e.clipboardData?.items;
+                  const cd = e.clipboardData;
+                  if (!cd) return;
+                  // If the clipboard carries text, let the browser paste it
+                  // normally. Rich sources (email, web pages, Word/Docs, macOS)
+                  // often ALSO put an image on the clipboard; treating those as a
+                  // screenshot would preventDefault the whole paste, drop the
+                  // text, and leave the input empty — silently blocking the send.
+                  // Only capture a screenshot for a pure-image paste.
+                  const text = cd.getData("text/plain");
+                  if (text && text.trim()) return;
+                  const items = cd.items;
                   if (!items) return;
                   for (let i = 0; i < items.length; i++) {
                     const it = items[i];
