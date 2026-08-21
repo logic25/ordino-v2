@@ -62,7 +62,6 @@ Supabase
 
 A few of the ~67 functions in [`supabase/functions/`](supabase/functions):
 
-- **`beacon-qa`** — the Beacon assistant: a JWT-authenticated tool-calling loop over an allowlisted schema slice; audit-logged to `beacon_tool_log`.
 - **`summarize-project` / `auto-summarize-projects`** — AI status summaries. Pulls open checklist items, PIS gaps (from the latest RFI), recent activity, and the **last 30 days of project-tagged emails**, then writes a concise status note. (Note: Beacon does not automatically use this note — it queries live tables — so the two can read differently.)
 - **`extract-rfp` / `monitor-rfps` / `rfp-partner-response`** — RFP intake & automation.
 - **`predict-payment-risk` / `analyze-client-payments`** — billing/collections AI.
