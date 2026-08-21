@@ -126,9 +126,8 @@ Deno.serve(async (req) => {
             company_id: enr.company_id,
             type: "sequence_paused",
             title: "Sequence paused — lead replied",
-            message: `Stopped sending to the lead after an inbound reply.`,
-            metadata: { enrollment_id: enr.id, lead_id: enr.lead_id, sequence_id: enr.sequence_id },
-          } as any);
+            body: `Stopped sending to the lead after an inbound reply.`,
+          });
 
           results.push({ ownerId, enrollment_id: enr.id, action: "paused_on_reply" });
           continue;
